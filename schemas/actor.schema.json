@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custodi.example/schemas/actor.schema.json",
+  "title": "Actor",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "stats",
+    "resources",
+    "skills",
+    "talents",
+    "traits",
+    "equipment",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "PC",
+        "NPC"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": [
+        "STR",
+        "TOU",
+        "AGI",
+        "INT",
+        "WIL",
+        "CHA",
+        "WS",
+        "BS",
+        "INI",
+        "PER"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "STR": {
+          "type": "number"
+        },
+        "TOU": {
+          "type": "number"
+        },
+        "AGI": {
+          "type": "number"
+        },
+        "INT": {
+          "type": "number"
+        },
+        "WIL": {
+          "type": "number"
+        },
+        "CHA": {
+          "type": "number"
+        },
+        "WS": {
+          "type": "number"
+        },
+        "BS": {
+          "type": "number"
+        },
+        "INI": {
+          "type": "number"
+        },
+        "PER": {
+          "type": "number"
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mod": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "hpMax": {
+          "type": "number"
+        },
+        "rfMax": {
+          "type": "number"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "hp",
+        "rf",
+        "peq"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "hp": {
+          "type": "number"
+        },
+        "rf": {
+          "type": "number"
+        },
+        "peq": {
+          "type": "number"
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "talents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "equipment": {
+      "type": "object",
+      "required": [
+        "equipped"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "equipped": {
+          "type": "object",
+          "required": [
+            "weaponMainId",
+            "weaponOffId",
+            "armorId",
+            "accessoryIds"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "weaponMainId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "weaponOffId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "armorId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "accessoryIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "conditions",
+        "tempModifiers"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tempModifiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "scope",
+              "value"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "check",
+                  "combat",
+                  "all"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "expires": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

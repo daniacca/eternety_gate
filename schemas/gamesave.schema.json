@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custodi.example/schemas/gamesave.schema.json",
+  "title": "GameSave",
+  "type": "object",
+  "required": ["saveVersion", "story", "state", "party", "actorsById", "itemCatalogById", "runtime"],
+  "additionalProperties": false,
+
+  "properties": {
+    "saveVersion": { "type": "string", "const": "1.0.0" },
+
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+
+    "engineVersion": { "type": "string" },
+    "platform": { "type": "string" },
+
+    "story": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "state": {
+      "type": "object",
+      "required": ["flags", "counters", "inventory"],
+      "additionalProperties": true,
+      "properties": {
+        "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
+        "counters": { "type": "object", "additionalProperties": { "type": "number" } },
+        "inventory": {
+          "type": "object",
+          "required": ["items"],
+          "additionalProperties": true,
+          "properties": {
+            "items": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "runVariant": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "party": { "$ref": "./party.schema.json" },
+
+    "actorsById": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "./actor.schema.json" }
+    },
+
+    "itemCatalogById": {
+      "type": "object",
+      "additionalProperties": { "$ref": "./item.schema.json" }
+    },
+
+    "runtime": {
+      "type": "object",
+      "required": ["currentSceneId", "rngSeed", "history", "firedWorldEvents"],
+      "additionalProperties": false,
+      "properties": {
+        "currentSceneId": { "type": "string", "minLength": 1 },
+
+        "rngSeed": { "type": "integer" },
+        "rngCounter": { "type": "integer", "minimum": 0 },
+
+        "history": {
+          "type": "object",
+          "required": ["visitedScenes", "chosenChoices"],
+          "additionalProperties": false,
+          "properties": {
+            "visitedScenes": { "type": "array", "items": { "type": "string" } },
+            "chosenChoices": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+
+        "firedWorldEvents": { "type": "array", "items": { "type": "string" } },
+
+        "lastCheck": { "$ref": "#/$defs/checkResult" }
+      }
+    }
+  },
+
+  "$defs": {
+    "checkResult": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "checkId": { "type": "string" },
+        "actorId": { "type": "string" },
+
+        "roll": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "target": { "type": "number" },
+
+        "success": { "type": "boolean" },
+        "dos": { "type": "integer" },
+        "dof": { "type": "integer" },
+
+        "critical": {
+          "type": "string",
+          "enum": ["none", "autoSuccess", "autoFail", "epicSuccess", "epicFail"]
+        },
+
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

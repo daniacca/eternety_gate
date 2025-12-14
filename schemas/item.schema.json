@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custodi.example/schemas/item.schema.json",
+  "title": "Item",
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "tags",
+    "mods"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "weapon",
+        "armor",
+        "accessory",
+        "consumable",
+        "quest"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "mods": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/itemMod"
+      }
+    },
+    "damageTier": {
+      "type": "string",
+      "enum": [
+        "Half",
+        "Single",
+        "Double",
+        "Triple",
+        "Fourfold",
+        "Fivefold"
+      ]
+    },
+    "armorValue": {
+      "type": "number"
+    }
+  },
+  "$defs": {
+    "itemMod": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "focus",
+            "bonusStat",
+            "bonusSkill",
+            "special"
+          ]
+        },
+        "stat": {
+          "type": "string"
+        },
+        "skill": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "channelBonus": {
+          "type": "integer",
+          "enum": [
+            10,
+            20
+          ]
+        },
+        "castBonus": {
+          "type": "integer",
+          "enum": [
+            10,
+            20
+          ]
+        }
+      }
+    }
+  }
+}
