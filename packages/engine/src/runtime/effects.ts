@@ -74,7 +74,10 @@ function applySetFlag(
   save: GameSave
 ): GameSave {
   const newFlags = { ...save.state.flags };
-  setNestedValue(newFlags, effect.path, effect.value);
+  // Strip 'flags.' prefix if present since we're operating on the flags object
+  // After stripping, treat as flat key (no nested path resolution)
+  const key = effect.path.startsWith('flags.') ? effect.path.substring(6) : effect.path;
+  setFlatValue(newFlags, key, effect.value);
 
   return {
     ...save,
@@ -90,8 +93,11 @@ function applyAddCounter(
   save: GameSave
 ): GameSave {
   const newCounters = { ...save.state.counters };
-  const currentValue = getNestedValue(newCounters, effect.path) || 0;
-  setNestedValue(newCounters, effect.path, currentValue + effect.value);
+  // Strip 'counters.' prefix if present since we're operating on the counters object
+  // After stripping, treat as flat key (no nested path resolution)
+  const key = effect.path.startsWith('counters.') ? effect.path.substring(9) : effect.path;
+  const currentValue = getFlatValue(newCounters, key) || 0;
+  setFlatValue(newCounters, key, currentValue + effect.value);
 
   return {
     ...save,
@@ -283,37 +289,16 @@ function applyFireWorldEvents(
 }
 
 /**
- * Gets a nested value from an object using dot notation path
+ * Gets a flat value from an object using a flat key (no nested path resolution)
  */
-function getNestedValue(obj: Record<string, any>, path: string): any {
-  const parts = path.split('.');
-  let current: any = obj;
-
-  for (const part of parts) {
-    if (current == null || typeof current !== 'object') {
-      return undefined;
-    }
-    current = current[part];
-  }
-
-  return current;
+function getFlatValue(obj: Record<string, any>, key: string): any {
+  return obj[key];
 }
 
 /**
- * Sets a nested value in an object using dot notation path
+ * Sets a flat value in an object using a flat key (no nested path resolution)
  */
-function setNestedValue(obj: Record<string, any>, path: string, value: any): void {
-  const parts = path.split('.');
-  let current: any = obj;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    if (!(part in current) || typeof current[part] !== 'object') {
-      current[part] = {};
-    }
-    current = current[part];
-  }
-
-  current[parts[parts.length - 1]] = value;
+function setFlatValue(obj: Record<string, any>, key: string, value: any): void {
+  obj[key] = value;
 }
 

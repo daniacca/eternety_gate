@@ -98,9 +98,15 @@ export default function PlayScreen() {
           <View style={styles.checkInfo}>
             <Text style={styles.checkLabel}>Last Check:</Text>
             <Text style={styles.checkText}>
-              {save.runtime.lastCheck.success ? "Success" : "Failure"} (DoS: {save.runtime.lastCheck.dos}, DoF:{" "}
-              {save.runtime.lastCheck.dof})
+              Roll: {save.runtime.lastCheck.roll} vs Target: {save.runtime.lastCheck.target}
             </Text>
+            <Text style={styles.checkText}>{save.runtime.lastCheck.success ? "✓ Success" : "✗ Failure"}</Text>
+            <Text style={styles.checkText}>
+              DoS: {save.runtime.lastCheck.dos} | DoF: {save.runtime.lastCheck.dof}
+            </Text>
+            {save.runtime.lastCheck.critical !== "none" && (
+              <Text style={styles.checkText}>Critical: {save.runtime.lastCheck.critical}</Text>
+            )}
           </View>
         )}
       </View>
@@ -166,5 +172,6 @@ const styles = StyleSheet.create({
   checkText: {
     fontSize: 14,
     color: "#333",
+    marginBottom: 4,
   },
 });

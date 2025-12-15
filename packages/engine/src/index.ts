@@ -16,7 +16,7 @@ export {
 export { evaluateCondition, evaluateConditions } from './runtime/conditions';
 export { applyEffect, applyEffects } from './runtime/effects';
 export { performCheck, resolveActor, getStatOrSkillValue } from './runtime/checks';
-export { RNG } from './runtime/rng';
+export { RNG, rollD100 } from './runtime/rng';
 
 // Types
 export type * from './runtime/types';

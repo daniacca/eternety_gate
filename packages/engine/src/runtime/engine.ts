@@ -207,27 +207,37 @@ export function applyChoice(
   }
 
   // Execute choice checks if any
+  // Stop on first failure (after applying onFailure effects)
   if (choice.checks) {
     for (const check of choice.checks) {
       const result = performCheck(check, storyPack, currentSave, rng);
-      if (result) {
-        currentSave = {
-          ...currentSave,
-          runtime: {
-            ...currentSave.runtime,
-            lastCheck: result,
-            rngCounter: rng.getCounter(),
-          },
-        };
+      if (!result) {
+        // If check returns null, skip it
+        continue;
+      }
 
-        // Update magic state if needed
-        currentSave = updateMagicState(check, result, currentSave);
+      // Store check result
+      currentSave = {
+        ...currentSave,
+        runtime: {
+          ...currentSave.runtime,
+          lastCheck: result,
+          rngCounter: rng.getCounter(),
+        },
+      };
 
-        if (result.success && check.onSuccess) {
-          currentSave = applyEffects(check.onSuccess, storyPack, currentSave, rng);
-        } else if (!result.success && check.onFailure) {
+      // Update magic state if needed
+      currentSave = updateMagicState(check, result, currentSave);
+
+      if (result.success && check.onSuccess) {
+        currentSave = applyEffects(check.onSuccess, storyPack, currentSave, rng);
+      } else if (!result.success) {
+        // On failure, apply onFailure effects and stop further checks
+        if (check.onFailure) {
           currentSave = applyEffects(check.onFailure, storyPack, currentSave, rng);
         }
+        // Stop processing further checks on failure
+        break;
       }
     }
   }

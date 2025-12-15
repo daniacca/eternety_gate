@@ -171,17 +171,17 @@ export function performCheck(
     case 'single':
       return performSingleCheck(check, storyPack, save, rng);
     case 'multi':
-      return performMultiCheck(check, storyPack, save, rng);
+      throw new Error(`Check kind 'multi' is not yet implemented in this vertical slice`);
     case 'opposed':
-      return performOpposedCheck(check, storyPack, save, rng);
+      throw new Error(`Check kind 'opposed' is not yet implemented in this vertical slice`);
     case 'sequence':
-      return performSequenceCheck(check, storyPack, save, rng);
+      throw new Error(`Check kind 'sequence' is not yet implemented in this vertical slice`);
     case 'magicChannel':
-      return performMagicChannelCheck(check, storyPack, save, rng);
+      throw new Error(`Check kind 'magicChannel' is not yet implemented in this vertical slice`);
     case 'magicEffect':
-      return performMagicEffectCheck(check, storyPack, save, rng);
+      throw new Error(`Check kind 'magicEffect' is not yet implemented in this vertical slice`);
     default:
-      return null;
+      throw new Error(`Unknown check kind: ${(check as any).kind}`);
   }
 }
 

@@ -6,17 +6,23 @@ import type { Condition, GameSave } from './types';
 export function evaluateCondition(condition: Condition, save: GameSave): boolean {
   switch (condition.op) {
     case 'flag': {
-      const value = getStateValue(save.state.flags, condition.path);
+      // Strip 'flags.' prefix if present since we're operating on the flags object
+      const path = condition.path.startsWith('flags.') ? condition.path.substring(6) : condition.path;
+      const value = getStateValue(save.state.flags, path);
       return value === condition.value;
     }
 
     case 'counterGte': {
-      const value = getStateValue(save.state.counters, condition.path);
+      // Strip 'counters.' prefix if present since we're operating on the counters object
+      const path = condition.path.startsWith('counters.') ? condition.path.substring(9) : condition.path;
+      const value = getStateValue(save.state.counters, path);
       return typeof value === 'number' && value >= condition.value;
     }
 
     case 'counterLte': {
-      const value = getStateValue(save.state.counters, condition.path);
+      // Strip 'counters.' prefix if present since we're operating on the counters object
+      const path = condition.path.startsWith('counters.') ? condition.path.substring(9) : condition.path;
+      const value = getStateValue(save.state.counters, path);
       return typeof value === 'number' && value <= condition.value;
     }
 
@@ -51,19 +57,9 @@ export function evaluateConditions(
 }
 
 /**
- * Gets a nested value from an object using dot notation path
+ * Gets a flat value from an object using a flat key (no nested path resolution)
  */
-function getStateValue(obj: Record<string, any>, path: string): any {
-  const parts = path.split('.');
-  let current: any = obj;
-  
-  for (const part of parts) {
-    if (current == null || typeof current !== 'object') {
-      return undefined;
-    }
-    current = current[part];
-  }
-  
-  return current;
+function getStateValue(obj: Record<string, any>, key: string): any {
+  return obj[key];
 }
 
