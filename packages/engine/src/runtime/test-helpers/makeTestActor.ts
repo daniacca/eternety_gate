@@ -1,9 +1,16 @@
-import type { Actor } from '../types';
+import type { Actor, StatKey } from '../types';
+
+/**
+ * Override type that allows partial stats
+ */
+type TestActorOverrides = Omit<Partial<Actor>, 'stats'> & {
+  stats?: Partial<Record<StatKey, number>>;
+};
 
 /**
  * Creates a test actor with sensible defaults
  */
-export function makeTestActor(overrides?: Partial<Actor>): Actor {
+export function makeTestActor(overrides?: TestActorOverrides): Actor {
   const defaultActor: Actor = {
     id: 'PC_1',
     name: 'Test Player',

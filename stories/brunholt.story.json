@@ -4,11 +4,7 @@
   "version": "1.1.0",
   "meta": {
     "setting": "Custodi dell'Equilibrio",
-    "tone": [
-      "mistero",
-      "folk-horror",
-      "dilemma morale"
-    ],
+    "tone": ["mistero", "folk-horror", "dilemma morale"],
     "recommendedLength": "45-90m",
     "supportsReplay": true
   },
@@ -112,16 +108,8 @@
         "NEAR_IMPOSSIBLE": -60
       },
       "criticals": {
-        "autoSuccess": [
-          1,
-          2,
-          3
-        ],
-        "autoFail": [
-          98,
-          99,
-          100
-        ],
+        "autoSuccess": [1, 2, 3],
+        "autoFail": [98, 99, 100],
         "epic": {
           "success": 1,
           "fail": 100,
@@ -217,9 +205,7 @@
       {
         "id": "VAR_EIRIK_DEAD",
         "title": "Eirik è già morto",
-        "tags": [
-          "fragile_loop"
-        ],
+        "tags": ["fragile_loop"],
         "description": "Il loop è più instabile; la Terza Via diventa più rischiosa ma più accessibile.",
         "effectsOnStart": [
           {
@@ -232,9 +218,7 @@
       {
         "id": "VAR_HROTH_WEAK",
         "title": "Hroth è più debole",
-        "tags": [
-          "easier_stabilize"
-        ],
+        "tags": ["easier_stabilize"],
         "description": "Stabilizzare è più semplice; spezzare è più tragico.",
         "effectsOnStart": [
           {
@@ -247,9 +231,7 @@
       {
         "id": "VAR_RITUAL_INCOMPLETE",
         "title": "Rituale incompleto",
-        "tags": [
-          "third_way_access"
-        ],
+        "tags": ["third_way_access"],
         "description": "La Terza Via è sbloccabile con meno indizi.",
         "effectsOnStart": [
           {
@@ -262,9 +244,7 @@
       {
         "id": "VAR_OBSERVER_TOUCHED",
         "title": "Un Osservatore interferisce",
-        "tags": [
-          "observer_presence"
-        ],
+        "tags": ["observer_presence"],
         "description": "Eventi fuori tempo più frequenti; alcune frasi cambiano.",
         "effectsOnStart": [
           {
@@ -282,9 +262,7 @@
         "id": "NPC_HARL",
         "name": "Harl",
         "role": "Capo villaggio",
-        "traits": [
-          "eco_stabile"
-        ],
+        "traits": ["eco_stabile"],
         "notes": [
           "Cortese, ripete sempre le stesse frasi.",
           "È morto nel futuro mai avvenuto; nel loop è una presenza 'corretta'.",
@@ -295,9 +273,7 @@
         "id": "NPC_SIGNE",
         "name": "Signe",
         "role": "Mugnaia",
-        "traits": [
-          "quasi_memoria"
-        ],
+        "traits": ["quasi_memoria"],
         "notes": [
           "Osservatrice. Con loopCount>=3 può dire: “Ti ho già visto… vero?”",
           "È un indicatore che il loop sta cedendo."
@@ -307,10 +283,7 @@
         "id": "NPC_EIRIK",
         "name": "Eirik",
         "role": "Bambino",
-        "traits": [
-          "ancora_emotiva",
-          "sensibile_trama"
-        ],
+        "traits": ["ancora_emotiva", "sensibile_trama"],
         "notes": [
           "Loop 1-2: ti guarda.",
           "Loop 3-4: ti segue.",
@@ -322,14 +295,34 @@
         "id": "NPC_HROTH",
         "name": "Hroth",
         "role": "Strega della valle",
-        "traits": [
-          "cosciente_del_loop",
-          "ancora_rituale"
-        ],
+        "traits": ["cosciente_del_loop", "ancora_rituale"],
         "notes": [
           "Ha isolato Brùnholt dal flusso causale.",
           "Verità: lo ha fatto per salvare Eirik (il villaggio è il prezzo)."
         ]
+      },
+      {
+        "id": "NPC_DUMMY",
+        "name": "Manichino d'Allenamento",
+        "kind": "NPC",
+        "stats": {
+          "STR": 30,
+          "TOU": 30,
+          "AGI": 30,
+          "INT": 30,
+          "WIL": 30,
+          "CHA": 30,
+          "WS": 40,
+          "BS": 30,
+          "INI": 30,
+          "PER": 30
+        },
+        "resources": { "hp": 10, "rf": 0, "peq": 0 },
+        "skills": {},
+        "talents": [],
+        "traits": [],
+        "equipment": { "equipped": { "weaponMainId": null, "weaponOffId": null, "armorId": null, "accessoryIds": [] } },
+        "status": { "conditions": [], "tempModifiers": [] }
       }
     ]
   },
@@ -375,21 +368,13 @@
         "id": "VATES_DETECT_MAGIC",
         "discipline": "VATES",
         "cnBaseDoS": 1,
-        "upgrades": [
-          "range",
-          "clarity",
-          "duration"
-        ]
+        "upgrades": ["range", "clarity", "duration"]
       },
       {
         "id": "VATES_WELL_VISION",
         "discipline": "VATES",
         "cnBaseDoS": 2,
-        "upgrades": [
-          "clarity",
-          "detail",
-          "scope"
-        ]
+        "upgrades": ["clarity", "detail", "scope"]
       }
     ]
   },
@@ -398,11 +383,11 @@
     {
       "id": "S0_BRIEFING",
       "type": "dialogue",
-      "title": "Briefing alla Soglia dell’Infinito",
+      "title": "Briefing alla Soglia dell'Infinito",
       "text": [
         "Un Osservatore parla senza muovere le labbra.",
         "“Anomalia ciclica. Un villaggio ripete lo stesso giorno. Nessuna contaminazione apparente.”",
-        "“Individua la causa. Riallinea l’Equilibrio.”"
+        "“Individua la causa. Riallinea l'Equilibrio.”"
       ],
       "onEnter": [
         {
@@ -424,15 +409,20 @@
               "sceneId": "S1_ARRIVAL"
             }
           ]
+        },
+        {
+          "id": "to_combat_test",
+          "label": "[Debug] Campo d'addestramento",
+          "effects": [{ "op": "goto", "sceneId": "burnholt_combat_test" }]
         }
       ]
     },
     {
       "id": "S1_ARRIVAL",
       "type": "narration",
-      "title": "L’Arrivo a Brùnholt",
+      "title": "L'Arrivo a Brùnholt",
       "text": [
-        "Alba. Campi di grano maturi. Il cielo è coperto, ma non c’è vento.",
+        "Alba. Campi di grano maturi. Il cielo è coperto, ma non c'è vento.",
         "Un silenzio innaturale abbraccia la valle. Il villaggio è poco distante."
       ],
       "onEnter": [
@@ -1285,10 +1275,7 @@
       "id": "S3_RESET",
       "type": "system",
       "title": "Reset",
-      "text": [
-        "Ti risvegli all’alba. Nello stesso punto. Stesso cielo. Stesse persone.",
-        "Questa volta, tu ricordi."
-      ],
+      "text": ["Ti risvegli all’alba. Nello stesso punto. Stesso cielo. Stesse persone.", "Questa volta, tu ricordi."],
       "onEnter": [
         {
           "op": "setFlag",
@@ -1813,6 +1800,96 @@
           "id": "REP_RISKY",
           "delta": 1,
           "note": "Gli Osservatori iniziano a 'notarti' per motivi sbagliati."
+        }
+      ]
+    },
+    {
+      "id": "burnholt_combat_test",
+      "type": "challenge",
+      "title": "Campo d’Addestramento (Debug)",
+      "text": [
+        "Dietro la Locanda dei Custodi, una porta cigola: un piccolo campo d’addestramento.",
+        "Un manichino d’allenamento — e un bersaglio di paglia più in là — ti aspettano.",
+        "Questa scena è solo per testare il motore di combattimento."
+      ],
+      "choices": [
+        {
+          "id": "combat_melee_no_def",
+          "label": "Attacco in mischia (nessuna difesa)",
+          "checks": [
+            {
+              "id": "atk_melee_no_def",
+              "kind": "combatAttack",
+              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
+              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
+              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" }
+            }
+          ],
+          "effects": []
+        },
+        {
+          "id": "combat_melee_parry",
+          "label": "Attacco in mischia (il manichino prova a parare)",
+          "checks": [
+            {
+              "id": "atk_melee_parry",
+              "kind": "combatAttack",
+              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
+              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
+              "defense": { "allowParry": true, "allowDodge": false, "strategy": "preferParry" }
+            }
+          ],
+          "effects": []
+        },
+        {
+          "id": "combat_ranged_long_heavy",
+          "label": "Tiro a distanza (LONG + HEAVY cover)",
+          "checks": [
+            {
+              "id": "atk_ranged_long_heavy",
+              "kind": "combatAttack",
+              "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
+              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
+              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" },
+              "modifiers": { "rangeBand": "LONG", "cover": "HEAVY" }
+            }
+          ],
+          "effects": []
+        },
+        {
+          "id": "combat_ranged_called_shot",
+          "label": "Tiro mirato (called shot, SHORT)",
+          "checks": [
+            {
+              "id": "atk_ranged_called_shot",
+              "kind": "combatAttack",
+              "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
+              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
+              "defense": { "allowParry": false, "allowDodge": true, "strategy": "preferDodge" },
+              "modifiers": { "rangeBand": "SHORT", "calledShot": true, "cover": "NONE" }
+            }
+          ],
+          "effects": []
+        },
+        {
+          "id": "combat_outnumbered",
+          "label": "Mischia caotica (outnumbering = 3)",
+          "checks": [
+            {
+              "id": "atk_outnumbered",
+              "kind": "combatAttack",
+              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
+              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
+              "defense": { "allowParry": true, "allowDodge": true, "strategy": "autoBest" },
+              "modifiers": { "outnumbering": 3 }
+            }
+          ],
+          "effects": []
+        },
+        {
+          "id": "back_to_hub",
+          "label": "Torna indietro",
+          "effects": [{ "op": "goto", "sceneId": "S0_BRIEFING" }]
         }
       ]
     }

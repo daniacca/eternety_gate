@@ -6,10 +6,12 @@ import type {
   SceneId,
   ItemId,
   WorldEventId,
+  ActorId,
 } from './types';
 import { evaluateCondition, evaluateConditions } from './conditions';
 import { RNG } from './rng';
 import { performCheck } from './checks';
+import { startCombat } from './engine';
 
 /**
  * Applies an effect to the game save (immutably)
@@ -47,6 +49,9 @@ export function applyEffect(
 
     case 'fireWorldEvents':
       return applyFireWorldEvents(storyPack, save, rng);
+
+    case 'combatStart':
+      return applyCombatStart(effect, storyPack, save);
 
     default:
       return save;
@@ -300,5 +305,16 @@ function getFlatValue(obj: Record<string, any>, key: string): any {
  */
 function setFlatValue(obj: Record<string, any>, key: string, value: any): void {
   obj[key] = value;
+}
+
+/**
+ * Starts combat with given participant IDs
+ */
+function applyCombatStart(
+  effect: Extract<Effect, { op: 'combatStart' }>,
+  storyPack: StoryPack,
+  save: GameSave
+): GameSave {
+  return startCombat(storyPack, save, effect.participantIds, save.runtime.currentSceneId);
 }
 

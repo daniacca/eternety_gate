@@ -1,8 +1,10 @@
+import type { IRNG } from '../rng';
+
 /**
  * FakeRng - Test helper that returns predefined D100 rolls
  * Implements the same interface as RNG for testing purposes
  */
-export class FakeRng {
+export class FakeRng implements IRNG {
   private rolls: number[];
   private index: number = 0;
   private counter: number = 0;

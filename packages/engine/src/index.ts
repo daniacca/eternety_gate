@@ -10,6 +10,10 @@ export {
   getCurrentScene,
   listAvailableChoices,
   applyChoice,
+  startCombat,
+  getCurrentTurnActorId,
+  advanceCombatTurn,
+  runNpcTurn,
 } from './runtime/engine';
 
 // Utilities

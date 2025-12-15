@@ -69,7 +69,8 @@ export type Effect =
   | { op: "conditionalEffects"; cases: Array<{ when: Condition; then: Effect[] }> }
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
   | { op: "applyVariantStartEffects" }
-  | { op: "fireWorldEvents" };
+  | { op: "fireWorldEvents" }
+  | { op: "combatStart"; participantIds: ActorId[] };
 
 /* ---------- ActorRef ---------- */
 
@@ -150,7 +151,35 @@ export type MagicEffectCheck = {
   onFailure?: Effect[];
 };
 
-export type Check = SingleCheck | MultiCheck | OpposedCheck | SequenceCheck | MagicChannelCheck | MagicEffectCheck;
+export type CombatMode = "MELEE" | "RANGED";
+export type DefenseStrategy = "autoBest" | "preferParry" | "preferDodge";
+export type RangeBand = "POINT_BLANK" | "SHORT" | "NORMAL" | "LONG" | "EXTREME";
+export type Cover = "NONE" | "LIGHT" | "HEAVY";
+
+export type CombatAttackCheck = {
+  id: string;
+  kind: "combatAttack";
+  attacker: { actorRef?: ActorRef; mode: CombatMode; weaponId?: string | null };
+  defender: { actorRef: ActorRef };
+  defense: { allowParry?: boolean; allowDodge?: boolean; strategy: DefenseStrategy };
+  modifiers?: {
+    outnumbering?: number; // >=0
+    rangeBand?: RangeBand; // ranged only
+    calledShot?: boolean;
+    cover?: Cover; // ranged only
+  };
+  onHit?: Effect[];
+  onMiss?: Effect[];
+};
+
+export type Check =
+  | SingleCheck
+  | MultiCheck
+  | OpposedCheck
+  | SequenceCheck
+  | MagicChannelCheck
+  | MagicEffectCheck
+  | CombatAttackCheck;
 
 /* ---------- Scene/Choice ---------- */
 
@@ -203,13 +232,16 @@ export type StoryPack = {
         };
       };
     };
-    worldEvents?: Record<WorldEventId, {
-      id: WorldEventId;
-      title: string;
-      trigger: Condition;
-      once: boolean;
-      effects: Effect[];
-    }>;
+    worldEvents?: Record<
+      WorldEventId,
+      {
+        id: WorldEventId;
+        title: string;
+        trigger: Condition;
+        once: boolean;
+        effects: Effect[];
+      }
+    >;
     runVariants?: Array<{
       id: string;
       tags: string[];
@@ -338,6 +370,14 @@ export type CheckResult = {
   tags: string[];
 } | null;
 
+export type CombatState = {
+  active: boolean;
+  participants: ActorId[];
+  currentIndex: number;
+  round: number;
+  startedBySceneId?: SceneId;
+};
+
 export type GameRuntime = {
   currentSceneId: SceneId;
 
@@ -356,6 +396,8 @@ export type GameRuntime = {
   magic?: {
     accumulatedDoS: number;
   };
+
+  combat?: CombatState;
 };
 
 export type GameSave = {
@@ -390,4 +432,3 @@ export type GameSave = {
 
   runtime: GameRuntime;
 };
-

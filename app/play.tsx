@@ -110,7 +110,7 @@ export default function PlayScreen() {
 
             {/* Target breakdown (debug UI) */}
             {(() => {
-              const tags = save.runtime.lastCheck.tags || [];
+              const tags = save.runtime.lastCheck && save.runtime.lastCheck !== null ? save.runtime.lastCheck.tags : [];
               const calcTags = tags.filter((t) => t.startsWith("calc:"));
               const attCalcTags = tags.filter((t) => t.startsWith("att:calc:"));
               const defCalcTags = tags.filter((t) => t.startsWith("def:calc:"));
@@ -160,6 +160,50 @@ export default function PlayScreen() {
                         })}
                       </View>
                     )}
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Combat Debug (debug UI) */}
+            {(() => {
+              const tags = save.runtime.lastCheck.tags || [];
+              const combatTags = tags.filter((t) => t.startsWith("combat:"));
+
+              if (combatTags.length > 0) {
+                // Extract key combat values
+                const getCombatValue = (prefix: string): string | null => {
+                  const tag = combatTags.find((t) => t.startsWith(`combat:${prefix}=`));
+                  return tag ? tag.split("=")[1] : null;
+                };
+
+                const attackStat = getCombatValue("attackStat");
+                const attackTarget = getCombatValue("attackTarget");
+                const attackRoll = getCombatValue("attackRoll");
+                const attackDoS = getCombatValue("attackDoS");
+                const defense = getCombatValue("defense");
+                const defTarget = getCombatValue("defTarget");
+                const defRoll = getCombatValue("defRoll");
+                const defDoS = getCombatValue("defDoS");
+                const defSuccess = getCombatValue("defSuccess");
+                const tie = combatTags.some((t) => t === "combat:tie=1");
+
+                return (
+                  <View style={styles.breakdownContainer}>
+                    <Text style={styles.breakdownLabel}>Combat Debug:</Text>
+                    {attackStat && <Text style={styles.breakdownText}>Attack Stat: {attackStat}</Text>}
+                    {attackTarget && <Text style={styles.breakdownText}>Attack Target: {attackTarget}</Text>}
+                    {attackRoll && <Text style={styles.breakdownText}>Attack Roll: {attackRoll}</Text>}
+                    {attackDoS !== null && <Text style={styles.breakdownText}>Attack DoS: {attackDoS}</Text>}
+                    {defense && <Text style={styles.breakdownText}>Defense: {defense}</Text>}
+                    {defTarget && <Text style={styles.breakdownText}>Defense Target: {defTarget}</Text>}
+                    {defRoll && <Text style={styles.breakdownText}>Defense Roll: {defRoll}</Text>}
+                    {defDoS !== null && <Text style={styles.breakdownText}>Defense DoS: {defDoS}</Text>}
+                    {defSuccess && (
+                      <Text style={styles.breakdownText}>Defense Success: {defSuccess === "1" ? "Yes" : "No"}</Text>
+                    )}
+                    {tie && <Text style={styles.breakdownText}>Tie: Yes (Defender wins)</Text>}
                   </View>
                 );
               }

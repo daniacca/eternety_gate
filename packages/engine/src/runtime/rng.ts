@@ -1,9 +1,20 @@
 /**
+ * Interface for RNG implementations
+ */
+export interface IRNG {
+  rollD100(): number;
+  next(): number;
+  getCounter(): number;
+  getSeed(): number;
+  nextInt(min: number, max: number): number;
+}
+
+/**
  * Simple deterministic RNG using seed and counter
  * Based on mulberry32 PRNG for better distribution
  * Seed remains constant; counter advances for seekability
  */
-export class RNG {
+export class RNG implements IRNG {
   private readonly seed: number;
   private counter: number;
 

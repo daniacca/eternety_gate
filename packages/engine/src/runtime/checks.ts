@@ -6,6 +6,7 @@ import type {
   SequenceCheck,
   MagicChannelCheck,
   MagicEffectCheck,
+  CombatAttackCheck,
   ActorRef,
   StatOrSkillKey,
   GameSave,
@@ -13,7 +14,7 @@ import type {
   CheckResult,
   StoryPack,
 } from "./types";
-import { RNG } from "./rng";
+import { RNG, type IRNG } from "./rng";
 
 /**
  * Resolves an ActorRef to an Actor
@@ -218,7 +219,7 @@ function computeTargetBreakdown(
 /**
  * Performs a D100 check
  */
-export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   switch (check.kind) {
     case "single":
       return performSingleCheck(check, storyPack, save, rng);
@@ -232,12 +233,14 @@ export function performCheck(check: Check, storyPack: StoryPack, save: GameSave,
       return performMagicChannelCheck(check, storyPack, save, rng);
     case "magicEffect":
       return performMagicEffectCheck(check, storyPack, save, rng);
+    case "combatAttack":
+      return performCombatAttackCheck(check, storyPack, save, rng);
     default:
       throw new Error(`Unknown check kind: ${(check as any).kind}`);
   }
 }
 
-function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
@@ -256,7 +259,7 @@ function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: Game
   return result;
 }
 
-function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
@@ -281,7 +284,7 @@ function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSa
   return rollD100Check(check.id, actor.id, target, storyPack, rng);
 }
 
-function performOpposedCheck(check: OpposedCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+function performOpposedCheck(check: OpposedCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   // Resolve actors - default to active actor if not specified
   const attacker = resolveActor(check.attacker.actorRef, save);
   const defender = resolveActor(check.defender.actorRef, save) || resolveActor(undefined, save);
@@ -391,7 +394,7 @@ function performOpposedCheck(check: OpposedCheck, storyPack: StoryPack, save: Ga
   };
 }
 
-function performSequenceCheck(check: SequenceCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+function performSequenceCheck(check: SequenceCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   const steps = check.steps;
   let firstActorId: string | undefined;
   let lastResult: CheckResult | null = null;
@@ -451,7 +454,7 @@ function performMagicChannelCheck(
   check: MagicChannelCheck,
   storyPack: StoryPack,
   save: GameSave,
-  rng: RNG
+  rng: IRNG
 ): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
@@ -528,7 +531,12 @@ function performMagicChannelCheck(
   return result;
 }
 
-function performMagicEffectCheck(check: MagicEffectCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+function performMagicEffectCheck(
+  check: MagicEffectCheck,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
@@ -602,7 +610,7 @@ function performMagicEffectCheck(check: MagicEffectCheck, storyPack: StoryPack, 
 /**
  * Rolls a D100 and evaluates success/failure
  */
-function rollD100Check(checkId: string, actorId: string, target: number, storyPack: StoryPack, rng: RNG): CheckResult {
+function rollD100Check(checkId: string, actorId: string, target: number, storyPack: StoryPack, rng: IRNG): CheckResult {
   const roll = rng.rollD100();
   return evaluateRoll(roll, target, storyPack, checkId, actorId);
 }
@@ -698,5 +706,221 @@ function addPhenomenaTags(result: CheckResult, powerMode: "CONTROLLED" | "FORCED
     } else if (powerMode === "FORCED") {
       result.tags.push("phenomena:major");
     }
+  }
+}
+
+function performCombatAttackCheck(
+  check: CombatAttackCheck,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): CheckResult {
+  // Resolve actors
+  const attacker = resolveActor(check.attacker.actorRef, save);
+  const defender = resolveActor(check.defender.actorRef, save);
+  if (!attacker || !defender) return null;
+
+  // Determine attack stat (WS for MELEE, BS for RANGED)
+  const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
+  const breakdown = computeTargetBreakdown(attacker, attackStatKey, "NORMAL", save, storyPack);
+
+  // Apply combat modifiers to target
+  let combatModifier = 0;
+
+  // Outnumbering modifier
+  if (check.modifiers?.outnumbering !== undefined) {
+    if (check.modifiers.outnumbering >= 3) {
+      combatModifier += 20;
+    } else if (check.modifiers.outnumbering >= 2) {
+      combatModifier += 10;
+    }
+  }
+
+  // Range band modifier (RANGED only)
+  if (check.attacker.mode === "RANGED" && check.modifiers?.rangeBand) {
+    switch (check.modifiers.rangeBand) {
+      case "POINT_BLANK":
+        combatModifier += 30;
+        break;
+      case "SHORT":
+        combatModifier += 10;
+        break;
+      case "NORMAL":
+        // +0
+        break;
+      case "LONG":
+        combatModifier -= 20;
+        break;
+      case "EXTREME":
+        combatModifier -= 40;
+        break;
+    }
+  }
+
+  // Cover modifier (RANGED only)
+  if (check.attacker.mode === "RANGED" && check.modifiers?.cover) {
+    switch (check.modifiers.cover) {
+      case "LIGHT":
+        combatModifier -= 10;
+        break;
+      case "HEAVY":
+        combatModifier -= 20;
+        break;
+      case "NONE":
+        // +0
+        break;
+    }
+  }
+
+  // Called shot modifier
+  if (check.modifiers?.calledShot) {
+    combatModifier -= 20;
+  }
+
+  const attackTarget = breakdown.target + combatModifier;
+
+  // Roll attack
+  const attackRoll = rng.rollD100();
+  const attackResult = evaluateRoll(attackRoll, attackTarget, storyPack, check.id, attacker.id);
+
+  if (!attackResult) return null;
+
+  // Build attack tags
+  const tags = [...attackResult.tags];
+  tags.push(`combat:attackStat=${attackStatKey}`);
+  tags.push(`combat:attackTarget=${attackTarget}`);
+  tags.push(`combat:attackRoll=${attackRoll}`);
+  tags.push(`combat:attackDoS=${attackResult.dos}`);
+  tags.push(`combat:calc:base=${breakdown.baseValue}`);
+  tags.push(`combat:calc:mods=${breakdown.tempModsSum}`);
+  tags.push(`combat:calc:combatMod=${combatModifier}`);
+  tags.push(`combat:calc:target=${attackTarget}`);
+  tags.push(`combat:defenderId=${defender.id}`);
+
+  // If attack failed, return MISS
+  if (!attackResult.success) {
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
+  }
+
+  // Attack succeeded - determine defense
+  let defenseType: "parry" | "dodge" | "none" = "none";
+  if (check.defense.strategy === "preferParry" && check.defense.allowParry) {
+    defenseType = "parry";
+  } else if (check.defense.strategy === "preferDodge" && check.defense.allowDodge) {
+    defenseType = "dodge";
+  } else if (check.defense.strategy === "autoBest") {
+    if (check.defense.allowParry) {
+      defenseType = "parry";
+    } else if (check.defense.allowDodge) {
+      defenseType = "dodge";
+    }
+  }
+
+  tags.push(`combat:defense=${defenseType}`);
+
+  // If no defense, HIT
+  if (defenseType === "none") {
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: true,
+      dos: attackResult.dos,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
+  }
+
+  // Roll defense
+  const defenseStatKey: StatOrSkillKey = defenseType === "parry" ? "WS" : "AGI";
+  const defenseBreakdown = computeTargetBreakdown(defender, defenseStatKey, "NORMAL", save, storyPack);
+  const defenseTarget = defenseBreakdown.target;
+
+  const defenseRoll = rng.rollD100();
+  const defenseResult = evaluateRoll(defenseRoll, defenseTarget, storyPack, check.id, defender.id);
+
+  if (!defenseResult) {
+    // Defense roll failed somehow, treat as no defense
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: true,
+      dos: attackResult.dos,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
+  }
+
+  // Add defense tags
+  tags.push(`combat:defTarget=${defenseTarget}`);
+  tags.push(`combat:defRoll=${defenseRoll}`);
+  tags.push(`combat:defDoS=${defenseResult.dos}`);
+  tags.push(`combat:defSuccess=${defenseResult.success ? 1 : 0}`);
+  tags.push(`combat:defCalc:base=${defenseBreakdown.baseValue}`);
+  tags.push(`combat:defCalc:mods=${defenseBreakdown.tempModsSum}`);
+  tags.push(`combat:defCalc:target=${defenseTarget}`);
+
+  // Determine outcome
+  if (!defenseResult.success) {
+    // Defense failed - HIT
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: true,
+      dos: attackResult.dos,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
+  }
+
+  // Both attack and defense succeeded - compare DoS
+  if (attackResult.dos > defenseResult.dos) {
+    // Attacker wins - HIT
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: true,
+      dos: attackResult.dos - defenseResult.dos,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
+  } else {
+    // Tie or defender wins - MISS
+    const isTie = attackResult.dos === defenseResult.dos;
+    if (isTie) {
+      tags.push("combat:tie=1");
+    }
+    return {
+      checkId: check.id,
+      actorId: attacker.id,
+      roll: attackRoll,
+      target: attackTarget,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: attackResult.critical,
+      tags,
+    };
   }
 }
