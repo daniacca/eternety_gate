@@ -4,6 +4,9 @@ import { rollD100, RNG } from './rng';
 import { performCheck } from './checks';
 import { evaluateCondition } from './conditions';
 import { FakeRng } from './test-helpers/fakeRng';
+import { makeTestActor } from './test-helpers/makeTestActor';
+import { makeTestStoryPack } from './test-helpers/makeTestStoryPack';
+import { makeTestSave } from './test-helpers/makeTestSave';
 import type { StoryPack, Actor, Party, ActorId, ItemId, Item, GameSave } from './types';
 
 describe('applyChoice', () => {
@@ -889,6 +892,263 @@ describe('Sequence check', () => {
     if (!updatedSave.runtime.lastCheck?.success) {
       expect(updatedSave.runtime.lastCheck?.tags).toContain('sequence:failedAt=1');
     }
+  });
+});
+
+describe('Magic checks', () => {
+  it('magicChannel success produces DoS and magic:channel=1 tag', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor({ stats: { INT: 60 } });
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 20 (success with DoS)
+    // Target = INT 60 + NORMAL 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
+    const fakeRng = new FakeRng([20]);
+
+    const check = {
+      id: 'magic_channel',
+      kind: 'magicChannel' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      targetDoS: 1,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(true);
+    expect(result?.dos).toBe(4); // DoS is kept as-is, not subtracted
+    expect(result?.tags).toContain('magic:channel=1');
+    expect(result?.tags).toContain('magic:channelTarget=1');
+    expect(result?.tags).toContain('magic:success=1');
+  });
+
+  it('magicChannel fails when underlying roll fails', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 90 (failure)
+    // Target = INT 50 + NORMAL 0 = 50, roll 90 => fail
+    const fakeRng = new FakeRng([90]);
+
+    const check = {
+      id: 'magic_channel',
+      kind: 'magicChannel' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      targetDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(false);
+    expect(result?.dos).toBe(0);
+    expect(result?.dof).toBe(3); // targetDoS
+    expect(result?.tags).toContain('magic:channel=1');
+    expect(result?.tags).toContain('magic:channelTarget=3');
+    expect(result?.tags).toContain('magic:fail=1');
+  });
+
+  it('magicChannel fails when success but dos < targetDoS', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 40 (success but insufficient DoS)
+    // Target = INT 50 + NORMAL 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
+    // targetDoS = 3, so 1 < 3 => insufficient
+    const fakeRng = new FakeRng([40]);
+
+    const check = {
+      id: 'magic_channel',
+      kind: 'magicChannel' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      targetDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(false);
+    expect(result?.dos).toBe(0);
+    expect(result?.dof).toBe(2); // targetDoS - dos = 3 - 1 = 2
+    expect(result?.tags).toContain('magic:channel=1');
+    expect(result?.tags).toContain('magic:channelTarget=3');
+    expect(result?.tags).toContain('magic:channelInsufficient=1');
+  });
+
+  it('magicChannel succeeds when dos >= targetDoS', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 10 (success with high DoS)
+    // Target = INT 50 + NORMAL 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
+    // targetDoS = 3, so 4 >= 3 => success
+    const fakeRng = new FakeRng([10]);
+
+    const check = {
+      id: 'magic_channel',
+      kind: 'magicChannel' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      targetDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(true);
+    expect(result?.dos).toBe(4); // Keep the produced DoS, do NOT subtract targetDoS
+    expect(result?.dof).toBe(0);
+    expect(result?.tags).toContain('magic:channel=1');
+    expect(result?.tags).toContain('magic:channelTarget=3');
+    expect(result?.tags).toContain('magic:success=1');
+  });
+
+  it('magicEffect fails on failed roll', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 90 (failure)
+    // Target = INT 50 + NORMAL 0 = 50, roll 90 => fail
+    const fakeRng = new FakeRng([90]);
+
+    const check = {
+      id: 'magic_effect',
+      kind: 'magicEffect' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      castingNumberDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(false);
+    expect(result?.dos).toBe(0);
+    expect(result?.dof).toBe(3); // castingNumberDoS
+    expect(result?.tags).toContain('magic:fail=1');
+  });
+
+  it('magicEffect fails on insufficient DoS', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 40 (success but insufficient DoS)
+    // Target = INT 50 + NORMAL 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
+    // castingNumberDoS = 3, so 1 < 3 => insufficient
+    const fakeRng = new FakeRng([40]);
+
+    const check = {
+      id: 'magic_effect',
+      kind: 'magicEffect' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      castingNumberDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(false);
+    expect(result?.dos).toBe(0);
+    expect(result?.dof).toBe(2); // castingNumberDoS - dos = 3 - 1 = 2
+    expect(result?.tags).toContain('magic:insufficient=1');
+  });
+
+  it('magicEffect succeeds when DoS >= CN and produces correct extraDos', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 10 (success with high DoS)
+    // Target = INT 50 + NORMAL 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
+    // castingNumberDoS = 3, so 4 >= 3 => success, extraDos = 4 - 3 = 1
+    const fakeRng = new FakeRng([10]);
+
+    const check = {
+      id: 'magic_effect',
+      kind: 'magicEffect' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      castingNumberDoS: 3,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.success).toBe(true);
+    expect(result?.dos).toBe(1); // extraDos = 4 - 3 = 1
+    expect(result?.dof).toBe(0);
+    expect(result?.tags).toContain('magic:success=1');
+    expect(result?.tags).toContain('magic:extraDos=1');
+  });
+
+  it('doubles on magicEffect add phenomena:minor when CONTROLLED', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 22 (doubles, success)
+    // Target = INT 50 + NORMAL 0 = 50, roll 22 => DoS = floor((50-22)/10) = 2
+    const fakeRng = new FakeRng([22]);
+
+    const check = {
+      id: 'magic_effect',
+      kind: 'magicEffect' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      castingNumberDoS: 2,
+      powerMode: 'CONTROLLED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.tags).toContain('doubles');
+    expect(result?.tags).toContain('phenomena:doubles');
+    expect(result?.tags).toContain('phenomena:minor');
+    expect(result?.tags).not.toContain('phenomena:major');
+  });
+
+  it('doubles on magicEffect add phenomena:major when FORCED', () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor();
+    const save = makeTestSave(storyPack, actor);
+
+    // Use FakeRng with deterministic roll: 33 (doubles, success)
+    // Target = INT 50 + NORMAL 0 = 50, roll 33 => DoS = floor((50-33)/10) = 1
+    const fakeRng = new FakeRng([33]);
+
+    const check = {
+      id: 'magic_effect',
+      kind: 'magicEffect' as const,
+      key: 'INT' as const,
+      difficulty: 'NORMAL',
+      castingNumberDoS: 1,
+      powerMode: 'FORCED' as const,
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    expect(result?.tags).toContain('doubles');
+    expect(result?.tags).toContain('phenomena:doubles');
+    expect(result?.tags).toContain('phenomena:major');
+    expect(result?.tags).not.toContain('phenomena:minor');
   });
 });
 

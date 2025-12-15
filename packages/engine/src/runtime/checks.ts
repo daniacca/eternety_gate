@@ -229,9 +229,9 @@ export function performCheck(check: Check, storyPack: StoryPack, save: GameSave,
     case "sequence":
       return performSequenceCheck(check, storyPack, save, rng);
     case "magicChannel":
-      throw new Error(`Check kind 'magicChannel' is not yet implemented in this vertical slice`);
+      return performMagicChannelCheck(check, storyPack, save, rng);
     case "magicEffect":
-      throw new Error(`Check kind 'magicEffect' is not yet implemented in this vertical slice`);
+      return performMagicEffectCheck(check, storyPack, save, rng);
     default:
       throw new Error(`Unknown check kind: ${(check as any).kind}`);
   }
@@ -456,7 +456,9 @@ function performMagicChannelCheck(
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
-  const baseValue = getStatOrSkillValue(actor, check.key, save);
+  // Magic channel behaves like a normal single check
+  // Uses key, respects difficulty and tempModifiers
+  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "NORMAL", save, storyPack);
 
   // Apply focus bonuses for channeling
   let channelBonus = 0;
@@ -475,10 +477,54 @@ function performMagicChannelCheck(
     }
   }
 
-  const target = baseValue + channelBonus;
-  const result = rollD100Check(check.id, actor.id, target, storyPack, rng);
+  const target = breakdown.target + channelBonus;
+  const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);
 
-  // Note: Magic DoS accumulation is handled in engine.ts after the check
+  if (!baseResult) return null;
+
+  // Magic channel resolution rules with targetDoS
+  let result: CheckResult;
+
+  if (!baseResult.success) {
+    // Underlying roll failed
+    result = {
+      ...baseResult,
+      success: false,
+      dos: 0,
+      dof: check.targetDoS,
+      tags: [...baseResult.tags, "magic:channel=1", `magic:channelTarget=${check.targetDoS}`, "magic:fail=1"],
+    };
+  } else {
+    // Underlying roll succeeded
+    if (baseResult.dos < check.targetDoS) {
+      // Insufficient channel power
+      result = {
+        ...baseResult,
+        success: false,
+        dos: 0,
+        dof: check.targetDoS - baseResult.dos,
+        tags: [
+          ...baseResult.tags,
+          "magic:channel=1",
+          `magic:channelTarget=${check.targetDoS}`,
+          "magic:channelInsufficient=1",
+        ],
+      };
+    } else {
+      // Channel succeeds
+      result = {
+        ...baseResult,
+        success: true,
+        dos: baseResult.dos, // Keep the produced DoS, do NOT subtract targetDoS
+        dof: 0,
+        tags: [...baseResult.tags, "magic:channel=1", `magic:channelTarget=${check.targetDoS}`, "magic:success=1"],
+      };
+    }
+  }
+
+  // Check for doubles and add phenomena tags
+  addPhenomenaTags(result, check.powerMode || "CONTROLLED");
+
   return result;
 }
 
@@ -486,24 +532,8 @@ function performMagicEffectCheck(check: MagicEffectCheck, storyPack: StoryPack, 
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
-  // Check if we have enough accumulated DoS
-  const accumulatedDoS = save.runtime.magic?.accumulatedDoS || 0;
-  if (accumulatedDoS < check.castingNumberDoS) {
-    // Not enough DoS accumulated
-    return {
-      checkId: check.id,
-      actorId: actor.id,
-      roll: 0,
-      target: check.castingNumberDoS,
-      success: false,
-      dos: 0,
-      dof: check.castingNumberDoS - accumulatedDoS,
-      critical: "none",
-      tags: [],
-    };
-  }
-
-  const baseValue = getStatOrSkillValue(actor, check.key, save);
+  // Magic effect performs a D100 check using chosenStat
+  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "NORMAL", save, storyPack);
 
   // Apply focus bonuses for casting
   let castBonus = 0;
@@ -522,20 +552,50 @@ function performMagicEffectCheck(check: MagicEffectCheck, storyPack: StoryPack, 
     }
   }
 
-  const target = baseValue + castBonus;
-  const result = rollD100Check(check.id, actor.id, target, storyPack, rng);
+  const target = breakdown.target + castBonus;
+  const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);
 
-  // Magic effect requires both accumulated DoS >= CN AND successful roll with DoS >= CN
-  if (result && result.success && result.dos < check.castingNumberDoS) {
-    // Roll succeeded but didn't achieve required DoS
-    return {
-      ...result,
+  if (!baseResult) return null;
+
+  // Magic effect resolution rules
+  let result: CheckResult;
+
+  if (!baseResult.success) {
+    // Check failed
+    result = {
+      ...baseResult,
       success: false,
-      dof: check.castingNumberDoS - result.dos,
+      dos: 0,
+      dof: check.castingNumberDoS,
+      tags: [...baseResult.tags, "magic:fail=1"],
     };
+  } else {
+    // Check succeeded
+    if (baseResult.dos < check.castingNumberDoS) {
+      // Insufficient DoS
+      result = {
+        ...baseResult,
+        success: false,
+        dos: 0,
+        dof: check.castingNumberDoS - baseResult.dos,
+        tags: [...baseResult.tags, "magic:insufficient=1"],
+      };
+    } else {
+      // Sufficient DoS - effect succeeds
+      const extraDoS = baseResult.dos - check.castingNumberDoS;
+      result = {
+        ...baseResult,
+        success: true,
+        dos: extraDoS,
+        dof: 0,
+        tags: [...baseResult.tags, "magic:success=1", `magic:extraDos=${extraDoS}`],
+      };
+    }
   }
 
-  // Note: Magic DoS consumption is handled in engine.ts after the check
+  // Check for doubles and add phenomena tags
+  addPhenomenaTags(result, check.powerMode || "CONTROLLED");
+
   return result;
 }
 
@@ -622,4 +682,21 @@ function evaluateRoll(
     critical,
     tags,
   };
+}
+
+/**
+ * Adds phenomena tags for magic checks when doubles are detected
+ */
+function addPhenomenaTags(result: CheckResult, powerMode: "CONTROLLED" | "FORCED"): void {
+  if (!result) return;
+
+  // Check if doubles tag exists (added by evaluateRoll)
+  if (result.tags.includes("doubles")) {
+    result.tags.push("phenomena:doubles");
+    if (powerMode === "CONTROLLED") {
+      result.tags.push("phenomena:minor");
+    } else if (powerMode === "FORCED") {
+      result.tags.push("phenomena:major");
+    }
+  }
 }

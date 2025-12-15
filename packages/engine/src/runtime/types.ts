@@ -129,7 +129,9 @@ export type MagicChannelCheck = {
   /** Optional reference to an effect template / discipline entry */
   effectId?: string;
   key: StatOrSkillKey;
+  difficulty?: string;
   targetDoS: number; // must be >= 1
+  powerMode?: "CONTROLLED" | "FORCED";
   onSuccess?: Effect[];
   onFailure?: Effect[];
 };
@@ -141,7 +143,9 @@ export type MagicEffectCheck = {
   /** Optional reference to an effect template / discipline entry */
   effectId?: string;
   key: StatOrSkillKey;
+  difficulty?: string;
   castingNumberDoS: number; // must be >= 1
+  powerMode?: "CONTROLLED" | "FORCED";
   onSuccess?: Effect[];
   onFailure?: Effect[];
 };
