@@ -70,7 +70,8 @@ export type Effect =
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
   | { op: "applyVariantStartEffects" }
   | { op: "fireWorldEvents" }
-  | { op: "combatStart"; participantIds: ActorId[] };
+  | { op: "combatStart"; participantIds: ActorId[]; grid: Grid; placements: Array<{ actorId: ActorId; x: number; y: number }> }
+  | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" };
 
 /* ---------- ActorRef ---------- */
 
@@ -370,12 +371,24 @@ export type CheckResult = {
   tags: string[];
 } | null;
 
+export type Grid = { width: number; height: number };
+export type Position = { x: number; y: number };
+
 export type CombatState = {
   active: boolean;
   participants: ActorId[];
   currentIndex: number;
   round: number;
   startedBySceneId?: SceneId;
+
+  grid: Grid;
+  positions: Record<ActorId, Position>;
+
+  // economy semplificata "per-turn"
+  turn: {
+    hasMoved: boolean;
+    hasAttacked: boolean;
+  };
 };
 
 export type GameRuntime = {

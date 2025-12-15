@@ -3004,4 +3004,474 @@ describe('Combat system', () => {
     // Should be NPC_1's turn now (or back to PC_1 if NPC acted and combat ended)
     expect(afterAttack.runtime.combat?.active).toBeDefined();
   });
+
+  describe('Combat grid and positions', () => {
+    it('startCombat initializes grid and positions', () => {
+      const storyPack = makeTestStoryPack();
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      const combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      expect(combatSave.runtime.combat?.grid).toEqual(grid);
+      expect(combatSave.runtime.combat?.positions['PC_1']).toEqual({ x: 2, y: 2 });
+      expect(combatSave.runtime.combat?.positions['NPC_1']).toEqual({ x: 6, y: 2 });
+      expect(combatSave.runtime.combat?.turn.hasMoved).toBe(false);
+      expect(combatSave.runtime.combat?.turn.hasAttacked).toBe(false);
+    });
+
+    it('combatMove sets hasMoved and updates position', () => {
+      const storyPack = makeTestStoryPack({
+        scenes: [
+          {
+            id: 'scene1',
+            type: 'narration',
+            title: 'Combat Scene',
+            text: ['Fight!'],
+            choices: [
+              {
+                id: 'move_e',
+                label: 'Move East',
+                effects: [{ op: 'combatMove' as const, dir: 'E' as const }],
+              },
+            ],
+          },
+        ],
+      });
+
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      const combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Player's turn - move east
+      const afterMove = applyChoice(storyPack, combatSave, 'move_e');
+
+      expect(afterMove.runtime.combat?.positions['PC_1']).toEqual({ x: 3, y: 2 });
+      expect(afterMove.runtime.combat?.turn.hasMoved).toBe(true);
+      expect(afterMove.runtime.lastCheck?.tags).toContain('combat:move=E');
+    });
+
+    it('cannot move twice in same turn', () => {
+      const storyPack = makeTestStoryPack({
+        scenes: [
+          {
+            id: 'scene1',
+            type: 'narration',
+            title: 'Combat Scene',
+            text: ['Fight!'],
+            choices: [
+              {
+                id: 'move_e',
+                label: 'Move East',
+                effects: [{ op: 'combatMove' as const, dir: 'E' as const }],
+              },
+            ],
+          },
+        ],
+      });
+
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      const combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // First move
+      const afterFirstMove = applyChoice(storyPack, combatSave, 'move_e');
+      expect(afterFirstMove.runtime.combat?.turn.hasMoved).toBe(true);
+
+      // Second move should be blocked
+      const afterSecondMove = applyChoice(storyPack, afterFirstMove, 'move_e');
+      expect(afterSecondMove.runtime.lastCheck?.tags).toContain('combat:blocked=alreadyMoved');
+      // Position should not change
+      expect(afterSecondMove.runtime.combat?.positions['PC_1']).toEqual({ x: 3, y: 2 });
+    });
+
+    it('melee blocked if dist > 1', () => {
+      const storyPack = makeTestStoryPack({
+        scenes: [
+          {
+            id: 'scene1',
+            type: 'narration',
+            title: 'Combat Scene',
+            text: ['Fight!'],
+            choices: [
+              {
+                id: 'attack',
+                label: 'Attack',
+                checks: [
+                  {
+                    id: 'combat_attack',
+                    kind: 'combatAttack' as const,
+                    attacker: {
+                      actorRef: { mode: 'byId' as const, actorId: 'PC_1' },
+                      mode: 'MELEE' as const,
+                      weaponId: null,
+                    },
+                    defender: {
+                      actorRef: { mode: 'byId' as const, actorId: 'NPC_1' },
+                    },
+                    defense: {
+                      allowParry: false,
+                      allowDodge: false,
+                      strategy: 'autoBest' as const,
+                    },
+                  },
+                ],
+                effects: [],
+              },
+            ],
+          },
+        ],
+      });
+
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 }, // Distance = 4
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      const combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Try melee attack - should be blocked
+      const afterAttack = applyChoice(storyPack, combatSave, 'attack');
+      expect(afterAttack.runtime.lastCheck?.tags).toContain('combat:blocked=notInMelee');
+      expect(afterAttack.runtime.lastCheck?.tags.some((t) => t.startsWith('combat:dist=4'))).toBe(true);
+    });
+
+    it('ranged blocked if dist <= 1', () => {
+      const storyPack = makeTestStoryPack({
+        scenes: [
+          {
+            id: 'scene1',
+            type: 'narration',
+            title: 'Combat Scene',
+            text: ['Fight!'],
+            choices: [
+              {
+                id: 'attack',
+                label: 'Attack',
+                checks: [
+                  {
+                    id: 'combat_attack',
+                    kind: 'combatAttack' as const,
+                    attacker: {
+                      actorRef: { mode: 'byId' as const, actorId: 'PC_1' },
+                      mode: 'RANGED' as const,
+                      weaponId: null,
+                    },
+                    defender: {
+                      actorRef: { mode: 'byId' as const, actorId: 'NPC_1' },
+                    },
+                    defense: {
+                      allowParry: false,
+                      allowDodge: false,
+                      strategy: 'autoBest' as const,
+                    },
+                  },
+                ],
+                effects: [],
+              },
+            ],
+          },
+        ],
+      });
+
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 2, y: 3 }, // Distance = 1
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      const combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Try ranged attack - should be blocked
+      const afterAttack = applyChoice(storyPack, combatSave, 'attack');
+      expect(afterAttack.runtime.lastCheck?.tags).toContain('combat:blocked=rangedInMelee');
+      expect(afterAttack.runtime.lastCheck?.tags.some((t) => t.startsWith('combat:dist=1'))).toBe(true);
+    });
+
+    it('after attack turn advances and hasAttacked resets for next actor', () => {
+      const storyPack = makeTestStoryPack({
+        scenes: [
+          {
+            id: 'scene1',
+            type: 'narration',
+            title: 'Combat Scene',
+            text: ['Fight!'],
+            choices: [
+              {
+                id: 'attack',
+                label: 'Attack',
+                checks: [
+                  {
+                    id: 'combat_attack',
+                    kind: 'combatAttack' as const,
+                    attacker: {
+                      actorRef: { mode: 'byId' as const, actorId: 'PC_1' },
+                      mode: 'MELEE' as const,
+                      weaponId: null,
+                    },
+                    defender: {
+                      actorRef: { mode: 'byId' as const, actorId: 'NPC_1' },
+                    },
+                    defense: {
+                      allowParry: false,
+                      allowDodge: false,
+                      strategy: 'autoBest' as const,
+                    },
+                  },
+                ],
+                effects: [],
+              },
+            ],
+          },
+        ],
+      });
+
+      const pc = makeTestActor({ id: 'PC_1', stats: { WS: 60 } });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 2, y: 3 }, // Distance = 1 (melee range)
+      ];
+
+      // Find a seed where PC goes first
+      let pcFirst = false;
+      let combatSave: GameSave | null = null;
+      for (let seed = 1; seed <= 100; seed++) {
+        const testSave = { ...save, runtime: { ...save.runtime, rngSeed: seed, rngCounter: 0 } };
+        const testCombatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+        if (getCurrentTurnActorId(testCombatSave) === 'PC_1') {
+          combatSave = testCombatSave;
+          pcFirst = true;
+          break;
+        }
+      }
+
+      if (!pcFirst) {
+        // Manually set PC first
+        combatSave = {
+          ...save,
+          runtime: {
+            ...save.runtime,
+            rngSeed: 12345,
+            rngCounter: 0,
+            combat: {
+              active: true,
+              participants: ['PC_1', 'NPC_1'],
+              currentIndex: 0,
+              round: 1,
+              grid,
+              positions: {
+                PC_1: { x: 2, y: 2 },
+                NPC_1: { x: 2, y: 3 },
+              },
+              turn: {
+                actorId: 'PC_1',
+                hasMoved: false,
+                hasAttacked: false,
+              },
+            },
+          },
+        };
+      }
+
+      expect(combatSave).not.toBeNull();
+      const afterAttack = applyChoice(storyPack, combatSave!, 'attack');
+
+      // Turn should advance and NPC turn should execute automatically
+      // After NPC turn, turn should advance back to PC
+      expect(afterAttack.runtime.combat?.active).toBe(true);
+      const finalTurnActorId = getCurrentTurnActorId(afterAttack);
+      
+      // After player attack + NPC auto-turn, it should be player's turn again
+      // (or combat might have ended if NPC was KO'd)
+      if (afterAttack.runtime.combat?.active) {
+        expect(finalTurnActorId).toBe('PC_1');
+        // Player's turn flags should be reset
+        expect(afterAttack.runtime.combat?.turn.hasMoved).toBe(false);
+        expect(afterAttack.runtime.combat?.turn.hasAttacked).toBe(false);
+      }
+    });
+
+    it('advanceCombatTurn resets hasMoved and hasAttacked when changing turn', () => {
+      const storyPack = makeTestStoryPack();
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      let combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Set flags manually to simulate actions
+      combatSave = {
+        ...combatSave,
+        runtime: {
+          ...combatSave.runtime,
+          combat: combatSave.runtime.combat
+            ? {
+                ...combatSave.runtime.combat,
+                turn: {
+                  ...combatSave.runtime.combat.turn,
+                  hasMoved: true,
+                  hasAttacked: true,
+                },
+              }
+            : undefined,
+        },
+      };
+
+      // Advance turn
+      const advancedSave = advanceCombatTurn(combatSave);
+
+      // Flags should be reset for new turn
+      expect(advancedSave.runtime.combat?.turn.hasMoved).toBe(false);
+      expect(advancedSave.runtime.combat?.turn.hasAttacked).toBe(false);
+    });
+
+    it('advanceCombatTurn resets hasMoved and hasAttacked when incrementing round', () => {
+      const storyPack = makeTestStoryPack();
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      let combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Set to last participant (NPC_1) and set flags
+      combatSave = {
+        ...combatSave,
+        runtime: {
+          ...combatSave.runtime,
+          combat: combatSave.runtime.combat
+            ? {
+                ...combatSave.runtime.combat,
+                currentIndex: 1, // Last participant
+                turn: {
+                  ...combatSave.runtime.combat.turn,
+                  hasMoved: true,
+                  hasAttacked: true,
+                },
+              }
+            : undefined,
+        },
+      };
+
+      // Advance turn (should wrap to index 0 and increment round)
+      const advancedSave = advanceCombatTurn(combatSave);
+
+      // Round should increment
+      expect(advancedSave.runtime.combat?.round).toBe(2);
+      // Flags should be reset for new round
+      expect(advancedSave.runtime.combat?.turn.hasMoved).toBe(false);
+      expect(advancedSave.runtime.combat?.turn.hasAttacked).toBe(false);
+    });
+
+    it('advanceCombatTurn filters duplicate round/turn tags', () => {
+      const storyPack = makeTestStoryPack();
+      const pc = makeTestActor({ id: 'PC_1' });
+      const npc = makeTestActor({ id: 'NPC_1' });
+      const save = makeTestSave(storyPack, pc);
+      save.actorsById['NPC_1'] = npc;
+
+      const grid = { width: 10, height: 10 };
+      const placements = [
+        { actorId: 'PC_1' as ActorId, x: 2, y: 2 },
+        { actorId: 'NPC_1' as ActorId, x: 6, y: 2 },
+      ];
+
+      const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
+      let combatSave = startCombat(storyPack, testSave, ['PC_1', 'NPC_1'], undefined, grid, placements);
+
+      // Add duplicate tags to lastCheck
+      combatSave = {
+        ...combatSave,
+        runtime: {
+          ...combatSave.runtime,
+          lastCheck: combatSave.runtime.lastCheck
+            ? {
+                ...combatSave.runtime.lastCheck,
+                tags: [
+                  ...combatSave.runtime.lastCheck.tags,
+                  'combat:round=1',
+                  'combat:turn=PC_1',
+                  'combat:round=2', // duplicate
+                  'combat:turn=NPC_1', // duplicate
+                ],
+              }
+            : null,
+        },
+      };
+
+      // Advance turn
+      const advancedSave = advanceCombatTurn(combatSave);
+
+      // Should have only one round and one turn tag
+      const roundTags = advancedSave.runtime.lastCheck?.tags.filter((t) => t.startsWith('combat:round=')) || [];
+      const turnTags = advancedSave.runtime.lastCheck?.tags.filter((t) => t.startsWith('combat:turn=')) || [];
+
+      expect(roundTags.length).toBe(1);
+      expect(turnTags.length).toBe(1);
+      expect(roundTags[0]).toBe('combat:round=1'); // Should be round 1 (not incremented yet)
+      expect(turnTags[0]).toMatch(/^combat:turn=(PC_1|NPC_1)$/);
+    });
+  });
 });

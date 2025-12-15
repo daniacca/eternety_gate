@@ -5,6 +5,7 @@ import {
   getCurrentScene,
   listAvailableChoices,
   applyChoice,
+  getCurrentTurnActorId,
   type GameSave,
   type StoryPack,
 } from "@eg/engine";
@@ -74,11 +75,90 @@ export default function PlayScreen() {
 
   const lastCheck = save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
+  const combat = save.runtime.combat;
+
+  // Combat UI helpers
+  const currentTurnActorId = combat?.active ? getCurrentTurnActorId(save) : null;
+  const isPlayerTurn = combat?.active && currentTurnActorId === save.party.activeActorId;
+  const currentTurnActor = currentTurnActorId ? save.actorsById[currentTurnActorId] : null;
+
+  // Calculate distance if in combat
+  let distance: number | null = null;
+  if (combat?.active) {
+    const pcPos = combat.positions[save.party.activeActorId];
+    const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
+    if (pcPos && npcIds.length > 0) {
+      const npcPos = combat.positions[npcIds[0]];
+      if (npcPos) {
+        const dx = Math.abs(pcPos.x - npcPos.x);
+        const dy = Math.abs(pcPos.y - npcPos.y);
+        distance = Math.max(dx, dy);
+      }
+    }
+  }
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>{scene.title}</Text>
+
+        {/* Combat Status */}
+        {combat?.active && (
+          <View style={styles.combatStatus}>
+            <Text style={styles.combatTitle}>
+              Round: {combat.round} | Turn: {currentTurnActor?.name || currentTurnActorId || "Unknown"}
+            </Text>
+            {combat.positions && (
+              <View>
+                {Object.entries(combat.positions).map(([actorId, pos]) => {
+                  const actor = save.actorsById[actorId];
+                  return (
+                    <Text key={actorId} style={styles.combatText}>
+                      {actor?.name || actorId}: ({pos.x}, {pos.y})
+                    </Text>
+                  );
+                })}
+                {distance !== null && <Text style={styles.combatText}>Distance: {distance}</Text>}
+              </View>
+            )}
+            {!isPlayerTurn && <Text style={styles.combatWarning}>Not your turn!</Text>}
+            {isPlayerTurn && combat.turn.hasMoved && <Text style={styles.combatWarning}>Already moved this turn</Text>}
+            {isPlayerTurn && combat.turn.hasAttacked && (
+              <Text style={styles.combatWarning}>Already attacked this turn</Text>
+            )}
+          </View>
+        )}
+
+        {/* Combat End Banner */}
+        {tags.some((t) => t === "combat:state=end") && (
+          <View style={styles.combatEndBanner}>
+            <Text style={styles.combatEndText}>Combat ended.</Text>
+            {tags.find((t) => t.startsWith("combat:winner=")) && (
+              <Text style={styles.combatEndText}>
+                Winner:{" "}
+                {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name || "Unknown"}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Move Buttons (only in combat, player's turn, not moved yet) */}
+        {combat?.active && isPlayerTurn && !combat.turn.hasMoved && (
+          <View style={styles.moveButtonsContainer}>
+            <Text style={styles.choicesTitle}>Move:</Text>
+            <View style={styles.moveButtonsGrid}>
+              {(["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const).map((dir) => (
+                <Pressable
+                  key={dir}
+                  style={styles.moveButton}
+                  onPress={() => handleChoice(`combat_move_${dir.toLowerCase()}`)}
+                >
+                  <Text style={styles.moveButtonText}>{dir}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         {text.map((line, index) => (
           <Text key={index} style={styles.text}>
@@ -89,11 +169,38 @@ export default function PlayScreen() {
         {choices.length > 0 && (
           <View style={styles.choicesContainer}>
             <Text style={styles.choicesTitle}>Choices:</Text>
-            {choices.map((choice) => (
-              <Pressable key={choice.id} style={styles.choiceButton} onPress={() => handleChoice(choice.id)}>
-                <Text style={styles.choiceText}>{choice.label}</Text>
-              </Pressable>
-            ))}
+            {choices.map((choice) => {
+              // Check if choice should be disabled
+              let disabled = false;
+              let disabledReason = "";
+
+              if (combat?.active) {
+                if (!isPlayerTurn) {
+                  disabled = true;
+                  disabledReason = "Not your turn";
+                } else {
+                  // Check if it's a combat attack and already attacked
+                  if (choice.checks?.some((c) => c.kind === "combatAttack") && combat.turn.hasAttacked) {
+                    disabled = true;
+                    disabledReason = "Already attacked";
+                  }
+                }
+              }
+
+              return (
+                <Pressable
+                  key={choice.id}
+                  style={[styles.choiceButton, disabled && styles.choiceButtonDisabled]}
+                  onPress={() => !disabled && handleChoice(choice.id)}
+                  disabled={disabled}
+                >
+                  <Text style={[styles.choiceText, disabled && styles.choiceTextDisabled]}>
+                    {choice.label}
+                    {disabled && ` (${disabledReason})`}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         )}
 
@@ -315,5 +422,76 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 2,
     fontFamily: "monospace",
+  },
+  combatStatus: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "#fff3cd",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ffc107",
+  },
+  combatTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#856404",
+    marginBottom: 8,
+  },
+  combatText: {
+    fontSize: 14,
+    color: "#856404",
+    marginBottom: 4,
+  },
+  combatWarning: {
+    fontSize: 14,
+    color: "#dc3545",
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  combatEndBanner: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: "#d4edda",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#28a745",
+  },
+  combatEndText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#155724",
+    marginBottom: 4,
+  },
+  moveButtonsContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  moveButtonsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+  },
+  moveButton: {
+    backgroundColor: "#28a745",
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 50,
+    alignItems: "center",
+    margin: 4,
+  },
+  moveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  choiceButtonDisabled: {
+    backgroundColor: "#ccc",
+    opacity: 0.6,
+  },
+  choiceTextDisabled: {
+    color: "#666",
   },
 });

@@ -1890,7 +1890,57 @@
           "id": "start_combat",
           "label": "[Debug] Inizia combattimento",
           "checks": [],
-          "effects": [{ "op": "combatStart", "participantIds": ["PC_1", "NPC_DUMMY"] }]
+          "effects": [
+            {
+              "op": "combatStart",
+              "participantIds": ["PC_1", "NPC_DUMMY"],
+              "grid": { "width": 10, "height": 10 },
+              "placements": [
+                { "actorId": "PC_1", "x": 2, "y": 2 },
+                { "actorId": "NPC_DUMMY", "x": 6, "y": 2 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "combat_move_n",
+          "label": "[Move] N",
+          "effects": [{ "op": "combatMove", "dir": "N" }]
+        },
+        {
+          "id": "combat_move_ne",
+          "label": "[Move] NE",
+          "effects": [{ "op": "combatMove", "dir": "NE" }]
+        },
+        {
+          "id": "combat_move_e",
+          "label": "[Move] E",
+          "effects": [{ "op": "combatMove", "dir": "E" }]
+        },
+        {
+          "id": "combat_move_se",
+          "label": "[Move] SE",
+          "effects": [{ "op": "combatMove", "dir": "SE" }]
+        },
+        {
+          "id": "combat_move_s",
+          "label": "[Move] S",
+          "effects": [{ "op": "combatMove", "dir": "S" }]
+        },
+        {
+          "id": "combat_move_sw",
+          "label": "[Move] SW",
+          "effects": [{ "op": "combatMove", "dir": "SW" }]
+        },
+        {
+          "id": "combat_move_w",
+          "label": "[Move] W",
+          "effects": [{ "op": "combatMove", "dir": "W" }]
+        },
+        {
+          "id": "combat_move_nw",
+          "label": "[Move] NW",
+          "effects": [{ "op": "combatMove", "dir": "NW" }]
         },
         {
           "id": "back_to_hub",

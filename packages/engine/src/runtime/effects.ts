@@ -7,11 +7,12 @@ import type {
   ItemId,
   WorldEventId,
   ActorId,
+  Position,
 } from './types';
 import { evaluateCondition, evaluateConditions } from './conditions';
 import { RNG } from './rng';
 import { performCheck } from './checks';
-import { startCombat } from './engine';
+import { startCombat, getCurrentTurnActorId } from './engine';
 
 /**
  * Applies an effect to the game save (immutably)
@@ -52,6 +53,9 @@ export function applyEffect(
 
     case 'combatStart':
       return applyCombatStart(effect, storyPack, save);
+
+    case 'combatMove':
+      return applyCombatMove(effect, save);
 
     default:
       return save;
@@ -308,13 +312,151 @@ function setFlatValue(obj: Record<string, any>, key: string, value: any): void {
 }
 
 /**
- * Starts combat with given participant IDs
+ * Starts combat with given participant IDs, grid, and placements
  */
 function applyCombatStart(
   effect: Extract<Effect, { op: 'combatStart' }>,
   storyPack: StoryPack,
   save: GameSave
 ): GameSave {
-  return startCombat(storyPack, save, effect.participantIds, save.runtime.currentSceneId);
+  return startCombat(
+    storyPack,
+    save,
+    effect.participantIds,
+    save.runtime.currentSceneId,
+    effect.grid,
+    effect.placements
+  );
+}
+
+/**
+ * Moves actor in combat grid
+ */
+function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: GameSave): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    // Not in combat - ignore
+    const ignoredCheck = {
+      checkId: 'combat:move:ignored',
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: 'none' as const,
+      tags: ['combat:move:ignored'],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: ignoredCheck,
+      },
+    };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+    // Not player's turn
+    const blockedCheck = {
+      checkId: 'combat:move:blocked',
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: 'none' as const,
+      tags: ['combat:blocked=notYourTurn', `combat:turn=${turnActorId || 'unknown'}`],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  if (combat.turn.hasMoved) {
+    // Already moved this turn
+    const blockedCheck = {
+      checkId: 'combat:move:blocked',
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: 'none' as const,
+      tags: ['combat:blocked=alreadyMoved'],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  // Calculate delta based on direction
+  const dirDeltas: Record<string, Position> = {
+    N: { x: 0, y: -1 },
+    NE: { x: 1, y: -1 },
+    E: { x: 1, y: 0 },
+    SE: { x: 1, y: 1 },
+    S: { x: 0, y: 1 },
+    SW: { x: -1, y: 1 },
+    W: { x: -1, y: 0 },
+    NW: { x: -1, y: -1 },
+  };
+
+  const delta = dirDeltas[effect.dir];
+  if (!delta) {
+    return save;
+  }
+
+  const currentPos = combat.positions[turnActorId] || { x: 0, y: 0 };
+  const newPos = {
+    x: Math.max(0, Math.min(combat.grid.width - 1, currentPos.x + delta.x)),
+    y: Math.max(0, Math.min(combat.grid.height - 1, currentPos.y + delta.y)),
+  };
+
+  const updatedPositions = {
+    ...combat.positions,
+    [turnActorId]: newPos,
+  };
+
+  const updatedCombat = {
+    ...combat,
+    positions: updatedPositions,
+    turn: {
+      ...combat.turn,
+      hasMoved: true,
+    },
+  };
+
+  const moveCheck = {
+    checkId: 'combat:move',
+    actorId: turnActorId,
+    roll: 0,
+    target: 0,
+    success: true,
+    dos: 0,
+    dof: 0,
+    critical: 'none' as const,
+    tags: [`combat:move=${effect.dir}`, `combat:pos:${turnActorId}=${newPos.x},${newPos.y}`],
+  };
+
+  return {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+      lastCheck: moveCheck,
+    },
+  };
 }
 

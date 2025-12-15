@@ -16,6 +16,8 @@ import type {
   CheckResult,
   CombatState,
   SceneId,
+  Grid,
+  Position,
 } from "./types";
 import { evaluateConditions } from "./conditions";
 import { applyEffects } from "./effects";
@@ -172,13 +174,29 @@ function updateMagicState(
 }
 
 /**
- * Starts combat with given participants
+ * Distance helpers
+ */
+function distanceChebyshev(a: Position, b: Position): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function clampToGrid(pos: Position, grid: Grid): Position {
+  return {
+    x: Math.max(0, Math.min(grid.width - 1, pos.x)),
+    y: Math.max(0, Math.min(grid.height - 1, pos.y)),
+  };
+}
+
+/**
+ * Starts combat with given participants, grid, and placements
  */
 export function startCombat(
   storyPack: StoryPack,
   save: GameSave,
   participantIds: ActorId[],
-  startedBySceneId?: SceneId
+  startedBySceneId?: SceneId,
+  grid?: Grid,
+  placements?: Array<{ actorId: ActorId; x: number; y: number }>
 ): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
 
@@ -228,15 +246,47 @@ export function startCombat(
   const orderedIds = initiatives.map((entry) => entry.id);
   const currentTurnActorId = orderedIds[0];
 
+  // Initialize grid (default 10x10 if not provided)
+  const combatGrid: Grid = grid || { width: 10, height: 10 };
+
+  // Initialize positions from placements
+  const positions: Record<ActorId, Position> = {};
+  if (placements) {
+    for (const placement of placements) {
+      if (orderedIds.includes(placement.actorId)) {
+        positions[placement.actorId] = clampToGrid({ x: placement.x, y: placement.y }, combatGrid);
+      }
+    }
+  }
+
+  // Set default positions for missing actors (0,0)
+  for (const id of orderedIds) {
+    if (!positions[id]) {
+      positions[id] = { x: 0, y: 0 };
+    }
+  }
+
   const combatState: CombatState = {
     active: true,
     participants: orderedIds,
     currentIndex: 0,
     round: 1,
     startedBySceneId,
+    grid: combatGrid,
+    positions,
+    turn: {
+      hasMoved: false,
+      hasAttacked: false,
+    },
   };
 
-  // Create debug lastCheck
+  // Create debug lastCheck with position tags
+  const positionTags: string[] = [];
+  for (const id of orderedIds) {
+    const pos = positions[id];
+    positionTags.push(`combat:pos:${id}=${pos.x},${pos.y}`);
+  }
+
   const debugCheck: CheckResult = {
     checkId: "combat:start",
     actorId: currentTurnActorId,
@@ -251,6 +301,7 @@ export function startCombat(
       `combat:order=${orderedIds.join(",")}`,
       "combat:round=1",
       `combat:turn=${currentTurnActorId}`,
+      ...positionTags,
     ],
   };
 
@@ -286,22 +337,22 @@ export function getCurrentTurnActorId(save: GameSave): ActorId | null {
  */
 export function advanceCombatTurn(save: GameSave): GameSave {
   const combat = save.runtime.combat;
-  if (!combat?.active) {
-    return save;
-  }
+  if (!combat?.active) return save;
 
-  // Remove KO participants (hp <= 0)
   const aliveParticipants = combat.participants.filter((id) => {
     const actor = save.actorsById[id];
     return actor && actor.resources.hp > 0;
   });
 
-  // End combat if only one side remains (or none)
+  const last = save.runtime.lastCheck && save.runtime.lastCheck !== null ? save.runtime.lastCheck : null;
+
   if (aliveParticipants.length <= 1) {
-    const endCheck: CheckResult | null = save.runtime.lastCheck
+    const winnerId = aliveParticipants.length === 1 ? aliveParticipants[0] : null;
+
+    const endCheck: CheckResult = last
       ? {
-          ...save.runtime.lastCheck,
-          tags: [...save.runtime.lastCheck.tags, "combat:state=end"],
+          ...last,
+          tags: [...last.tags, "combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         }
       : {
           checkId: "combat:end",
@@ -311,72 +362,204 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           success: true,
           dos: 0,
           dof: 0,
-          critical: "none",
-          tags: ["combat:state=end"],
+          critical: "none", // o null, coerente col tuo tipo
+          tags: ["combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
     return {
       ...save,
-      runtime: {
-        ...save.runtime,
-        combat: undefined,
-        lastCheck: endCheck,
-      },
+      runtime: { ...save.runtime, combat: undefined, lastCheck: endCheck },
     };
   }
 
-  // Advance turn
-  let newCurrentIndex = (combat.currentIndex + 1) % aliveParticipants.length;
-  let newRound = combat.round;
+  const prevActorId = combat.participants[combat.currentIndex];
+  const prevAliveIndex = aliveParticipants.indexOf(prevActorId);
+  const pivotIndex = prevAliveIndex >= 0 ? prevAliveIndex : Math.min(combat.currentIndex, aliveParticipants.length - 1);
 
-  // If we wrapped around, increment round
-  if (newCurrentIndex === 0) {
-    newRound = combat.round + 1;
-  }
+  let newCurrentIndex = (pivotIndex + 1) % aliveParticipants.length;
+  let newRound = combat.round;
+  if (newCurrentIndex === 0) newRound = combat.round + 1;
+
+  const currentTurnActorId = aliveParticipants[newCurrentIndex];
 
   const newCombatState: CombatState = {
     ...combat,
     participants: aliveParticipants,
     currentIndex: newCurrentIndex,
     round: newRound,
+    turn: { hasMoved: false, hasAttacked: false },
   };
 
-  const currentTurnActorId = aliveParticipants[newCurrentIndex];
-
-  // Update lastCheck tags
-  const updatedLastCheck: CheckResult | null = save.runtime.lastCheck
+  const updatedLastCheck: CheckResult | null = last
     ? {
-        ...save.runtime.lastCheck,
-        tags: [...save.runtime.lastCheck.tags, `combat:round=${newRound}`, `combat:turn=${currentTurnActorId}`],
+        ...last,
+        tags: [
+          ...last.tags.filter((tag) => !tag.startsWith("combat:round=") && !tag.startsWith("combat:turn=")),
+          `combat:round=${newRound}`,
+          `combat:turn=${currentTurnActorId}`,
+        ],
       }
     : null;
 
   return {
     ...save,
-    runtime: {
-      ...save.runtime,
-      combat: newCombatState,
-      lastCheck: updatedLastCheck,
-    },
+    runtime: { ...save.runtime, combat: newCombatState, lastCheck: updatedLastCheck },
   };
 }
 
 /**
- * Runs an NPC turn (auto-attack)
+ * Runs an NPC turn (auto-attack or move)
  */
 export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
+  const combat = save.runtime.combat;
+
+  if (!combat?.active) {
+    return save;
+  }
 
   // Target is always the active party member
   const targetId = save.party.activeActorId;
 
-  // Build minimal CombatAttackCheck
+  // Backward compatibility: if positions not initialized, use old behavior (MELEE attack)
+  if (!combat.positions) {
+    // Old combat state without positions - use MELEE attack
+    const check: CombatAttackCheck = {
+      id: `combat:npcTurn:${npcId}`,
+      kind: "combatAttack",
+      attacker: {
+        actorRef: { mode: "byId", actorId: npcId },
+        mode: "MELEE",
+        weaponId: null,
+      },
+      defender: {
+        actorRef: { mode: "byId", actorId: targetId },
+      },
+      defense: {
+        allowParry: true,
+        allowDodge: true,
+        strategy: "autoBest",
+      },
+    };
+
+    // Mark as attacked (backward compatibility: if turn undefined, create default)
+    const combatWithAttacked = {
+      ...combat,
+      turn: combat.turn
+        ? {
+            ...combat.turn,
+            hasAttacked: true,
+          }
+        : {
+            hasMoved: false,
+            hasAttacked: true,
+          },
+    };
+
+    const result = performCheck(
+      check,
+      storyPack,
+      { ...save, runtime: { ...save.runtime, combat: combatWithAttacked } },
+      rng
+    );
+
+    if (!result) {
+      return {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          combat: combatWithAttacked,
+          rngCounter: rng.getCounter(),
+        },
+      };
+    }
+
+    let currentSave: GameSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: combatWithAttacked,
+        rngCounter: rng.getCounter(),
+        lastCheck: {
+          ...result,
+          tags: [...result.tags, "combat:npcTurn=1", `combat:npcId=${npcId}`],
+        },
+      },
+    };
+
+    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+    return currentSave;
+  }
+
+  // Get positions
+  const npcPos = combat.positions[npcId];
+  const targetPos = combat.positions[targetId];
+
+  if (!npcPos || !targetPos) {
+    return save;
+  }
+
+  const dist = distanceChebyshev(npcPos, targetPos);
+
+  // If out of range (> 8), NPC moves towards target
+  if (dist > 8) {
+    // Calculate direction towards target
+    const dx = targetPos.x - npcPos.x;
+    const dy = targetPos.y - npcPos.y;
+
+    // Normalize to -1, 0, or 1 for Chebyshev movement
+    const moveX = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
+    const moveY = dy !== 0 ? (dy > 0 ? 1 : -1) : 0;
+
+    const newPos = clampToGrid({ x: npcPos.x + moveX, y: npcPos.y + moveY }, combat.grid);
+
+    const updatedPositions = {
+      ...combat.positions,
+      [npcId]: newPos,
+    };
+
+    const updatedCombat = {
+      ...combat,
+      positions: updatedPositions,
+      turn: {
+        ...combat.turn,
+        hasMoved: true,
+      },
+    };
+
+    const moveCheck: CheckResult = {
+      checkId: `combat:npcMove:${npcId}`,
+      actorId: npcId,
+      roll: 0,
+      target: 0,
+      success: true,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:npcMove=1", `combat:npcId=${npcId}`, `combat:pos:${npcId}=${newPos.x},${newPos.y}`],
+    };
+
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: updatedCombat,
+        rngCounter: rng.getCounter(),
+        lastCheck: moveCheck,
+      },
+    };
+  }
+
+  // Determine attack mode based on distance
+  const attackMode: "MELEE" | "RANGED" = dist <= 1 ? "MELEE" : "RANGED";
+
+  // Build CombatAttackCheck
   const check: CombatAttackCheck = {
     id: `combat:npcTurn:${npcId}`,
     kind: "combatAttack",
     attacker: {
       actorRef: { mode: "byId", actorId: npcId },
-      mode: "MELEE",
+      mode: attackMode,
       weaponId: null,
     },
     defender: {
@@ -389,24 +572,48 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
     },
   };
 
+  // Set rangeBand for ranged attacks
+  if (attackMode === "RANGED") {
+    const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+    check.modifiers = {
+      rangeBand: rangeBand as any,
+    };
+  }
+
+  // Mark as attacked
+  const combatWithAttacked = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      hasAttacked: true,
+    },
+  };
+
   // Perform check
-  const result = performCheck(check, storyPack, save, rng);
+  const result = performCheck(
+    check,
+    storyPack,
+    { ...save, runtime: { ...save.runtime, combat: combatWithAttacked } },
+    rng
+  );
 
   if (!result) {
     return {
       ...save,
       runtime: {
         ...save.runtime,
+        combat: combatWithAttacked,
         rngCounter: rng.getCounter(),
       },
     };
   }
 
-  // Update RNG counter
+  // Update RNG counter and mark as attacked
   let currentSave: GameSave = {
     ...save,
     runtime: {
       ...save.runtime,
+      combat: combatWithAttacked,
       rngCounter: rng.getCounter(),
       lastCheck: {
         ...result,
@@ -566,6 +773,196 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
   // Execute scene checks if any
   if (scene.checks) {
     for (const check of scene.checks) {
+      // Combat attack gating
+      if (check.kind === "combatAttack" && currentSave.runtime.combat?.active) {
+        const combat = currentSave.runtime.combat;
+        const turnActorId = getCurrentTurnActorId(currentSave);
+
+        // Check if it's player's turn
+        if (!turnActorId || turnActorId !== currentSave.party.activeActorId) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          continue;
+        }
+
+        // Check if already attacked (backward compatibility: if turn is undefined, allow)
+        if (combat.turn && combat.turn.hasAttacked) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=alreadyAttacked"],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          continue;
+        }
+
+        // Check distance and range rules
+        const combatCheck = check as CombatAttackCheck;
+        const attackerId = resolveActor(combatCheck.attacker.actorRef, currentSave)?.id;
+        const defenderId = resolveActor(combatCheck.defender.actorRef, currentSave)?.id;
+
+        if (!attackerId || !defenderId) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=noPosition"],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          continue;
+        }
+
+        // Backward compatibility: if positions not initialized, skip gating
+        if (!combat.positions) {
+          // Old combat state without positions - allow attack (fall through)
+        } else {
+          const attPos = combat.positions[attackerId];
+          const defPos = combat.positions[defenderId];
+
+          if (!attPos || !defPos) {
+            const blockedCheck: CheckResult = {
+              checkId: check.id,
+              actorId: currentSave.party.activeActorId,
+              roll: 0,
+              target: 0,
+              success: false,
+              dos: 0,
+              dof: 0,
+              critical: "none",
+              tags: ["combat:blocked=noPosition"],
+            };
+            currentSave = {
+              ...currentSave,
+              runtime: {
+                ...currentSave.runtime,
+                lastCheck: blockedCheck,
+              },
+            };
+            continue;
+          }
+
+          const dist = distanceChebyshev(attPos, defPos);
+
+          // Range rules
+          if (combatCheck.attacker.mode === "MELEE") {
+            if (dist > 1) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=notInMelee", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              continue;
+            }
+          } else if (combatCheck.attacker.mode === "RANGED") {
+            if (dist <= 1) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=rangedInMelee", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              continue;
+            }
+
+            // Range bands: dist <= 4 => SHORT, dist <= 8 => LONG, else out of range
+            if (dist > 8) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              continue;
+            }
+
+            // Auto-set rangeBand if not specified
+            if (!combatCheck.modifiers?.rangeBand) {
+              const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+              combatCheck.modifiers = {
+                ...combatCheck.modifiers,
+                rangeBand: rangeBand as any,
+              };
+            }
+          }
+        }
+      }
+
       const result = performCheck(check, storyPack, currentSave, rng);
       if (result) {
         currentSave = {
@@ -584,6 +981,24 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
         if (check.kind === "combatAttack") {
           didPlayerCombatAction = true;
           const combatCheck = check as CombatAttackCheck;
+
+          // Mark as attacked
+          if (currentSave.runtime.combat?.active) {
+            currentSave = {
+              ...currentSave,
+              runtime: {
+                ...currentSave.runtime,
+                combat: {
+                  ...currentSave.runtime.combat,
+                  turn: {
+                    ...currentSave.runtime.combat.turn,
+                    hasAttacked: true,
+                  },
+                },
+              },
+            };
+          }
+
           // Apply damage if HIT
           currentSave = applyCombatDamageIfHit(check, result, currentSave);
           if (result.success && combatCheck.onHit) {
@@ -607,6 +1022,196 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
   // Stop on first failure (after applying onFailure effects)
   if (choice.checks) {
     for (const check of choice.checks) {
+      // Combat attack gating (same as scene checks)
+      if (check.kind === "combatAttack" && currentSave.runtime.combat?.active) {
+        const combat = currentSave.runtime.combat;
+        const turnActorId = getCurrentTurnActorId(currentSave);
+
+        // Check if it's player's turn
+        if (!turnActorId || turnActorId !== currentSave.party.activeActorId) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          break; // Stop processing checks
+        }
+
+        // Check if already attacked (backward compatibility: if turn is undefined, allow)
+        if (combat.turn && combat.turn.hasAttacked) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=alreadyAttacked"],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          break; // Stop processing checks
+        }
+
+        // Check distance and range rules
+        const combatCheck = check as CombatAttackCheck;
+        const attackerId = resolveActor(combatCheck.attacker.actorRef, currentSave)?.id;
+        const defenderId = resolveActor(combatCheck.defender.actorRef, currentSave)?.id;
+
+        if (!attackerId || !defenderId) {
+          const blockedCheck: CheckResult = {
+            checkId: check.id,
+            actorId: currentSave.party.activeActorId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: ["combat:blocked=noPosition"],
+          };
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              lastCheck: blockedCheck,
+            },
+          };
+          break; // Stop processing checks
+        }
+
+        // Backward compatibility: if positions not initialized, skip gating
+        if (!combat.positions) {
+          // Old combat state without positions - allow attack (fall through)
+        } else {
+          const attPos = combat.positions[attackerId];
+          const defPos = combat.positions[defenderId];
+
+          if (!attPos || !defPos) {
+            const blockedCheck: CheckResult = {
+              checkId: check.id,
+              actorId: currentSave.party.activeActorId,
+              roll: 0,
+              target: 0,
+              success: false,
+              dos: 0,
+              dof: 0,
+              critical: "none",
+              tags: ["combat:blocked=noPosition"],
+            };
+            currentSave = {
+              ...currentSave,
+              runtime: {
+                ...currentSave.runtime,
+                lastCheck: blockedCheck,
+              },
+            };
+            break; // Stop processing checks
+          }
+
+          const dist = distanceChebyshev(attPos, defPos);
+
+          // Range rules
+          if (combatCheck.attacker.mode === "MELEE") {
+            if (dist > 1) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=notInMelee", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              break; // Stop processing checks
+            }
+          } else if (combatCheck.attacker.mode === "RANGED") {
+            if (dist <= 1) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=rangedInMelee", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              break; // Stop processing checks
+            }
+
+            // Range bands: dist <= 4 => SHORT, dist <= 8 => LONG, else out of range
+            if (dist > 8) {
+              const blockedCheck: CheckResult = {
+                checkId: check.id,
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: false,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
+              };
+              currentSave = {
+                ...currentSave,
+                runtime: {
+                  ...currentSave.runtime,
+                  lastCheck: blockedCheck,
+                },
+              };
+              break; // Stop processing checks
+            }
+
+            // Auto-set rangeBand if not specified
+            if (!combatCheck.modifiers?.rangeBand) {
+              const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+              combatCheck.modifiers = {
+                ...combatCheck.modifiers,
+                rangeBand: rangeBand as any,
+              };
+            }
+          }
+        }
+      }
+
       const result = performCheck(check, storyPack, currentSave, rng);
       if (!result) {
         // If check returns null, skip it
@@ -630,6 +1235,24 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
       if (check.kind === "combatAttack") {
         didPlayerCombatAction = true;
         const combatCheck = check as CombatAttackCheck;
+
+        // Mark as attacked
+        if (currentSave.runtime.combat?.active) {
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              combat: {
+                ...currentSave.runtime.combat,
+                turn: {
+                  ...currentSave.runtime.combat.turn,
+                  hasAttacked: true,
+                },
+              },
+            },
+          };
+        }
+
         // Apply damage if HIT
         currentSave = applyCombatDamageIfHit(check, result, currentSave);
         if (result.success && combatCheck.onHit) {
