@@ -12,28 +12,25 @@ import type {
   Actor,
   CheckResult,
   StoryPack,
-} from './types';
-import { RNG } from './rng';
+} from "./types";
+import { RNG } from "./rng";
 
 /**
  * Resolves an ActorRef to an Actor
  */
-export function resolveActor(
-  actorRef: ActorRef | undefined,
-  save: GameSave
-): Actor | null {
+export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Actor | null {
   if (!actorRef) {
     return save.actorsById[save.party.activeActorId] || null;
   }
 
   switch (actorRef.mode) {
-    case 'active':
+    case "active":
       return save.actorsById[save.party.activeActorId] || null;
 
-    case 'byId':
+    case "byId":
       return save.actorsById[actorRef.actorId] || null;
 
-    case 'bestOfParty': {
+    case "bestOfParty": {
       let best: Actor | null = null;
       let bestValue = -Infinity;
 
@@ -51,7 +48,7 @@ export function resolveActor(
       return best;
     }
 
-    case 'askPlayer':
+    case "askPlayer":
       // For now, default to active actor
       // In a real implementation, this would prompt the player
       return save.actorsById[save.party.activeActorId] || null;
@@ -64,30 +61,23 @@ export function resolveActor(
 /**
  * Gets the value of a stat or skill for an actor
  */
-export function getStatOrSkillValue(
-  actor: Actor,
-  key: StatOrSkillKey,
-  save: GameSave
-): number {
+export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: GameSave): number {
   // Check if it's a stat
   if (key in actor.stats) {
     let value = actor.stats[key as keyof typeof actor.stats];
-    
+
     // Apply equipment bonuses
     const equipped = actor.equipment.equipped;
-    const items = [
-      equipped.weaponMainId,
-      equipped.weaponOffId,
-      equipped.armorId,
-      ...equipped.accessoryIds,
-    ].filter((id): id is string => id !== null);
+    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+      (id): id is string => id !== null
+    );
 
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
 
       for (const mod of item.mods) {
-        if (mod.type === 'bonusStat' && mod.stat === key) {
+        if (mod.type === "bonusStat" && mod.stat === key) {
           value += mod.value;
         }
       }
@@ -95,10 +85,7 @@ export function getStatOrSkillValue(
 
     // Apply temp modifiers
     for (const tempMod of actor.status.tempModifiers) {
-      if (
-        (tempMod.scope === 'check' || tempMod.scope === 'all') &&
-        (!tempMod.key || tempMod.key === key)
-      ) {
+      if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }
     }
@@ -107,25 +94,22 @@ export function getStatOrSkillValue(
   }
 
   // Check if it's a skill (SKILL:xxx format)
-  if (key.startsWith('SKILL:')) {
+  if (key.startsWith("SKILL:")) {
     const skillId = key.substring(6);
     let value = actor.skills[skillId] || 0;
 
     // Apply equipment bonuses
     const equipped = actor.equipment.equipped;
-    const items = [
-      equipped.weaponMainId,
-      equipped.weaponOffId,
-      equipped.armorId,
-      ...equipped.accessoryIds,
-    ].filter((id): id is string => id !== null);
+    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+      (id): id is string => id !== null
+    );
 
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
 
       for (const mod of item.mods) {
-        if (mod.type === 'bonusSkill' && mod.skill === skillId) {
+        if (mod.type === "bonusSkill" && mod.skill === skillId) {
           value += mod.value;
         }
       }
@@ -133,10 +117,7 @@ export function getStatOrSkillValue(
 
     // Apply temp modifiers
     for (const tempMod of actor.status.tempModifiers) {
-      if (
-        (tempMod.scope === 'check' || tempMod.scope === 'all') &&
-        (!tempMod.key || tempMod.key === key)
-      ) {
+      if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }
     }
@@ -150,63 +131,132 @@ export function getStatOrSkillValue(
 /**
  * Resolves a difficulty string to a modifier number
  */
-function resolveDifficulty(
-  difficulty: string,
-  storyPack: StoryPack
-): number {
+function resolveDifficulty(difficulty: string, storyPack: StoryPack): number {
   const bands = storyPack.systems.checks.difficultyBands;
   return bands[difficulty] ?? 0;
 }
 
 /**
+ * Computes target breakdown for a check (base value, temp modifiers, difficulty, final target)
+ * Returns all values needed for both target calculation and debug tags
+ */
+function computeTargetBreakdown(
+  actor: Actor,
+  key: StatOrSkillKey,
+  difficulty: string,
+  save: GameSave,
+  storyPack: StoryPack
+): {
+  baseValue: number;
+  tempModsSum: number;
+  difficultyMod: number;
+  finalValue: number;
+  target: number;
+} {
+  // Get base value (without temp modifiers for breakdown)
+  let baseValue: number;
+  if (key in actor.stats) {
+    baseValue = actor.stats[key as keyof typeof actor.stats];
+    // Apply equipment bonuses to base
+    const equipped = actor.equipment.equipped;
+    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+      (id): id is string => id !== null
+    );
+    for (const itemId of items) {
+      const item = save.itemCatalogById[itemId];
+      if (!item) continue;
+      for (const mod of item.mods) {
+        if (mod.type === "bonusStat" && mod.stat === key) {
+          baseValue += mod.value;
+        }
+      }
+    }
+  } else if (key.startsWith("SKILL:")) {
+    const skillId = key.substring(6);
+    baseValue = actor.skills[skillId] || 0;
+    // Apply equipment bonuses to base
+    const equipped = actor.equipment.equipped;
+    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+      (id): id is string => id !== null
+    );
+    for (const itemId of items) {
+      const item = save.itemCatalogById[itemId];
+      if (!item) continue;
+      for (const mod of item.mods) {
+        if (mod.type === "bonusSkill" && mod.skill === skillId) {
+          baseValue += mod.value;
+        }
+      }
+    }
+  } else {
+    baseValue = 0;
+  }
+
+  const difficultyMod = resolveDifficulty(difficulty, storyPack);
+
+  // Calculate temp modifiers sum for debug tags
+  let tempModsSum = 0;
+  for (const tempMod of actor.status.tempModifiers) {
+    if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
+      tempModsSum += tempMod.value;
+    }
+  }
+
+  // Use getStatOrSkillValue for final value (includes temp modifiers)
+  const finalValue = getStatOrSkillValue(actor, key, save);
+  const target = finalValue + difficultyMod;
+
+  return {
+    baseValue,
+    tempModsSum,
+    difficultyMod,
+    finalValue,
+    target,
+  };
+}
+
+/**
  * Performs a D100 check
  */
-export function performCheck(
-  check: Check,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
+export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
   switch (check.kind) {
-    case 'single':
+    case "single":
       return performSingleCheck(check, storyPack, save, rng);
-    case 'multi':
+    case "multi":
       throw new Error(`Check kind 'multi' is not yet implemented in this vertical slice`);
-    case 'opposed':
-      throw new Error(`Check kind 'opposed' is not yet implemented in this vertical slice`);
-    case 'sequence':
-      throw new Error(`Check kind 'sequence' is not yet implemented in this vertical slice`);
-    case 'magicChannel':
+    case "opposed":
+      return performOpposedCheck(check, storyPack, save, rng);
+    case "sequence":
+      return performSequenceCheck(check, storyPack, save, rng);
+    case "magicChannel":
       throw new Error(`Check kind 'magicChannel' is not yet implemented in this vertical slice`);
-    case 'magicEffect':
+    case "magicEffect":
       throw new Error(`Check kind 'magicEffect' is not yet implemented in this vertical slice`);
     default:
       throw new Error(`Unknown check kind: ${(check as any).kind}`);
   }
 }
 
-function performSingleCheck(
-  check: SingleCheck,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
+function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
-  const baseValue = getStatOrSkillValue(actor, check.key, save);
-  const difficultyMod = resolveDifficulty(check.difficulty, storyPack);
-  const target = baseValue + difficultyMod;
+  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty, save, storyPack);
 
-  return rollD100Check(check.id, actor.id, target, storyPack, rng);
+  const result = rollD100Check(check.id, actor.id, breakdown.target, storyPack, rng);
+
+  // Add target breakdown tags for debugging
+  if (result) {
+    result.tags.push(`calc:base=${breakdown.baseValue}`);
+    result.tags.push(`calc:diff=${breakdown.difficultyMod}`);
+    result.tags.push(`calc:mods=${breakdown.tempModsSum}`);
+    result.tags.push(`calc:target=${breakdown.target}`);
+  }
+
+  return result;
 }
 
-function performMultiCheck(
-  check: MultiCheck,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
+function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
@@ -231,84 +281,170 @@ function performMultiCheck(
   return rollD100Check(check.id, actor.id, target, storyPack, rng);
 }
 
-function performOpposedCheck(
-  check: OpposedCheck,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
+function performOpposedCheck(check: OpposedCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+  // Resolve actors - default to active actor if not specified
   const attacker = resolveActor(check.attacker.actorRef, save);
-  const defender = resolveActor(check.defender.actorRef, save);
+  const defender = resolveActor(check.defender.actorRef, save) || resolveActor(undefined, save);
   if (!attacker || !defender) return null;
 
-  const attackerValue = getStatOrSkillValue(attacker, check.attacker.key, save);
-  const defenderValue = getStatOrSkillValue(defender, check.defender.key, save);
+  const attackerBreakdown = computeTargetBreakdown(
+    attacker,
+    check.attacker.key,
+    check.attacker.difficulty || "NORMAL",
+    save,
+    storyPack
+  );
+  const defenderBreakdown = computeTargetBreakdown(
+    defender,
+    check.defender.key,
+    check.defender.difficulty || "NORMAL",
+    save,
+    storyPack
+  );
 
-  const attackerDifficulty = check.attacker.difficulty
-    ? resolveDifficulty(check.attacker.difficulty, storyPack)
-    : 0;
-  const defenderDifficulty = check.defender.difficulty
-    ? resolveDifficulty(check.defender.difficulty, storyPack)
-    : 0;
+  const attackerTarget = attackerBreakdown.target;
+  const defenderTarget = defenderBreakdown.target;
 
-  const attackerTarget = attackerValue + attackerDifficulty;
-  const defenderTarget = defenderValue + defenderDifficulty;
-
+  // Roll for both sides
   const attackerRoll = rng.rollD100();
   const defenderRoll = rng.rollD100();
 
-  const attackerResult = evaluateRoll(
-    attackerRoll,
-    attackerTarget,
-    storyPack
-  );
-  const defenderResult = evaluateRoll(
-    defenderRoll,
-    defenderTarget,
-    storyPack
-  );
+  // Evaluate both rolls
+  const attackerResult = evaluateRoll(attackerRoll, attackerTarget, storyPack, check.id, attacker.id);
+  const defenderResult = evaluateRoll(defenderRoll, defenderTarget, storyPack, check.id, defender.id);
 
   if (!attackerResult || !defenderResult) {
     return null;
   }
 
-  const attackerDoS = attackerResult.success ? attackerResult.dos : 0;
-  const defenderDoS = defenderResult.success ? defenderResult.dos : 0;
+  // Opposed check rules:
+  // 1. If attacker fails -> attacker loses (regardless of defender)
+  // 2. If attacker succeeds:
+  //    - If defender fails -> attacker wins, DoS = attacker DoS
+  //    - If defender succeeds -> compare DoS:
+  //      - attacker wins if attackerDoS > defenderDoS
+  //      - tie (equal DoS) -> defender wins
+  //      - if attacker wins, opposed DoS = attackerDoS - defenderDoS
 
-  const success = attackerDoS > defenderDoS;
+  let attackerWins = false;
+  let opposedDoS = 0;
 
-  // Use attacker's roll for the result
+  if (!attackerResult.success) {
+    // Attacker fails -> loses regardless of defender
+    attackerWins = false;
+    opposedDoS = 0;
+  } else {
+    // Attacker succeeded
+    if (!defenderResult.success) {
+      // Defender fails -> attacker wins
+      attackerWins = true;
+      opposedDoS = attackerResult.dos;
+    } else {
+      // Both succeeded -> compare DoS
+      if (attackerResult.dos > defenderResult.dos) {
+        attackerWins = true;
+        opposedDoS = attackerResult.dos - defenderResult.dos;
+      } else {
+        // Tie or defender has higher DoS -> defender wins
+        attackerWins = false;
+        opposedDoS = 0;
+      }
+    }
+  }
+
+  const isTie = attackerResult.success && defenderResult.success && attackerResult.dos === defenderResult.dos;
+
+  // Build tags with defender details and breakdown
+  const tags = [...attackerResult.tags];
+  tags.push(`opposed:defenderId=${defender.id}`);
+  tags.push(`opposed:defRoll=${defenderRoll}`);
+  tags.push(`opposed:defTarget=${defenderTarget}`);
+  tags.push(`opposed:attDoS=${attackerResult.dos}`);
+  tags.push(`opposed:defDoS=${defenderResult.dos}`);
+  tags.push(`opposed:attSuccess=${attackerResult.success ? 1 : 0}`);
+  tags.push(`opposed:defSuccess=${defenderResult.success ? 1 : 0}`);
+  if (isTie) {
+    tags.push("opposed:tie=1");
+  }
+
+  // Add target breakdown tags for both sides
+  tags.push(`att:calc:base=${attackerBreakdown.baseValue}`);
+  tags.push(`att:calc:diff=${attackerBreakdown.difficultyMod}`);
+  tags.push(`att:calc:mods=${attackerBreakdown.tempModsSum}`);
+  tags.push(`att:calc:target=${attackerTarget}`);
+  tags.push(`def:calc:base=${defenderBreakdown.baseValue}`);
+  tags.push(`def:calc:diff=${defenderBreakdown.difficultyMod}`);
+  tags.push(`def:calc:mods=${defenderBreakdown.tempModsSum}`);
+  tags.push(`def:calc:target=${defenderTarget}`);
+
+  // Return result representing opposed outcome
   return {
     checkId: check.id,
     actorId: attacker.id,
     roll: attackerRoll,
     target: attackerTarget,
-    success,
-    dos: success ? attackerDoS : 0,
-    dof: success ? 0 : attackerResult.dof,
+    success: attackerWins,
+    dos: opposedDoS,
+    dof: 0, // Keep opposed outcome clean
     critical: attackerResult.critical,
-    tags: attackerResult.tags,
+    tags,
   };
 }
 
-function performSequenceCheck(
-  check: SequenceCheck,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
-  // Execute all steps, succeed only if all succeed
-  for (const step of check.steps) {
+function performSequenceCheck(check: SequenceCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
+  const steps = check.steps;
+  let firstActorId: string | undefined;
+  let lastResult: CheckResult | null = null;
+  let failedAtIndex: number | undefined;
+
+  // Execute steps in order, stop at first failure
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
     const result = performCheck(step, storyPack, save, rng);
-    if (!result || !result.success) {
-      return result || null;
+
+    // Skip null results (should be rare)
+    if (!result) {
+      continue;
+    }
+
+    // Track first actor ID
+    if (firstActorId === undefined) {
+      firstActorId = result.actorId;
+    }
+
+    // Track last result for aggregated fields
+    lastResult = result;
+
+    // Stop at first failure
+    if (!result.success) {
+      failedAtIndex = i;
+      break;
     }
   }
 
-  // All succeeded
-  const lastStep = check.steps[check.steps.length - 1];
-  const lastResult = performCheck(lastStep, storyPack, save, rng);
-  return lastResult;
+  // If no steps executed or all were null, return null
+  if (!lastResult) {
+    return null;
+  }
+
+  // Build aggregated result
+  const tags = [...lastResult.tags];
+  tags.push(`sequence:steps=${steps.length}`);
+  if (failedAtIndex !== undefined) {
+    tags.push(`sequence:failedAt=${failedAtIndex}`);
+  }
+
+  return {
+    checkId: check.id,
+    actorId: firstActorId || save.party.activeActorId,
+    roll: lastResult.roll,
+    target: lastResult.target,
+    success: failedAtIndex === undefined,
+    dos: lastResult.dos,
+    dof: lastResult.dof,
+    critical: lastResult.critical,
+    tags,
+  };
 }
 
 function performMagicChannelCheck(
@@ -325,18 +461,15 @@ function performMagicChannelCheck(
   // Apply focus bonuses for channeling
   let channelBonus = 0;
   const equipped = actor.equipment.equipped;
-  const items = [
-    equipped.weaponMainId,
-    equipped.weaponOffId,
-    equipped.armorId,
-    ...equipped.accessoryIds,
-  ].filter((id): id is string => id !== null);
+  const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+    (id): id is string => id !== null
+  );
 
   for (const itemId of items) {
     const item = save.itemCatalogById[itemId];
     if (!item) continue;
     for (const mod of item.mods) {
-      if (mod.type === 'focus' && mod.channelBonus) {
+      if (mod.type === "focus" && mod.channelBonus) {
         channelBonus += mod.channelBonus;
       }
     }
@@ -349,12 +482,7 @@ function performMagicChannelCheck(
   return result;
 }
 
-function performMagicEffectCheck(
-  check: MagicEffectCheck,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): CheckResult {
+function performMagicEffectCheck(check: MagicEffectCheck, storyPack: StoryPack, save: GameSave, rng: RNG): CheckResult {
   const actor = resolveActor(check.actorRef, save);
   if (!actor) return null;
 
@@ -370,7 +498,7 @@ function performMagicEffectCheck(
       success: false,
       dos: 0,
       dof: check.castingNumberDoS - accumulatedDoS,
-      critical: 'none',
+      critical: "none",
       tags: [],
     };
   }
@@ -380,18 +508,15 @@ function performMagicEffectCheck(
   // Apply focus bonuses for casting
   let castBonus = 0;
   const equipped = actor.equipment.equipped;
-  const items = [
-    equipped.weaponMainId,
-    equipped.weaponOffId,
-    equipped.armorId,
-    ...equipped.accessoryIds,
-  ].filter((id): id is string => id !== null);
+  const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
+    (id): id is string => id !== null
+  );
 
   for (const itemId of items) {
     const item = save.itemCatalogById[itemId];
     if (!item) continue;
     for (const mod of item.mods) {
-      if (mod.type === 'focus' && mod.castBonus) {
+      if (mod.type === "focus" && mod.castBonus) {
         castBonus += mod.castBonus;
       }
     }
@@ -417,13 +542,7 @@ function performMagicEffectCheck(
 /**
  * Rolls a D100 and evaluates success/failure
  */
-function rollD100Check(
-  checkId: string,
-  actorId: string,
-  target: number,
-  storyPack: StoryPack,
-  rng: RNG
-): CheckResult {
+function rollD100Check(checkId: string, actorId: string, target: number, storyPack: StoryPack, rng: RNG): CheckResult {
   const roll = rng.rollD100();
   return evaluateRoll(roll, target, storyPack, checkId, actorId);
 }
@@ -443,7 +562,7 @@ function evaluateRoll(
   const autoFail = criticals.autoFail || [98, 99, 100];
   const epic = criticals.epic;
 
-  let critical: NonNullable<CheckResult>['critical'] = 'none';
+  let critical: NonNullable<CheckResult>["critical"] = "none";
   let success = false;
   let dos = 0;
   let dof = 0;
@@ -451,28 +570,28 @@ function evaluateRoll(
 
   // Check for auto-success
   if (autoSuccess.includes(roll)) {
-    critical = 'autoSuccess';
+    critical = "autoSuccess";
     success = true;
     dos = Math.max(1, Math.floor((target - roll) / 10));
-    
+
     // Check for epic success
     if (epic && roll === epic.success) {
-      critical = 'epicSuccess';
+      critical = "epicSuccess";
       dos = epic.treatAsDoS;
-      tags.push('epicSuccess');
+      tags.push("epicSuccess");
     }
   }
   // Check for auto-fail
   else if (autoFail.includes(roll)) {
-    critical = 'autoFail';
+    critical = "autoFail";
     success = false;
     dof = Math.max(1, Math.floor((roll - target) / 10));
-    
+
     // Check for epic fail
     if (epic && roll === epic.fail) {
-      critical = 'epicFail';
+      critical = "epicFail";
       dof = Math.max(1, Math.floor((roll - target) / 10));
-      tags.push('epicFail');
+      tags.push("epicFail");
     }
   }
   // Normal roll
@@ -489,12 +608,12 @@ function evaluateRoll(
   const tens = Math.floor(roll / 10);
   const ones = roll % 10;
   if (tens === ones && roll >= 11) {
-    tags.push('doubles');
+    tags.push("doubles");
   }
 
   return {
-    checkId: checkId || '',
-    actorId: actorId || '',
+    checkId: checkId || "",
+    actorId: actorId || "",
     roll,
     target,
     success,
@@ -504,4 +623,3 @@ function evaluateRoll(
     tags,
   };
 }
-

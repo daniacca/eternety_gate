@@ -107,6 +107,64 @@ export default function PlayScreen() {
             {save.runtime.lastCheck.critical !== "none" && (
               <Text style={styles.checkText}>Critical: {save.runtime.lastCheck.critical}</Text>
             )}
+
+            {/* Target breakdown (debug UI) */}
+            {(() => {
+              const tags = save.runtime.lastCheck.tags || [];
+              const calcTags = tags.filter((t) => t.startsWith("calc:"));
+              const attCalcTags = tags.filter((t) => t.startsWith("att:calc:"));
+              const defCalcTags = tags.filter((t) => t.startsWith("def:calc:"));
+
+              if (calcTags.length > 0 || attCalcTags.length > 0) {
+                return (
+                  <View style={styles.breakdownContainer}>
+                    <Text style={styles.breakdownLabel}>Target Breakdown:</Text>
+                    {calcTags.length > 0 && (
+                      <View>
+                        {calcTags.map((tag, idx) => {
+                          const [key, value] = tag.split("=");
+                          const label = key.replace("calc:", "");
+                          return (
+                            <Text key={idx} style={styles.breakdownText}>
+                              {label}: {value}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {attCalcTags.length > 0 && (
+                      <View style={styles.breakdownSection}>
+                        <Text style={styles.breakdownSubLabel}>Attacker:</Text>
+                        {attCalcTags.map((tag, idx) => {
+                          const [key, value] = tag.split("=");
+                          const label = key.replace("att:calc:", "");
+                          return (
+                            <Text key={idx} style={styles.breakdownText}>
+                              {label}: {value}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {defCalcTags.length > 0 && (
+                      <View style={styles.breakdownSection}>
+                        <Text style={styles.breakdownSubLabel}>Defender:</Text>
+                        {defCalcTags.map((tag, idx) => {
+                          const [key, value] = tag.split("=");
+                          const label = key.replace("def:calc:", "");
+                          return (
+                            <Text key={idx} style={styles.breakdownText}>
+                              {label}: {value}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </View>
         )}
       </View>
@@ -173,5 +231,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333",
     marginBottom: 4,
+  },
+  breakdownContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+  },
+  breakdownLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 4,
+  },
+  breakdownSubLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#888",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  breakdownSection: {
+    marginTop: 4,
+  },
+  breakdownText: {
+    fontSize: 11,
+    color: "#666",
+    marginBottom: 2,
+    fontFamily: "monospace",
   },
 });
