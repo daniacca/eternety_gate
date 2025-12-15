@@ -4,7 +4,9 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
+    "dev": "pnpm build:engine && expo start",
+    "preinstall": "npx only-allow pnpm",
+    "postinstall": "pnpm build:engine",
     "build:engine": "pnpm --filter @eg/engine build",
     "validate:story": "pnpm --filter @eg/tools validate:story"
   },
@@ -24,7 +26,7 @@
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "~0.21.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

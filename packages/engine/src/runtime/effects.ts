@@ -142,17 +142,20 @@ function applyGoto(
   effect: Extract<Effect, { op: 'goto' }>,
   save: GameSave
 ): GameSave {
-  const newHistory = {
-    ...save.runtime.history,
-    visitedScenes: [...save.runtime.history.visitedScenes, save.runtime.currentSceneId],
-  };
+  const newSceneId = effect.sceneId;
+  const newVisitedScenes = save.runtime.history.visitedScenes.includes(newSceneId)
+    ? save.runtime.history.visitedScenes
+    : [...save.runtime.history.visitedScenes, newSceneId];
 
   return {
     ...save,
     runtime: {
       ...save.runtime,
-      currentSceneId: effect.sceneId,
-      history: newHistory,
+      currentSceneId: newSceneId,
+      history: {
+        ...save.runtime.history,
+        visitedScenes: newVisitedScenes,
+      },
     },
   };
 }

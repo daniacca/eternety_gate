@@ -96,7 +96,7 @@ export function createNewGame(
       rngSeed: saveSeed,
       rngCounter: 0,
       history: {
-        visitedScenes: [],
+        visitedScenes: [storyPack.startSceneId],
         chosenChoices: [],
       },
       firedWorldEvents: [],
@@ -180,13 +180,6 @@ export function applyChoice(
 
   let currentSave = { ...save };
 
-  // Apply scene onEnter effects if this is first visit
-  if (!currentSave.runtime.history.visitedScenes.includes(scene.id)) {
-    if (scene.onEnter) {
-      currentSave = applyEffects(scene.onEnter, storyPack, currentSave, rng);
-    }
-  }
-
   // Execute scene checks if any
   if (scene.checks) {
     for (const check of scene.checks) {
@@ -239,8 +232,20 @@ export function applyChoice(
     }
   }
 
-  // Apply choice effects
+  // Track visited scenes before applying effects (to check if we're entering a new scene)
+  const visitedScenesBefore = [...currentSave.runtime.history.visitedScenes];
+  
+  // Apply choice effects (may include goto)
   currentSave = applyEffects(choice.effects, storyPack, currentSave, rng);
+
+  // Apply scene onEnter effects for the new scene if this is first visit
+  const newSceneId = currentSave.runtime.currentSceneId;
+  if (!visitedScenesBefore.includes(newSceneId)) {
+    const newScene = storyPack.scenes.find(s => s.id === newSceneId);
+    if (newScene && newScene.onEnter) {
+      currentSave = applyEffects(newScene.onEnter, storyPack, currentSave, rng);
+    }
+  }
 
   // Update history
   currentSave = {

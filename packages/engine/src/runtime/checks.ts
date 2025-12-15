@@ -268,6 +268,10 @@ function performOpposedCheck(
     storyPack
   );
 
+  if (!attackerResult || !defenderResult) {
+    return null;
+  }
+
   const attackerDoS = attackerResult.success ? attackerResult.dos : 0;
   const defenderDoS = defenderResult.success ? defenderResult.dos : 0;
 
@@ -439,7 +443,7 @@ function evaluateRoll(
   const autoFail = criticals.autoFail || [98, 99, 100];
   const epic = criticals.epic;
 
-  let critical: CheckResult['critical'] = 'none';
+  let critical: NonNullable<CheckResult>['critical'] = 'none';
   let success = false;
   let dos = 0;
   let dof = 0;
