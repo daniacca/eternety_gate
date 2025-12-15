@@ -72,6 +72,9 @@ export default function PlayScreen() {
     setSave(newSave);
   };
 
+  const lastCheck = save.runtime.lastCheck;
+  const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
@@ -110,7 +113,6 @@ export default function PlayScreen() {
 
             {/* Target breakdown (debug UI) */}
             {(() => {
-              const tags = save.runtime.lastCheck && save.runtime.lastCheck !== null ? save.runtime.lastCheck.tags : [];
               const calcTags = tags.filter((t) => t.startsWith("calc:"));
               const attCalcTags = tags.filter((t) => t.startsWith("att:calc:"));
               const defCalcTags = tags.filter((t) => t.startsWith("def:calc:"));
@@ -168,7 +170,6 @@ export default function PlayScreen() {
 
             {/* Combat Debug (debug UI) */}
             {(() => {
-              const tags = save.runtime.lastCheck.tags || [];
               const combatTags = tags.filter((t) => t.startsWith("combat:"));
 
               if (combatTags.length > 0) {
@@ -209,6 +210,17 @@ export default function PlayScreen() {
               }
               return null;
             })()}
+
+            {tags.length > 0 && (
+              <View style={styles.breakdownContainer}>
+                <Text style={styles.breakdownLabel}>Tags:</Text>
+                {tags.map((t, i) => (
+                  <Text key={i} style={styles.breakdownText}>
+                    {t}
+                  </Text>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </View>

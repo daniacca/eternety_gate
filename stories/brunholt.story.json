@@ -1806,10 +1806,10 @@
     {
       "id": "burnholt_combat_test",
       "type": "challenge",
-      "title": "Campo d’Addestramento (Debug)",
+      "title": "Campo d'Addestramento (Debug)",
       "text": [
-        "Dietro la Locanda dei Custodi, una porta cigola: un piccolo campo d’addestramento.",
-        "Un manichino d’allenamento — e un bersaglio di paglia più in là — ti aspettano.",
+        "Dietro la Locanda dei Custodi, una porta cigola: un piccolo campo d'addestramento.",
+        "Un manichino d'allenamento — e un bersaglio di paglia più in là — ti aspettano.",
         "Questa scena è solo per testare il motore di combattimento."
       ],
       "choices": [
@@ -1885,6 +1885,12 @@
             }
           ],
           "effects": []
+        },
+        {
+          "id": "start_combat",
+          "label": "[Debug] Inizia combattimento",
+          "checks": [],
+          "effects": [{ "op": "combatStart", "participantIds": ["PC_1", "NPC_DUMMY"] }]
         },
         {
           "id": "back_to_hub",
