@@ -283,12 +283,15 @@ export function startCombat(
     }
   }
 
+  // Determine the scene ID that started combat (use provided startedBySceneId or current scene)
+  const sceneIdForCombat = startedBySceneId || save.runtime.currentSceneId;
+
   const combatState: CombatState = {
     active: true,
     participants: orderedIds,
     currentIndex: 0,
     round: 1,
-    startedBySceneId,
+    startedBySceneId: sceneIdForCombat,
     grid: combatGrid,
     positions,
     turn: {
@@ -322,6 +325,9 @@ export function startCombat(
     ],
   };
 
+  // Reset combat log and initialize with start message
+  const initialCombatLog = ["Il combattimento è iniziato."];
+
   let updatedSave: GameSave = {
     ...save,
     runtime: {
@@ -329,31 +335,15 @@ export function startCombat(
       combat: combatState,
       rngCounter: rng.getCounter(),
       lastCheck: debugCheck,
+      combatLog: initialCombatLog,
+      combatLogSceneId: sceneIdForCombat,
+      // Set combatTurnStartIndex to point to the start message (index 0)
+      combatTurnStartIndex: 0,
     },
   };
 
-  // Add initial combat narration
-  updatedSave = appendCombatLog(updatedSave, "Il combattimento inizia!");
-
-  // Set combatTurnStartIndex: if player goes first, set it now; otherwise it will be set when player's turn starts
-  if (currentTurnActorId === save.party.activeActorId) {
-    updatedSave = {
-      ...updatedSave,
-      runtime: {
-        ...updatedSave.runtime,
-        combatTurnStartIndex: updatedSave.runtime.combatLog?.length || 0,
-      },
-    };
-  } else {
-    // Initialize to 0 so UI can show initial message, will be updated when player's turn starts
-    updatedSave = {
-      ...updatedSave,
-      runtime: {
-        ...updatedSave.runtime,
-        combatTurnStartIndex: 0,
-      },
-    };
-  }
+  // If player goes first, combatTurnStartIndex is already set correctly (0)
+  // Otherwise, it will be updated when player's turn starts in advanceCombatTurn
 
   return updatedSave;
 }

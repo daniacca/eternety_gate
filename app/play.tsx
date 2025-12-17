@@ -504,6 +504,11 @@ export default function PlayScreen() {
   const combatLog = save.runtime.combatLog || [];
   const turnStartIndex = save.runtime.combatTurnStartIndex ?? 0;
   const combatNarration = combatLog.slice(turnStartIndex);
+  
+  // Determine which scene the combat narration belongs to
+  const narrationSceneId = save.runtime.combatLogSceneId ?? combat?.startedBySceneId;
+  const showNarration = narrationSceneId && narrationSceneId === save.runtime.currentSceneId;
+  
   const showCombatEnded =
     tags.some((t) => t === "combat:state=end") && save.runtime.combatEndedSceneId === save.runtime.currentSceneId;
 
@@ -521,7 +526,7 @@ export default function PlayScreen() {
         ))}
 
         {/* Combat Narration */}
-        {(combat?.active || combatNarration.length > 0) && (
+        {showNarration && (
           <View style={styles.combatNarration}>
             <Text style={styles.combatNarrationTitle}>Combat Narration</Text>
             {combatNarration.length > 0 ? (

@@ -422,6 +422,7 @@ export type GameRuntime = {
   combatLog?: string[];
   combatTurnStartIndex?: number;
   combatEndedSceneId?: SceneId;
+  combatLogSceneId?: SceneId;
 };
 
 export type GameSave = {
