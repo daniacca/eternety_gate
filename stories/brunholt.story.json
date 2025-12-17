@@ -305,6 +305,7 @@
         "id": "NPC_DUMMY",
         "name": "Manichino d'Allenamento",
         "kind": "NPC",
+        "tags": ["ai:ranged=0"],
         "stats": {
           "STR": 30,
           "TOU": 30,
@@ -1812,31 +1813,50 @@
         "Un manichino d'allenamento — e un bersaglio di paglia più in là — ti aspettano.",
         "Questa scena è solo per testare il motore di combattimento."
       ],
+      "onEnter": [
+        {
+          "op": "conditionalEffects",
+          "cases": [
+            {
+              "when": {
+                "op": "not",
+                "clause": {
+                  "op": "flag",
+                  "path": "debugCombatStarted",
+                  "value": true
+                }
+              },
+              "then": [
+                {
+                  "op": "setFlag",
+                  "path": "debugCombatStarted",
+                  "value": true
+                },
+                {
+                  "op": "combatStart",
+                  "participantIds": ["PC_1", "NPC_DUMMY"],
+                  "grid": { "width": 10, "height": 10 },
+                  "placements": [
+                    { "actorId": "PC_1", "x": 2, "y": 2 },
+                    { "actorId": "NPC_DUMMY", "x": 6, "y": 2 }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
       "choices": [
         {
-          "id": "combat_melee_no_def",
-          "label": "Attacco in mischia (nessuna difesa)",
+          "id": "combat_melee",
+          "label": "Attacco in mischia",
           "checks": [
             {
-              "id": "atk_melee_no_def",
+              "id": "atk_melee",
               "kind": "combatAttack",
               "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
               "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" }
-            }
-          ],
-          "effects": []
-        },
-        {
-          "id": "combat_melee_parry",
-          "label": "Attacco in mischia (il manichino prova a parare)",
-          "checks": [
-            {
-              "id": "atk_melee_parry",
-              "kind": "combatAttack",
-              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
-              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": true, "allowDodge": false, "strategy": "preferParry" }
+              "defense": { "allowParry": true, "allowDodge": true, "strategy": "autoBest" }
             }
           ],
           "effects": []
@@ -1870,37 +1890,6 @@
             }
           ],
           "effects": []
-        },
-        {
-          "id": "combat_outnumbered",
-          "label": "Mischia caotica (outnumbering = 3)",
-          "checks": [
-            {
-              "id": "atk_outnumbered",
-              "kind": "combatAttack",
-              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
-              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": true, "allowDodge": true, "strategy": "autoBest" },
-              "modifiers": { "outnumbering": 3 }
-            }
-          ],
-          "effects": []
-        },
-        {
-          "id": "start_combat",
-          "label": "[Debug] Inizia combattimento",
-          "checks": [],
-          "effects": [
-            {
-              "op": "combatStart",
-              "participantIds": ["PC_1", "NPC_DUMMY"],
-              "grid": { "width": 10, "height": 10 },
-              "placements": [
-                { "actorId": "PC_1", "x": 2, "y": 2 },
-                { "actorId": "NPC_DUMMY", "x": 6, "y": 2 }
-              ]
-            }
-          ]
         },
         {
           "id": "combat_move_n",
@@ -1941,6 +1930,11 @@
           "id": "combat_move_nw",
           "label": "[Move] NW",
           "effects": [{ "op": "combatMove", "dir": "NW" }]
+        },
+        {
+          "id": "combat_end_turn",
+          "label": "[Debug] Fine turno",
+          "effects": [{ "op": "combatEndTurn" }]
         },
         {
           "id": "back_to_hub",

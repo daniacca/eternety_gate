@@ -70,8 +70,14 @@ export type Effect =
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
   | { op: "applyVariantStartEffects" }
   | { op: "fireWorldEvents" }
-  | { op: "combatStart"; participantIds: ActorId[]; grid: Grid; placements: Array<{ actorId: ActorId; x: number; y: number }> }
-  | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" };
+  | {
+      op: "combatStart";
+      participantIds: ActorId[];
+      grid: Grid;
+      placements: Array<{ actorId: ActorId; x: number; y: number }>;
+    }
+  | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" }
+  | { op: "combatEndTurn" };
 
 /* ---------- ActorRef ---------- */
 
@@ -405,12 +411,17 @@ export type GameRuntime = {
   firedWorldEvents: WorldEventId[];
 
   lastCheck?: CheckResult;
+  lastPlayerCheck?: CheckResult | null;
 
   magic?: {
     accumulatedDoS: number;
   };
 
   combat?: CombatState;
+
+  combatLog?: string[];
+  combatTurnStartIndex?: number;
+  combatEndedSceneId?: SceneId;
 };
 
 export type GameSave = {

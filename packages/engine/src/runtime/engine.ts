@@ -24,6 +24,23 @@ import { applyEffects } from "./effects";
 import { performCheck, resolveActor } from "./checks";
 import { RNG } from "./rng";
 
+/**
+ * Helper to append a combat log entry (historical)
+ */
+function appendCombatLog(save: GameSave, entry: string): GameSave {
+  const currentLog = save.runtime.combatLog || [];
+  const newLog = [...currentLog, entry];
+  // Keep only last 50 entries to avoid memory issues
+  const trimmedLog = newLog.slice(-50);
+  return {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combatLog: trimmedLog,
+    },
+  };
+}
+
 function makeDefaultActor(id: string, name?: string): Actor {
   return {
     id: id as ActorId,
@@ -305,7 +322,7 @@ export function startCombat(
     ],
   };
 
-  return {
+  let updatedSave: GameSave = {
     ...save,
     runtime: {
       ...save.runtime,
@@ -314,6 +331,31 @@ export function startCombat(
       lastCheck: debugCheck,
     },
   };
+
+  // Add initial combat narration
+  updatedSave = appendCombatLog(updatedSave, "Il combattimento inizia!");
+
+  // Set combatTurnStartIndex: if player goes first, set it now; otherwise it will be set when player's turn starts
+  if (currentTurnActorId === save.party.activeActorId) {
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        combatTurnStartIndex: updatedSave.runtime.combatLog?.length || 0,
+      },
+    };
+  } else {
+    // Initialize to 0 so UI can show initial message, will be updated when player's turn starts
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        combatTurnStartIndex: 0,
+      },
+    };
+  }
+
+  return updatedSave;
 }
 
 /**
@@ -366,10 +408,20 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           tags: ["combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
-    return {
+    const winner = winnerId ? save.actorsById[winnerId] : null;
+    const logEntry = `Il combattimento termina. Vincitore: ${winner?.name || "Nessuno"}.`;
+
+    let updatedSave = {
       ...save,
-      runtime: { ...save.runtime, combat: undefined, lastCheck: endCheck },
+      runtime: {
+        ...save.runtime,
+        combat: undefined,
+        lastCheck: endCheck,
+        combatEndedSceneId: save.runtime.currentSceneId,
+      },
     };
+
+    return appendCombatLog(updatedSave, logEntry);
   }
 
   const prevActorId = combat.participants[combat.currentIndex];
@@ -401,10 +453,23 @@ export function advanceCombatTurn(save: GameSave): GameSave {
       }
     : null;
 
-  return {
+  let updatedSave: GameSave = {
     ...save,
     runtime: { ...save.runtime, combat: newCombatState, lastCheck: updatedLastCheck },
   };
+
+  // Set combatTurnStartIndex when it becomes player's turn
+  if (currentTurnActorId === save.party.activeActorId) {
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        combatTurnStartIndex: updatedSave.runtime.combatLog?.length || 0,
+      },
+    };
+  }
+
+  return updatedSave;
 }
 
 /**
@@ -501,8 +566,196 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
 
   const dist = distanceChebyshev(npcPos, targetPos);
 
-  // If out of range (> 8), NPC moves towards target
-  if (dist > 8) {
+  // Check if NPC has ranged capability
+  const npc = save.actorsById[npcId];
+  const npcTags = npc?.tags || [];
+  const npcHasRanged = npcTags.includes("ai:ranged=1");
+
+  // Decision logic:
+  // 1. If dist <= 1: MELEE attack
+  // 2. Else if npcHasRanged && dist <= 8: RANGED attack
+  // 3. Else: MOVE toward target
+
+  if (dist <= 1) {
+    // MELEE attack
+    const check: CombatAttackCheck = {
+      id: `combat:npcTurn:${npcId}`,
+      kind: "combatAttack",
+      attacker: {
+        actorRef: { mode: "byId", actorId: npcId },
+        mode: "MELEE",
+        weaponId: null,
+      },
+      defender: {
+        actorRef: { mode: "byId", actorId: targetId },
+      },
+      defense: {
+        allowParry: true,
+        allowDodge: true,
+        strategy: "autoBest",
+      },
+    };
+
+    // Mark as attacked
+    const combatWithAttacked = {
+      ...combat,
+      turn: {
+        ...combat.turn,
+        hasAttacked: true,
+      },
+    };
+
+    // Perform check
+    const result = performCheck(
+      check,
+      storyPack,
+      { ...save, runtime: { ...save.runtime, combat: combatWithAttacked } },
+      rng
+    );
+
+    if (!result) {
+      return {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          combat: combatWithAttacked,
+          rngCounter: rng.getCounter(),
+        },
+      };
+    }
+
+    // Update RNG counter and mark as attacked
+    let currentSave: GameSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: combatWithAttacked,
+        rngCounter: rng.getCounter(),
+        lastCheck: {
+          ...result,
+          tags: [...result.tags, "combat:npcTurn=1", `combat:npcId=${npcId}`],
+        },
+      },
+    };
+
+    // Apply damage if hit
+    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+
+    // Add narration
+    const npc = save.actorsById[npcId];
+    if (result.success) {
+      const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
+      const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
+      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} ti colpisce e infligge ${damage} danni.`);
+    } else {
+      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} manca il colpo.`);
+      // Check for successful defense
+      const defenseTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:defense="));
+      if (defenseTag) {
+        const defenseType = defenseTag.split("=")[1];
+        if (defenseType === "parry") {
+          currentSave = appendCombatLog(currentSave, `Pari il colpo.`);
+        } else if (defenseType === "dodge") {
+          currentSave = appendCombatLog(currentSave, `Schivi il colpo.`);
+        }
+      }
+    }
+
+    return currentSave;
+  } else if (npcHasRanged && dist <= 8) {
+    // RANGED attack (only if NPC has ranged capability and distance is within range)
+    const check: CombatAttackCheck = {
+      id: `combat:npcTurn:${npcId}`,
+      kind: "combatAttack",
+      attacker: {
+        actorRef: { mode: "byId", actorId: npcId },
+        mode: "RANGED",
+        weaponId: null,
+      },
+      defender: {
+        actorRef: { mode: "byId", actorId: targetId },
+      },
+      defense: {
+        allowParry: true,
+        allowDodge: true,
+        strategy: "autoBest",
+      },
+    };
+
+    // Set rangeBand for ranged attacks
+    const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+    check.modifiers = {
+      rangeBand: rangeBand as any,
+    };
+
+    // Mark as attacked
+    const combatWithAttacked = {
+      ...combat,
+      turn: {
+        ...combat.turn,
+        hasAttacked: true,
+      },
+    };
+
+    // Perform check
+    const result = performCheck(
+      check,
+      storyPack,
+      { ...save, runtime: { ...save.runtime, combat: combatWithAttacked } },
+      rng
+    );
+
+    if (!result) {
+      return {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          combat: combatWithAttacked,
+          rngCounter: rng.getCounter(),
+        },
+      };
+    }
+
+    // Update RNG counter and mark as attacked
+    let currentSave: GameSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: combatWithAttacked,
+        rngCounter: rng.getCounter(),
+        lastCheck: {
+          ...result,
+          tags: [...result.tags, "combat:npcTurn=1", `combat:npcId=${npcId}`],
+        },
+      },
+    };
+
+    // Apply damage if hit
+    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+
+    // Add narration
+    const npc = save.actorsById[npcId];
+    if (result.success) {
+      const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
+      const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
+      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} ti colpisce e infligge ${damage} danni.`);
+    } else {
+      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} manca il colpo.`);
+      // Check for successful defense
+      const defenseTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:defense="));
+      if (defenseTag) {
+        const defenseType = defenseTag.split("=")[1];
+        if (defenseType === "parry") {
+          currentSave = appendCombatLog(currentSave, `Pari il colpo.`);
+        } else if (defenseType === "dodge") {
+          currentSave = appendCombatLog(currentSave, `Schivi il colpo.`);
+        }
+      }
+    }
+
+    return currentSave;
+  } else {
+    // MOVE toward target (one chebyshev step)
     // Calculate direction towards target
     const dx = targetPos.x - npcPos.x;
     const dy = targetPos.y - npcPos.y;
@@ -524,6 +777,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       turn: {
         ...combat.turn,
         hasMoved: true,
+        // Do NOT set hasAttacked=true for move-only turns
       },
     };
 
@@ -536,10 +790,18 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       dos: 0,
       dof: 0,
       critical: "none",
-      tags: ["combat:npcMove=1", `combat:npcId=${npcId}`, `combat:pos:${npcId}=${newPos.x},${newPos.y}`],
+      tags: [
+        "combat:npcTurn=1",
+        `combat:npcId=${npcId}`,
+        "combat:npcMove=1",
+        `combat:pos:${npcId}=${newPos.x},${newPos.y}`,
+      ],
     };
 
-    return {
+    const npc = save.actorsById[npcId];
+    const logEntry = `${npc?.name || npcId} avanza verso di te.`;
+
+    let updatedSave: GameSave = {
       ...save,
       runtime: {
         ...save.runtime,
@@ -548,84 +810,12 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
         lastCheck: moveCheck,
       },
     };
+
+    // Add narration to combat log
+    updatedSave = appendCombatLog(updatedSave, logEntry);
+
+    return updatedSave;
   }
-
-  // Determine attack mode based on distance
-  const attackMode: "MELEE" | "RANGED" = dist <= 1 ? "MELEE" : "RANGED";
-
-  // Build CombatAttackCheck
-  const check: CombatAttackCheck = {
-    id: `combat:npcTurn:${npcId}`,
-    kind: "combatAttack",
-    attacker: {
-      actorRef: { mode: "byId", actorId: npcId },
-      mode: attackMode,
-      weaponId: null,
-    },
-    defender: {
-      actorRef: { mode: "byId", actorId: targetId },
-    },
-    defense: {
-      allowParry: true,
-      allowDodge: true,
-      strategy: "autoBest",
-    },
-  };
-
-  // Set rangeBand for ranged attacks
-  if (attackMode === "RANGED") {
-    const rangeBand = dist <= 4 ? "SHORT" : "LONG";
-    check.modifiers = {
-      rangeBand: rangeBand as any,
-    };
-  }
-
-  // Mark as attacked
-  const combatWithAttacked = {
-    ...combat,
-    turn: {
-      ...combat.turn,
-      hasAttacked: true,
-    },
-  };
-
-  // Perform check
-  const result = performCheck(
-    check,
-    storyPack,
-    { ...save, runtime: { ...save.runtime, combat: combatWithAttacked } },
-    rng
-  );
-
-  if (!result) {
-    return {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        combat: combatWithAttacked,
-        rngCounter: rng.getCounter(),
-      },
-    };
-  }
-
-  // Update RNG counter and mark as attacked
-  let currentSave: GameSave = {
-    ...save,
-    runtime: {
-      ...save.runtime,
-      combat: combatWithAttacked,
-      rngCounter: rng.getCounter(),
-      lastCheck: {
-        ...result,
-        tags: [...result.tags, "combat:npcTurn=1", `combat:npcId=${npcId}`],
-      },
-    },
-  };
-
-  // Apply damage if hit
-  currentSave = applyCombatDamageIfHit(check, result, currentSave);
-
-  return currentSave;
 }
 
 /**
@@ -1236,6 +1426,15 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
         didPlayerCombatAction = true;
         const combatCheck = check as CombatAttackCheck;
 
+        // Store player's combat check result separately for debug UI
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastPlayerCheck: result,
+          },
+        };
+
         // Mark as attacked
         if (currentSave.runtime.combat?.active) {
           currentSave = {
@@ -1255,6 +1454,31 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
 
         // Apply damage if HIT
         currentSave = applyCombatDamageIfHit(check, result, currentSave);
+
+        // Get defender for narration
+        const defender = resolveActor(combatCheck.defender.actorRef, currentSave);
+        const defenderName = defender?.name || "il bersaglio";
+
+        // Add narration for player attacks
+        if (result.success) {
+          const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
+          const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
+          currentSave = appendCombatLog(currentSave, `Colpisci ${defenderName} e infliggi ${damage} danni.`);
+
+          // Check for defense
+          const defenseTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:defense="));
+          if (defenseTag) {
+            const defenseType = defenseTag.split("=")[1];
+            if (defenseType === "parry") {
+              currentSave = appendCombatLog(currentSave, `${defenderName} para il colpo.`);
+            } else if (defenseType === "dodge") {
+              currentSave = appendCombatLog(currentSave, `${defenderName} schiva il colpo.`);
+            }
+          }
+        } else {
+          currentSave = appendCombatLog(currentSave, `Il tuo attacco manca il bersaglio.`);
+        }
+
         if (result.success && combatCheck.onHit) {
           currentSave = applyEffects(combatCheck.onHit, storyPack, currentSave, rng);
         } else if (!result.success && combatCheck.onMiss) {

@@ -1,61 +1,66 @@
-import type {
-  Effect,
-  GameSave,
-  StoryPack,
-  Condition,
-  SceneId,
-  ItemId,
-  WorldEventId,
-  ActorId,
-  Position,
-} from './types';
-import { evaluateCondition, evaluateConditions } from './conditions';
-import { RNG } from './rng';
-import { performCheck } from './checks';
-import { startCombat, getCurrentTurnActorId } from './engine';
+import type { Effect, GameSave, StoryPack, Condition, SceneId, ItemId, WorldEventId, ActorId, Position } from "./types";
+import { evaluateCondition, evaluateConditions } from "./conditions";
+import { RNG } from "./rng";
+import { performCheck } from "./checks";
+import { startCombat, getCurrentTurnActorId, advanceCombatTurn, runNpcTurn } from "./engine";
+
+/**
+ * Helper to append a combat log entry
+ */
+function appendCombatLog(save: GameSave, entry: string): GameSave {
+  const currentLog = save.runtime.combatLog || [];
+  const newLog = [...currentLog, entry];
+  // Keep only last 50 entries to avoid memory issues
+  const trimmedLog = newLog.slice(-50);
+  return {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combatLog: trimmedLog,
+    },
+  };
+}
 
 /**
  * Applies an effect to the game save (immutably)
  */
-export function applyEffect(
-  effect: Effect,
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): GameSave {
+export function applyEffect(effect: Effect, storyPack: StoryPack, save: GameSave, rng: RNG): GameSave {
   switch (effect.op) {
-    case 'setFlag':
+    case "setFlag":
       return applySetFlag(effect, save);
 
-    case 'addCounter':
+    case "addCounter":
       return applyAddCounter(effect, save);
 
-    case 'addItem':
+    case "addItem":
       return applyAddItem(effect, save);
 
-    case 'removeItem':
+    case "removeItem":
       return applyRemoveItem(effect, save);
 
-    case 'goto':
+    case "goto":
       return applyGoto(effect, save);
 
-    case 'conditionalEffects':
+    case "conditionalEffects":
       return applyConditionalEffects(effect, storyPack, save, rng);
 
-    case 'chooseRunVariant':
+    case "chooseRunVariant":
       return applyChooseRunVariant(effect, storyPack, save, rng);
 
-    case 'applyVariantStartEffects':
+    case "applyVariantStartEffects":
       return applyVariantStartEffects(storyPack, save, rng);
 
-    case 'fireWorldEvents':
+    case "fireWorldEvents":
       return applyFireWorldEvents(storyPack, save, rng);
 
-    case 'combatStart':
+    case "combatStart":
       return applyCombatStart(effect, storyPack, save);
 
-    case 'combatMove':
+    case "combatMove":
       return applyCombatMove(effect, save);
+
+    case "combatEndTurn":
+      return applyCombatEndTurn(effect, storyPack, save, rng);
 
     default:
       return save;
@@ -65,12 +70,7 @@ export function applyEffect(
 /**
  * Applies multiple effects in sequence
  */
-export function applyEffects(
-  effects: Effect[],
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): GameSave {
+export function applyEffects(effects: Effect[], storyPack: StoryPack, save: GameSave, rng: RNG): GameSave {
   let currentSave = save;
   for (const effect of effects) {
     currentSave = applyEffect(effect, storyPack, currentSave, rng);
@@ -78,14 +78,11 @@ export function applyEffects(
   return currentSave;
 }
 
-function applySetFlag(
-  effect: Extract<Effect, { op: 'setFlag' }>,
-  save: GameSave
-): GameSave {
+function applySetFlag(effect: Extract<Effect, { op: "setFlag" }>, save: GameSave): GameSave {
   const newFlags = { ...save.state.flags };
   // Strip 'flags.' prefix if present since we're operating on the flags object
   // After stripping, treat as flat key (no nested path resolution)
-  const key = effect.path.startsWith('flags.') ? effect.path.substring(6) : effect.path;
+  const key = effect.path.startsWith("flags.") ? effect.path.substring(6) : effect.path;
   setFlatValue(newFlags, key, effect.value);
 
   return {
@@ -97,14 +94,11 @@ function applySetFlag(
   };
 }
 
-function applyAddCounter(
-  effect: Extract<Effect, { op: 'addCounter' }>,
-  save: GameSave
-): GameSave {
+function applyAddCounter(effect: Extract<Effect, { op: "addCounter" }>, save: GameSave): GameSave {
   const newCounters = { ...save.state.counters };
   // Strip 'counters.' prefix if present since we're operating on the counters object
   // After stripping, treat as flat key (no nested path resolution)
-  const key = effect.path.startsWith('counters.') ? effect.path.substring(9) : effect.path;
+  const key = effect.path.startsWith("counters.") ? effect.path.substring(9) : effect.path;
   const currentValue = getFlatValue(newCounters, key) || 0;
   setFlatValue(newCounters, key, currentValue + effect.value);
 
@@ -117,10 +111,7 @@ function applyAddCounter(
   };
 }
 
-function applyAddItem(
-  effect: Extract<Effect, { op: 'addItem' }>,
-  save: GameSave
-): GameSave {
+function applyAddItem(effect: Extract<Effect, { op: "addItem" }>, save: GameSave): GameSave {
   const newInventory = {
     ...save.state.inventory,
     items: [...save.state.inventory.items, effect.itemId],
@@ -135,13 +126,10 @@ function applyAddItem(
   };
 }
 
-function applyRemoveItem(
-  effect: Extract<Effect, { op: 'removeItem' }>,
-  save: GameSave
-): GameSave {
+function applyRemoveItem(effect: Extract<Effect, { op: "removeItem" }>, save: GameSave): GameSave {
   const newInventory = {
     ...save.state.inventory,
-    items: save.state.inventory.items.filter(id => id !== effect.itemId),
+    items: save.state.inventory.items.filter((id) => id !== effect.itemId),
   };
 
   return {
@@ -153,20 +141,24 @@ function applyRemoveItem(
   };
 }
 
-function applyGoto(
-  effect: Extract<Effect, { op: 'goto' }>,
-  save: GameSave
-): GameSave {
+function applyGoto(effect: Extract<Effect, { op: "goto" }>, save: GameSave): GameSave {
   const newSceneId = effect.sceneId;
   const newVisitedScenes = save.runtime.history.visitedScenes.includes(newSceneId)
     ? save.runtime.history.visitedScenes
     : [...save.runtime.history.visitedScenes, newSceneId];
+
+  // Clear lastCheck and combatEndedSceneId when changing scenes to avoid combat tags persisting
+  const clearedLastCheck = save.runtime.currentSceneId !== newSceneId ? undefined : save.runtime.lastCheck;
+  const clearedCombatEndedSceneId =
+    save.runtime.currentSceneId !== newSceneId ? undefined : save.runtime.combatEndedSceneId;
 
   return {
     ...save,
     runtime: {
       ...save.runtime,
       currentSceneId: newSceneId,
+      lastCheck: clearedLastCheck,
+      combatEndedSceneId: clearedCombatEndedSceneId,
       history: {
         ...save.runtime.history,
         visitedScenes: newVisitedScenes,
@@ -176,7 +168,7 @@ function applyGoto(
 }
 
 function applyConditionalEffects(
-  effect: Extract<Effect, { op: 'conditionalEffects' }>,
+  effect: Extract<Effect, { op: "conditionalEffects" }>,
   storyPack: StoryPack,
   save: GameSave,
   rng: RNG
@@ -190,7 +182,7 @@ function applyConditionalEffects(
 }
 
 function applyChooseRunVariant(
-  effect: Extract<Effect, { op: 'chooseRunVariant' }>,
+  effect: Extract<Effect, { op: "chooseRunVariant" }>,
   storyPack: StoryPack,
   save: GameSave,
   rng: RNG
@@ -200,11 +192,11 @@ function applyChooseRunVariant(
     return save;
   }
 
-  let selectedVariant: typeof variants[0] | null = null;
+  let selectedVariant: (typeof variants)[0] | null = null;
 
   switch (effect.strategy) {
-    case 'randomOrDefault': {
-      const defaultVariant = variants.find(v => v.id === 'VAR_DEFAULT');
+    case "randomOrDefault": {
+      const defaultVariant = variants.find((v) => v.id === "VAR_DEFAULT");
       if (defaultVariant) {
         selectedVariant = defaultVariant;
       } else if (variants.length > 0) {
@@ -213,15 +205,15 @@ function applyChooseRunVariant(
       break;
     }
 
-    case 'random': {
+    case "random": {
       if (variants.length > 0) {
         selectedVariant = variants[rng.nextInt(0, variants.length - 1)];
       }
       break;
     }
 
-    case 'defaultOnly': {
-      selectedVariant = variants.find(v => v.id === 'VAR_DEFAULT') || null;
+    case "defaultOnly": {
+      selectedVariant = variants.find((v) => v.id === "VAR_DEFAULT") || null;
       break;
     }
   }
@@ -244,18 +236,14 @@ function applyChooseRunVariant(
   return save;
 }
 
-function applyVariantStartEffects(
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): GameSave {
+function applyVariantStartEffects(storyPack: StoryPack, save: GameSave, rng: RNG): GameSave {
   const variantId = save.state.runVariant?.id;
   if (!variantId) {
     return save;
   }
 
   const variants = storyPack.systems.runVariants || [];
-  const variant = variants.find(v => v.id === variantId);
+  const variant = variants.find((v) => v.id === variantId);
   if (!variant || !variant.startEffects) {
     return save;
   }
@@ -263,11 +251,7 @@ function applyVariantStartEffects(
   return applyEffects(variant.startEffects, storyPack, save, rng);
 }
 
-function applyFireWorldEvents(
-  storyPack: StoryPack,
-  save: GameSave,
-  rng: RNG
-): GameSave {
+function applyFireWorldEvents(storyPack: StoryPack, save: GameSave, rng: RNG): GameSave {
   const worldEvents = storyPack.systems.worldEvents || {};
   let currentSave = save;
 
@@ -315,7 +299,7 @@ function setFlatValue(obj: Record<string, any>, key: string, value: any): void {
  * Starts combat with given participant IDs, grid, and placements
  */
 function applyCombatStart(
-  effect: Extract<Effect, { op: 'combatStart' }>,
+  effect: Extract<Effect, { op: "combatStart" }>,
   storyPack: StoryPack,
   save: GameSave
 ): GameSave {
@@ -332,20 +316,20 @@ function applyCombatStart(
 /**
  * Moves actor in combat grid
  */
-function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: GameSave): GameSave {
+function applyCombatMove(effect: Extract<Effect, { op: "combatMove" }>, save: GameSave): GameSave {
   const combat = save.runtime.combat;
   if (!combat?.active) {
     // Not in combat - ignore
     const ignoredCheck = {
-      checkId: 'combat:move:ignored',
+      checkId: "combat:move:ignored",
       actorId: save.party.activeActorId,
       roll: 0,
       target: 0,
       success: false,
       dos: 0,
       dof: 0,
-      critical: 'none' as const,
-      tags: ['combat:move:ignored'],
+      critical: "none" as const,
+      tags: ["combat:move:ignored"],
     };
     return {
       ...save,
@@ -360,15 +344,15 @@ function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: Ga
   if (!turnActorId || turnActorId !== save.party.activeActorId) {
     // Not player's turn
     const blockedCheck = {
-      checkId: 'combat:move:blocked',
+      checkId: "combat:move:blocked",
       actorId: save.party.activeActorId,
       roll: 0,
       target: 0,
       success: false,
       dos: 0,
       dof: 0,
-      critical: 'none' as const,
-      tags: ['combat:blocked=notYourTurn', `combat:turn=${turnActorId || 'unknown'}`],
+      critical: "none" as const,
+      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
     };
     return {
       ...save,
@@ -382,15 +366,15 @@ function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: Ga
   if (combat.turn.hasMoved) {
     // Already moved this turn
     const blockedCheck = {
-      checkId: 'combat:move:blocked',
+      checkId: "combat:move:blocked",
       actorId: save.party.activeActorId,
       roll: 0,
       target: 0,
       success: false,
       dos: 0,
       dof: 0,
-      critical: 'none' as const,
-      tags: ['combat:blocked=alreadyMoved'],
+      critical: "none" as const,
+      tags: ["combat:blocked=alreadyMoved"],
     };
     return {
       ...save,
@@ -439,18 +423,33 @@ function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: Ga
   };
 
   const moveCheck = {
-    checkId: 'combat:move',
+    checkId: "combat:move",
     actorId: turnActorId,
     roll: 0,
     target: 0,
     success: true,
     dos: 0,
     dof: 0,
-    critical: 'none' as const,
+    critical: "none" as const,
     tags: [`combat:move=${effect.dir}`, `combat:pos:${turnActorId}=${newPos.x},${newPos.y}`],
   };
 
-  return {
+  const actor = save.actorsById[turnActorId];
+  const dirLabels: Record<string, string> = {
+    N: "nord",
+    NE: "nord-est",
+    E: "est",
+    SE: "sud-est",
+    S: "sud",
+    SW: "sud-ovest",
+    W: "ovest",
+    NW: "nord-ovest",
+  };
+  const dirLabel = dirLabels[effect.dir] || effect.dir;
+  const logEntry =
+    actor?.kind === "PC" ? `Ti muovi verso ${dirLabel}.` : `${actor?.name || turnActorId} avanza verso di te.`;
+
+  let updatedSave: GameSave = {
     ...save,
     runtime: {
       ...save.runtime,
@@ -458,5 +457,56 @@ function applyCombatMove(effect: Extract<Effect, { op: 'combatMove' }>, save: Ga
       lastCheck: moveCheck,
     },
   };
+
+  // Add narration to combat log
+  updatedSave = appendCombatLog(updatedSave, logEntry);
+
+  return updatedSave;
 }
 
+/**
+ * Ends the current turn and advances to next actor, running NPC turns until player's turn
+ */
+function applyCombatEndTurn(
+  effect: Extract<Effect, { op: "combatEndTurn" }>,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: RNG
+): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return save;
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+    // Not player's turn - ignore
+    return save;
+  }
+
+  // Advance turn (player ended their turn)
+  let currentSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      rngCounter: rng.getCounter(),
+    },
+  };
+  currentSave = advanceCombatTurn(currentSave);
+
+  // Loop: run NPC turns until it's player's turn again
+  let safety = 0;
+  while (currentSave.runtime.combat?.active && getCurrentTurnActorId(currentSave) !== currentSave.party.activeActorId) {
+    const npcId = getCurrentTurnActorId(currentSave);
+    if (!npcId) break;
+
+    const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
+    currentSave = runNpcTurn(storyPack, currentSave, npcId);
+    currentSave = advanceCombatTurn(currentSave);
+
+    safety++;
+    if (safety > 10) break; // safety guard
+  }
+
+  return currentSave;
+}
