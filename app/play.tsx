@@ -503,12 +503,14 @@ export default function PlayScreen() {
   // Get combat narration from combatLog (turn-scoped: only current turn)
   const combatLog = save.runtime.combatLog || [];
   const turnStartIndex = save.runtime.combatTurnStartIndex ?? 0;
-  const combatNarration = combatLog.slice(turnStartIndex);
-  
+  // Clamp turnStartIndex to valid range in case log was trimmed
+  const safeStart = Math.min(turnStartIndex, combatLog.length);
+  const combatNarration = combatLog.slice(safeStart);
+
   // Determine which scene the combat narration belongs to
   const narrationSceneId = save.runtime.combatLogSceneId ?? combat?.startedBySceneId;
   const showNarration = narrationSceneId && narrationSceneId === save.runtime.currentSceneId;
-  
+
   const showCombatEnded =
     tags.some((t) => t === "combat:state=end") && save.runtime.combatEndedSceneId === save.runtime.currentSceneId;
 
@@ -528,7 +530,9 @@ export default function PlayScreen() {
         {/* Combat Narration */}
         {showNarration && (
           <View style={styles.combatNarration}>
-            <Text style={styles.combatNarrationTitle}>Combat Narration</Text>
+            <Text style={styles.combatNarrationTitle}>
+              Combat Narration [DEBUG: combatLog.length={combatLog.length}, turnStartIndex={turnStartIndex}]
+            </Text>
             {combatNarration.length > 0 ? (
               combatNarration.map((entry, index) => (
                 <Text key={index} style={styles.combatNarrationText}>

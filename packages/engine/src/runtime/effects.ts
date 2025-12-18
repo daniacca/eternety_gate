@@ -2,24 +2,7 @@ import type { Effect, GameSave, StoryPack, Condition, SceneId, ItemId, WorldEven
 import { evaluateCondition, evaluateConditions } from "./conditions";
 import { RNG } from "./rng";
 import { performCheck } from "./checks";
-import { startCombat, getCurrentTurnActorId, advanceCombatTurn, runNpcTurn } from "./engine";
-
-/**
- * Helper to append a combat log entry
- */
-function appendCombatLog(save: GameSave, entry: string): GameSave {
-  const currentLog = save.runtime.combatLog || [];
-  const newLog = [...currentLog, entry];
-  // Keep only last 50 entries to avoid memory issues
-  const trimmedLog = newLog.slice(-50);
-  return {
-    ...save,
-    runtime: {
-      ...save.runtime,
-      combatLog: trimmedLog,
-    },
-  };
-}
+import { startCombat, getCurrentTurnActorId, advanceCombatTurn, runNpcTurn, appendCombatLog } from "./engine";
 
 /**
  * Applies an effect to the game save (immutably)
@@ -494,12 +477,13 @@ function applyCombatEndTurn(
     return save;
   }
 
-  // Advance turn (player ended their turn)
+  // Set combatTurnStartIndex at the start of player "turn chunk" (before advancing and running NPC loop)
   let currentSave: GameSave = {
     ...save,
     runtime: {
       ...save.runtime,
       rngCounter: rng.getCounter(),
+      combatTurnStartIndex: save.runtime.combatLog?.length ?? 0,
     },
   };
   currentSave = advanceCombatTurn(currentSave);

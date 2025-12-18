@@ -25,9 +25,10 @@ import { performCheck, resolveActor } from "./checks";
 import { RNG } from "./rng";
 
 /**
- * Helper to append a combat log entry (historical)
+ * Helper to append a combat log entry (immutable)
+ * Returns a NEW save with the log entry appended
  */
-function appendCombatLog(save: GameSave, entry: string): GameSave {
+export function appendCombatLog(save: GameSave, entry: string): GameSave {
   const currentLog = save.runtime.combatLog || [];
   const newLog = [...currentLog, entry];
   // Keep only last 50 entries to avoid memory issues
@@ -447,17 +448,6 @@ export function advanceCombatTurn(save: GameSave): GameSave {
     ...save,
     runtime: { ...save.runtime, combat: newCombatState, lastCheck: updatedLastCheck },
   };
-
-  // Set combatTurnStartIndex when it becomes player's turn
-  if (currentTurnActorId === save.party.activeActorId) {
-    updatedSave = {
-      ...updatedSave,
-      runtime: {
-        ...updatedSave.runtime,
-        combatTurnStartIndex: updatedSave.runtime.combatLog?.length || 0,
-      },
-    };
-  }
 
   return updatedSave;
 }
@@ -1389,6 +1379,20 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
               };
             }
           }
+        }
+      }
+
+      // Set combatTurnStartIndex at the start of player "turn chunk" (before performCheck for combatAttack)
+      if (check.kind === "combatAttack" && currentSave.runtime.combat?.active) {
+        const turnActorId = getCurrentTurnActorId(currentSave);
+        if (turnActorId === currentSave.party.activeActorId) {
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              combatTurnStartIndex: currentSave.runtime.combatLog?.length ?? 0,
+            },
+          };
         }
       }
 
