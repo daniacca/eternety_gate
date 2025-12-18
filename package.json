@@ -13,10 +13,10 @@
   "workspaces": [
     "packages/*"
   ],
-  "packageManager": "pnpm@8.15.0",
+  "packageManager": "pnpm@10.26.0",
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
-    "expo": "~54.0.29",
+    "expo": "~54.0.30",
     "expo-constants": "~18.0.12",
     "expo-linking": "~8.0.10",
     "expo-router": "~6.0.19",
