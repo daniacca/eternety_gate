@@ -45,6 +45,12 @@ export function applyEffect(effect: Effect, storyPack: StoryPack, save: GameSave
     case "combatEndTurn":
       return applyCombatEndTurn(effect, storyPack, save, rng);
 
+    case "combatDefend":
+      return applyCombatDefend(effect, save);
+
+    case "combatAim":
+      return applyCombatAim(effect, save);
+
     default:
       return save;
   }
@@ -356,8 +362,8 @@ function applyCombatMove(effect: Extract<Effect, { op: "combatMove" }>, save: Ga
     };
   }
 
-  if (combat.turn.hasMoved) {
-    // Already moved this turn
+  if (combat.turn.moveRemaining <= 0) {
+    // Movement exhausted
     const blockedCheck = {
       checkId: "combat:move:blocked",
       actorId: save.party.activeActorId,
@@ -367,7 +373,7 @@ function applyCombatMove(effect: Extract<Effect, { op: "combatMove" }>, save: Ga
       dos: 0,
       dof: 0,
       critical: "none" as const,
-      tags: ["combat:blocked=alreadyMoved"],
+      tags: ["combat:blocked=movementExhausted"],
     };
     return {
       ...save,
@@ -411,7 +417,7 @@ function applyCombatMove(effect: Extract<Effect, { op: "combatMove" }>, save: Ga
     positions: updatedPositions,
     turn: {
       ...combat.turn,
-      hasMoved: true,
+      moveRemaining: Math.max(0, combat.turn.moveRemaining - 1),
     },
   };
 
@@ -458,6 +464,191 @@ function applyCombatMove(effect: Extract<Effect, { op: "combatMove" }>, save: Ga
 }
 
 /**
+ * Defend action: consumes action and sets stance to "defend"
+ */
+function applyCombatDefend(effect: Extract<Effect, { op: "combatDefend" }>, save: GameSave): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return save;
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+    // Not player's turn
+    const blockedCheck = {
+      checkId: "combat:defend:blocked",
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  if (!combat.turn.actionAvailable) {
+    // Action already spent
+    const blockedCheck = {
+      checkId: "combat:defend:blocked",
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=actionSpent"],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      actionAvailable: false,
+      stance: "defend" as const,
+    },
+  };
+
+  const defendCheck = {
+    checkId: "combat:defend",
+    actorId: turnActorId,
+    roll: 0,
+    target: 0,
+    success: true,
+    dos: 0,
+    dof: 0,
+    critical: "none" as const,
+    tags: ["combat:defend=1", "combat:stance=defend"],
+  };
+
+  let updatedSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+      lastCheck: defendCheck,
+    },
+  };
+
+  // Add narration
+  const actor = save.actorsById[turnActorId];
+  const logEntry =
+    actor?.kind === "PC" ? `Ti prepari a difenderti.` : `${actor?.name || turnActorId} si prepara a difendersi.`;
+  updatedSave = appendCombatLog(updatedSave, logEntry);
+
+  return updatedSave;
+}
+
+/**
+ * Aim action: consumes action (stub for future +20 bonus)
+ */
+function applyCombatAim(effect: Extract<Effect, { op: "combatAim" }>, save: GameSave): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return save;
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+    // Not player's turn
+    const blockedCheck = {
+      checkId: "combat:aim:blocked",
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  if (!combat.turn.actionAvailable) {
+    // Action already spent
+    const blockedCheck = {
+      checkId: "combat:aim:blocked",
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=actionSpent"],
+    };
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: blockedCheck,
+      },
+    };
+  }
+
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      actionAvailable: false,
+      // Future: add aimed flag here
+    },
+  };
+
+  const aimCheck = {
+    checkId: "combat:aim",
+    actorId: turnActorId,
+    roll: 0,
+    target: 0,
+    success: true,
+    dos: 0,
+    dof: 0,
+    critical: "none" as const,
+    tags: ["combat:aim=1"],
+  };
+
+  let updatedSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+      lastCheck: aimCheck,
+    },
+  };
+
+  // Add narration
+  const actor = save.actorsById[turnActorId];
+  const logEntry = actor?.kind === "PC" ? `Prendi la mira.` : `${actor?.name || turnActorId} prende la mira.`;
+  updatedSave = appendCombatLog(updatedSave, logEntry);
+
+  return updatedSave;
+}
+
+/**
  * Ends the current turn and advances to next actor, running NPC turns until player's turn
  */
 function applyCombatEndTurn(
@@ -477,13 +668,18 @@ function applyCombatEndTurn(
     return save;
   }
 
+  // Add narration before ending turn
+  const actor = save.actorsById[turnActorId];
+  const logEntry = actor?.kind === "PC" ? `Termini il turno.` : `${actor?.name || turnActorId} termina il turno.`;
+  let currentSave: GameSave = appendCombatLog(save, logEntry);
+
   // Set combatTurnStartIndex at the start of player "turn chunk" (before advancing and running NPC loop)
-  let currentSave: GameSave = {
-    ...save,
+  currentSave = {
+    ...currentSave,
     runtime: {
-      ...save.runtime,
+      ...currentSave.runtime,
       rngCounter: rng.getCounter(),
-      combatTurnStartIndex: save.runtime.combatLog?.length ?? 0,
+      combatTurnStartIndex: currentSave.runtime.combatLog?.length ?? 0,
     },
   };
   currentSave = advanceCombatTurn(currentSave);

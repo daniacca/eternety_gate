@@ -77,7 +77,9 @@ export type Effect =
       placements: Array<{ actorId: ActorId; x: number; y: number }>;
     }
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" }
-  | { op: "combatEndTurn" };
+  | { op: "combatEndTurn" }
+  | { op: "combatDefend" }
+  | { op: "combatAim" };
 
 /* ---------- ActorRef ---------- */
 
@@ -392,8 +394,9 @@ export type CombatState = {
 
   // economy semplificata "per-turn"
   turn: {
-    hasMoved: boolean;
-    hasAttacked: boolean;
+    moveRemaining: number; // steps left this turn
+    actionAvailable: boolean; // true until an Action is spent
+    stance?: "normal" | "defend"; // optional hook for later
   };
 };
 

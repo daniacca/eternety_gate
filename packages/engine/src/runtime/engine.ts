@@ -18,6 +18,7 @@ import type {
   SceneId,
   Grid,
   Position,
+  Effect,
 } from "./types";
 import { evaluateConditions } from "./conditions";
 import { applyEffects } from "./effects";
@@ -206,6 +207,29 @@ function clampToGrid(pos: Position, grid: Grid): Position {
 }
 
 /**
+ * Calculates AGI bonus for movement: Math.floor(AGI / 10)
+ */
+function calculateAgiBonus(agi: number | undefined): number {
+  return Math.floor((agi ?? 0) / 10);
+}
+
+/**
+ * Initializes turn state for an actor based on their AGI
+ */
+function initializeTurnState(actor: Actor): {
+  moveRemaining: number;
+  actionAvailable: boolean;
+  stance: "normal" | "defend";
+} {
+  const agiBonus = calculateAgiBonus(actor.stats.AGI);
+  return {
+    moveRemaining: agiBonus,
+    actionAvailable: true,
+    stance: "normal",
+  };
+}
+
+/**
  * Starts combat with given participants, grid, and placements
  */
 export function startCombat(
@@ -287,6 +311,12 @@ export function startCombat(
   // Determine the scene ID that started combat (use provided startedBySceneId or current scene)
   const sceneIdForCombat = startedBySceneId || save.runtime.currentSceneId;
 
+  // Initialize turn state for first actor
+  const firstActor = save.actorsById[currentTurnActorId];
+  const initialTurnState = firstActor
+    ? initializeTurnState(firstActor)
+    : { moveRemaining: 0, actionAvailable: true, stance: "normal" as const };
+
   const combatState: CombatState = {
     active: true,
     participants: orderedIds,
@@ -295,10 +325,7 @@ export function startCombat(
     startedBySceneId: sceneIdForCombat,
     grid: combatGrid,
     positions,
-    turn: {
-      hasMoved: false,
-      hasAttacked: false,
-    },
+    turn: initialTurnState,
   };
 
   // Create debug lastCheck with position tags
@@ -425,12 +452,18 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   const currentTurnActorId = aliveParticipants[newCurrentIndex];
 
+  // Initialize turn state for new actor
+  const newActor = save.actorsById[currentTurnActorId];
+  const newTurnState = newActor
+    ? initializeTurnState(newActor)
+    : { moveRemaining: 0, actionAvailable: true, stance: "normal" as const };
+
   const newCombatState: CombatState = {
     ...combat,
     participants: aliveParticipants,
     currentIndex: newCurrentIndex,
     round: newRound,
-    turn: { hasMoved: false, hasAttacked: false },
+    turn: newTurnState,
   };
 
   const updatedLastCheck: CheckResult | null = last
@@ -493,11 +526,12 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       turn: combat.turn
         ? {
             ...combat.turn,
-            hasAttacked: true,
+            actionAvailable: false,
           }
         : {
-            hasMoved: false,
-            hasAttacked: true,
+            moveRemaining: 0,
+            actionAvailable: false,
+            stance: "normal" as const,
           },
     };
 
@@ -576,12 +610,12 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       },
     };
 
-    // Mark as attacked
+    // Consume action
     const combatWithAttacked = {
       ...combat,
       turn: {
         ...combat.turn,
-        hasAttacked: true,
+        actionAvailable: false,
       },
     };
 
@@ -668,12 +702,12 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       rangeBand: rangeBand as any,
     };
 
-    // Mark as attacked
+    // Consume action
     const combatWithAttacked = {
       ...combat,
       turn: {
         ...combat.turn,
-        hasAttacked: true,
+        actionAvailable: false,
       },
     };
 
@@ -751,13 +785,13 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       [npcId]: newPos,
     };
 
+    // NPC uses 1 movement (simple behavior: move once per turn)
     const updatedCombat = {
       ...combat,
       positions: updatedPositions,
       turn: {
         ...combat.turn,
-        hasMoved: true,
-        // Do NOT set hasAttacked=true for move-only turns
+        moveRemaining: Math.max(0, (combat.turn.moveRemaining ?? 0) - 1),
       },
     };
 
@@ -894,6 +928,14 @@ export function listAvailableChoices(storyPack: StoryPack, save: GameSave): Choi
  */
 export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: ChoiceId): GameSave {
   const { scene } = getCurrentScene(storyPack, save);
+
+  // Handle special combat actions that may not be in story file
+  if (choiceId === "combat_defend" || choiceId === "combat_aim") {
+    const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
+    const effect: Effect = choiceId === "combat_defend" ? { op: "combatDefend" } : { op: "combatAim" };
+    return applyEffects([effect], storyPack, save, rng);
+  }
+
   const choice = scene.choices.find((c) => c.id === choiceId);
 
   if (!choice) {
@@ -971,8 +1013,8 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
           continue;
         }
 
-        // Check if already attacked (backward compatibility: if turn is undefined, allow)
-        if (combat.turn && combat.turn.hasAttacked) {
+        // Check if action is available
+        if (combat.turn && !combat.turn.actionAvailable) {
           const blockedCheck: CheckResult = {
             checkId: check.id,
             actorId: currentSave.party.activeActorId,
@@ -982,7 +1024,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
             dos: 0,
             dof: 0,
             critical: "none",
-            tags: ["combat:blocked=alreadyAttacked"],
+            tags: ["combat:blocked=actionSpent"],
           };
           currentSave = {
             ...currentSave,
@@ -1152,7 +1194,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
           didPlayerCombatAction = true;
           const combatCheck = check as CombatAttackCheck;
 
-          // Mark as attacked
+          // Consume action
           if (currentSave.runtime.combat?.active) {
             currentSave = {
               ...currentSave,
@@ -1162,7 +1204,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
                   ...currentSave.runtime.combat,
                   turn: {
                     ...currentSave.runtime.combat.turn,
-                    hasAttacked: true,
+                    actionAvailable: false,
                   },
                 },
               },
@@ -1220,8 +1262,8 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
           break; // Stop processing checks
         }
 
-        // Check if already attacked (backward compatibility: if turn is undefined, allow)
-        if (combat.turn && combat.turn.hasAttacked) {
+        // Check if action is available
+        if (combat.turn && !combat.turn.actionAvailable) {
           const blockedCheck: CheckResult = {
             checkId: check.id,
             actorId: currentSave.party.activeActorId,
@@ -1231,7 +1273,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
             dos: 0,
             dof: 0,
             critical: "none",
-            tags: ["combat:blocked=alreadyAttacked"],
+            tags: ["combat:blocked=actionSpent"],
           };
           currentSave = {
             ...currentSave,
@@ -1429,7 +1471,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
           },
         };
 
-        // Mark as attacked
+        // Consume action
         if (currentSave.runtime.combat?.active) {
           currentSave = {
             ...currentSave,
@@ -1439,7 +1481,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
                 ...currentSave.runtime.combat,
                 turn: {
                   ...currentSave.runtime.combat.turn,
-                  hasAttacked: true,
+                  actionAvailable: false,
                 },
               },
             },

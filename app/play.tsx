@@ -103,10 +103,15 @@ export default function PlayScreen() {
 
   // Dynamic action gating
   const isCombatActive = combat?.active ?? false;
-  const hasMoved = combat?.turn.hasMoved ?? false;
-  const hasAttacked = combat?.turn.hasAttacked ?? false;
+  const moveRemaining = combat?.turn.moveRemaining ?? 0;
+  const actionAvailable = combat?.turn.actionAvailable ?? false;
+  const stance = combat?.turn.stance ?? "normal";
   const canMelee = distance !== null && distance <= 1;
   const canRanged = distance !== null && distance > 1 && distance <= 8;
+
+  // Calculate AGI bonus for display
+  const pcActor = save.actorsById[save.party.activeActorId];
+  const agiBonus = pcActor ? Math.floor((pcActor.stats.AGI ?? 0) / 10) : 0;
 
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(
@@ -324,6 +329,13 @@ export default function PlayScreen() {
             Round: {combat.round} | Turn: {currentTurnActor?.name || currentTurnActorId || "Unknown"}
           </Text>
           {distance !== null && <Text style={styles.combatControlInfo}>Distance: {distance}</Text>}
+          {isPlayerTurn && (
+            <View style={styles.combatControlEconomy}>
+              <Text style={styles.combatControlEconomyText}>
+                Move: {moveRemaining}/{agiBonus} | Action: {actionAvailable ? "Available" : "Spent"} | Stance: {stance}
+              </Text>
+            </View>
+          )}
           <View style={styles.combatControlStats}>
             <Text style={styles.combatControlStat}>
               PC_1: HP {pcHp} / RF {pcFatigue}
@@ -347,8 +359,12 @@ export default function PlayScreen() {
                       return <View key={`center-${rowIndex}-${colIndex}`} style={styles.movePadCell} />;
                     }
                     const moveChoice = combatChoices.find((c) => c.id === `combat_move_${move.dir}`);
-                    const disabled = !isPlayerTurn || hasMoved;
-                    const disabledReason = !isPlayerTurn ? "Not your turn" : hasMoved ? "Already moved" : "";
+                    const disabled = !isPlayerTurn || moveRemaining <= 0;
+                    const disabledReason = !isPlayerTurn
+                      ? "Not your turn"
+                      : moveRemaining <= 0
+                      ? "No movement left"
+                      : "";
 
                     return (
                       <View key={move.dir} style={styles.movePadCell}>
@@ -378,30 +394,30 @@ export default function PlayScreen() {
                 <Pressable
                   style={[
                     styles.attackButton,
-                    (!isPlayerTurn || hasAttacked || !canMelee) && styles.attackButtonDisabled,
+                    (!isPlayerTurn || !actionAvailable || !canMelee) && styles.attackButtonDisabled,
                   ]}
                   onPress={() => {
-                    if (isPlayerTurn && !hasAttacked && canMelee) {
+                    if (isPlayerTurn && actionAvailable && canMelee) {
                       handleChoice(meleeChoice.id);
                     }
                   }}
-                  disabled={!isPlayerTurn || hasAttacked || !canMelee}
+                  disabled={!isPlayerTurn || !actionAvailable || !canMelee}
                 >
                   <Text
                     style={[
                       styles.attackButtonText,
-                      (!isPlayerTurn || hasAttacked || !canMelee) && styles.attackButtonTextDisabled,
+                      (!isPlayerTurn || !actionAvailable || !canMelee) && styles.attackButtonTextDisabled,
                     ]}
                   >
                     Melee attack
                   </Text>
                 </Pressable>
-                {(!isPlayerTurn || hasAttacked || !canMelee) && (
+                {(!isPlayerTurn || !actionAvailable || !canMelee) && (
                   <Text style={styles.attackButtonReason}>
                     {!isPlayerTurn
                       ? "Not your turn"
-                      : hasAttacked
-                      ? "Already attacked"
+                      : !actionAvailable
+                      ? "Action spent"
                       : !canMelee
                       ? "Requires melee range"
                       : ""}
@@ -414,30 +430,30 @@ export default function PlayScreen() {
                 <Pressable
                   style={[
                     styles.attackButton,
-                    (!isPlayerTurn || hasAttacked || !canRanged) && styles.attackButtonDisabled,
+                    (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonDisabled,
                   ]}
                   onPress={() => {
-                    if (isPlayerTurn && !hasAttacked && canRanged) {
+                    if (isPlayerTurn && actionAvailable && canRanged) {
                       handleChoice(rangedLongChoice.id);
                     }
                   }}
-                  disabled={!isPlayerTurn || hasAttacked || !canRanged}
+                  disabled={!isPlayerTurn || !actionAvailable || !canRanged}
                 >
                   <Text
                     style={[
                       styles.attackButtonText,
-                      (!isPlayerTurn || hasAttacked || !canRanged) && styles.attackButtonTextDisabled,
+                      (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonTextDisabled,
                     ]}
                   >
                     Ranged (LONG + cover)
                   </Text>
                 </Pressable>
-                {(!isPlayerTurn || hasAttacked || !canRanged) && (
+                {(!isPlayerTurn || !actionAvailable || !canRanged) && (
                   <Text style={styles.attackButtonReason}>
                     {!isPlayerTurn
                       ? "Not your turn"
-                      : hasAttacked
-                      ? "Already attacked"
+                      : !actionAvailable
+                      ? "Action spent"
                       : !canRanged
                       ? distance !== null && distance <= 1
                         ? "In melee"
@@ -452,30 +468,30 @@ export default function PlayScreen() {
                 <Pressable
                   style={[
                     styles.attackButton,
-                    (!isPlayerTurn || hasAttacked || !canRanged) && styles.attackButtonDisabled,
+                    (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonDisabled,
                   ]}
                   onPress={() => {
-                    if (isPlayerTurn && !hasAttacked && canRanged) {
+                    if (isPlayerTurn && actionAvailable && canRanged) {
                       handleChoice(rangedCalledChoice.id);
                     }
                   }}
-                  disabled={!isPlayerTurn || hasAttacked || !canRanged}
+                  disabled={!isPlayerTurn || !actionAvailable || !canRanged}
                 >
                   <Text
                     style={[
                       styles.attackButtonText,
-                      (!isPlayerTurn || hasAttacked || !canRanged) && styles.attackButtonTextDisabled,
+                      (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonTextDisabled,
                     ]}
                   >
                     Called shot (SHORT)
                   </Text>
                 </Pressable>
-                {(!isPlayerTurn || hasAttacked || !canRanged) && (
+                {(!isPlayerTurn || !actionAvailable || !canRanged) && (
                   <Text style={styles.attackButtonReason}>
                     {!isPlayerTurn
                       ? "Not your turn"
-                      : hasAttacked
-                      ? "Already attacked"
+                      : !actionAvailable
+                      ? "Action spent"
                       : !canRanged
                       ? distance !== null && distance <= 1
                         ? "In melee"
@@ -487,6 +503,41 @@ export default function PlayScreen() {
             )}
           </View>
         </View>
+
+        {/* Special Actions: Defend and Aim */}
+        {isPlayerTurn && (
+          <View style={styles.specialActionsContainer}>
+            <Text style={styles.specialActionsTitle}>Special Actions</Text>
+            <View style={styles.specialActionsRow}>
+              <Pressable
+                style={[styles.specialActionButton, !actionAvailable && styles.attackButtonDisabled]}
+                onPress={() => {
+                  if (actionAvailable) {
+                    handleChoice("combat_defend");
+                  }
+                }}
+                disabled={!actionAvailable}
+              >
+                <Text style={[styles.specialActionButtonText, !actionAvailable && styles.attackButtonTextDisabled]}>
+                  Defend
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.specialActionButton, !actionAvailable && styles.attackButtonDisabled]}
+                onPress={() => {
+                  if (actionAvailable) {
+                    handleChoice("combat_aim");
+                  }
+                }}
+                disabled={!actionAvailable}
+              >
+                <Text style={[styles.specialActionButtonText, !actionAvailable && styles.attackButtonTextDisabled]}>
+                  Aim
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* End Turn Button */}
         {isPlayerTurn && (
@@ -501,9 +552,8 @@ export default function PlayScreen() {
   };
 
   // Get combat narration from combatLog (turn-scoped: only current turn)
-  const combatLog = save.runtime.combatLog || [];
+  const combatLog = save.runtime.combatLog ?? [];
   const turnStartIndex = save.runtime.combatTurnStartIndex ?? 0;
-  // Clamp turnStartIndex to valid range in case log was trimmed
   const safeStart = Math.min(turnStartIndex, combatLog.length);
   const combatNarration = combatLog.slice(safeStart);
 
@@ -1199,5 +1249,43 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
     fontStyle: "italic",
+  },
+  combatControlEconomy: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#cbd5e1",
+  },
+  combatControlEconomyText: {
+    fontSize: 12,
+    color: "#1e3a8a",
+    fontWeight: "600",
+    fontFamily: "monospace",
+  },
+  specialActionsContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  specialActionsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  specialActionsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  specialActionButton: {
+    flex: 1,
+    backgroundColor: "#6c757d",
+    padding: 12,
+    borderRadius: 4,
+    alignItems: "center",
+  },
+  specialActionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
