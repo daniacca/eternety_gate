@@ -1,14 +1,4 @@
-import type {
-  StoryPack,
-  GameSave,
-  Actor,
-  ActorId,
-  SceneId,
-  Grid,
-  Position,
-  CombatState,
-  CheckResult,
-} from "../types";
+import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, CombatState, CheckResult } from "../types";
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog } from "./narration";
@@ -291,4 +281,3 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   return updatedSave;
 }
-

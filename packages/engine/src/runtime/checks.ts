@@ -14,7 +14,7 @@ import type {
   CheckResult,
   StoryPack,
 } from "./types";
-import { RNG, type IRNG } from "./rng";
+import { type IRNG } from "./rng";
 
 /**
  * Resolves an ActorRef to an Actor
@@ -59,6 +59,13 @@ export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Ac
   }
 }
 
+function getEquippedItems(actor: Actor): string[] {
+  const equipped = actor.equipment.equipped;
+  return [equipped?.weaponMainId, equipped?.weaponOffId, equipped?.armorId, ...(equipped?.accessoryIds ?? [])].filter(
+    (id): id is string => id !== null
+  );
+}
+
 /**
  * Gets the value of a stat or skill for an actor
  */
@@ -68,10 +75,7 @@ export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: Gam
     let value = actor.stats[key as keyof typeof actor.stats];
 
     // Apply equipment bonuses
-    const equipped = actor.equipment.equipped;
-    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-      (id): id is string => id !== null
-    );
+    const items = getEquippedItems(actor);
 
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
@@ -100,10 +104,7 @@ export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: Gam
     let value = actor.skills[skillId] || 0;
 
     // Apply equipment bonuses
-    const equipped = actor.equipment.equipped;
-    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-      (id): id is string => id !== null
-    );
+    const items = getEquippedItems(actor);
 
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
@@ -159,13 +160,12 @@ function computeTargetBreakdown(
   if (key in actor.stats) {
     baseValue = actor.stats[key as keyof typeof actor.stats];
     // Apply equipment bonuses to base
-    const equipped = actor.equipment.equipped;
-    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-      (id): id is string => id !== null
-    );
+    const items = getEquippedItems(actor);
+
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
+
       for (const mod of item.mods) {
         if (mod.type === "bonusStat" && mod.stat === key) {
           baseValue += mod.value;
@@ -175,14 +175,14 @@ function computeTargetBreakdown(
   } else if (key.startsWith("SKILL:")) {
     const skillId = key.substring(6);
     baseValue = actor.skills[skillId] || 0;
+
     // Apply equipment bonuses to base
-    const equipped = actor.equipment.equipped;
-    const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-      (id): id is string => id !== null
-    );
+    const items = getEquippedItems(actor);
+
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
+
       for (const mod of item.mods) {
         if (mod.type === "bonusSkill" && mod.skill === skillId) {
           baseValue += mod.value;
@@ -465,14 +465,12 @@ function performMagicChannelCheck(
 
   // Apply focus bonuses for channeling
   let channelBonus = 0;
-  const equipped = actor.equipment.equipped;
-  const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-    (id): id is string => id !== null
-  );
+  const items = getEquippedItems(actor);
 
   for (const itemId of items) {
     const item = save.itemCatalogById[itemId];
     if (!item) continue;
+
     for (const mod of item.mods) {
       if (mod.type === "focus" && mod.channelBonus) {
         channelBonus += mod.channelBonus;
@@ -545,14 +543,12 @@ function performMagicEffectCheck(
 
   // Apply focus bonuses for casting
   let castBonus = 0;
-  const equipped = actor.equipment.equipped;
-  const items = [equipped.weaponMainId, equipped.weaponOffId, equipped.armorId, ...equipped.accessoryIds].filter(
-    (id): id is string => id !== null
-  );
+  const items = getEquippedItems(actor);
 
   for (const itemId of items) {
     const item = save.itemCatalogById[itemId];
     if (!item) continue;
+
     for (const mod of item.mods) {
       if (mod.type === "focus" && mod.castBonus) {
         castBonus += mod.castBonus;

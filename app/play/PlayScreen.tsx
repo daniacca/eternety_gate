@@ -5,7 +5,6 @@ import {
   getCurrentScene,
   listAvailableChoices,
   applyChoice,
-  getCurrentTurnActorId,
   type GameSave,
   type StoryPack,
   type ContentPack,
@@ -17,6 +16,7 @@ import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
 import { ChoiceList } from "./components/ChoiceList";
 import { DebugPanels } from "./components/DebugPanels";
+import { useCombatUiModel } from "./hooks/useCombatUiModel";
 
 export function PlayScreen() {
   // Create a minimal 1-player party with fixed seed
@@ -117,38 +117,6 @@ export function PlayScreen() {
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
 
-  // Combat UI helpers
-  const currentTurnActorId = combat?.active ? getCurrentTurnActorId(save) : null;
-  const isPlayerTurn = Boolean(combat?.active && currentTurnActorId === save.party.activeActorId);
-  const currentTurnActor = currentTurnActorId ? save.actorsById[currentTurnActorId] : null;
-
-  // Calculate distance if in combat
-  let distance: number | null = null;
-  if (combat?.active) {
-    const pcPos = combat.positions[save.party.activeActorId];
-    const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
-    if (pcPos && npcIds.length > 0) {
-      const npcPos = combat.positions[npcIds[0]];
-      if (npcPos) {
-        const dx = Math.abs(pcPos.x - npcPos.x);
-        const dy = Math.abs(pcPos.y - npcPos.y);
-        distance = Math.max(dx, dy);
-      }
-    }
-  }
-
-  // Dynamic action gating
-  const isCombatActive = combat?.active ?? false;
-  const moveRemaining = combat?.turn.moveRemaining ?? 0;
-  const actionAvailable = combat?.turn.actionAvailable ?? false;
-  const stance = combat?.turn.stance ?? "normal";
-  const canMelee = distance !== null && distance <= 1;
-  const canRanged = distance !== null && distance > 1 && distance <= 8;
-
-  // Calculate AGI bonus for display
-  const pcActor = save.actorsById[save.party.activeActorId];
-  const agiBonus = pcActor ? Math.floor((pcActor.stats.AGI ?? 0) / 10) : 0;
-
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(
     (choice) =>
@@ -168,6 +136,9 @@ export function PlayScreen() {
       choice.id.startsWith("combat_ranged_") ||
       choice.id === "combat_end_turn"
   );
+
+  // Use combat UI model hook
+  const combatModel = useCombatUiModel(save, combatChoices);
 
   // Game Area component with layout measurement
   const GameArea = () => {
@@ -232,18 +203,8 @@ export function PlayScreen() {
 
         {/* CombatControl Panel */}
         <CombatControl
-          combat={combat}
+          model={combatModel}
           save={save}
-          currentTurnActorId={currentTurnActorId}
-          currentTurnActor={currentTurnActor}
-          isPlayerTurn={isPlayerTurn}
-          distance={distance}
-          moveRemaining={moveRemaining}
-          actionAvailable={actionAvailable}
-          stance={stance}
-          agiBonus={agiBonus}
-          canMelee={canMelee}
-          canRanged={canRanged}
           combatChoices={combatChoices}
           handleChoice={handleChoice}
           width={width}

@@ -25,6 +25,9 @@ export { RNG, rollD100 } from './runtime/rng';
 // Equipment helpers
 export { getActorWeapon, getActorArmor, calculateWeaponDamage } from './runtime/combat/equipment';
 
+// Combat movement helpers
+export { distanceChebyshev, clampToGrid } from './runtime/combat/movement';
+
 // Content pack types and utilities
 export type { ContentPack } from './content/types';
 export { mergeWeapons, mergeArmors } from './content/merge';

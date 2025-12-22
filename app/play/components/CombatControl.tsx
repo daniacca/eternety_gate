@@ -1,77 +1,25 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import type { GameSave, Choice } from "@eg/engine";
-import { getActorWeapon, getActorArmor } from "@eg/engine";
+import { CombatUiModel, useCombatUiModel } from "../hooks/useCombatUiModel";
 
 interface CombatControlProps {
-  combat: GameSave["runtime"]["combat"];
+  model: CombatUiModel | undefined;
   save: GameSave;
-  currentTurnActorId: string | null;
-  currentTurnActor: GameSave["actorsById"][string] | null;
-  isPlayerTurn: boolean;
-  distance: number | null;
-  moveRemaining: number;
-  actionAvailable: boolean;
-  stance: "normal" | "defend";
-  agiBonus: number;
-  canMelee: boolean;
-  canRanged: boolean;
   combatChoices: Choice[];
   handleChoice: (choiceId: string) => void;
   width: number;
   styles: any;
 }
 
-export function CombatControl({
-  combat,
-  save,
-  currentTurnActorId,
-  currentTurnActor,
-  isPlayerTurn,
-  distance,
-  moveRemaining,
-  actionAvailable,
-  stance,
-  agiBonus,
-  canMelee,
-  canRanged,
-  combatChoices,
-  handleChoice,
-  width,
-  styles,
-}: CombatControlProps) {
-  if (!combat?.active) return null;
+export function CombatControl({ model, save, combatChoices, handleChoice, width, styles }: CombatControlProps) {
+  if (!model || !model.isCombatActive) return null;
 
-  const pcActor = save.actorsById["PC_1"];
-  const npcActor = save.actorsById["NPC_DUMMY"];
-  const pcHp = pcActor?.resources.hp ?? 0;
-  const pcFatigue = pcActor?.resources.rf ?? 0;
-  const npcHp = npcActor?.resources.hp ?? 0;
-  const npcFatigue = npcActor?.resources.rf ?? 0;
+  const combat = save.runtime.combat;
 
-  // Get equipment info
-  const pcWeapon = pcActor ? getActorWeapon(save, pcActor) : null;
-  const pcArmor = pcActor ? getActorArmor(save, pcActor) : null;
-  const npcWeapon = npcActor ? getActorWeapon(save, npcActor) : null;
-  const npcArmor = npcActor ? getActorArmor(save, npcActor) : null;
-
-  // Check if player has ranged weapon
-  const hasRangedWeapon = pcWeapon?.weapon?.kind === "RANGED";
-  const weaponRange = pcWeapon?.weapon?.range;
-  
-  // Update canRanged based on weapon range if available
-  let actualCanRanged = canRanged;
-  if (hasRangedWeapon && weaponRange && distance !== null) {
-    actualCanRanged = distance > 1 && distance <= weaponRange.long;
-  } else if (!hasRangedWeapon) {
-    actualCanRanged = false; // No ranged weapon = can't ranged attack
-  }
-
-  // Get attack choices
-  // Prioritize standard combat_melee over variants
-  const meleeChoice =
-    combatChoices.find((c) => c.id === "combat_melee") || combatChoices.find((c) => c.id.startsWith("combat_melee_"));
-  const rangedLongChoice = combatChoices.find((c) => c.id === "combat_ranged_long_heavy");
-  const rangedCalledChoice = combatChoices.find((c) => c.id === "combat_ranged_called_shot");
+  const pcHp = model.pcActor?.resources.hp ?? 0;
+  const pcFatigue = model.pcActor?.resources.rf ?? 0;
+  const npcHp = model.npcActor?.resources.hp ?? 0;
+  const npcFatigue = model.npcActor?.resources.rf ?? 0;
 
   // Move pad grid structure: 3x3 with blank center
   const moveGrid = [
@@ -97,24 +45,27 @@ export function CombatControl({
       <View style={styles.combatControlHeader}>
         <Text style={styles.combatControlTitle}>Combat Control</Text>
         <Text style={styles.combatControlInfo}>
-          Round: {combat.round} | Turn: {currentTurnActor?.name || currentTurnActorId || "Unknown"}
+          Round: {combat?.round ?? 0} | Turn: {model.currentTurnActor?.name || model.currentTurnActorId || "Unknown"}
         </Text>
-        {distance !== null && <Text style={styles.combatControlInfo}>Distance: {distance}</Text>}
-        {isPlayerTurn && (
+        {model.distance !== null && <Text style={styles.combatControlInfo}>Distance: {model.distance}</Text>}
+        {model.isPlayerTurn && (
           <View style={styles.combatControlEconomy}>
             <Text style={styles.combatControlEconomyText}>
-              Move: {moveRemaining}/{agiBonus} | Action: {actionAvailable ? "Available" : "Spent"} | Stance: {stance}
+              Move: {model.moveRemaining}/{model.agiBonus} | Action: {model.actionAvailable ? "Available" : "Spent"} |
+              Stance: {model.stance}
             </Text>
           </View>
         )}
-          <View style={styles.combatControlStats}>
-            <Text style={styles.combatControlStat}>
-              PC_1: HP {pcHp} / RF {pcFatigue} | Weapon: {pcWeapon?.name || "Unarmed"} | Armor: {pcArmor?.name || "None"} (Soak: {pcArmor?.soak || 0})
-            </Text>
-            <Text style={styles.combatControlStat}>
-              NPC_DUMMY: HP {npcHp} / RF {npcFatigue} | Weapon: {npcWeapon?.name || "Unarmed"} | Armor: {npcArmor?.name || "None"} (Soak: {npcArmor?.soak || 0})
-            </Text>
-          </View>
+        <View style={styles.combatControlStats}>
+          <Text style={styles.combatControlStat}>
+            PC_1: HP {pcHp} / RF {pcFatigue} | Weapon: {model.pcWeapon?.name || "Unarmed"} | Armor:{" "}
+            {model.pcArmor?.name || "None"} (Soak: {model.pcArmor?.soak || 0})
+          </Text>
+          <Text style={styles.combatControlStat}>
+            NPC_DUMMY: HP {npcHp} / RF {npcFatigue} | Weapon: {model.npcWeapon?.name || "Unarmed"} | Armor:{" "}
+            {model.npcArmor?.name || "None"} (Soak: {model.npcArmor?.soak || 0})
+          </Text>
+        </View>
       </View>
 
       {/* Controls Row: MovePad + Attacks */}
@@ -130,25 +81,21 @@ export function CombatControl({
                     return <View key={`center-${rowIndex}-${colIndex}`} style={styles.movePadCell} />;
                   }
                   const moveChoice = combatChoices.find((c) => c.id === `combat_move_${move.dir}`);
-                  const disabled = !isPlayerTurn || moveRemaining <= 0;
-                  const disabledReason = !isPlayerTurn
-                    ? "Not your turn"
-                    : moveRemaining <= 0
-                    ? "No movement left"
-                    : "";
 
                   return (
                     <View key={move.dir} style={styles.movePadCell}>
                       <Pressable
-                        style={[styles.movePadButton, disabled && styles.movePadButtonDisabled]}
-                        onPress={() => !disabled && moveChoice && handleChoice(moveChoice.id)}
-                        disabled={disabled}
+                        style={[styles.movePadButton, !model.canMove && styles.movePadButtonDisabled]}
+                        onPress={() => model.canMove && moveChoice && handleChoice(moveChoice.id)}
+                        disabled={!model.canMove}
                       >
-                        <Text style={[styles.movePadButtonText, disabled && styles.movePadButtonTextDisabled]}>
+                        <Text style={[styles.movePadButtonText, !model.canMove && styles.movePadButtonTextDisabled]}>
                           {move.label}
                         </Text>
                       </Pressable>
-                      {disabled && disabledReason && <Text style={styles.movePadReason}>{disabledReason}</Text>}
+                      {!model.canMove && model.moveDisabledReason && (
+                        <Text style={styles.movePadReason}>{model.moveDisabledReason}</Text>
+                      )}
                     </View>
                   );
                 })}
@@ -160,153 +107,97 @@ export function CombatControl({
         {/* Attack Buttons */}
         <View style={styles.attackButtonsContainer}>
           <Text style={styles.attackButtonsTitle}>Attacks</Text>
-          {meleeChoice && (
+          {model.meleeChoice && (
             <View style={styles.attackButtonItem}>
               <Pressable
-                style={[
-                  styles.attackButton,
-                  (!isPlayerTurn || !actionAvailable || !canMelee) && styles.attackButtonDisabled,
-                ]}
+                style={[styles.attackButton, model.meleeDisabled && styles.attackButtonDisabled]}
                 onPress={() => {
-                  if (isPlayerTurn && actionAvailable && canMelee) {
-                    handleChoice(meleeChoice.id);
+                  if (!model.meleeDisabled) {
+                    handleChoice(model.meleeChoice!.id);
                   }
                 }}
-                disabled={!isPlayerTurn || !actionAvailable || !canMelee}
+                disabled={model.meleeDisabled}
               >
-                <Text
-                  style={[
-                    styles.attackButtonText,
-                    (!isPlayerTurn || !actionAvailable || !canMelee) && styles.attackButtonTextDisabled,
-                  ]}
-                >
+                <Text style={[styles.attackButtonText, model.meleeDisabled && styles.attackButtonTextDisabled]}>
                   Melee attack
                 </Text>
               </Pressable>
-              {(!isPlayerTurn || !actionAvailable || !canMelee) && (
-                <Text style={styles.attackButtonReason}>
-                  {!isPlayerTurn
-                    ? "Not your turn"
-                    : !actionAvailable
-                    ? "Action spent"
-                    : !canMelee
-                    ? "Requires melee range"
-                    : ""}
-                </Text>
+              {model.meleeDisabled && model.meleeDisabledReason && (
+                <Text style={styles.attackButtonReason}>{model.meleeDisabledReason}</Text>
               )}
             </View>
           )}
-          {rangedLongChoice && (
+          {model.rangedLongChoice && (
             <View style={styles.attackButtonItem}>
               <Pressable
-                  style={[
-                    styles.attackButton,
-                    (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonDisabled,
-                  ]}
-                  onPress={() => {
-                    if (isPlayerTurn && actionAvailable && actualCanRanged) {
-                      handleChoice(rangedLongChoice.id);
-                    }
-                  }}
-                  disabled={!isPlayerTurn || !actionAvailable || !actualCanRanged}
+                style={[styles.attackButton, model.rangedDisabled && styles.attackButtonDisabled]}
+                onPress={() => {
+                  if (!model.rangedDisabled) {
+                    handleChoice(model.rangedLongChoice!.id);
+                  }
+                }}
+                disabled={model.rangedDisabled}
               >
-                <Text
-                    style={[
-                      styles.attackButtonText,
-                      (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonTextDisabled,
-                    ]}
-                >
+                <Text style={[styles.attackButtonText, model.rangedDisabled && styles.attackButtonTextDisabled]}>
                   Ranged (LONG + cover)
                 </Text>
               </Pressable>
-                {(!isPlayerTurn || !actionAvailable || !actualCanRanged) && (
-                  <Text style={styles.attackButtonReason}>
-                    {!isPlayerTurn
-                      ? "Not your turn"
-                      : !actionAvailable
-                      ? "Action spent"
-                      : !hasRangedWeapon
-                      ? "No ranged weapon"
-                      : !actualCanRanged
-                      ? distance !== null && distance <= 1
-                        ? "In melee"
-                        : "Out of range"
-                      : ""}
-                  </Text>
-                )}
+              {model.rangedDisabled && model.rangedDisabledReason && (
+                <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
+              )}
             </View>
           )}
-          {rangedCalledChoice && (
+          {model.rangedCalledChoice && (
             <View style={styles.attackButtonItem}>
               <Pressable
-                style={[
-                  styles.attackButton,
-                  (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonDisabled,
-                ]}
+                style={[styles.attackButton, model.rangedCalledDisabled && styles.attackButtonDisabled]}
                 onPress={() => {
-                  if (isPlayerTurn && actionAvailable && canRanged) {
-                    handleChoice(rangedCalledChoice.id);
+                  if (!model.rangedCalledDisabled) {
+                    handleChoice(model.rangedCalledChoice!.id);
                   }
                 }}
-                disabled={!isPlayerTurn || !actionAvailable || !canRanged}
+                disabled={model.rangedCalledDisabled}
               >
-                <Text
-                    style={[
-                      styles.attackButtonText,
-                      (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonTextDisabled,
-                    ]}
-                >
+                <Text style={[styles.attackButtonText, model.rangedCalledDisabled && styles.attackButtonTextDisabled]}>
                   Called shot (SHORT)
                 </Text>
               </Pressable>
-                {(!isPlayerTurn || !actionAvailable || !actualCanRanged) && (
-                  <Text style={styles.attackButtonReason}>
-                    {!isPlayerTurn
-                      ? "Not your turn"
-                      : !actionAvailable
-                      ? "Action spent"
-                      : !hasRangedWeapon
-                      ? "No ranged weapon"
-                      : !actualCanRanged
-                      ? distance !== null && distance <= 1
-                        ? "In melee"
-                        : "Out of range"
-                      : ""}
-                  </Text>
-                )}
+              {model.rangedCalledDisabled && model.rangedCalledDisabledReason && (
+                <Text style={styles.attackButtonReason}>{model.rangedCalledDisabledReason}</Text>
+              )}
             </View>
           )}
         </View>
       </View>
 
       {/* Special Actions: Defend and Aim */}
-      {isPlayerTurn && (
+      {model.isPlayerTurn && (
         <View style={styles.specialActionsContainer}>
           <Text style={styles.specialActionsTitle}>Special Actions</Text>
           <View style={styles.specialActionsRow}>
             <Pressable
-              style={[styles.specialActionButton, !actionAvailable && styles.attackButtonDisabled]}
+              style={[styles.specialActionButton, !model.actionAvailable && styles.attackButtonDisabled]}
               onPress={() => {
-                if (actionAvailable) {
+                if (model.actionAvailable) {
                   handleChoice("combat_defend");
                 }
               }}
-              disabled={!actionAvailable}
+              disabled={!model.actionAvailable}
             >
-              <Text style={[styles.specialActionButtonText, !actionAvailable && styles.attackButtonTextDisabled]}>
+              <Text style={[styles.specialActionButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
                 Defend
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.specialActionButton, !actionAvailable && styles.attackButtonDisabled]}
+              style={[styles.specialActionButton, !model.actionAvailable && styles.attackButtonDisabled]}
               onPress={() => {
-                if (actionAvailable) {
+                if (model.actionAvailable) {
                   handleChoice("combat_aim");
                 }
               }}
-              disabled={!actionAvailable}
+              disabled={!model.actionAvailable}
             >
-              <Text style={[styles.specialActionButtonText, !actionAvailable && styles.attackButtonTextDisabled]}>
+              <Text style={[styles.specialActionButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
                 Aim
               </Text>
             </Pressable>
@@ -315,7 +206,7 @@ export function CombatControl({
       )}
 
       {/* End Turn Button */}
-      {isPlayerTurn && (
+      {model.isPlayerTurn && (
         <View style={styles.endTurnContainer}>
           <Pressable style={styles.endTurnButton} onPress={() => handleChoice("combat_end_turn")}>
             <Text style={styles.endTurnButtonText}>End Turn</Text>
@@ -325,4 +216,3 @@ export function CombatControl({
     </View>
   );
 }
-

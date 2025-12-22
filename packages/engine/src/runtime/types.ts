@@ -179,8 +179,8 @@ export type CombatAttackCheck = {
     calledShot?: boolean;
     cover?: Cover; // ranged only
   };
-  onHit?: Effect[];
-  onMiss?: Effect[];
+  onSuccess?: Effect[];
+  onFailure?: Effect[];
 };
 
 export type Check =
