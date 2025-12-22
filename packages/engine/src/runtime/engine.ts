@@ -28,6 +28,10 @@ import { appendCombatLog } from "./combat/narration";
 import { startCombat, advanceCombatTurn, getCurrentTurnActorId } from "./combat/combat";
 import { runNpcTurn } from "./combat/npcAi";
 import { distanceChebyshev, clampToGrid } from "./combat/movement";
+import { calculateWeaponDamage, getActorArmor, getActorWeapon } from "./combat/equipment";
+import type { ContentPack } from "../content/types";
+import { mergeWeapons, mergeArmors } from "../content/merge";
+import type { IRNG } from "./rng";
 
 // Re-export combat functions for backward compatibility
 export {
@@ -82,25 +86,135 @@ function bootstrapActorsFromCast(storyPack: StoryPack): Record<ActorId, Actor> {
 }
 
 /**
+ * Validates ranged attack and applies range band modifiers
+ * Returns a blocked CheckResult if validation fails, null if valid
+ * Also auto-sets rangeBand modifier if not specified
+ */
+function validateAndApplyRangedModifiers(
+  combatCheck: CombatAttackCheck,
+  save: GameSave,
+  dist: number,
+  checkId: string,
+  actorId: ActorId
+): CheckResult | null {
+  // a) Check if weapon is actually ranged
+  const attacker = resolveActor(combatCheck.attacker.actorRef, save);
+  const weaponId = combatCheck.attacker.weaponId ?? attacker?.equipment?.weaponId ?? null;
+  const { weapon } = attacker ? getActorWeapon(save, attacker) : { weapon: null };
+
+  if (!weapon || weapon.kind !== "RANGED") {
+    return {
+      checkId,
+      actorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:blocked=notRangedWeapon", `combat:dist=${dist}`],
+    };
+  }
+
+  // b) Check if in melee range (dist <= 1)
+  if (dist <= 1) {
+    return {
+      checkId,
+      actorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:blocked=rangedInMelee", `combat:dist=${dist}`],
+    };
+  }
+
+  // c) Check if out of range (if weapon.range exists and dist > long)
+  const weaponRange = weapon.range;
+  if (weaponRange) {
+    if (dist > weaponRange.long) {
+      return {
+        checkId,
+        actorId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
+      };
+    }
+
+    // d) Auto-set rangeBand if not specified (SHORT/LONG based on weapon.range.short)
+    if (!combatCheck.modifiers?.rangeBand) {
+      const rangeBand = dist <= weaponRange.short ? "SHORT" : "LONG";
+      combatCheck.modifiers = {
+        ...combatCheck.modifiers,
+        rangeBand: rangeBand as any,
+      };
+    }
+  } else {
+    // Fallback to old hardcoded range if weapon has no range
+    if (dist > 8) {
+      return {
+        checkId,
+        actorId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
+      };
+    }
+
+    // Auto-set rangeBand if not specified (fallback to hardcoded values)
+    if (!combatCheck.modifiers?.rangeBand) {
+      const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+      combatCheck.modifiers = {
+        ...combatCheck.modifiers,
+        rangeBand: rangeBand as any,
+      };
+    }
+  }
+
+  return null; // Valid
+}
+
+/**
  * Applies combat damage when a combatAttack check hits
  */
-function applyCombatDamageIfHit(check: Check, result: CheckResult, save: GameSave): GameSave {
+function applyCombatDamageIfHit(check: Check, result: CheckResult, save: GameSave, rng: IRNG): GameSave {
   if (!result || check.kind !== "combatAttack" || !result.success) return save;
 
   const combatCheck = check as CombatAttackCheck;
+  const attacker = resolveActor(combatCheck.attacker.actorRef, save);
   const defender = resolveActor(combatCheck.defender.actorRef, save);
 
-  if (!defender) {
-    // Defender not found, skip damage application
+  if (!attacker || !defender) {
+    // Attacker or defender not found, skip damage application
     return save;
   }
 
-  // Calculate damage: max(1, 1 + result.dos)
-  const damage = Math.max(1, 1 + (result.dos ?? 0));
+  // Get weapon ID from check or actor equipment
+  const weaponId = combatCheck.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+
+  // Calculate raw damage with weapon (using passed RNG for determinism)
+  const { rawDamage, weaponName, weaponId: finalWeaponId } = calculateWeaponDamage(save, attacker, weaponId, rng);
+
+  // Get defender armor soak
+  const { soak, armorId, name: armorName } = getActorArmor(save, defender);
+
+  // Calculate final damage after soak
+  const finalDamage = Math.max(0, rawDamage - soak);
 
   // Get current HP
   const hpBefore = defender.resources.hp;
-  const hpAfter = Math.max(0, hpBefore - damage);
+  const hpAfter = Math.max(0, hpBefore - finalDamage);
 
   // Update defender immutably
   const updatedDefender: Actor = {
@@ -127,7 +241,11 @@ function applyCombatDamageIfHit(check: Check, result: CheckResult, save: GameSav
           ...lastCheck,
           tags: [
             ...prevTags,
-            `combat:damage=${damage}`,
+            `combat:damage:raw=${rawDamage}`,
+            `combat:soak=${soak}`,
+            `combat:damage:final=${finalDamage}`,
+            `combat:weapon=${finalWeaponId}`,
+            `combat:armor=${armorId}`,
             `combat:defHpBefore=${hpBefore}`,
             `combat:defHpAfter=${hpAfter}`,
             ...(hpAfter === 0 ? ["combat:defDown=1"] : []),
@@ -141,6 +259,7 @@ function applyCombatDamageIfHit(check: Check, result: CheckResult, save: GameSav
     runtime: {
       ...save.runtime,
       lastCheck: updatedLastCheck,
+      rngCounter: rng.getCounter(),
     },
   };
 }
@@ -197,7 +316,8 @@ export function createNewGame(
   saveSeed: number,
   party: Party,
   actorsById: Record<ActorId, Actor>,
-  itemCatalogById: Record<ItemId, Item>
+  itemCatalogById: Record<ItemId, Item>,
+  contentPack: ContentPack = { id: "default", weapons: [], armors: [] }
 ): GameSave {
   const castActorsById = bootstrapActorsFromCast(storyPack);
 
@@ -205,6 +325,10 @@ export function createNewGame(
     ...castActorsById,
     ...actorsById, // the party always wins if there is a collision
   };
+
+  // Merge global content pack with story pack content
+  const weaponsById = mergeWeapons(contentPack.weapons, storyPack.weapons);
+  const armorsById = mergeArmors(contentPack.armors, storyPack.armors);
 
   const save: GameSave = {
     saveVersion: "1.0.0",
@@ -224,6 +348,8 @@ export function createNewGame(
     party,
     actorsById: mergedActorsById,
     itemCatalogById,
+    weaponsById,
+    armorsById,
     runtime: {
       currentSceneId: storyPack.startSceneId,
       rngSeed: saveSeed,
@@ -475,18 +601,14 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
               continue;
             }
           } else if (combatCheck.attacker.mode === "RANGED") {
-            if (dist <= 1) {
-              const blockedCheck: CheckResult = {
-                checkId: check.id,
-                actorId: currentSave.party.activeActorId,
-                roll: 0,
-                target: 0,
-                success: false,
-                dos: 0,
-                dof: 0,
-                critical: "none",
-                tags: ["combat:blocked=rangedInMelee", `combat:dist=${dist}`],
-              };
+            const blockedCheck = validateAndApplyRangedModifiers(
+              combatCheck,
+              currentSave,
+              dist,
+              check.id,
+              currentSave.party.activeActorId
+            );
+            if (blockedCheck) {
               currentSave = {
                 ...currentSave,
                 runtime: {
@@ -495,38 +617,6 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
                 },
               };
               continue;
-            }
-
-            // Range bands: dist <= 4 => SHORT, dist <= 8 => LONG, else out of range
-            if (dist > 8) {
-              const blockedCheck: CheckResult = {
-                checkId: check.id,
-                actorId: currentSave.party.activeActorId,
-                roll: 0,
-                target: 0,
-                success: false,
-                dos: 0,
-                dof: 0,
-                critical: "none",
-                tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
-              };
-              currentSave = {
-                ...currentSave,
-                runtime: {
-                  ...currentSave.runtime,
-                  lastCheck: blockedCheck,
-                },
-              };
-              continue;
-            }
-
-            // Auto-set rangeBand if not specified
-            if (!combatCheck.modifiers?.rangeBand) {
-              const rangeBand = dist <= 4 ? "SHORT" : "LONG";
-              combatCheck.modifiers = {
-                ...combatCheck.modifiers,
-                rangeBand: rangeBand as any,
-              };
             }
           }
         }
@@ -569,7 +659,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
           }
 
           // Apply damage if HIT
-          currentSave = applyCombatDamageIfHit(check, result, currentSave);
+          currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
           if (result.success && combatCheck.onHit) {
             currentSave = applyEffects(combatCheck.onHit, storyPack, currentSave, rng);
           } else if (!result.success && combatCheck.onMiss) {
@@ -724,18 +814,14 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
               break; // Stop processing checks
             }
           } else if (combatCheck.attacker.mode === "RANGED") {
-            if (dist <= 1) {
-              const blockedCheck: CheckResult = {
-                checkId: check.id,
-                actorId: currentSave.party.activeActorId,
-                roll: 0,
-                target: 0,
-                success: false,
-                dos: 0,
-                dof: 0,
-                critical: "none",
-                tags: ["combat:blocked=rangedInMelee", `combat:dist=${dist}`],
-              };
+            const blockedCheck = validateAndApplyRangedModifiers(
+              combatCheck,
+              currentSave,
+              dist,
+              check.id,
+              currentSave.party.activeActorId
+            );
+            if (blockedCheck) {
               currentSave = {
                 ...currentSave,
                 runtime: {
@@ -744,38 +830,6 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
                 },
               };
               break; // Stop processing checks
-            }
-
-            // Range bands: dist <= 4 => SHORT, dist <= 8 => LONG, else out of range
-            if (dist > 8) {
-              const blockedCheck: CheckResult = {
-                checkId: check.id,
-                actorId: currentSave.party.activeActorId,
-                roll: 0,
-                target: 0,
-                success: false,
-                dos: 0,
-                dof: 0,
-                critical: "none",
-                tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
-              };
-              currentSave = {
-                ...currentSave,
-                runtime: {
-                  ...currentSave.runtime,
-                  lastCheck: blockedCheck,
-                },
-              };
-              break; // Stop processing checks
-            }
-
-            // Auto-set rangeBand if not specified
-            if (!combatCheck.modifiers?.rangeBand) {
-              const rangeBand = dist <= 4 ? "SHORT" : "LONG";
-              combatCheck.modifiers = {
-                ...combatCheck.modifiers,
-                rangeBand: rangeBand as any,
-              };
             }
           }
         }
@@ -846,7 +900,7 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
         }
 
         // Apply damage if HIT
-        currentSave = applyCombatDamageIfHit(check, result, currentSave);
+        currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
 
         // Get defender for narration
         const defender = resolveActor(combatCheck.defender.actorRef, currentSave);
@@ -854,9 +908,28 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
 
         // Add narration for player attacks
         if (result.success) {
-          const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
-          const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
-          currentSave = appendCombatLog(currentSave, `Colpisci ${defenderName} e infliggi ${damage} danni.`);
+          const rawDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:raw="));
+          const soakTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:soak="));
+          const finalDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:final="));
+          const weaponTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:weapon="));
+
+          const rawDamage = rawDamageTag ? parseInt(rawDamageTag.split("=")[1]) : 0;
+          const soak = soakTag ? parseInt(soakTag.split("=")[1]) : 0;
+          const finalDamage = finalDamageTag ? parseInt(finalDamageTag.split("=")[1]) : 0;
+          const weaponId = weaponTag ? weaponTag.split("=")[1] : "unarmed";
+          const weaponName = weaponId === "unarmed" ? "i pugni" : currentSave.weaponsById?.[weaponId]?.name || "l'arma";
+
+          if (finalDamage === 0) {
+            currentSave = appendCombatLog(
+              currentSave,
+              `Colpisci ${defenderName} con ${weaponName} ma l'armatura assorbe tutto il colpo (${rawDamage} - ${soak}).`
+            );
+          } else {
+            currentSave = appendCombatLog(
+              currentSave,
+              `Colpisci ${defenderName} con ${weaponName} e infliggi ${finalDamage} danni (${rawDamage} - ${soak}).`
+            );
+          }
 
           // Check for defense
           const defenseTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:defense="));

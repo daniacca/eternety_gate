@@ -8,8 +8,10 @@ import {
   getCurrentTurnActorId,
   type GameSave,
   type StoryPack,
+  type ContentPack,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
+import sigilContent from "@eg/content/sigil.content.json";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
@@ -41,12 +43,8 @@ export function PlayScreen() {
       talents: [],
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        weaponId: "shortbow", // Test weapon: ranged
+        armorId: null, // No armor for player initially
       },
       status: {
         conditions: [],
@@ -59,12 +57,45 @@ export function PlayScreen() {
       activeActorId: "PC_1",
     };
 
+    // Create NPC_DUMMY with club and leather armor
+    const npcDummy = {
+      id: "NPC_DUMMY",
+      name: "Dummy",
+      kind: "NPC" as const,
+      tags: [],
+      stats: {
+        STR: 40,
+        TOU: 40,
+        AGI: 30,
+        INT: 20,
+        WIL: 30,
+        CHA: 20,
+        WS: 40,
+        BS: 30,
+        INI: 30,
+        PER: 30,
+      },
+      resources: { hp: 50, rf: 50, peq: 50 },
+      skills: {},
+      talents: [],
+      traits: [],
+      equipment: {
+        weaponId: "club",
+        armorId: "leather",
+      },
+      status: {
+        conditions: [],
+        tempModifiers: [],
+      },
+    };
+
     return createNewGame(
       brunholt as StoryPack,
       123456, // fixed seed
       party,
-      { PC_1: minimalActor },
-      {} // empty item catalog for now
+      { PC_1: minimalActor, NPC_DUMMY: npcDummy },
+      {}, // empty item catalog for now
+      sigilContent as ContentPack
     );
   }, []);
 
@@ -88,7 +119,7 @@ export function PlayScreen() {
 
   // Combat UI helpers
   const currentTurnActorId = combat?.active ? getCurrentTurnActorId(save) : null;
-  const isPlayerTurn = combat?.active && currentTurnActorId === save.party.activeActorId;
+  const isPlayerTurn = Boolean(combat?.active && currentTurnActorId === save.party.activeActorId);
   const currentTurnActor = currentTurnActorId ? save.actorsById[currentTurnActorId] : null;
 
   // Calculate distance if in combat
@@ -173,7 +204,7 @@ export function PlayScreen() {
 
   // Determine which scene the combat narration belongs to
   const narrationSceneId = save.runtime.combatLogSceneId ?? combat?.startedBySceneId;
-  const showNarration = narrationSceneId && narrationSceneId === save.runtime.currentSceneId;
+  const showNarration = Boolean(narrationSceneId && narrationSceneId === save.runtime.currentSceneId);
 
   const showCombatEnded =
     tags.some((t) => t === "combat:state=end") && save.runtime.combatEndedSceneId === save.runtime.currentSceneId;
@@ -226,8 +257,7 @@ export function PlayScreen() {
             {tags.find((t) => t.startsWith("combat:winner=")) && (
               <Text style={styles.combatEndText}>
                 Winner:{" "}
-                {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name ||
-                  "Unknown"}
+                {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name || "Unknown"}
               </Text>
             )}
           </View>
@@ -771,4 +801,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

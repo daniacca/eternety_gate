@@ -19,7 +19,7 @@ export function makeTestSave(
     [actor.id]: actor,
   };
 
-  const save = createNewGame(storyPack, seed, party, actorsById, {});
+  const save = createNewGame(storyPack, seed, party, actorsById, {}, { id: "test", weapons: [], armors: [] });
 
   // Override counter if specified
   if (counter !== 0) {

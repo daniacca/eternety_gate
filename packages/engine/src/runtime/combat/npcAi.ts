@@ -1,29 +1,40 @@
 import type { StoryPack, GameSave, ActorId, CombatAttackCheck, CheckResult } from "../types";
-import { RNG } from "../rng";
+import { RNG, type IRNG } from "../rng";
 import { performCheck, resolveActor } from "../checks";
 import { distanceChebyshev, clampToGrid } from "./movement";
 import { appendCombatLog } from "./narration";
+import { calculateWeaponDamage, getActorArmor, getActorWeapon } from "./equipment";
 
 /**
  * Applies combat damage when a combatAttack check hits
  */
-function applyCombatDamageIfHit(check: any, result: CheckResult, save: GameSave): GameSave {
+function applyCombatDamageIfHit(check: any, result: CheckResult, save: GameSave, rng: IRNG): GameSave {
   if (!result || check.kind !== "combatAttack" || !result.success) return save;
 
   const combatCheck = check as CombatAttackCheck;
+  const attacker = resolveActor(combatCheck.attacker.actorRef, save);
   const defender = resolveActor(combatCheck.defender.actorRef, save);
 
-  if (!defender) {
-    // Defender not found, skip damage application
+  if (!attacker || !defender) {
+    // Attacker or defender not found, skip damage application
     return save;
   }
 
-  // Calculate damage: max(1, 1 + result.dos)
-  const damage = Math.max(1, 1 + (result.dos ?? 0));
+  // Get weapon ID from check or actor equipment
+  const weaponId = combatCheck.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+
+  // Calculate raw damage with weapon (using passed RNG for determinism)
+  const { rawDamage, weaponName, weaponId: finalWeaponId } = calculateWeaponDamage(save, attacker, weaponId, rng);
+
+  // Get defender armor soak
+  const { soak, armorId, name: armorName } = getActorArmor(save, defender);
+
+  // Calculate final damage after soak
+  const finalDamage = Math.max(0, rawDamage - soak);
 
   // Get current HP
   const hpBefore = defender.resources.hp;
-  const hpAfter = Math.max(0, hpBefore - damage);
+  const hpAfter = Math.max(0, hpBefore - finalDamage);
 
   // Update defender immutably
   const updatedDefender = {
@@ -50,7 +61,11 @@ function applyCombatDamageIfHit(check: any, result: CheckResult, save: GameSave)
           ...lastCheck,
           tags: [
             ...prevTags,
-            `combat:damage=${damage}`,
+            `combat:damage:raw=${rawDamage}`,
+            `combat:soak=${soak}`,
+            `combat:damage:final=${finalDamage}`,
+            `combat:weapon=${finalWeaponId}`,
+            `combat:armor=${armorId}`,
             `combat:defHpBefore=${hpBefore}`,
             `combat:defHpAfter=${hpAfter}`,
             ...(hpAfter === 0 ? ["combat:defDown=1"] : []),
@@ -64,6 +79,7 @@ function applyCombatDamageIfHit(check: any, result: CheckResult, save: GameSave)
     runtime: {
       ...save.runtime,
       lastCheck: updatedLastCheck,
+      rngCounter: rng.getCounter(),
     },
   };
 }
@@ -149,7 +165,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       },
     };
 
-    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+    currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
     return currentSave;
   }
 
@@ -163,14 +179,15 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
 
   const dist = distanceChebyshev(npcPos, targetPos);
 
-  // Check if NPC has ranged capability
+  // Get NPC weapon to determine attack mode and range
   const npc = save.actorsById[npcId];
-  const npcTags = npc?.tags || [];
-  const npcHasRanged = npcTags.includes("ai:ranged=1");
+  const { weapon, weaponId: npcWeaponId } = getActorWeapon(save, npc);
+  const npcHasRanged = weapon?.kind === "RANGED";
+  const weaponRange = weapon?.range;
 
   // Decision logic:
-  // 1. If dist <= 1: MELEE attack
-  // 2. Else if npcHasRanged && dist <= 8: RANGED attack
+  // 1. If dist <= 1: MELEE attack (or RANGED if weapon is ranged and in melee, but that's blocked by rules)
+  // 2. Else if npcHasRanged && dist <= weapon.range.long: RANGED attack
   // 3. Else: MOVE toward target
 
   if (dist <= 1) {
@@ -181,7 +198,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       attacker: {
         actorRef: { mode: "byId", actorId: npcId },
         mode: "MELEE",
-        weaponId: null,
+        weaponId: npcWeaponId === "unarmed" ? null : npcWeaponId,
       },
       defender: {
         actorRef: { mode: "byId", actorId: targetId },
@@ -236,14 +253,33 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
     };
 
     // Apply damage if hit
-    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+    currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
 
     // Add narration
     const npc = save.actorsById[npcId];
     if (result.success) {
-      const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
-      const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
-      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} ti colpisce e infligge ${damage} danni.`);
+      const rawDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:raw="));
+      const soakTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:soak="));
+      const finalDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:final="));
+      const weaponTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:weapon="));
+      
+      const rawDamage = rawDamageTag ? parseInt(rawDamageTag.split("=")[1]) : 0;
+      const soak = soakTag ? parseInt(soakTag.split("=")[1]) : 0;
+      const finalDamage = finalDamageTag ? parseInt(finalDamageTag.split("=")[1]) : 0;
+      const weaponId = weaponTag ? weaponTag.split("=")[1] : "unarmed";
+      const weaponName = weaponId === "unarmed" ? "i pugni" : (currentSave.weaponsById?.[weaponId]?.name || "l'arma");
+
+      if (finalDamage === 0) {
+        currentSave = appendCombatLog(
+          currentSave,
+          `${npc?.name || npcId} ti colpisce con ${weaponName} ma l'armatura assorbe tutto il colpo (${rawDamage} - ${soak}).`
+        );
+      } else {
+        currentSave = appendCombatLog(
+          currentSave,
+          `${npc?.name || npcId} ti colpisce con ${weaponName} e infligge ${finalDamage} danni (${rawDamage} - ${soak}).`
+        );
+      }
     } else {
       currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} manca il colpo.`);
       // Check for successful defense
@@ -259,15 +295,15 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
     }
 
     return currentSave;
-  } else if (npcHasRanged && dist <= 8) {
-    // RANGED attack (only if NPC has ranged capability and distance is within range)
+  } else if (npcHasRanged && weaponRange && dist <= weaponRange.long) {
+    // RANGED attack (only if NPC has ranged weapon and distance is within range)
     const check: CombatAttackCheck = {
       id: `combat:npcTurn:${npcId}`,
       kind: "combatAttack",
       attacker: {
         actorRef: { mode: "byId", actorId: npcId },
         mode: "RANGED",
-        weaponId: null,
+        weaponId: npcWeaponId === "unarmed" ? null : npcWeaponId,
       },
       defender: {
         actorRef: { mode: "byId", actorId: targetId },
@@ -279,8 +315,8 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       },
     };
 
-    // Set rangeBand for ranged attacks
-    const rangeBand = dist <= 4 ? "SHORT" : "LONG";
+    // Set rangeBand for ranged attacks based on weapon range
+    const rangeBand = dist <= weaponRange.short ? "SHORT" : "LONG";
     check.modifiers = {
       rangeBand: rangeBand as any,
     };
@@ -328,14 +364,33 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
     };
 
     // Apply damage if hit
-    currentSave = applyCombatDamageIfHit(check, result, currentSave);
+    currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
 
     // Add narration
     const npc = save.actorsById[npcId];
     if (result.success) {
-      const damageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage="));
-      const damage = damageTag ? parseInt(damageTag.split("=")[1]) : 0;
-      currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} ti colpisce e infligge ${damage} danni.`);
+      const rawDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:raw="));
+      const soakTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:soak="));
+      const finalDamageTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:damage:final="));
+      const weaponTag = currentSave.runtime.lastCheck?.tags.find((t) => t.startsWith("combat:weapon="));
+      
+      const rawDamage = rawDamageTag ? parseInt(rawDamageTag.split("=")[1]) : 0;
+      const soak = soakTag ? parseInt(soakTag.split("=")[1]) : 0;
+      const finalDamage = finalDamageTag ? parseInt(finalDamageTag.split("=")[1]) : 0;
+      const weaponId = weaponTag ? weaponTag.split("=")[1] : "unarmed";
+      const weaponName = weaponId === "unarmed" ? "i pugni" : (currentSave.weaponsById?.[weaponId]?.name || "l'arma");
+
+      if (finalDamage === 0) {
+        currentSave = appendCombatLog(
+          currentSave,
+          `${npc?.name || npcId} ti colpisce con ${weaponName} ma l'armatura assorbe tutto il colpo (${rawDamage} - ${soak}).`
+        );
+      } else {
+        currentSave = appendCombatLog(
+          currentSave,
+          `${npc?.name || npcId} ti colpisce con ${weaponName} e infligge ${finalDamage} danni (${rawDamage} - ${soak}).`
+        );
+      }
     } else {
       currentSave = appendCombatLog(currentSave, `${npc?.name || npcId} manca il colpo.`);
       // Check for successful defense

@@ -13,6 +13,8 @@ export type ChoiceId = string;
 
 export type ActorId = string;
 export type ItemId = string;
+export type WeaponId = string;
+export type ArmorId = string;
 
 export type WorldEventId = string;
 
@@ -263,12 +265,46 @@ export type StoryPack = {
   cast?: any;
   effectsCatalog?: any;
 
+  // Story-local content (weapons/armors override or extend global content pack)
+  weapons?: Weapon[];
+  armors?: Armor[];
+
   scenes: Scene[];
 };
 
 /* ---------------------------------- */
 /* Runtime: Items / Actors / Party     */
 /* ---------------------------------- */
+
+export type Weapon = {
+  id: WeaponId;
+  name: string;
+  kind: "MELEE" | "RANGED";
+  // damage: base d10 + add (we keep it simple)
+  damage: {
+    die: 10; // fixed 1d10 for now
+    add: number; // e.g. +0, +2
+    bonus?: "SB"; // melee adds Strength Bonus, ranged doesn't (for now)
+  };
+  // ranged only
+  range?: {
+    short: number; // in chebyshev squares, e.g. 4
+    long: number; // e.g. 8
+  };
+  tags?: string[]; // future use
+};
+
+export type Armor = {
+  id: ArmorId;
+  name: string;
+  soak: number; // flat damage reduction
+  tags?: string[];
+};
+
+export type Equipment = {
+  weaponId?: WeaponId | null;
+  armorId?: ArmorId | null;
+};
 
 export type DamageTier = "Half" | "Single" | "Double" | "Triple" | "Fourfold" | "Fivefold";
 export type ItemKind = "weapon" | "armor" | "accessory" | "consumable" | "quest";
@@ -328,12 +364,16 @@ export type Actor = {
   traits: string[];
 
   equipment: {
-    equipped: {
+    // Legacy equipment system (kept for backward compatibility, but not populated for new actors)
+    equipped?: {
       weaponMainId: ItemId | null;
       weaponOffId: ItemId | null;
       armorId: ItemId | null;
       accessoryIds: ItemId[];
     };
+    // New minimal equipment system (single source of truth)
+    weaponId?: WeaponId | null;
+    armorId?: ArmorId | null;
   };
 
   status: {
@@ -457,6 +497,12 @@ export type GameSave = {
    * - (future) pending rewards / quest-required items
    */
   itemCatalogById: Record<ItemId, Item>;
+
+  /**
+   * Weapons and armor catalogs for equipped items
+   */
+  weaponsById: Record<WeaponId, Weapon>;
+  armorsById: Record<ArmorId, Armor>;
 
   runtime: GameRuntime;
 };

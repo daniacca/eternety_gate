@@ -1,0 +1,10 @@
+{
+  "name": "@eg/content",
+  "version": "1.0.0",
+  "main": "sigil.content.json",
+  "types": "sigil.content.json",
+  "exports": {
+    "./sigil.content.json": "./sigil.content.json"
+  }
+}
+

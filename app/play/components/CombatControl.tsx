@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { GameSave, Choice } from "@eg/engine";
+import { getActorWeapon, getActorArmor } from "@eg/engine";
 
 interface CombatControlProps {
   combat: GameSave["runtime"]["combat"];
@@ -47,6 +48,24 @@ export function CombatControl({
   const npcHp = npcActor?.resources.hp ?? 0;
   const npcFatigue = npcActor?.resources.rf ?? 0;
 
+  // Get equipment info
+  const pcWeapon = pcActor ? getActorWeapon(save, pcActor) : null;
+  const pcArmor = pcActor ? getActorArmor(save, pcActor) : null;
+  const npcWeapon = npcActor ? getActorWeapon(save, npcActor) : null;
+  const npcArmor = npcActor ? getActorArmor(save, npcActor) : null;
+
+  // Check if player has ranged weapon
+  const hasRangedWeapon = pcWeapon?.weapon?.kind === "RANGED";
+  const weaponRange = pcWeapon?.weapon?.range;
+  
+  // Update canRanged based on weapon range if available
+  let actualCanRanged = canRanged;
+  if (hasRangedWeapon && weaponRange && distance !== null) {
+    actualCanRanged = distance > 1 && distance <= weaponRange.long;
+  } else if (!hasRangedWeapon) {
+    actualCanRanged = false; // No ranged weapon = can't ranged attack
+  }
+
   // Get attack choices
   // Prioritize standard combat_melee over variants
   const meleeChoice =
@@ -88,14 +107,14 @@ export function CombatControl({
             </Text>
           </View>
         )}
-        <View style={styles.combatControlStats}>
-          <Text style={styles.combatControlStat}>
-            PC_1: HP {pcHp} / RF {pcFatigue}
-          </Text>
-          <Text style={styles.combatControlStat}>
-            NPC_DUMMY: HP {npcHp} / RF {npcFatigue}
-          </Text>
-        </View>
+          <View style={styles.combatControlStats}>
+            <Text style={styles.combatControlStat}>
+              PC_1: HP {pcHp} / RF {pcFatigue} | Weapon: {pcWeapon?.name || "Unarmed"} | Armor: {pcArmor?.name || "None"} (Soak: {pcArmor?.soak || 0})
+            </Text>
+            <Text style={styles.combatControlStat}>
+              NPC_DUMMY: HP {npcHp} / RF {npcFatigue} | Weapon: {npcWeapon?.name || "Unarmed"} | Armor: {npcArmor?.name || "None"} (Soak: {npcArmor?.soak || 0})
+            </Text>
+          </View>
       </View>
 
       {/* Controls Row: MovePad + Attacks */}
@@ -180,39 +199,41 @@ export function CombatControl({
           {rangedLongChoice && (
             <View style={styles.attackButtonItem}>
               <Pressable
-                style={[
-                  styles.attackButton,
-                  (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonDisabled,
-                ]}
-                onPress={() => {
-                  if (isPlayerTurn && actionAvailable && canRanged) {
-                    handleChoice(rangedLongChoice.id);
-                  }
-                }}
-                disabled={!isPlayerTurn || !actionAvailable || !canRanged}
+                  style={[
+                    styles.attackButton,
+                    (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonDisabled,
+                  ]}
+                  onPress={() => {
+                    if (isPlayerTurn && actionAvailable && actualCanRanged) {
+                      handleChoice(rangedLongChoice.id);
+                    }
+                  }}
+                  disabled={!isPlayerTurn || !actionAvailable || !actualCanRanged}
               >
                 <Text
-                  style={[
-                    styles.attackButtonText,
-                    (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonTextDisabled,
-                  ]}
+                    style={[
+                      styles.attackButtonText,
+                      (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonTextDisabled,
+                    ]}
                 >
                   Ranged (LONG + cover)
                 </Text>
               </Pressable>
-              {(!isPlayerTurn || !actionAvailable || !canRanged) && (
-                <Text style={styles.attackButtonReason}>
-                  {!isPlayerTurn
-                    ? "Not your turn"
-                    : !actionAvailable
-                    ? "Action spent"
-                    : !canRanged
-                    ? distance !== null && distance <= 1
-                      ? "In melee"
-                      : "Out of range"
-                    : ""}
-                </Text>
-              )}
+                {(!isPlayerTurn || !actionAvailable || !actualCanRanged) && (
+                  <Text style={styles.attackButtonReason}>
+                    {!isPlayerTurn
+                      ? "Not your turn"
+                      : !actionAvailable
+                      ? "Action spent"
+                      : !hasRangedWeapon
+                      ? "No ranged weapon"
+                      : !actualCanRanged
+                      ? distance !== null && distance <= 1
+                        ? "In melee"
+                        : "Out of range"
+                      : ""}
+                  </Text>
+                )}
             </View>
           )}
           {rangedCalledChoice && (
@@ -230,27 +251,29 @@ export function CombatControl({
                 disabled={!isPlayerTurn || !actionAvailable || !canRanged}
               >
                 <Text
-                  style={[
-                    styles.attackButtonText,
-                    (!isPlayerTurn || !actionAvailable || !canRanged) && styles.attackButtonTextDisabled,
-                  ]}
+                    style={[
+                      styles.attackButtonText,
+                      (!isPlayerTurn || !actionAvailable || !actualCanRanged) && styles.attackButtonTextDisabled,
+                    ]}
                 >
                   Called shot (SHORT)
                 </Text>
               </Pressable>
-              {(!isPlayerTurn || !actionAvailable || !canRanged) && (
-                <Text style={styles.attackButtonReason}>
-                  {!isPlayerTurn
-                    ? "Not your turn"
-                    : !actionAvailable
-                    ? "Action spent"
-                    : !canRanged
-                    ? distance !== null && distance <= 1
-                      ? "In melee"
-                      : "Out of range"
-                    : ""}
-                </Text>
-              )}
+                {(!isPlayerTurn || !actionAvailable || !actualCanRanged) && (
+                  <Text style={styles.attackButtonReason}>
+                    {!isPlayerTurn
+                      ? "Not your turn"
+                      : !actionAvailable
+                      ? "Action spent"
+                      : !hasRangedWeapon
+                      ? "No ranged weapon"
+                      : !actualCanRanged
+                      ? distance !== null && distance <= 1
+                        ? "In melee"
+                        : "Out of range"
+                      : ""}
+                  </Text>
+                )}
             </View>
           )}
         </View>

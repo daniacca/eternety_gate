@@ -102,7 +102,7 @@ describe("applyChoice", () => {
     };
 
     // Create initial game save
-    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {});
+    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {}, { id: "test", weapons: [], armors: [] });
 
     // Verify initial state
     expect(initialSave.runtime.currentSceneId).toBe("scene1");
@@ -232,7 +232,7 @@ describe("applyChoice", () => {
       activeActorId: "PC_1",
     };
 
-    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {});
+    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {}, { id: "test", weapons: [], armors: [] });
 
     // Apply choice - result depends on roll, but effects should be applied
     const updatedSave = applyChoice(storyPack, initialSave, "choice_with_check");
@@ -641,7 +641,7 @@ describe("Flat state access", () => {
       activeActorId: "PC_1",
     };
 
-    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {});
+    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {}, { id: "test", weapons: [], armors: [] });
 
     // Apply choice with effects containing dots in keys
     const updatedSave = applyChoice(storyPack, initialSave, "choice1");
@@ -761,7 +761,7 @@ describe("Sequence check", () => {
       activeActorId: "PC_1",
     };
 
-    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {});
+    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {}, { id: "test", weapons: [], armors: [] });
 
     // Apply choice with sequence check
     const updatedSave = applyChoice(storyPack, initialSave, "choice1");
@@ -872,7 +872,7 @@ describe("Sequence check", () => {
       activeActorId: "PC_1",
     };
 
-    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {});
+    const initialSave = createNewGame(storyPack, 123456, party, { PC_1: actor }, {}, { id: "test", weapons: [], armors: [] });
 
     // Apply choice with sequence check that will likely fail on step 2
     const updatedSave = applyChoice(storyPack, initialSave, "choice1");

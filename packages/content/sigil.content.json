@@ -1,0 +1,36 @@
+{
+  "id": "sigil",
+  "weapons": [
+    {
+      "id": "shortbow",
+      "name": "Shortbow",
+      "kind": "RANGED",
+      "damage": {
+        "die": 10,
+        "add": 0
+      },
+      "range": {
+        "short": 4,
+        "long": 8
+      }
+    },
+    {
+      "id": "club",
+      "name": "Club",
+      "kind": "MELEE",
+      "damage": {
+        "die": 10,
+        "add": 1,
+        "bonus": "SB"
+      }
+    }
+  ],
+  "armors": [
+    {
+      "id": "leather",
+      "name": "Leather Armor",
+      "soak": 1
+    }
+  ]
+}
+

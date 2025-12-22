@@ -8,6 +8,9 @@
       ],
       "@eg/tools": [
         "./packages/tools/src"
+      ],
+      "@eg/content/*": [
+        "./packages/content/*"
       ]
     }
   },
