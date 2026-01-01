@@ -1,4 +1,5 @@
-import { View, Text } from "react-native";
+import { useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
 import type { GameSave } from "@eg/engine";
 
 interface CombatNarrationProps {
@@ -9,18 +10,29 @@ interface CombatNarrationProps {
 }
 
 export function CombatNarration({ showNarration, combatLog, turnStartIndex, styles }: CombatNarrationProps) {
+  const [showFullLog, setShowFullLog] = useState(false);
+
   if (!showNarration) return null;
 
   const safeStart = Math.min(turnStartIndex, combatLog.length);
-  const combatNarration = combatLog.slice(safeStart);
+  const currentTurnLog = combatLog.slice(safeStart);
+  const displayLog = showFullLog ? combatLog : currentTurnLog;
 
   return (
     <View style={styles.combatNarration}>
-      <Text style={styles.combatNarrationTitle}>
-        Combat Narration [DEBUG: combatLog.length={combatLog.length}, turnStartIndex={turnStartIndex}]
-      </Text>
-      {combatNarration.length > 0 ? (
-        combatNarration.map((entry, index) => (
+      <View style={styles.combatNarrationHeader}>
+        <Text style={styles.combatNarrationTitle}>Combat Narration</Text>
+        <TouchableOpacity
+          onPress={() => setShowFullLog(!showFullLog)}
+          style={styles.combatNarrationToggle}
+        >
+          <Text style={styles.combatNarrationToggleText}>
+            {showFullLog ? "Turno corrente" : "Tutto"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {displayLog.length > 0 ? (
+        displayLog.map((entry, index) => (
           <Text key={index} style={styles.combatNarrationText}>
             {entry}
           </Text>

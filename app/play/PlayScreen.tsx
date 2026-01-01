@@ -555,11 +555,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ffd700",
   },
+  combatNarrationHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   combatNarrationTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: "#856404",
-    marginBottom: 8,
+  },
+  combatNarrationToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: "#ffd700",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#856404",
+  },
+  combatNarrationToggleText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#856404",
   },
   combatNarrationText: {
     fontSize: 13,

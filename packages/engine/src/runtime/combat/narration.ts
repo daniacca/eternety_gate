@@ -3,6 +3,15 @@ import type { GameSave, Actor, CheckResult } from "../types";
 const MAX_LOG = 50;
 
 /**
+ * Checks if the last N log entries contain a specific message (to avoid duplicates)
+ */
+function hasRecentLogEntry(save: GameSave, message: string, lookback: number = 2): boolean {
+  const log = save.runtime.combatLog || [];
+  const start = Math.max(0, log.length - lookback);
+  return log.slice(start).some((entry) => entry === message);
+}
+
+/**
  * Helper to append a combat log entry (immutable)
  * Returns a NEW save with the log entry appended
  */
@@ -52,10 +61,14 @@ export function appendAttackNarration(
   const isPlayerAttacker = attacker.kind === "PC";
 
   if (result.success) {
-    // HIT: no defense narration here
+    // HIT: no defense narration here, but optionally show stance line
     const defenderStanceTag = result.tags.find((t) => t.startsWith("combat:defenderStance="));
     if (defenderStanceTag?.endsWith("=defend")) {
-      updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
+      const stanceMessage = `Il bersaglio è in difesa: è più difficile colpirlo.`;
+      // Avoid duplicate stance lines
+      if (!hasRecentLogEntry(updatedSave, stanceMessage, 2)) {
+        updatedSave = appendCombatLog(updatedSave, stanceMessage);
+      }
     }
     return updatedSave;
   }
@@ -67,18 +80,23 @@ export function appendAttackNarration(
   } else if (defenseTag?.endsWith("=dodge")) {
     updatedSave = appendCombatLog(updatedSave, `${defenderName} schiva il colpo.`);
   } else {
+    // Only show "manca" if there's no parry/dodge (already handled above)
     updatedSave = appendCombatLog(
       updatedSave,
       isPlayerAttacker ? `Il tuo attacco manca il bersaglio.` : `${attackerName} manca il colpo.`
     );
   }
 
-  // Check for stance effects on miss
+  // Check for stance effects on miss (only if not already shown)
   const defenderStanceTag = result.tags.find((t) => t.startsWith("combat:defenderStance="));
   if (defenderStanceTag) {
     const defenderStance = defenderStanceTag.split("=")[1];
     if (defenderStance === "defend") {
-      updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
+      const stanceMessage = `Il bersaglio è in difesa: è più difficile colpirlo.`;
+      // Avoid duplicate stance lines
+      if (!hasRecentLogEntry(updatedSave, stanceMessage, 2)) {
+        updatedSave = appendCombatLog(updatedSave, stanceMessage);
+      }
     }
   }
 

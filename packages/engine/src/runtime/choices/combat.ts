@@ -145,20 +145,7 @@ export const handleCombatChoice: ChoiceHandler = (
         if (requestEffect) {
           requestEffects.push(requestEffect);
           didPlayerCombatAction = true;
-
-          // Set combatTurnStartIndex at the start of player "turn chunk"
-          if (currentSave.runtime.combat?.active) {
-            const turnActorId = getCurrentTurnActorId(currentSave);
-            if (turnActorId === currentSave.party.activeActorId) {
-              currentSave = {
-                ...currentSave,
-                runtime: {
-                  ...currentSave.runtime,
-                  combatTurnStartIndex: currentSave.runtime.combatLog?.length ?? 0,
-                },
-              };
-            }
-          }
+          // Note: combatTurnStartIndex is set by advanceCombatTurn when turn advances
         }
       } else {
         // Standard checks - perform normally

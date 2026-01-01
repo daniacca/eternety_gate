@@ -818,13 +818,12 @@ export function combatEndTurn(
   const logEntry = actor?.kind === "PC" ? `Termini il turno.` : `${actor?.name || turnActorId} termina il turno.`;
   let currentSave: GameSave = appendCombatLog(save, logEntry);
 
-  // Set combatTurnStartIndex at the start of player "turn chunk" (before advancing and running NPC loop)
+  // advanceCombatTurn will set combatTurnStartIndex at the start of the next turn
   currentSave = {
     ...currentSave,
     runtime: {
       ...currentSave.runtime,
       rngCounter: rng.getCounter(),
-      combatTurnStartIndex: currentSave.runtime.combatLog?.length ?? 0,
     },
   };
   currentSave = advanceCombatTurn(currentSave);

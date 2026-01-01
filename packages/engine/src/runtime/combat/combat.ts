@@ -161,13 +161,16 @@ export function startCombat(
       lastCheck: debugCheck,
       combatLog: initialCombatLog,
       combatLogSceneId: sceneIdForCombat,
-      // Set combatTurnStartIndex to point to the start message (index 0)
-      combatTurnStartIndex: 0,
+      // Set combatTurnStartIndex to point after the start message (index 1, after we add header)
+      combatTurnStartIndex: 1,
     },
   };
 
-  // If player goes first, combatTurnStartIndex is already set correctly (0)
-  // Otherwise, it will be updated when player's turn starts in advanceCombatTurn
+  // Add turn header for first turn
+  const isPlayerTurn = firstActor?.kind === "PC";
+  const actorName = firstActor?.name || currentTurnActorId;
+  const turnHeader = isPlayerTurn ? `— Tocca a te —` : `— Turno 1: ${actorName} —`;
+  updatedSave = appendCombatLog(updatedSave, turnHeader);
 
   return updatedSave;
 }
@@ -248,8 +251,18 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   const currentTurnActorId = aliveParticipants[newCurrentIndex];
 
+  // Set combatTurnStartIndex at the start of this new turn (before any actions)
+  const currentLogLength = save.runtime.combatLog?.length ?? 0;
+  let updatedSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combatTurnStartIndex: currentLogLength,
+    },
+  };
+
   // Initialize turn state for new actor
-  const newActor = save.actorsById[currentTurnActorId];
+  const newActor = updatedSave.actorsById[currentTurnActorId];
   const newTurnState = newActor ? initializeTurnState(newActor) : { moveRemaining: 0, actionAvailable: true };
 
   // Reset stance for actor whose turn starts (stances last "until your next turn")
@@ -282,10 +295,17 @@ export function advanceCombatTurn(save: GameSave): GameSave {
       }
     : null;
 
-  let updatedSave: GameSave = {
-    ...save,
-    runtime: { ...save.runtime, combat: newCombatState, lastCheck: updatedLastCheck },
+  updatedSave = {
+    ...updatedSave,
+    runtime: { ...updatedSave.runtime, combat: newCombatState, lastCheck: updatedLastCheck },
   };
+
+  // Add turn header log entry (after setting index so header is included in turn log)
+  const actor = updatedSave.actorsById[currentTurnActorId];
+  const isPlayerTurn = actor?.kind === "PC";
+  const actorName = actor?.name || currentTurnActorId;
+  const turnHeader = isPlayerTurn ? `— Tocca a te —` : `— Turno ${newTurnCounter}: ${actorName} —`;
+  updatedSave = appendCombatLog(updatedSave, turnHeader);
 
   return updatedSave;
 }
