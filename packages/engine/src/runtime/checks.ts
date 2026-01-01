@@ -773,6 +773,19 @@ function performCombatAttackCheck(
     combatModifier -= 20;
   }
 
+  // Stance modifiers
+  const defenderStance = save.runtime.combat?.stancesByActorId?.[defender.id];
+
+  // Hit bonus from modifiers (e.g. All-Out Attack +20)
+  if (check.modifiers?.hitBonus !== undefined) {
+    combatModifier += check.modifiers.hitBonus;
+  }
+
+  // Defend: -20 to hit against defender
+  if (defenderStance === "defend") {
+    combatModifier -= 20;
+  }
+
   const attackTarget = breakdown.target + combatModifier;
 
   // Roll attack
@@ -783,6 +796,13 @@ function performCombatAttackCheck(
 
   // Build attack tags
   const tags = [...attackResult.tags];
+  // Tag for All-Out Attack bonus (if hitBonus is present)
+  if (check.modifiers?.hitBonus !== undefined && check.modifiers.hitBonus > 0) {
+    tags.push("combat:stance=allOut");
+  }
+  if (defenderStance === "defend") {
+    tags.push("combat:defenderStance=defend");
+  }
   tags.push(`combat:attackStat=${attackStatKey}`);
   tags.push(`combat:attackTarget=${attackTarget}`);
   tags.push(`combat:attackRoll=${attackRoll}`);
@@ -809,20 +829,30 @@ function performCombatAttackCheck(
   }
 
   // Attack succeeded - determine defense
+  // Check if defender can parry (based on parryDisabledUntilTurnCounterByActorId)
+  const combat = save.runtime.combat;
+  const turnCounter = combat?.turnCounter ?? 0;
+  const disabledUntil = combat?.parryDisabledUntilTurnCounterByActorId?.[defender.id] ?? -1;
+  const canParry = turnCounter >= disabledUntil && check.defense.allowParry;
+  const canDodge = check.defense.allowDodge;
+
   let defenseType: "parry" | "dodge" | "none" = "none";
-  if (check.defense.strategy === "preferParry" && check.defense.allowParry) {
+  if (check.defense.strategy === "preferParry" && canParry) {
     defenseType = "parry";
-  } else if (check.defense.strategy === "preferDodge" && check.defense.allowDodge) {
+  } else if (check.defense.strategy === "preferDodge" && canDodge) {
     defenseType = "dodge";
   } else if (check.defense.strategy === "autoBest") {
-    if (check.defense.allowParry) {
+    if (canParry) {
       defenseType = "parry";
-    } else if (check.defense.allowDodge) {
+    } else if (canDodge) {
       defenseType = "dodge";
     }
   }
 
   tags.push(`combat:defense=${defenseType}`);
+  if (!canParry && check.defense.allowParry) {
+    tags.push("combat:defense:parryBlocked=1");
+  }
 
   // If no defense, HIT
   if (defenseType === "none") {

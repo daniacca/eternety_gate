@@ -1,24 +1,46 @@
 import type { Effect, GameSave, StoryPack } from "./types";
 import { evaluateCondition } from "./conditions";
-import { IRNG, RNG } from "./rng";
-import { combatStart, combatMove, combatEndTurn, combatDefend, combatAim } from "./combat/actions";
+import { IRNG } from "./rng";
+import {
+  combatStart,
+  combatMove,
+  combatEndTurn,
+  combatDefend,
+  combatAim,
+  combatAllOut,
+  combatRequestAttack,
+} from "./combat/actions";
 
 /**
  * Effect handler function type
+ * Returns the updated save and optionally emitted effects to be processed next
  */
-type EffectHandler = (effect: Effect, storyPack: StoryPack, save: GameSave, rng: IRNG) => GameSave;
+type EffectHandler = (
+  effect: Effect,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+) => { save: GameSave; emittedEffects?: Effect[] };
 
 /**
  * Registry of effect handlers by operation type
  */
 const effectHandlers: Record<Effect["op"], EffectHandler> = {
-  setFlag: (effect, _storyPack, save, _rng) => applySetFlag(effect as Extract<Effect, { op: "setFlag" }>, save),
-  addCounter: (effect, _storyPack, save, _rng) =>
-    applyAddCounter(effect as Extract<Effect, { op: "addCounter" }>, save),
-  addItem: (effect, _storyPack, save, _rng) => applyAddItem(effect as Extract<Effect, { op: "addItem" }>, save),
-  removeItem: (effect, _storyPack, save, _rng) =>
-    applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, save),
-  goto: (effect, _storyPack, save, _rng) => applyGoto(effect as Extract<Effect, { op: "goto" }>, save),
+  setFlag: (effect, _storyPack, save, _rng) => ({
+    save: applySetFlag(effect as Extract<Effect, { op: "setFlag" }>, save),
+  }),
+  addCounter: (effect, _storyPack, save, _rng) => ({
+    save: applyAddCounter(effect as Extract<Effect, { op: "addCounter" }>, save),
+  }),
+  addItem: (effect, _storyPack, save, _rng) => ({
+    save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, save),
+  }),
+  removeItem: (effect, _storyPack, save, _rng) => ({
+    save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, save),
+  }),
+  goto: (effect, _storyPack, save, _rng) => ({
+    save: applyGoto(effect as Extract<Effect, { op: "goto" }>, save),
+  }),
   conditionalEffects: (effect, storyPack, save, rng) =>
     applyConditionalEffects(effect as Extract<Effect, { op: "conditionalEffects" }>, storyPack, save, rng),
   chooseRunVariant: (effect, storyPack, save, rng) =>
@@ -33,27 +55,50 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   combatDefend: (effect, _storyPack, save, _rng) =>
     combatDefend(effect as Extract<Effect, { op: "combatDefend" }>, save),
   combatAim: (effect, _storyPack, save, _rng) => combatAim(effect as Extract<Effect, { op: "combatAim" }>, save),
+  combatAllOut: (effect, _storyPack, save, _rng) =>
+    combatAllOut(effect as Extract<Effect, { op: "combatAllOut" }>, save),
+  combatRequestAttack: (effect, storyPack, save, rng) =>
+    combatRequestAttack(effect as Extract<Effect, { op: "combatRequestAttack" }>, storyPack, save, rng),
 };
 
 /**
  * Applies an effect to the game save (immutably)
+ * Returns the updated save and optionally emitted effects
  */
-export function applyEffect(effect: Effect, storyPack: StoryPack, save: GameSave, rng: IRNG): GameSave {
+export function applyEffect(
+  effect: Effect,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): { save: GameSave; emittedEffects?: Effect[] } {
   const handler = effectHandlers[effect.op];
   if (handler) {
     return handler(effect, storyPack, save, rng);
   }
-  return save;
+  return { save };
 }
 
 /**
- * Applies multiple effects in sequence
+ * Applies multiple effects in sequence using a deterministic queue
+ * Effects can emit other effects which are processed in order
  */
 export function applyEffects(effects: Effect[], storyPack: StoryPack, save: GameSave, rng: IRNG): GameSave {
+  // Queue of effects to process
+  const queue: Effect[] = [...effects];
   let currentSave = save;
-  for (const effect of effects) {
-    currentSave = applyEffect(effect, storyPack, currentSave, rng);
+
+  // Process queue deterministically
+  while (queue.length > 0) {
+    const effect = queue.shift()!;
+    const result = applyEffect(effect, storyPack, currentSave, rng);
+    currentSave = result.save;
+
+    // Add emitted effects to queue (processed in order)
+    if (result.emittedEffects && result.emittedEffects.length > 0) {
+      queue.push(...result.emittedEffects);
+    }
   }
+
   return currentSave;
 }
 
@@ -161,13 +206,14 @@ function applyConditionalEffects(
   storyPack: StoryPack,
   save: GameSave,
   rng: IRNG
-): GameSave {
+): { save: GameSave; emittedEffects?: Effect[] } {
   for (const case_ of effect.cases) {
     if (evaluateCondition(case_.when, save)) {
-      return applyEffects(case_.then, storyPack, save, rng);
+      // Return effects to be processed by queue
+      return { save, emittedEffects: case_.then };
     }
   }
-  return save;
+  return { save };
 }
 
 function applyChooseRunVariant(
@@ -175,10 +221,10 @@ function applyChooseRunVariant(
   storyPack: StoryPack,
   save: GameSave,
   rng: IRNG
-): GameSave {
+): { save: GameSave; emittedEffects?: Effect[] } {
   const variants = storyPack.systems.runVariants || [];
   if (variants.length === 0) {
-    return save;
+    return { save };
   }
 
   let selectedVariant: (typeof variants)[0] | null = null;
@@ -217,32 +263,43 @@ function applyChooseRunVariant(
     };
 
     return {
-      ...save,
-      state: newState,
+      save: {
+        ...save,
+        state: newState,
+      },
     };
   }
 
-  return save;
+  return { save };
 }
 
-function applyVariantStartEffects(storyPack: StoryPack, save: GameSave, rng: IRNG): GameSave {
+function applyVariantStartEffects(
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): { save: GameSave; emittedEffects?: Effect[] } {
   const variantId = save.state.runVariant?.id;
   if (!variantId) {
-    return save;
+    return { save };
   }
 
   const variants = storyPack.systems.runVariants || [];
   const variant = variants.find((v) => v.id === variantId);
   if (!variant || !variant.startEffects) {
-    return save;
+    return { save };
   }
 
-  return applyEffects(variant.startEffects, storyPack, save, rng);
+  return { save, emittedEffects: variant.startEffects };
 }
 
-function applyFireWorldEvents(storyPack: StoryPack, save: GameSave, rng: IRNG): GameSave {
+function applyFireWorldEvents(
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): { save: GameSave; emittedEffects?: Effect[] } {
   const worldEvents = storyPack.systems.worldEvents || {};
   let currentSave = save;
+  const emittedEffects: Effect[] = [];
 
   for (const [eventId, event] of Object.entries(worldEvents)) {
     // Skip if already fired and it's a once event
@@ -252,8 +309,8 @@ function applyFireWorldEvents(storyPack: StoryPack, save: GameSave, rng: IRNG): 
 
     // Check trigger condition
     if (evaluateCondition(event.trigger, currentSave)) {
-      // Fire the event
-      currentSave = applyEffects(event.effects, storyPack, currentSave, rng);
+      // Collect effects to emit
+      emittedEffects.push(...event.effects);
 
       // Mark as fired
       const newFiredEvents = [...currentSave.runtime.firedWorldEvents, eventId];
@@ -267,7 +324,7 @@ function applyFireWorldEvents(storyPack: StoryPack, save: GameSave, rng: IRNG): 
     }
   }
 
-  return currentSave;
+  return { save: currentSave, emittedEffects: emittedEffects.length > 0 ? emittedEffects : undefined };
 }
 
 /**

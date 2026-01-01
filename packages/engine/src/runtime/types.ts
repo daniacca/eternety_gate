@@ -81,7 +81,19 @@ export type Effect =
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" }
   | { op: "combatEndTurn" }
   | { op: "combatDefend" }
-  | { op: "combatAim" };
+  | { op: "combatAim" }
+  | { op: "combatAllOut"; targetId: ActorId }
+  | {
+      op: "combatRequestAttack";
+      attackerId: ActorId;
+      defenderId: ActorId;
+      mode: CombatMode; // "MELEE" | "RANGED"
+      weaponId?: string | null;
+      modifiers?: CombatAttackCheck["modifiers"]; // riusa tipo esistente se possibile
+      defense?: CombatAttackCheck["defense"]; // idem
+      onSuccessEffects?: Effect[]; // Effects to apply when attack hits
+      onFailureEffects?: Effect[]; // Effects to apply when attack misses (including parry/dodge)
+    };
 
 /* ---------- ActorRef ---------- */
 
@@ -178,6 +190,7 @@ export type CombatAttackCheck = {
     rangeBand?: RangeBand; // ranged only
     calledShot?: boolean;
     cover?: Cover; // ranged only
+    hitBonus?: number; // bonus/penalty to hit (e.g. +20 for All-Out Attack)
   };
   onSuccess?: Effect[];
   onFailure?: Effect[];
@@ -436,8 +449,17 @@ export type CombatState = {
   turn: {
     moveRemaining: number; // steps left this turn
     actionAvailable: boolean; // true until an Action is spent
-    stance?: "normal" | "defend"; // optional hook for later
   };
+
+  // Stances persist across turns until actor's next turn starts
+  // Absence of key means "none" stance (only for UI display, not stored in state)
+  stancesByActorId?: Record<ActorId, "defend" | "allOut">;
+
+  // Turn counter (monotonic, increments at start of each turn)
+  turnCounter: number;
+
+  // Parry disabled until turn counter (by actor ID)
+  parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
 };
 
 export type GameRuntime = {

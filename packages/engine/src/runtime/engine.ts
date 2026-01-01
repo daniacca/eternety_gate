@@ -1,18 +1,5 @@
-import type {
-  StoryPack,
-  GameSave,
-  Party,
-  Actor,
-  Choice,
-  ChoiceId,
-  ActorId,
-  Item,
-  ItemId,
-  CheckResult,
-  Effect,
-} from "./types";
+import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, Item, ItemId, CheckResult } from "./types";
 import { evaluateConditions } from "./conditions";
-import { applyEffects } from "./effects";
 import { RNG } from "./rng";
 import { appendCombatLog } from "./combat/narration";
 import { startCombat, advanceCombatTurn, getCurrentTurnActorId } from "./combat/combat";
@@ -155,13 +142,6 @@ export function listAvailableChoices(storyPack: StoryPack, save: GameSave): Choi
  */
 export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: ChoiceId): GameSave {
   const { scene } = getCurrentScene(storyPack, save);
-
-  // Handle special combat actions that may not be in story file
-  if (choiceId === "combat_defend" || choiceId === "combat_aim") {
-    const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
-    const effect: Effect = choiceId === "combat_defend" ? { op: "combatDefend" } : { op: "combatAim" };
-    return applyEffects([effect], storyPack, save, rng);
-  }
 
   const choice = scene.choices.find((c) => c.id === choiceId);
 

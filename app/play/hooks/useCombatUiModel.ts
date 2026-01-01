@@ -11,7 +11,7 @@ export interface CombatUiModel {
   distance: number | null;
   moveRemaining: number;
   actionAvailable: boolean;
-  stance: "normal" | "defend";
+  stance: "none" | "defend" | "allOut";
 
   // Equipment info
   pcActor: GameSave["actorsById"][string] | null;
@@ -29,11 +29,17 @@ export interface CombatUiModel {
   canMelee: boolean;
   canRanged: boolean;
   canRangedReason: string | null;
+  canAllOut: boolean;
+  allOutDisabled: boolean;
+  allOutDisabledReason: string | null;
 
   // Attack choices
   meleeChoice: Choice | null | undefined;
   rangedLongChoice: Choice | null | undefined;
   rangedCalledChoice: Choice | null | undefined;
+
+  // Selected target (for All-Out Attack)
+  selectedTargetId: string | null;
 
   // Move pad state
   canMove: boolean;
@@ -62,7 +68,10 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
     const isPlayerTurn = Boolean(isCombatActive && currentTurnActorId === save.party.activeActorId);
     const moveRemaining = combat?.turn.moveRemaining ?? 0;
     const actionAvailable = combat?.turn.actionAvailable ?? false;
-    const stance = combat?.turn.stance ?? "normal";
+    // Get stance from stancesByActorId for current turn actor
+    // Absence of key means "none" (only for UI display, not stored in state)
+    const stance =
+      (isCombatActive && currentTurnActorId && combat?.stancesByActorId?.[currentTurnActorId]) || "none";
 
     // Calculate distance
     let distance: number | null = null;
@@ -149,8 +158,39 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
     const rangedCalledDisabled = !isPlayerTurn || !actionAvailable || !canRanged;
     const rangedCalledDisabledReason = rangedDisabledReason;
 
-    // Calculate AGI bonus for display
-    const agiBonus = pcActor ? Math.floor((pcActor.stats.AGI ?? 0) / 10) : 0;
+    // Selected target for melee attacks (first enemy in melee range)
+    let selectedTargetId: string | null = null;
+    if (isCombatActive && combat?.positions && isPlayerTurn && canMelee) {
+      const pcPos = combat.positions[save.party.activeActorId];
+      const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
+      if (pcPos) {
+        for (const npcId of npcIds) {
+          const npcPos = combat.positions[npcId];
+          if (!npcPos) continue;
+          const dist = distanceChebyshev(pcPos, npcPos);
+          if (dist <= 1) {
+            selectedTargetId = npcId;
+            break;
+          }
+        }
+      }
+    }
+
+    // All-Out Attack availability (melee only, requires action and valid target)
+    const canAllOut = canMelee && actionAvailable && isPlayerTurn && selectedTargetId !== null;
+    const allOutDisabled = !isPlayerTurn || !actionAvailable || !canMelee || selectedTargetId === null;
+    const allOutDisabledReason = !isPlayerTurn
+      ? "Not your turn"
+      : !actionAvailable
+      ? "Action spent"
+      : !canMelee
+      ? "Requires melee range"
+      : selectedTargetId === null
+      ? "No valid target"
+      : null;
+
+    // Calculate AGI bonus for display (minimum 1, matching initializeTurnState)
+    const agiBonus = pcActor ? Math.max(1, Math.floor((pcActor.stats.AGI ?? 0) / 10)) : 1;
 
     return {
       isCombatActive,
@@ -183,6 +223,10 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
       rangedDisabledReason,
       rangedCalledDisabled,
       rangedCalledDisabledReason,
+      canAllOut,
+      allOutDisabled,
+      allOutDisabledReason,
+      selectedTargetId,
       agiBonus,
     };
   }, [save, combatChoices]);

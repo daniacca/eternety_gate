@@ -5,9 +5,12 @@ import {
   getCurrentScene,
   listAvailableChoices,
   applyChoice,
+  applyEffects,
+  RNG,
   type GameSave,
   type StoryPack,
   type ContentPack,
+  type Effect,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
 import sigilContent from "@eg/content/sigil.content.json";
@@ -113,6 +116,12 @@ export function PlayScreen() {
     setSave(newSave);
   };
 
+  const applySystemEffects = (effects: Effect[]) => {
+    const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
+    const newSave = applyEffects(effects, brunholt as StoryPack, save, rng);
+    setSave(newSave);
+  };
+
   const lastCheck = save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
@@ -207,6 +216,7 @@ export function PlayScreen() {
           save={save}
           combatChoices={combatChoices}
           handleChoice={handleChoice}
+          applySystemEffects={applySystemEffects}
           width={width}
           styles={styles}
         />

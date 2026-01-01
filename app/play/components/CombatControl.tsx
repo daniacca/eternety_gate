@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from "react-native";
-import type { GameSave, Choice } from "@eg/engine";
+import type { GameSave, Choice, Effect } from "@eg/engine";
+import { distanceChebyshev } from "@eg/engine";
 import { CombatUiModel, useCombatUiModel } from "../hooks/useCombatUiModel";
 
 interface CombatControlProps {
@@ -7,11 +8,20 @@ interface CombatControlProps {
   save: GameSave;
   combatChoices: Choice[];
   handleChoice: (choiceId: string) => void;
+  applySystemEffects: (effects: Effect[]) => void;
   width: number;
   styles: any;
 }
 
-export function CombatControl({ model, save, combatChoices, handleChoice, width, styles }: CombatControlProps) {
+export function CombatControl({
+  model,
+  save,
+  combatChoices,
+  handleChoice,
+  applySystemEffects,
+  width,
+  styles,
+}: CombatControlProps) {
   if (!model || !model.isCombatActive) return null;
 
   const combat = save.runtime.combat;
@@ -170,7 +180,7 @@ export function CombatControl({ model, save, combatChoices, handleChoice, width,
         </View>
       </View>
 
-      {/* Special Actions: Defend and Aim */}
+      {/* Special Actions: Defend, All-Out Attack, and Aim */}
       {model.isPlayerTurn && (
         <View style={styles.specialActionsContainer}>
           <Text style={styles.specialActionsTitle}>Special Actions</Text>
@@ -188,6 +198,22 @@ export function CombatControl({ model, save, combatChoices, handleChoice, width,
                 Defend
               </Text>
             </Pressable>
+            <Pressable
+              style={[styles.specialActionButton, model.allOutDisabled && styles.attackButtonDisabled]}
+              onPress={() => {
+                if (!model.allOutDisabled && model.selectedTargetId) {
+                  applySystemEffects([{ op: "combatAllOut", targetId: model.selectedTargetId }]);
+                }
+              }}
+              disabled={model.allOutDisabled}
+            >
+              <Text style={[styles.specialActionButtonText, model.allOutDisabled && styles.attackButtonTextDisabled]}>
+                All-Out Attack (Melee)
+              </Text>
+            </Pressable>
+            {model.allOutDisabled && model.allOutDisabledReason && (
+              <Text style={styles.attackButtonReason}>{model.allOutDisabledReason}</Text>
+            )}
             <Pressable
               style={[styles.specialActionButton, !model.actionAvailable && styles.attackButtonDisabled]}
               onPress={() => {

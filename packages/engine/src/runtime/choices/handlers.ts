@@ -52,4 +52,3 @@ export function handleChoice(
   // Fallback to generic if handler not found
   return handleGenericChoice(choice, choiceId, storyPack, save, rng);
 }
-

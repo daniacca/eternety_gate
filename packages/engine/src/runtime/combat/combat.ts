@@ -16,13 +16,11 @@ function calculateAgiBonus(agi: number | undefined): number {
 function initializeTurnState(actor: Actor): {
   moveRemaining: number;
   actionAvailable: boolean;
-  stance: "normal" | "defend";
 } {
   const agiBonus = calculateAgiBonus(actor.stats.AGI);
   return {
-    moveRemaining: agiBonus,
+    moveRemaining: Math.max(1, agiBonus), // Minimum 1 movement
     actionAvailable: true,
-    stance: "normal",
   };
 }
 
@@ -110,9 +108,7 @@ export function startCombat(
 
   // Initialize turn state for first actor
   const firstActor = save.actorsById[currentTurnActorId];
-  const initialTurnState = firstActor
-    ? initializeTurnState(firstActor)
-    : { moveRemaining: 0, actionAvailable: true, stance: "normal" as const };
+  const initialTurnState = firstActor ? initializeTurnState(firstActor) : { moveRemaining: 0, actionAvailable: true };
 
   const combatState: CombatState = {
     active: true,
@@ -123,6 +119,9 @@ export function startCombat(
     grid: combatGrid,
     positions,
     turn: initialTurnState,
+    stancesByActorId: {},
+    turnCounter: 0,
+    parryDisabledUntilTurnCounterByActorId: {},
   };
 
   // Create debug lastCheck with position tags
@@ -251,9 +250,15 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   // Initialize turn state for new actor
   const newActor = save.actorsById[currentTurnActorId];
-  const newTurnState = newActor
-    ? initializeTurnState(newActor)
-    : { moveRemaining: 0, actionAvailable: true, stance: "normal" as const };
+  const newTurnState = newActor ? initializeTurnState(newActor) : { moveRemaining: 0, actionAvailable: true };
+
+  // Reset stance for actor whose turn starts (stances last "until your next turn")
+  // Remove the key instead of setting "none" (absence means "none")
+  const updatedStancesByActorId = { ...(combat.stancesByActorId || {}) };
+  delete updatedStancesByActorId[currentTurnActorId];
+
+  // Increment turn counter (monotonic)
+  const newTurnCounter = (combat.turnCounter ?? 0) + 1;
 
   const newCombatState: CombatState = {
     ...combat,
@@ -261,6 +266,9 @@ export function advanceCombatTurn(save: GameSave): GameSave {
     currentIndex: newCurrentIndex,
     round: newRound,
     turn: newTurnState,
+    stancesByActorId: updatedStancesByActorId,
+    turnCounter: newTurnCounter,
+    parryDisabledUntilTurnCounterByActorId: combat.parryDisabledUntilTurnCounterByActorId || {},
   };
 
   const updatedLastCheck: CheckResult | null = last
