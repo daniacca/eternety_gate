@@ -11,17 +11,17 @@ export function appendCombatLog(save: GameSave, entry: string): GameSave {
   const newLog = [...currentLog, entry];
   // Keep only last 50 entries to avoid memory issues
   const trimmedLog = newLog.slice(-MAX_LOG);
-  
+
   // Calculate how many entries were removed when trimming
   const removedCount = Math.max(0, newLog.length - MAX_LOG);
-  
+
   // Adjust combatTurnStartIndex to account for trimmed entries
   // This ensures the index remains valid relative to the trimmed log
   const adjustedCombatTurnStartIndex =
     save.runtime.combatTurnStartIndex !== undefined
       ? Math.max(0, save.runtime.combatTurnStartIndex - removedCount)
       : undefined;
-  
+
   return {
     ...save,
     runtime: {
@@ -52,42 +52,35 @@ export function appendAttackNarration(
   const isPlayerAttacker = attacker.kind === "PC";
 
   if (result.success) {
-    // Hit - check for defense
-    const defenseTag = result.tags.find((t) => t.startsWith("combat:defense="));
-    if (defenseTag) {
-      const defenseType = defenseTag.split("=")[1];
-      if (defenseType === "parry") {
-        updatedSave = appendCombatLog(updatedSave, `${defenderName} para il colpo.`);
-      } else if (defenseType === "dodge") {
-        updatedSave = appendCombatLog(updatedSave, `${defenderName} schiva il colpo.`);
-      }
-    }
-
-    // Check for stance effects (only once, avoid duplication)
+    // HIT: no defense narration here
     const defenderStanceTag = result.tags.find((t) => t.startsWith("combat:defenderStance="));
-    if (defenderStanceTag) {
-      const defenderStance = defenderStanceTag.split("=")[1];
-      if (defenderStance === "defend") {
-        updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
-      }
+    if (defenderStanceTag?.endsWith("=defend")) {
+      updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
     }
+    return updatedSave;
+  }
+
+  // MISS (includes successful parry/dodge)
+  const defenseTag = result.tags.find((t) => t.startsWith("combat:defense="));
+  if (defenseTag?.endsWith("=parry")) {
+    updatedSave = appendCombatLog(updatedSave, `${defenderName} para il colpo.`);
+  } else if (defenseTag?.endsWith("=dodge")) {
+    updatedSave = appendCombatLog(updatedSave, `${defenderName} schiva il colpo.`);
   } else {
-    // Miss
     updatedSave = appendCombatLog(
       updatedSave,
       isPlayerAttacker ? `Il tuo attacco manca il bersaglio.` : `${attackerName} manca il colpo.`
     );
+  }
 
-    // Check for stance effects on miss
-    const defenderStanceTag = result.tags.find((t) => t.startsWith("combat:defenderStance="));
-    if (defenderStanceTag) {
-      const defenderStance = defenderStanceTag.split("=")[1];
-      if (defenderStance === "defend") {
-        updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
-      }
+  // Check for stance effects on miss
+  const defenderStanceTag = result.tags.find((t) => t.startsWith("combat:defenderStance="));
+  if (defenderStanceTag) {
+    const defenderStance = defenderStanceTag.split("=")[1];
+    if (defenderStance === "defend") {
+      updatedSave = appendCombatLog(updatedSave, `Il bersaglio è in difesa: è più difficile colpirlo.`);
     }
   }
 
   return updatedSave;
 }
-

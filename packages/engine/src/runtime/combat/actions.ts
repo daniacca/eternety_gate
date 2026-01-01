@@ -62,7 +62,7 @@ export function combatMove(
   }
 
   const turnActorId = getCurrentTurnActorId(save);
-  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+  if (!turnActorId) {
     // Not player's turn
     const blockedCheck = {
       checkId: "combat:move:blocked",
