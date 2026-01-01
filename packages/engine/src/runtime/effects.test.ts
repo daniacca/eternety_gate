@@ -410,7 +410,7 @@ describe("effects", () => {
               success: true,
               dos: 0,
               dof: 0,
-              critical: "none",
+              critical: "none" as const,
               tags: [],
             },
           },

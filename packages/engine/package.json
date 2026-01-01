@@ -5,9 +5,13 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^20.19.27",
     "tsup": "^8.0.1",
     "typescript": "^5.9.2",
     "vitest": "^1.0.0"

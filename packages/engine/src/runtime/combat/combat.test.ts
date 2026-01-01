@@ -284,7 +284,7 @@ describe("combat", () => {
           combat: {
             ...combatSave.runtime.combat!,
             stancesByActorId: {
-              [actor1.id]: "defend",
+              [actor1.id]: "defend" as const,
             },
           },
         },

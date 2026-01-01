@@ -119,10 +119,10 @@ describe("checks", () => {
         itemCatalogById: {
           item1: {
             id: "item1",
-            kind: "accessory",
+            kind: "accessory" as const,
             name: "Strength Ring",
             tags: [],
-            mods: [{ type: "bonusStat", stat: "STR", value: 10 }],
+            mods: [{ type: "bonusStat" as const, stat: "STR" as const, value: 10 }],
           },
         },
       };
@@ -151,10 +151,10 @@ describe("checks", () => {
         itemCatalogById: {
           item1: {
             id: "item1",
-            kind: "accessory",
+            kind: "accessory" as const,
             name: "Skill Ring",
             tags: [],
-            mods: [{ type: "bonusSkill", skill: "VATES", value: 15 }],
+            mods: [{ type: "bonusSkill" as const, skill: "VATES", value: 15 }],
           },
         },
       };

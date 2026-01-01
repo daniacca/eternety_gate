@@ -64,6 +64,10 @@ export function makeTestActor(overrides?: TestActorOverrides): Actor {
       ...defaultActor.equipment,
       ...(overrides?.equipment || {}),
       equipped: {
+        weaponMainId: null,
+        weaponOffId: null,
+        armorId: null,
+        accessoryIds: [],
         ...defaultActor.equipment.equipped,
         ...(overrides?.equipment?.equipped || {}),
       },
