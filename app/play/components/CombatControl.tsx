@@ -189,7 +189,7 @@ export function CombatControl({
               style={[styles.specialActionButton, !model.actionAvailable && styles.attackButtonDisabled]}
               onPress={() => {
                 if (model.actionAvailable) {
-                  handleChoice("combat_defend");
+                  applySystemEffects([{ op: "combatDefend" }]);
                 }
               }}
               disabled={!model.actionAvailable}
@@ -218,7 +218,7 @@ export function CombatControl({
               style={[styles.specialActionButton, !model.actionAvailable && styles.attackButtonDisabled]}
               onPress={() => {
                 if (model.actionAvailable) {
-                  handleChoice("combat_aim");
+                  applySystemEffects([{ op: "combatAim" }]);
                 }
               }}
               disabled={!model.actionAvailable}
