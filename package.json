@@ -8,7 +8,8 @@
     "preinstall": "npx only-allow pnpm",
     "postinstall": "pnpm build:engine",
     "build:engine": "pnpm --filter @eg/engine build",
-    "validate:story": "pnpm --filter @eg/tools validate:story"
+    "validate:story": "pnpm --filter @eg/tools validate:story",
+    "test": "pnpm -r test"
   },
   "workspaces": [
     "packages/*"
