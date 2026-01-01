@@ -7,7 +7,7 @@ import { getCurrentScene } from "../selectors";
 import { distanceChebyshev } from "../combat/movement";
 import { validateAndApplyRangedModifiers } from "../combat/validation";
 import { resolveActor } from "../checks";
-import { calculateWeaponDamage, getActorArmor } from "../combat/equipment";
+import { applyCombatDamageIfHit } from "../combat/damage";
 import { advanceCombatTurn, getCurrentTurnActorId } from "../combat/combat";
 import { runNpcTurn } from "../combat/npcAi";
 
@@ -51,85 +51,6 @@ function updateMagicState(
   }
 
   return save;
-}
-
-/**
- * Applies combat damage when a combatAttack check hits
- */
-function applyCombatDamageIfHit(check: Check, result: any, save: GameSave, rng: IRNG): GameSave {
-  if (!result || check.kind !== "combatAttack" || !result.success) return save;
-
-  const combatCheck = check as CombatAttackCheck;
-  const attacker = resolveActor(combatCheck.attacker.actorRef, save);
-  const defender = resolveActor(combatCheck.defender.actorRef, save);
-
-  if (!attacker || !defender) {
-    // Attacker or defender not found, skip damage application
-    return save;
-  }
-
-  // Get weapon ID from check or actor equipment
-  const weaponId = combatCheck.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
-
-  // Calculate raw damage with weapon (using passed RNG for determinism)
-  const { rawDamage, weaponName, weaponId: finalWeaponId } = calculateWeaponDamage(save, attacker, weaponId, rng);
-
-  // Get defender armor soak
-  const { soak, armorId, name: armorName } = getActorArmor(save, defender);
-
-  // Calculate final damage after soak
-  const finalDamage = Math.max(0, rawDamage - soak);
-
-  // Get current HP
-  const hpBefore = defender.resources.hp;
-  const hpAfter = Math.max(0, hpBefore - finalDamage);
-
-  // Update defender immutably
-  const updatedDefender = {
-    ...defender,
-    resources: {
-      ...defender.resources,
-      hp: hpAfter,
-    },
-  };
-
-  // Update actorsById immutably
-  const updatedActorsById = {
-    ...save.actorsById,
-    [defender.id]: updatedDefender,
-  };
-
-  // Update lastCheck tags immutably
-  const lastCheck = save.runtime.lastCheck;
-  const prevTags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
-
-  const updatedLastCheck =
-    lastCheck && lastCheck !== null
-      ? {
-          ...lastCheck,
-          tags: [
-            ...prevTags,
-            `combat:damage:raw=${rawDamage}`,
-            `combat:soak=${soak}`,
-            `combat:damage:final=${finalDamage}`,
-            `combat:weapon=${finalWeaponId}`,
-            `combat:armor=${armorId}`,
-            `combat:defHpBefore=${hpBefore}`,
-            `combat:defHpAfter=${hpAfter}`,
-            ...(hpAfter === 0 ? ["combat:defDown=1"] : []),
-          ],
-        }
-      : lastCheck; // if null/undefined, leave it as is
-
-  return {
-    ...save,
-    actorsById: updatedActorsById,
-    runtime: {
-      ...save.runtime,
-      lastCheck: updatedLastCheck,
-      rngCounter: rng.getCounter(),
-    },
-  };
 }
 
 /**
@@ -340,8 +261,11 @@ export const handleGenericChoice: ChoiceHandler = (
             };
           }
 
-          // Apply damage if HIT
-          currentSave = applyCombatDamageIfHit(check, result, currentSave, rng);
+          // Apply damage if HIT (using the exported function from damage.ts)
+          if (result.success) {
+            const damageResult = applyCombatDamageIfHit(combatCheck, result, currentSave, rng);
+            currentSave = damageResult.save;
+          }
           if (result.success && combatCheck.onSuccess) {
             currentSave = applyEffects(combatCheck.onSuccess, storyPack, currentSave, rng);
           } else if (!result.success && combatCheck.onFailure) {
