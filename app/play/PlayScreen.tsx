@@ -181,10 +181,10 @@ export function PlayScreen() {
   // Get combat narration from combatLog (turn-scoped: only current turn)
   const combatLog = save.runtime.combatLog ?? [];
   const turnStartIndex = save.runtime.combatTurnStartIndex ?? 0;
+  const cycleStartIndex = save.runtime.combatCycleStartIndex ?? turnStartIndex;
 
   // Determine which scene the combat narration belongs to
-  const narrationSceneId = save.runtime.combatLogSceneId ?? combat?.startedBySceneId;
-  const showNarration = Boolean(narrationSceneId && narrationSceneId === save.runtime.currentSceneId);
+  const showNarration = Boolean(save.runtime.combat?.active);
 
   const showCombatEnded =
     tags.some((t) => t === "combat:state=end") && save.runtime.combatEndedSceneId === save.runtime.currentSceneId;
@@ -207,6 +207,7 @@ export function PlayScreen() {
           showNarration={showNarration}
           combatLog={combatLog}
           turnStartIndex={turnStartIndex}
+          cycleStartIndex={cycleStartIndex}
           styles={styles}
         />
 

@@ -4,8 +4,6 @@ import type { ChoiceHandler } from "./types";
 import { performCheck, resolveActor } from "../checks";
 import { applyEffects } from "../effects";
 import { getCurrentScene } from "../selectors";
-import { advanceCombatTurn, getCurrentTurnActorId } from "../combat/combat";
-import { runNpcTurn } from "../combat/npcAi";
 
 /**
  * Updates magic state based on check result
@@ -89,7 +87,6 @@ export const handleCombatChoice: ChoiceHandler = (
 ): GameSave => {
   const { scene } = getCurrentScene(storyPack, save);
   let currentSave = { ...save };
-  let didPlayerCombatAction = false;
 
   // Execute scene checks if any
   if (scene.checks) {
@@ -100,7 +97,6 @@ export const handleCombatChoice: ChoiceHandler = (
         const requestEffect = transformCombatAttackToRequestEffect(check as CombatAttackCheck, currentSave);
         if (requestEffect) {
           requestEffects.push(requestEffect);
-          didPlayerCombatAction = true;
         }
       } else {
         // Standard checks - perform normally
@@ -144,8 +140,6 @@ export const handleCombatChoice: ChoiceHandler = (
         const requestEffect = transformCombatAttackToRequestEffect(check as CombatAttackCheck, currentSave);
         if (requestEffect) {
           requestEffects.push(requestEffect);
-          didPlayerCombatAction = true;
-          // Note: combatTurnStartIndex is set by advanceCombatTurn when turn advances
         }
       } else {
         // Standard checks - perform normally
@@ -226,33 +220,6 @@ export const handleCombatChoice: ChoiceHandler = (
     },
     updatedAt: new Date().toISOString(),
   };
-
-  // Combat: advance turn after player combat action and run NPC turns if needed
-  // Only advance turn if player performed a combat action
-  if (!didPlayerCombatAction) {
-    return currentSave;
-  }
-
-  if (currentSave.runtime.combat?.active) {
-    // Advance turn (player just acted)
-    currentSave = advanceCombatTurn(currentSave);
-
-    // Loop: run NPC turns until it's player's turn again
-    let safety = 0;
-    while (
-      currentSave.runtime.combat?.active &&
-      getCurrentTurnActorId(currentSave) !== currentSave.party.activeActorId
-    ) {
-      const npcId = getCurrentTurnActorId(currentSave);
-      if (!npcId) break;
-
-      currentSave = runNpcTurn(storyPack, currentSave, npcId);
-      currentSave = advanceCombatTurn(currentSave);
-
-      safety++;
-      if (safety > 10) break; // safety guard
-    }
-  }
 
   return currentSave;
 };

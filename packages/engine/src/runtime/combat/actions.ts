@@ -818,12 +818,16 @@ export function combatEndTurn(
   const logEntry = actor?.kind === "PC" ? `Termini il turno.` : `${actor?.name || turnActorId} termina il turno.`;
   let currentSave: GameSave = appendCombatLog(save, logEntry);
 
-  // advanceCombatTurn will set combatTurnStartIndex at the start of the next turn
+  // Set combatCycleStartIndex to the start of the player's turn that just ended
+  // This represents "the start of the turn that includes all player actions + 'Termini il turno'"
+  // Must be captured BEFORE advanceCombatTurn changes combatTurnStartIndex
+  const cycleStart = save.runtime.combatTurnStartIndex ?? 0;
   currentSave = {
     ...currentSave,
     runtime: {
       ...currentSave.runtime,
       rngCounter: rng.getCounter(),
+      combatCycleStartIndex: cycleStart,
     },
   };
   currentSave = advanceCombatTurn(currentSave);

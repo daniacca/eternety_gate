@@ -3505,18 +3505,19 @@ describe("Combat system", () => {
       expect(combatSave).not.toBeNull();
       const afterAttack = applyChoice(storyPack, combatSave!, "attack");
 
-      // Turn should advance and NPC turn should execute automatically
-      // After NPC turn, turn should advance back to PC
+      // After attack, turn should NOT advance automatically
+      // Player must explicitly end turn for NPCs to act
       expect(afterAttack.runtime.combat?.active).toBe(true);
       const finalTurnActorId = getCurrentTurnActorId(afterAttack);
 
-      // After player attack + NPC auto-turn, it should be player's turn again
-      // (or combat might have ended if NPC was KO'd)
+      // After player attack, it should still be player's turn
+      // Action should be consumed
       if (afterAttack.runtime.combat?.active) {
         expect(finalTurnActorId).toBe("PC_1");
-        // Player's turn state should be reset
+        // Action should be consumed after attack
+        expect(afterAttack.runtime.combat?.turn.actionAvailable).toBe(false);
+        // Movement should still be available
         expect(afterAttack.runtime.combat?.turn.moveRemaining).toBeGreaterThanOrEqual(0);
-        expect(afterAttack.runtime.combat?.turn.actionAvailable).toBe(true);
       }
     });
 

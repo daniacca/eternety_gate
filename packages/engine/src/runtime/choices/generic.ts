@@ -8,8 +8,7 @@ import { distanceChebyshev } from "../combat/movement";
 import { validateAndApplyRangedModifiers } from "../combat/validation";
 import { resolveActor } from "../checks";
 import { applyCombatDamageIfHit } from "../combat/damage";
-import { advanceCombatTurn, getCurrentTurnActorId } from "../combat/combat";
-import { runNpcTurn } from "../combat/npcAi";
+import { getCurrentTurnActorId } from "../combat/combat";
 
 /**
  * Updates magic state based on check result
@@ -66,7 +65,6 @@ export const handleGenericChoice: ChoiceHandler = (
 ): GameSave => {
   const { scene } = getCurrentScene(storyPack, save);
   let currentSave = { ...save };
-  let didPlayerCombatAction = false;
 
   // Execute scene checks if any
   if (scene.checks) {
@@ -241,7 +239,6 @@ export const handleGenericChoice: ChoiceHandler = (
 
         // Handle combat attack effects (onHit/onMiss) or standard effects (onSuccess/onFailure)
         if (check.kind === "combatAttack") {
-          didPlayerCombatAction = true;
           const combatCheck = check as CombatAttackCheck;
 
           // Consume action
@@ -311,33 +308,6 @@ export const handleGenericChoice: ChoiceHandler = (
     },
     updatedAt: new Date().toISOString(),
   };
-
-  // Combat: advance turn after player combat action and run NPC turns if needed
-  // Only advance turn if player performed a combat action
-  if (!didPlayerCombatAction) {
-    return currentSave;
-  }
-
-  if (currentSave.runtime.combat?.active) {
-    // Advance turn (player just acted)
-    currentSave = advanceCombatTurn(currentSave);
-
-    // Loop: run NPC turns until it's player's turn again
-    let safety = 0;
-    while (
-      currentSave.runtime.combat?.active &&
-      getCurrentTurnActorId(currentSave) !== currentSave.party.activeActorId
-    ) {
-      const npcId = getCurrentTurnActorId(currentSave);
-      if (!npcId) break;
-
-      currentSave = runNpcTurn(storyPack, currentSave, npcId);
-      currentSave = advanceCombatTurn(currentSave);
-
-      safety++;
-      if (safety > 10) break; // safety guard
-    }
-  }
 
   return currentSave;
 };

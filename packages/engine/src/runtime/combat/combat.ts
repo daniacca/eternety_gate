@@ -305,7 +305,11 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   const isPlayerTurn = actor?.kind === "PC";
   const actorName = actor?.name || currentTurnActorId;
   const turnHeader = isPlayerTurn ? `— Tocca a te —` : `— Turno ${newTurnCounter}: ${actorName} —`;
-  updatedSave = appendCombatLog(updatedSave, turnHeader);
+
+  const lastLogEntry = updatedSave.runtime.combatLog?.[updatedSave.runtime.combatLog.length - 1];
+  if (lastLogEntry !== turnHeader) {
+    updatedSave = appendCombatLog(updatedSave, turnHeader);
+  }
 
   return updatedSave;
 }

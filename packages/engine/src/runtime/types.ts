@@ -488,6 +488,7 @@ export type GameRuntime = {
   combatTurnStartIndex?: number;
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
+  combatCycleStartIndex?: number;
 };
 
 export type GameSave = {
