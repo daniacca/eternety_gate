@@ -58,5 +58,22 @@ export class FakeRng implements IRNG {
     // Map roll (1-100) to the requested range
     return Math.floor(((roll - 1) / 99) * (max - min + 1)) + min;
   }
+
+  /**
+   * Helper: Calculate what D100 roll would produce a desired nextInt value
+   * For nextInt(min, max), to get value 'desired':
+   *   desired = floor(((roll - 1) / 99) * (max - min + 1)) + min
+   * Returns a value in [1, 100] that will produce the desired result
+   */
+  static d100ForNextInt(desired: number, min: number, max: number): number {
+    const range = max - min + 1;
+    // We want: desired = floor(((roll - 1) / 99) * range) + min
+    // So: (desired - min) <= ((roll - 1) / 99) * range < (desired - min + 1)
+    //     (desired - min) / range * 99 <= roll - 1 < (desired - min + 1) / range * 99
+    //     (desired - min) / range * 99 + 1 <= roll < (desired - min + 1) / range * 99 + 1
+    // Use the midpoint to get a reliable value
+    const rollValue = Math.floor(((desired - min + 0.5) / range) * 99) + 1;
+    return Math.max(1, Math.min(100, rollValue));
+  }
 }
 
