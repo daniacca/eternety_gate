@@ -19,6 +19,8 @@ import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
 import { ChoiceList } from "./components/ChoiceList";
 import { DebugPanels } from "./components/DebugPanels";
+import { PlayerHud } from "./components/PlayerHud";
+import { PlayerSheet } from "./components/PlayerSheet";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
 
 export function PlayScreen() {
@@ -103,6 +105,7 @@ export function PlayScreen() {
   }, []);
 
   const [save, setSave] = useState<GameSave>(initialSave);
+  const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const { width, height } = useWindowDimensions();
 
   const { scene, text } = getCurrentScene(brunholt as StoryPack, save);
@@ -245,6 +248,9 @@ export function PlayScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Player HUD - always visible */}
+      <PlayerHud save={save} onOpenSheet={() => setPlayerSheetVisible(true)} />
+
       {isNarrow ? (
         // Portrait/Narrow layout: TopPane (fixed height) + LeftPane (scrollable)
         <>
@@ -266,6 +272,9 @@ export function PlayScreen() {
           </View>
         </View>
       )}
+
+      {/* Player Sheet Modal */}
+      <PlayerSheet visible={playerSheetVisible} save={save} onClose={() => setPlayerSheetVisible(false)} />
     </View>
   );
 }

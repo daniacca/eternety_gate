@@ -45,6 +45,18 @@ export type StatKey =
 export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 
 /* ---------------------------------- */
+/* Conditions                          */
+/* ---------------------------------- */
+
+export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue";
+
+export type ConditionInstance = {
+  stacks?: number;
+  untilTurnCounter?: number;
+  source?: string;
+};
+
+/* ---------------------------------- */
 /* StoryPack Types                     */
 /* ---------------------------------- */
 
@@ -93,6 +105,19 @@ export type Effect =
       defense?: CombatAttackCheck["defense"]; // idem
       onSuccessEffects?: Effect[]; // Effects to apply when attack hits
       onFailureEffects?: Effect[]; // Effects to apply when attack misses (including parry/dodge)
+    }
+  | {
+      op: "addCondition";
+      actorId: ActorId;
+      condition: ConditionId;
+      stacks?: number;
+      durationTurns?: number;
+      source?: string;
+    }
+  | {
+      op: "removeCondition";
+      actorId: ActorId;
+      condition: ConditionId;
     };
 
 /* ---------- ActorRef ---------- */
@@ -389,8 +414,14 @@ export type Actor = {
     armorId?: ArmorId | null;
   };
 
+  /**
+   * Conditions persist on Actor and survive leaving combat.
+   * Each condition can have stacks, expiration turn counter, and source.
+   */
+  conditions?: Partial<Record<ConditionId, ConditionInstance>>;
+
   status: {
-    conditions: string[];
+    conditions: string[]; // Legacy: kept for backward compatibility
     tempModifiers: Array<{
       id: string;
       scope: "check" | "combat" | "all";

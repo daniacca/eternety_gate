@@ -2,6 +2,7 @@ import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, Comb
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog } from "./narration";
+import { hasCondition, getStacks, computeCombatModifiersFromConditions, removeConditionFromActor } from "../conditions";
 
 /**
  * Calculates AGI bonus for movement: Math.floor(AGI / 10)
@@ -11,15 +12,21 @@ function calculateAgiBonus(agi: number | undefined): number {
 }
 
 /**
- * Initializes turn state for an actor based on their AGI
+ * Initializes turn state for an actor based on their AGI and conditions
  */
 function initializeTurnState(actor: Actor): {
   moveRemaining: number;
   actionAvailable: boolean;
 } {
   const agiBonus = calculateAgiBonus(actor.stats.AGI);
+  const modifiers = computeCombatModifiersFromConditions(actor);
+
+  // Apply fatigue and prone to movement (minimum 1)
+  const moveDelta = modifiers.moveDelta ?? 0;
+  const baseMove = Math.max(1, agiBonus + moveDelta);
+
   return {
-    moveRemaining: Math.max(1, agiBonus), // Minimum 1 movement
+    moveRemaining: Math.max(1, baseMove), // Minimum 1 movement
     actionAvailable: true,
   };
 }
@@ -261,21 +268,186 @@ export function advanceCombatTurn(save: GameSave): GameSave {
     },
   };
 
-  // Initialize turn state for new actor
-  const newActor = updatedSave.actorsById[currentTurnActorId];
-  const newTurnState = newActor ? initializeTurnState(newActor) : { moveRemaining: 0, actionAvailable: true };
+  // Increment turn counter (monotonic) - needed for condition expiration checks
+  const newTurnCounter = (combat.turnCounter ?? 0) + 1;
+
+  // Initialize turn state for new actor and apply condition effects
+  let currentActor = updatedSave.actorsById[currentTurnActorId];
+  let newTurnState = currentActor ? initializeTurnState(currentActor) : { moveRemaining: 0, actionAvailable: true };
+
+  // Apply condition effects at turn start
+  if (currentActor) {
+    const isPlayerActor = currentActor.kind === "PC";
+    const actorName = currentActor.name || currentTurnActorId;
+
+    // Check for stunned condition
+    if (hasCondition(currentActor, "stunned")) {
+      const stunnedCondition = currentActor.conditions?.stunned;
+      if (stunnedCondition?.untilTurnCounter !== undefined && stunnedCondition.untilTurnCounter >= newTurnCounter) {
+        // Stunned: disable action and set move to 0
+        newTurnState = {
+          moveRemaining: 0,
+          actionAvailable: false,
+        };
+        const stunnedLog = isPlayerActor
+          ? "Sei stordito e perdi il turno."
+          : `${actorName} è stordito e perde il turno.`;
+        updatedSave = appendCombatLog(updatedSave, stunnedLog);
+      }
+    }
+
+    // Check for bleeding condition
+    if (hasCondition(currentActor, "bleeding")) {
+      const bleedingStacks = getStacks(currentActor, "bleeding");
+      const damage = Math.max(1, bleedingStacks);
+      const hpBefore = currentActor.resources.hp;
+      const hpAfter = Math.max(0, hpBefore - damage);
+
+      // Update actor HP immutably
+      currentActor = {
+        ...currentActor,
+        resources: {
+          ...currentActor.resources,
+          hp: hpAfter,
+        },
+      };
+
+      updatedSave = {
+        ...updatedSave,
+        actorsById: {
+          ...updatedSave.actorsById,
+          [currentTurnActorId]: currentActor,
+        },
+      };
+
+      const bleedingLog = isPlayerActor
+        ? `Sanguini e perdi ${damage} HP.`
+        : `${actorName} sanguina e perde ${damage} HP.`;
+      updatedSave = appendCombatLog(updatedSave, bleedingLog);
+
+      // Check if bleeding killed the actor
+      if (hpAfter === 0) {
+        const koLog = isPlayerActor ? "Sei stato sconfitto!" : `${actorName} è stato sconfitto!`;
+        updatedSave = appendCombatLog(updatedSave, koLog);
+
+        // Recompute alive participants based on updated HP
+        const updatedAliveParticipants =
+          updatedSave.runtime.combat?.participants.filter((id) => {
+            const actor = updatedSave.actorsById[id];
+            return actor && actor.resources.hp > 0;
+          }) || [];
+
+        // Check if combat should end
+        if (updatedAliveParticipants.length <= 1) {
+          const winnerId = updatedAliveParticipants.length === 1 ? updatedAliveParticipants[0] : null;
+          const winner = winnerId ? updatedSave.actorsById[winnerId] : null;
+          const endLog = `Il combattimento termina. Vincitore: ${winner?.name || "Nessuno"}.`;
+
+          const endCheck: CheckResult = last
+            ? {
+                ...last,
+                tags: [...last.tags, "combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+              }
+            : {
+                checkId: "combat:end",
+                actorId: updatedSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: true,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+              };
+
+          updatedSave = appendCombatLog(updatedSave, endLog);
+
+          return {
+            ...updatedSave,
+            runtime: {
+              ...updatedSave.runtime,
+              combat: undefined,
+              lastCheck: endCheck,
+              combatEndedSceneId: updatedSave.runtime.currentSceneId,
+            },
+          };
+        }
+
+        // Combat continues - immediately advance to next living actor
+        // Update combat state with updated participants before recursive call
+        const combatAfterKo = updatedSave.runtime.combat;
+        if (combatAfterKo) {
+          // The actor that just died was at newCurrentIndex in the old participants list
+          // We need to advance from the previous actor (combat.currentIndex) in the updated alive list
+          const prevActorId = combat.participants[combat.currentIndex];
+          const prevAliveIndex = updatedAliveParticipants.indexOf(prevActorId);
+
+          // If previous actor is still alive, use their index; otherwise use 0 as fallback
+          const pivotIndex = prevAliveIndex >= 0 ? prevAliveIndex : 0;
+
+          // Update combat state with alive participants and adjusted index
+          // We'll advance from pivotIndex in the recursive call
+          updatedSave = {
+            ...updatedSave,
+            runtime: {
+              ...updatedSave.runtime,
+              combat: {
+                ...combatAfterKo,
+                participants: updatedAliveParticipants,
+                currentIndex: pivotIndex,
+              },
+            },
+          };
+
+          // Recursively advance to next turn
+          // The recursion depth is bounded by number of participants (each call removes at least one), so it's safe
+          return advanceCombatTurn(updatedSave);
+        }
+      }
+    }
+
+    // Remove expired conditions (untilTurnCounter < current turnCounter)
+    const conditionsToRemove: string[] = [];
+
+    if (currentActor.conditions) {
+      for (const [conditionId, instance] of Object.entries(currentActor.conditions)) {
+        if (instance.untilTurnCounter !== undefined && instance.untilTurnCounter < newTurnCounter) {
+          conditionsToRemove.push(conditionId);
+        }
+      }
+
+      for (const conditionId of conditionsToRemove) {
+        currentActor = removeConditionFromActor(currentActor, conditionId as any);
+      }
+
+      if (conditionsToRemove.length > 0) {
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [currentTurnActorId]: currentActor,
+          },
+        };
+      }
+    }
+  }
 
   // Reset stance for actor whose turn starts (stances last "until your next turn")
   // Remove the key instead of setting "none" (absence means "none")
   const updatedStancesByActorId = { ...(combat.stancesByActorId || {}) };
   delete updatedStancesByActorId[currentTurnActorId];
 
-  // Increment turn counter (monotonic)
-  const newTurnCounter = (combat.turnCounter ?? 0) + 1;
+  // Recompute alive participants based on current HP (after condition effects)
+  // This ensures participants list reflects any HP changes from bleeding
+  const finalAliveParticipants =
+    updatedSave.runtime.combat?.participants.filter((id) => {
+      const actor = updatedSave.actorsById[id];
+      return actor && actor.resources.hp > 0;
+    }) || [];
 
   const newCombatState: CombatState = {
     ...combat,
-    participants: aliveParticipants,
+    participants: finalAliveParticipants,
     currentIndex: newCurrentIndex,
     round: newRound,
     turn: newTurnState,

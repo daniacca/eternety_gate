@@ -1,65 +1,156 @@
-import type { Condition, GameSave } from './types';
+import type { Actor, ConditionId, ConditionInstance, Condition, GameSave } from "./types";
 
 /**
- * Evaluates a condition against the game save state
+ * Evaluates a single story condition (flags, counters, etc.)
  */
 export function evaluateCondition(condition: Condition, save: GameSave): boolean {
   switch (condition.op) {
-    case 'flag': {
-      // Strip 'flags.' prefix if present since we're operating on the flags object
-      const path = condition.path.startsWith('flags.') ? condition.path.substring(6) : condition.path;
-      const value = getStateValue(save.state.flags, path);
+    case "flag": {
+      const key = condition.path.startsWith("flags.") ? condition.path.substring(6) : condition.path;
+      const value = save.state.flags[key];
       return value === condition.value;
     }
 
-    case 'counterGte': {
-      // Strip 'counters.' prefix if present since we're operating on the counters object
-      const path = condition.path.startsWith('counters.') ? condition.path.substring(9) : condition.path;
-      const value = getStateValue(save.state.counters, path);
-      return typeof value === 'number' && value >= condition.value;
+    case "counterGte": {
+      const key = condition.path.startsWith("counters.") ? condition.path.substring(9) : condition.path;
+      const value = save.state.counters[key] ?? 0;
+      return value >= condition.value;
     }
 
-    case 'counterLte': {
-      // Strip 'counters.' prefix if present since we're operating on the counters object
-      const path = condition.path.startsWith('counters.') ? condition.path.substring(9) : condition.path;
-      const value = getStateValue(save.state.counters, path);
-      return typeof value === 'number' && value <= condition.value;
+    case "counterLte": {
+      const key = condition.path.startsWith("counters.") ? condition.path.substring(9) : condition.path;
+      const value = save.state.counters[key] ?? 0;
+      return value <= condition.value;
     }
 
-    case 'and': {
-      return condition.clauses.every(clause => evaluateCondition(clause, save));
+    case "and": {
+      return condition.clauses.every((clause) => evaluateCondition(clause, save));
     }
 
-    case 'or': {
-      return condition.clauses.some(clause => evaluateCondition(clause, save));
+    case "or": {
+      return condition.clauses.some((clause) => evaluateCondition(clause, save));
     }
 
-    case 'not': {
+    case "not": {
       return !evaluateCondition(condition.clause, save);
     }
-
-    default:
-      return false;
   }
 }
 
 /**
- * Evaluates multiple conditions (OR logic if array, single if not)
+ * Evaluates a condition or array of conditions (OR logic for arrays)
  */
-export function evaluateConditions(
-  conditions: Condition | Condition[],
-  save: GameSave
-): boolean {
+export function evaluateConditions(conditions: Condition | Condition[], save: GameSave): boolean {
   if (Array.isArray(conditions)) {
-    return conditions.some(cond => evaluateCondition(cond, save));
+    return conditions.some((condition) => evaluateCondition(condition, save));
   }
   return evaluateCondition(conditions, save);
 }
 
 /**
- * Gets a flat value from an object using a flat key (no nested path resolution)
+ * Checks if an actor has a specific condition
  */
-function getStateValue(obj: Record<string, any>, key: string): any {
-  return obj[key];
+export function hasCondition(actor: Actor, condition: ConditionId): boolean {
+  return actor.conditions?.[condition] !== undefined;
 }
 
+/**
+ * Gets a condition instance from an actor, or null if not present
+ */
+export function getCondition(actor: Actor, condition: ConditionId): ConditionInstance | null {
+  return actor.conditions?.[condition] ?? null;
+}
+
+/**
+ * Gets the stacks count for a condition (defaults to 1 if not specified)
+ */
+export function getStacks(actor: Actor, condition: ConditionId): number {
+  const instance = getCondition(actor, condition);
+  return instance?.stacks ?? 1;
+}
+
+/**
+ * Adds a condition to an actor immutably
+ */
+export function addConditionToActor(
+  actor: Actor,
+  condition: ConditionId,
+  stacks?: number,
+  untilTurnCounter?: number,
+  source?: string
+): Actor {
+  const existingInstance = actor.conditions?.[condition];
+  const newInstance: ConditionInstance = {
+    stacks: stacks ?? existingInstance?.stacks ?? 1,
+    untilTurnCounter,
+    source: source ?? existingInstance?.source,
+  };
+
+  return {
+    ...actor,
+    conditions: {
+      ...actor.conditions,
+      [condition]: newInstance,
+    },
+  };
+}
+
+/**
+ * Removes a condition from an actor immutably
+ */
+export function removeConditionFromActor(actor: Actor, condition: ConditionId): Actor {
+  if (!actor.conditions?.[condition]) {
+    return actor; // Already doesn't have the condition
+  }
+
+  const newConditions = { ...actor.conditions };
+  delete newConditions[condition];
+
+  return {
+    ...actor,
+    conditions: Object.keys(newConditions).length > 0 ? newConditions : undefined,
+  };
+}
+
+/**
+ * Computes combat modifiers from conditions
+ * Returns modifiers that affect to-hit, movement, and defensive actions
+ */
+export function computeCombatModifiersFromConditions(actor: Actor): {
+  toHitBonus?: number;
+  toHitPenalty?: number;
+  moveDelta?: number;
+  allowParry?: boolean;
+  allowDodge?: boolean;
+} {
+  let toHitPenalty = 0;
+  let moveDelta = 0;
+  let allowParry = true;
+  let allowDodge = true;
+
+  // Fatigue: -10 per stack to to-hit (capped at -30), -1 move per stack
+  if (hasCondition(actor, "fatigue")) {
+    const fatigueStacks = getStacks(actor, "fatigue");
+    const fatiguePenalty = Math.min(fatigueStacks * 10, 30);
+    toHitPenalty += fatiguePenalty;
+    moveDelta -= fatigueStacks;
+  }
+
+  // Prone: -1 move
+  if (hasCondition(actor, "prone")) {
+    moveDelta -= 1;
+  }
+
+  // Stunned: no parry/dodge
+  if (hasCondition(actor, "stunned")) {
+    allowParry = false;
+    allowDodge = false;
+  }
+
+  return {
+    toHitPenalty: toHitPenalty > 0 ? toHitPenalty : undefined,
+    moveDelta: moveDelta !== 0 ? moveDelta : undefined,
+    allowParry: allowParry ? undefined : false,
+    allowDodge: allowDodge ? undefined : false,
+  };
+}

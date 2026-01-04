@@ -15,6 +15,7 @@ import type {
   StoryPack,
 } from "./types";
 import { type IRNG } from "./rng";
+import { computeCombatModifiersFromConditions } from "./conditions";
 
 /**
  * Resolves an ActorRef to an Actor
@@ -784,6 +785,12 @@ function performCombatAttackCheck(
   // Defend: -20 to hit against defender
   if (defenderStance === "defend") {
     combatModifier -= 20;
+  }
+
+  // Apply fatigue penalty from conditions (capped at -30)
+  const conditionModifiers = computeCombatModifiersFromConditions(attacker);
+  if (conditionModifiers.toHitPenalty !== undefined) {
+    combatModifier -= conditionModifiers.toHitPenalty;
   }
 
   const attackTarget = breakdown.target + combatModifier;
