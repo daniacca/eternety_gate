@@ -61,14 +61,12 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
 
       {/* Equipment summary */}
       <View style={styles.equipmentContainer}>
-        <Text style={styles.equipmentLabel}>Armi:</Text>
+        <Text style={styles.equipmentLabel}>Weapon:</Text>
         <Text style={styles.equipmentText}>{weapon.name}</Text>
-        {armor.armorId !== "none" && (
-          <>
-            <Text style={styles.equipmentLabel}>Armatura:</Text>
-            <Text style={styles.equipmentText}>{armor.name}</Text>
-          </>
-        )}
+        <Text style={styles.equipmentLabel}>Armor:</Text>
+        <Text style={styles.equipmentText}>
+          {armor.armorId !== "none" ? `${armor.name} (Soak: ${armor.soak || 0})` : "None"}
+        </Text>
       </View>
 
       {/* Open sheet button */}

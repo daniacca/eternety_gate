@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 
 interface CombatNarrationProps {
   showNarration: boolean;
@@ -69,17 +69,19 @@ export function CombatNarration({
           <Text style={styles.combatNarrationToggleText}>{toggleLabel}</Text>
         </TouchableOpacity>
       </View>
-      {fallbackMessage ? (
-        <Text style={styles.combatNarrationText}>{fallbackMessage}</Text>
-      ) : displayLog.length > 0 ? (
-        displayLog.map((entry, index) => (
-          <Text key={index} style={styles.combatNarrationText}>
-            {entry}
-          </Text>
-        ))
-      ) : (
-        <Text style={styles.combatNarrationText}>Il combattimento è iniziato.</Text>
-      )}
+      <ScrollView style={styles.combatNarrationScroll} nestedScrollEnabled>
+        {fallbackMessage ? (
+          <Text style={styles.combatNarrationText}>{fallbackMessage}</Text>
+        ) : displayLog.length > 0 ? (
+          displayLog.map((entry, index) => (
+            <Text key={index} style={styles.combatNarrationText}>
+              {entry}
+            </Text>
+          ))
+        ) : (
+          <Text style={styles.combatNarrationText}>Il combattimento è iniziato.</Text>
+        )}
+      </ScrollView>
     </View>
   );
 }

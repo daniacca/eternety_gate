@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
 import {
   createNewGame,
@@ -17,11 +17,13 @@ import sigilContent from "@eg/content/sigil.content.json";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
+import { LastCheckPanel } from "./components/LastCheckPanel";
 import { ChoiceList } from "./components/ChoiceList";
 import { DebugPanels } from "./components/DebugPanels";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
+import { addCheckToHistory } from "./components/LogModal";
 
 export function PlayScreen() {
   // Create a minimal 1-player party with fixed seed
@@ -126,9 +128,16 @@ export function PlayScreen() {
     setSave(newSave);
   };
 
-  const lastCheck = save.runtime.lastCheck;
+  const lastCheck = save.runtime.lastPlayerCheck || save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
+
+  // Track check history for Log modal
+  useEffect(() => {
+    if (lastCheck) {
+      addCheckToHistory(lastCheck);
+    }
+  }, [lastCheck?.checkId, lastCheck?.roll, lastCheck?.target, lastCheck?.actorId]);
 
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(
@@ -206,14 +215,23 @@ export function PlayScreen() {
           </Text>
         ))}
 
-        {/* Combat Narration */}
-        <CombatNarration
-          showNarration={showNarration}
-          combatLog={combatLog}
-          turnStartIndex={turnStartIndex}
-          cycleStartIndex={cycleStartIndex}
-          styles={styles}
-        />
+        {/* Combat Narration + Last Check (side by side) */}
+        {showNarration && (
+          <View style={styles.narrationContainer}>
+            <View style={styles.narrationLeft}>
+              <CombatNarration
+                showNarration={showNarration}
+                combatLog={combatLog}
+                turnStartIndex={turnStartIndex}
+                cycleStartIndex={cycleStartIndex}
+                styles={styles}
+              />
+            </View>
+            <View style={styles.narrationRight}>
+              <LastCheckPanel check={lastCheck} styles={styles} />
+            </View>
+          </View>
+        )}
 
         {/* CombatControl Panel */}
         <CombatControl
@@ -260,7 +278,8 @@ export function PlayScreen() {
         {/* Non-combat choices only */}
         <ChoiceList choices={nonCombatChoices} handleChoice={handleChoice} styles={styles} />
 
-        <DebugPanels save={save} tags={tags} styles={styles} />
+        {/* DebugPanels hidden - functionality moved to LastCheckPanel and LogModal */}
+        {/* <DebugPanels save={save} tags={tags} styles={styles} /> */}
       </View>
     </ScrollView>
   );
@@ -575,14 +594,36 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontStyle: "italic",
   },
-  combatNarration: {
+  narrationContainer: {
+    flexDirection: "row",
     marginTop: 16,
     marginBottom: 16,
+    gap: 12,
+  },
+  narrationLeft: {
+    flex: 1,
+  },
+  narrationRight: {
+    flex: 1,
+  },
+  combatNarration: {
+    height: 200,
     padding: 12,
     backgroundColor: "#fff9e6",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#ffd700",
+  },
+  combatNarrationScroll: {
+    flex: 1,
+  },
+  lastCheckPanel: {
+    height: 200,
+    padding: 12,
+    backgroundColor: "#e8f4f8",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#b3d9e6",
   },
   combatNarrationHeader: {
     flexDirection: "row",
@@ -791,6 +832,105 @@ const styles = StyleSheet.create({
     color: "#1e3a8a",
     fontWeight: "600",
     fontFamily: "monospace",
+  },
+  combatBlock: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  combatBlockFlex: {
+    flex: 1,
+    marginTop: 0,
+    marginBottom: 0,
+    marginHorizontal: 4,
+  },
+  mainRow: {
+    flexDirection: "row",
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  mainRowNarrow: {
+    flexDirection: "column",
+  },
+  movementBlock: {
+    flex: 1,
+    marginTop: 0,
+    marginBottom: 0,
+    marginHorizontal: 0,
+  },
+  attacksBlock: {
+    flex: 2,
+    marginTop: 0,
+    marginBottom: 0,
+    marginHorizontal: 0,
+  },
+  stanceBlock: {
+    flex: 1,
+    marginTop: 0,
+    marginBottom: 0,
+    marginHorizontal: 0,
+  },
+  attackSection: {
+    marginBottom: 16,
+  },
+  attackSectionTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  combatBlockTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  attackGroup: {
+    marginBottom: 12,
+  },
+  attackGroupTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  movementActions: {
+    flexDirection: "column",
+    gap: 8,
+    marginTop: 12,
+  },
+  movementActionButton: {
+    flex: 1,
+    backgroundColor: "#28a745",
+    padding: 10,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  movementActionText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  stanceActions: {
+    flexDirection: "column",
+    gap: 8,
+  },
+  stanceButton: {
+    flex: 1,
+    backgroundColor: "#6c757d",
+    padding: 12,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  stanceButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   specialActionsContainer: {
     marginTop: 16,
