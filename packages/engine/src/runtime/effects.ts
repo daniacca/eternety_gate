@@ -14,6 +14,9 @@ import {
   combatGetProne,
   combatStandUp,
   combatPickup,
+  combatDrop,
+  combatEquipItem,
+  combatUnequipItem,
 } from "./combat/actions";
 import { addConditionToActor, removeConditionFromActor } from "./conditions";
 
@@ -75,6 +78,11 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, save),
   combatPickup: (effect, _storyPack, save, _rng) =>
     combatPickup(effect as Extract<Effect, { op: "combatPickup" }>, save),
+  combatDrop: (effect, _storyPack, save, _rng) => combatDrop(effect as Extract<Effect, { op: "combatDrop" }>, save),
+  combatEquipItem: (effect, _storyPack, save, _rng) =>
+    combatEquipItem(effect as Extract<Effect, { op: "combatEquipItem" }>, save),
+  combatUnequipItem: (effect, _storyPack, save, _rng) =>
+    combatUnequipItem(effect as Extract<Effect, { op: "combatUnequipItem" }>, save),
   addCondition: (effect, _storyPack, save, _rng) => ({
     save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, save),
   }),

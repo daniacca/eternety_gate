@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck } from "../types";
+import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck, ItemRef } from "../types";
 import { IRNG, RNG } from "../rng";
 import { getCurrentTurnActorId, startCombat, advanceCombatTurn } from "./combat";
 import { appendCombatLog, appendAttackNarration } from "./narration";
@@ -8,6 +8,7 @@ import { applyCombatDamageIfHit } from "./damage";
 import { distanceChebyshev } from "./movement";
 import { validateAndApplyRangedModifiers } from "./validation";
 import { resolveActor } from "../checks";
+import { posKey, getEquippedWeaponId, getActorInventory, isWeaponItemRef } from "../inventory";
 
 /**
  * Starts combat with given participant IDs, grid, and placements
@@ -706,7 +707,7 @@ export function combatAllOut(
     return { save: updatedSave };
   }
 
-  const weaponId = attacker.equipment?.weaponId ?? null;
+  const weaponId = getEquippedWeaponId(attacker);
 
   // Emit combatRequestAttack effect with explicit +20 hitBonus modifier
   const attackEffect: Effect = {
@@ -1037,7 +1038,7 @@ export function combatKnockdown(
 }
 
 /**
- * Disarm: opposed WS vs WS; if attacker wins -> remove defender weapon and add to groundItems
+ * Disarm: opposed WS vs WS; if attacker wins -> remove defender weapon and add to groundItemsByPos
  */
 export function combatDisarm(
   effect: Extract<Effect, { op: "combatDisarm" }>,
@@ -1115,7 +1116,9 @@ export function combatDisarm(
   }
 
   // Check if defender has a weapon
-  const defenderWeaponId = defender.equipment?.weaponId ?? null;
+  const defenderMainHand = defender.equipment?.mainHand;
+  const defenderWeaponId = defenderMainHand?.kind === "weapon" ? defenderMainHand.id : null;
+
   if (!defenderWeaponId || defenderWeaponId === "unarmed") {
     const blockedCheck = {
       checkId: "combat:disarm:blocked",
@@ -1193,11 +1196,15 @@ export function combatDisarm(
 
   if (result.success) {
     // Attacker wins - disarm defender
+    // Create ItemRef for the weapon being dropped
+    const weaponItemRef: ItemRef = { kind: "weapon", id: defenderWeaponId };
+
+    // Update defender equipment (clear mainHand)
     const updatedDefender = {
       ...defender,
       equipment: {
         ...defender.equipment,
-        weaponId: null,
+        mainHand: null,
       },
     };
 
@@ -1206,19 +1213,18 @@ export function combatDisarm(
       [effect.defenderId]: updatedDefender,
     };
 
-    // Add weapon to groundItems at defender position
-    const groundItems = [...(combat.groundItems || [])];
-    groundItems.push({
-      kind: "weapon",
-      weaponId: defenderWeaponId,
-      x: defenderPos.x,
-      y: defenderPos.y,
-      ownerId: effect.defenderId,
-    });
+    // Add weapon to groundItemsByPos at defender position
+    const posKeyStr = posKey(defenderPos);
+    const currentGroundItemsByPos = combat.groundItemsByPos || {};
+    const itemsAtPos = currentGroundItemsByPos[posKeyStr] || [];
+    const updatedGroundItemsByPos = {
+      ...currentGroundItemsByPos,
+      [posKeyStr]: [...itemsAtPos, weaponItemRef],
+    };
 
     const updatedCombat = {
       ...combatWithActionConsumed,
-      groundItems,
+      groundItemsByPos: updatedGroundItemsByPos,
     };
 
     currentSave = {
@@ -1359,7 +1365,7 @@ export function combatStandUp(
 }
 
 /**
- * Pickup: picks up item at actor position, equips if main hand empty, otherwise adds to inventory
+ * Pickup: picks up item at actor position, adds to inventory, and optionally auto-equips if main hand empty
  */
 export function combatPickup(
   effect: Extract<Effect, { op: "combatPickup" }>,
@@ -1384,16 +1390,37 @@ export function combatPickup(
     return { save };
   }
 
-  // Find item at actor position
-  const groundItems = combat.groundItems || [];
-  const itemIndex = groundItems.findIndex((item) => item.x === actorPos.x && item.y === actorPos.y);
+  const actor = save.actorsById[effect.actorId];
+  if (!actor) {
+    return { save };
+  }
 
-  if (itemIndex === -1) {
-    const actor = save.actorsById[effect.actorId];
+  // Check groundItemsByPos structure
+  const posKeyStr = posKey(actorPos);
+  let itemRef: ItemRef | null = null;
+  let updatedGroundItemsByPos: Record<string, ItemRef[]> | undefined = undefined;
+
+  if (combat.groundItemsByPos && combat.groundItemsByPos[posKeyStr] && combat.groundItemsByPos[posKeyStr].length > 0) {
+    const itemsAtPos = combat.groundItemsByPos[posKeyStr];
+    itemRef = itemsAtPos[0]; // Pick first item
+    const remainingItems = itemsAtPos.slice(1);
+    // Remove key if empty, otherwise update with remaining items
+    if (remainingItems.length === 0) {
+      const { [posKeyStr]: _, ...rest } = combat.groundItemsByPos;
+      updatedGroundItemsByPos = Object.keys(rest).length > 0 ? rest : undefined;
+    } else {
+      updatedGroundItemsByPos = {
+        ...combat.groundItemsByPos,
+        [posKeyStr]: remainingItems,
+      };
+    }
+  }
+
+  if (!itemRef) {
     const logEntry =
-      actor?.kind === "PC"
+      actor.kind === "PC"
         ? `Non c'è nulla da raccogliere qui.`
-        : `${actor?.name || effect.actorId} cerca di raccogliere qualcosa ma non trova nulla.`;
+        : `${actor.name || effect.actorId} cerca di raccogliere qualcosa ma non trova nulla.`;
     // Consume all movement regardless of success/failure
     const updatedCombat = {
       ...combat,
@@ -1412,82 +1439,364 @@ export function combatPickup(
     return { save: appendCombatLog(updatedSave, logEntry) };
   }
 
-  const item = groundItems[itemIndex];
+  // Add item to inventory
+  const currentInventory = getActorInventory(actor);
+  const updatedInventory = [...currentInventory, itemRef];
+
+  // Check if mainHand is empty and item is a weapon - auto-equip
+  const mainHandEmpty = !actor.equipment?.mainHand;
+  const isWeapon = isWeaponItemRef(itemRef);
+  const shouldAutoEquip = mainHandEmpty && isWeapon;
+
+  let updatedActor = {
+    ...actor,
+    inventory: updatedInventory,
+  };
+
+  if (shouldAutoEquip) {
+    // Remove from inventory (since we're equipping it)
+    updatedActor = {
+      ...updatedActor,
+      inventory: currentInventory, // Don't add to inventory, equip instead
+      equipment: {
+        ...actor.equipment,
+        mainHand: itemRef,
+      },
+    };
+  }
+
+  // Update combat state
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      moveRemaining: 0,
+    },
+    ...(updatedGroundItemsByPos !== undefined && { groundItemsByPos: updatedGroundItemsByPos }),
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    actorsById: {
+      ...save.actorsById,
+      [effect.actorId]: updatedActor,
+    },
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+    },
+  };
+
+  // Generate log message
+  let itemName = "l'oggetto";
+  if (itemRef.kind === "weapon") {
+    itemName = save.weaponsById?.[itemRef.id]?.name || "l'arma";
+  } else if (itemRef.kind === "armor") {
+    itemName = save.armorsById?.[itemRef.id]?.name || "l'armatura";
+  }
+
+  let logEntry: string;
+  if (shouldAutoEquip) {
+    logEntry =
+      actor.kind === "PC"
+        ? `Raccogli ${itemName} e la equipaggi.`
+        : `${actor.name || effect.actorId} raccoglie ${itemName} e la equipaggia.`;
+  } else {
+    logEntry =
+      actor.kind === "PC"
+        ? `Raccogli ${itemName} e la metti nell'inventario.`
+        : `${actor.name || effect.actorId} raccoglie ${itemName} e la mette nell'inventario.`;
+  }
+
+  currentSave = appendCombatLog(currentSave, logEntry);
+
+  return { save: currentSave };
+}
+
+/**
+ * Drop: drops an item from inventory or equipment to the ground at actor position
+ */
+export function combatDrop(
+  effect: Extract<Effect, { op: "combatDrop" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.actorId) {
+    return { save };
+  }
+
+  if (combat.turn.moveRemaining <= 0) {
+    return { save };
+  }
+
+  const actorPos = combat.positions[effect.actorId];
+  if (!actorPos) {
+    return { save };
+  }
+
   const actor = save.actorsById[effect.actorId];
   if (!actor) {
     return { save };
   }
 
-  if (item.kind === "weapon") {
-    // Check if actor already has a weapon equipped
-    const currentWeaponId = actor.equipment?.weaponId ?? null;
-    if (currentWeaponId && currentWeaponId !== "unarmed") {
-      // Actor already has a weapon - do not remove ground item
-      const logEntry =
-        actor.kind === "PC" ? `Hai già un'arma in mano.` : `${actor.name || effect.actorId} ha già un'arma in mano.`;
-      // Still consume movement
-      const updatedCombat = {
-        ...combat,
-        turn: {
-          ...combat.turn,
-          moveRemaining: 0,
+  let itemRef: ItemRef | null = null;
+  let updatedActor = { ...actor };
+
+  // Determine what to drop
+  if (effect.fromSlot === "mainHand" || (!effect.fromSlot && !effect.itemRef && !effect.inventoryIndex)) {
+    // Drop equipped mainHand (default behavior)
+    itemRef = actor.equipment?.mainHand ?? null;
+    if (itemRef) {
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          mainHand: null,
         },
       };
-      const updatedSave = {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          combat: updatedCombat,
-        },
-      };
-      return { save: appendCombatLog(updatedSave, logEntry) };
     }
-
-    // Main hand is empty - remove item from ground and equip it
-    const updatedGroundItems = groundItems.filter((_, idx) => idx !== itemIndex);
-    const updatedCombat = {
-      ...combat,
-      turn: {
-        ...combat.turn,
-        moveRemaining: 0,
-      },
-      groundItems: updatedGroundItems,
-    };
-
-    let currentSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        combat: updatedCombat,
-      },
-    };
-
-    const updatedActor = {
-      ...actor,
-      equipment: {
-        ...actor.equipment,
-        weaponId: item.weaponId,
-      },
-    };
-
-    currentSave = {
-      ...currentSave,
-      actorsById: {
-        ...currentSave.actorsById,
-        [effect.actorId]: updatedActor,
-      },
-    };
-
-    const weaponName = save.weaponsById?.[item.weaponId]?.name || "l'arma";
-    const logEntry =
-      actor.kind === "PC"
-        ? `Raccogli ${weaponName} e la equipaggi.`
-        : `${actor.name || effect.actorId} raccoglie ${weaponName} e la equipaggia.`;
-    currentSave = appendCombatLog(currentSave, logEntry);
-
-    return { save: currentSave };
+  } else if (effect.fromSlot === "offHand") {
+    itemRef = actor.equipment?.offHand ?? null;
+    if (itemRef) {
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          offHand: null,
+        },
+      };
+    }
+  } else if (effect.fromSlot === "armor") {
+    itemRef = actor.equipment?.armor ?? null;
+    if (itemRef) {
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          armor: null,
+        },
+      };
+    }
+  } else if (effect.fromSlot === "inventory" && effect.inventoryIndex !== undefined) {
+    // Drop from inventory
+    const inventory = getActorInventory(actor);
+    if (effect.inventoryIndex >= 0 && effect.inventoryIndex < inventory.length) {
+      itemRef = inventory[effect.inventoryIndex];
+      updatedActor = {
+        ...updatedActor,
+        inventory: inventory.filter((_, idx) => idx !== effect.inventoryIndex),
+      };
+    }
+  } else if (effect.itemRef) {
+    // Drop specific item (find in inventory or equipment)
+    itemRef = effect.itemRef;
+    const inventory = getActorInventory(actor);
+    const inventoryIndex = inventory.findIndex((item) => item.kind === itemRef!.kind && item.id === itemRef!.id);
+    if (inventoryIndex !== -1) {
+      updatedActor = {
+        ...updatedActor,
+        inventory: inventory.filter((_, idx) => idx !== inventoryIndex),
+      };
+    } else {
+      // Check equipment slots
+      if (actor.equipment?.mainHand?.kind === itemRef.kind && actor.equipment.mainHand.id === itemRef.id) {
+        updatedActor = {
+          ...updatedActor,
+          equipment: {
+            ...updatedActor.equipment,
+            mainHand: null,
+          },
+        };
+      } else if (actor.equipment?.offHand?.kind === itemRef.kind && actor.equipment.offHand.id === itemRef.id) {
+        updatedActor = {
+          ...updatedActor,
+          equipment: {
+            ...updatedActor.equipment,
+            offHand: null,
+          },
+        };
+      } else if (actor.equipment?.armor?.kind === itemRef.kind && actor.equipment.armor.id === itemRef.id) {
+        updatedActor = {
+          ...updatedActor,
+          equipment: {
+            ...updatedActor.equipment,
+            armor: null,
+          },
+        };
+      } else {
+        // Item not found
+        return { save };
+      }
+    }
   }
 
-  // Non-weapon items (future)
-  return { save };
+  if (!itemRef) {
+    return { save };
+  }
+
+  // Add item to ground at actor position
+  const posKeyStr = posKey(actorPos);
+  const currentGroundItemsByPos = combat.groundItemsByPos || {};
+  const itemsAtPos = currentGroundItemsByPos[posKeyStr] || [];
+  const updatedGroundItemsByPos = {
+    ...currentGroundItemsByPos,
+    [posKeyStr]: [...itemsAtPos, itemRef],
+  };
+
+  // Update combat state
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      moveRemaining: 0,
+    },
+    groundItemsByPos: updatedGroundItemsByPos,
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    actorsById: {
+      ...save.actorsById,
+      [effect.actorId]: updatedActor,
+    },
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+    },
+  };
+
+  // Generate log message
+  let itemName = "l'oggetto";
+  if (itemRef.kind === "weapon") {
+    itemName = save.weaponsById?.[itemRef.id]?.name || "l'arma";
+  } else if (itemRef.kind === "armor") {
+    itemName = save.armorsById?.[itemRef.id]?.name || "l'armatura";
+  }
+
+  const logEntry =
+    actor.kind === "PC"
+      ? `Lasci cadere ${itemName} a terra.`
+      : `${actor.name || effect.actorId} lascia cadere ${itemName} a terra.`;
+  currentSave = appendCombatLog(currentSave, logEntry);
+
+  return { save: currentSave };
+}
+
+/**
+ * EquipItem: equips an item from inventory into a slot (swaps if slot occupied)
+ */
+export function combatEquipItem(
+  effect: Extract<Effect, { op: "combatEquipItem" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const actor = save.actorsById[effect.actorId];
+  if (!actor) {
+    return { save };
+  }
+
+  const inventory = getActorInventory(actor);
+  let itemRef: ItemRef | null = null;
+  let updatedInventory = [...inventory];
+
+  // Find item in inventory
+  if (effect.inventoryIndex !== undefined) {
+    if (effect.inventoryIndex >= 0 && effect.inventoryIndex < inventory.length) {
+      itemRef = inventory[effect.inventoryIndex];
+      updatedInventory = inventory.filter((_, idx) => idx !== effect.inventoryIndex);
+    }
+  } else {
+    // Find by itemRef
+    const index = inventory.findIndex((item) => item.kind === effect.itemRef.kind && item.id === effect.itemRef.id);
+    if (index !== -1) {
+      itemRef = inventory[index];
+      updatedInventory = inventory.filter((_, idx) => idx !== index);
+    }
+  }
+
+  if (!itemRef) {
+    // Item not found in inventory
+    return { save };
+  }
+
+  // Validate slot compatibility
+  if (effect.slot === "mainHand" && itemRef.kind !== "weapon") {
+    return { save }; // Can only equip weapons to mainHand
+  }
+  if (effect.slot === "armor" && itemRef.kind !== "armor") {
+    return { save }; // Can only equip armor to armor slot
+  }
+
+  // Get currently equipped item (for swap)
+  const currentlyEquipped = actor.equipment?.[effect.slot] ?? null;
+
+  // Update actor
+  let updatedActor = {
+    ...actor,
+    inventory: updatedInventory,
+    equipment: {
+      ...actor.equipment,
+      [effect.slot]: itemRef,
+    },
+  };
+
+  // If slot was occupied, add old item to inventory
+  if (currentlyEquipped) {
+    updatedActor = {
+      ...updatedActor,
+      inventory: [...updatedActor.inventory, currentlyEquipped],
+    };
+  }
+
+  const currentSave: GameSave = {
+    ...save,
+    actorsById: {
+      ...save.actorsById,
+      [effect.actorId]: updatedActor,
+    },
+  };
+
+  return { save: currentSave };
+}
+
+/**
+ * UnequipItem: moves an equipped item back to inventory
+ */
+export function combatUnequipItem(
+  effect: Extract<Effect, { op: "combatUnequipItem" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const actor = save.actorsById[effect.actorId];
+  if (!actor) {
+    return { save };
+  }
+
+  const itemRef = actor.equipment?.[effect.slot] ?? null;
+  if (!itemRef) {
+    return { save }; // Slot is empty
+  }
+
+  const inventory = getActorInventory(actor);
+  const updatedActor = {
+    ...actor,
+    inventory: [...inventory, itemRef],
+    equipment: {
+      ...actor.equipment,
+      [effect.slot]: null,
+    },
+  };
+
+  const currentSave: GameSave = {
+    ...save,
+    actorsById: {
+      ...save.actorsById,
+      [effect.actorId]: updatedActor,
+    },
+  };
+
+  return { save: currentSave };
 }

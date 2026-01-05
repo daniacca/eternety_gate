@@ -1,5 +1,5 @@
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
-import type { GameSave } from "@eg/engine";
+import type { GameSave, Effect, ItemRef } from "@eg/engine";
 import { getActorWeapon, getActorArmor } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
 
@@ -7,6 +7,7 @@ interface PlayerSheetProps {
   visible: boolean;
   save: GameSave;
   onClose: () => void;
+  applySystemEffects?: (effects: Effect[]) => void;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -29,7 +30,7 @@ const statLabels: Record<string, string> = {
   PER: "Percezione",
 };
 
-export function PlayerSheet({ visible, save, onClose }: PlayerSheetProps) {
+export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
   const activeActor = save.actorsById[save.party.activeActorId];
   if (!activeActor) return null;
 
@@ -38,9 +39,14 @@ export function PlayerSheet({ visible, save, onClose }: PlayerSheetProps) {
   const rf = activeActor.resources.rf;
   const rfMax = activeActor.derived?.rfMax ?? 100;
 
-  // Get equipment
+  // Get equipment (using backward compatibility helpers)
   const weapon = getActorWeapon(save, activeActor);
   const armor = getActorArmor(save, activeActor);
+
+  // Get equipment slots from new structure
+  const mainHand = activeActor.equipment?.mainHand;
+  const offHand = activeActor.equipment?.offHand;
+  const equippedArmor = activeActor.equipment?.armor;
 
   // Get conditions
   const conditions = activeActor.conditions || {};
@@ -48,8 +54,48 @@ export function PlayerSheet({ visible, save, onClose }: PlayerSheetProps) {
     [ConditionId, { stacks?: number; untilTurnCounter?: number; source?: string }]
   >;
 
-  // Get inventory
-  const inventory = save.state.inventory.items || [];
+  // Get inventory from actor (new structure)
+  const inventory = activeActor.inventory || [];
+
+  // Helper to get item name
+  const getItemName = (itemRef: ItemRef | null | undefined): string => {
+    if (!itemRef) return "Nessuno";
+    if (itemRef.kind === "weapon") {
+      return save.weaponsById?.[itemRef.id]?.name || itemRef.id;
+    }
+    if (itemRef.kind === "armor") {
+      return save.armorsById?.[itemRef.id]?.name || itemRef.id;
+    }
+    return itemRef.id;
+  };
+
+  // Helper to handle equip action
+  const handleEquip = (itemRef: ItemRef, inventoryIndex: number) => {
+    if (!applySystemEffects) return;
+    let slot: "mainHand" | "offHand" | "armor" = "mainHand";
+    if (itemRef.kind === "armor") {
+      slot = "armor";
+    } else if (itemRef.kind === "weapon") {
+      slot = "mainHand";
+    }
+    applySystemEffects([{ op: "combatEquipItem", actorId: activeActor.id, itemRef, slot, inventoryIndex }]);
+  };
+
+  // Helper to handle unequip action
+  const handleUnequip = (slot: "mainHand" | "offHand" | "armor") => {
+    if (!applySystemEffects) return;
+    applySystemEffects([{ op: "combatUnequipItem", actorId: activeActor.id, slot }]);
+  };
+
+  // Helper to handle drop action
+  const handleDrop = (
+    itemRef: ItemRef | null,
+    fromSlot?: "mainHand" | "offHand" | "armor" | "inventory",
+    inventoryIndex?: number
+  ) => {
+    if (!applySystemEffects || !itemRef) return;
+    applySystemEffects([{ op: "combatDrop", actorId: activeActor.id, itemRef, fromSlot, inventoryIndex }]);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -112,30 +158,101 @@ export function PlayerSheet({ visible, save, onClose }: PlayerSheetProps) {
             {/* Equipment */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Equipaggiamento</Text>
-              <View style={styles.equipmentRow}>
-                <Text style={styles.equipmentLabel}>Arma:</Text>
-                <Text style={styles.equipmentValue}>{weapon.name}</Text>
+
+              {/* Main Hand */}
+              <View style={styles.equipmentSlotRow}>
+                <View style={styles.equipmentSlotInfo}>
+                  <Text style={styles.equipmentLabel}>Mano principale:</Text>
+                  <Text style={styles.equipmentValue}>{getItemName(mainHand)}</Text>
+                </View>
+                {mainHand && applySystemEffects && (
+                  <View style={styles.equipmentActions}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("mainHand")}>
+                      <Text style={styles.actionButtonText}>Rimuovi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.dropButton]}
+                      onPress={() => handleDrop(mainHand, "mainHand")}
+                    >
+                      <Text style={styles.actionButtonText}>Lascia</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-              <View style={styles.equipmentRow}>
-                <Text style={styles.equipmentLabel}>Armatura:</Text>
-                <Text style={styles.equipmentValue}>{armor.name}</Text>
+
+              {/* Off Hand */}
+              <View style={styles.equipmentSlotRow}>
+                <View style={styles.equipmentSlotInfo}>
+                  <Text style={styles.equipmentLabel}>Mano secondaria:</Text>
+                  <Text style={styles.equipmentValue}>{getItemName(offHand)}</Text>
+                </View>
+                {offHand && applySystemEffects && (
+                  <View style={styles.equipmentActions}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("offHand")}>
+                      <Text style={styles.actionButtonText}>Rimuovi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.dropButton]}
+                      onPress={() => handleDrop(offHand, "offHand")}
+                    >
+                      <Text style={styles.actionButtonText}>Lascia</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Armor */}
+              <View style={styles.equipmentSlotRow}>
+                <View style={styles.equipmentSlotInfo}>
+                  <Text style={styles.equipmentLabel}>Armatura:</Text>
+                  <Text style={styles.equipmentValue}>{getItemName(equippedArmor)}</Text>
+                </View>
+                {equippedArmor && applySystemEffects && (
+                  <View style={styles.equipmentActions}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("armor")}>
+                      <Text style={styles.actionButtonText}>Rimuovi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.dropButton]}
+                      onPress={() => handleDrop(equippedArmor, "armor")}
+                    >
+                      <Text style={styles.actionButtonText}>Lascia</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </View>
 
             {/* Inventory */}
-            {inventory.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Inventario</Text>
-                {inventory.map((itemId, index) => {
-                  const item = save.itemCatalogById[itemId];
-                  return (
-                    <View key={index} style={styles.inventoryRow}>
-                      <Text style={styles.inventoryItem}>{item?.name || itemId}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Inventario</Text>
+              {inventory.length === 0 ? (
+                <Text style={styles.emptyText}>Inventario vuoto</Text>
+              ) : (
+                inventory.map((itemRef, index) => (
+                  <View key={index} style={styles.inventoryRow}>
+                    <Text style={styles.inventoryItem}>{getItemName(itemRef)}</Text>
+                    {applySystemEffects && (
+                      <View style={styles.inventoryActions}>
+                        {(itemRef.kind === "weapon" || itemRef.kind === "armor") && (
+                          <TouchableOpacity style={styles.actionButton} onPress={() => handleEquip(itemRef, index)}>
+                            <Text style={styles.actionButtonText}>
+                              {itemRef.kind === "weapon" ? "Equipaggia" : "Indossa"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.dropButton]}
+                          onPress={() => handleDrop(itemRef, "inventory", index)}
+                        >
+                          <Text style={styles.actionButtonText}>Lascia</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -244,10 +361,16 @@ const styles = StyleSheet.create({
     color: "#856404",
     marginTop: 4,
   },
-  equipmentRow: {
+  equipmentSlotRow: {
+    marginBottom: 12,
+    padding: 8,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 4,
+  },
+  equipmentSlotInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   equipmentLabel: {
     fontSize: 14,
@@ -258,14 +381,46 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
+  equipmentActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
   inventoryRow: {
     padding: 8,
     marginBottom: 4,
     backgroundColor: "#f9f9f9",
     borderRadius: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   inventoryItem: {
     fontSize: 14,
     color: "#333",
+    flex: 1,
+  },
+  inventoryActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 4,
+  },
+  dropButton: {
+    backgroundColor: "#FF3B30",
+  },
+  actionButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#999",
+    fontStyle: "italic",
   },
 });

@@ -1,6 +1,7 @@
 import type { CombatAttackCheck, GameSave, CheckResult, ActorId } from "../types";
 import { resolveActor } from "../checks";
 import { getActorWeapon } from "./equipment";
+import { getEquippedWeaponId } from "../inventory";
 
 /**
  * Validates ranged attack and applies range band modifiers
@@ -16,8 +17,9 @@ export function validateAndApplyRangedModifiers(
 ): CheckResult | null {
   // a) Check if weapon is actually ranged
   const attacker = resolveActor(combatCheck.attacker.actorRef, save);
-  const weaponId = combatCheck.attacker.weaponId ?? attacker?.equipment?.weaponId ?? null;
-  const { weapon } = attacker ? getActorWeapon(save, attacker) : { weapon: null };
+  const weaponId = combatCheck.attacker.weaponId ?? (attacker ? getEquippedWeaponId(attacker) : null);
+  // Use weaponId directly to look up weapon, not getActorWeapon (which ignores check.weaponId)
+  const weapon = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
 
   if (!weapon || weapon.kind !== "RANGED") {
     return {

@@ -1,4 +1,5 @@
 import type { GameSave, Actor, Weapon, Armor, WeaponId, ArmorId } from "../types";
+import { getEquippedWeaponId, getEquippedArmorId } from "../inventory";
 
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
@@ -8,7 +9,7 @@ export function getActorWeapon(save: GameSave, actor: Actor): {
   weaponId: WeaponId | "unarmed";
   name: string;
 } {
-  const weaponId = actor.equipment?.weaponId ?? null;
+  const weaponId = getEquippedWeaponId(actor);
   
   if (!weaponId || !save.weaponsById?.[weaponId]) {
     // Unarmed: MELEE with 1d10 + SB
@@ -35,7 +36,7 @@ export function getActorArmor(save: GameSave, actor: Actor): {
   name: string;
   soak: number;
 } {
-  const armorId = actor.equipment?.armorId ?? null;
+  const armorId = getEquippedArmorId(actor);
   
   if (!armorId || !save.armorsById?.[armorId]) {
     return {

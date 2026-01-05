@@ -10,7 +10,7 @@ describe("equipment", () => {
   describe("getActorWeapon", () => {
     it("should return unarmed weapon when actor has no weapon", () => {
       const storyPack = makeTestStoryPack();
-      const actor = makeTestActor({ equipment: { weaponId: null } });
+      const actor = makeTestActor({ equipment: { mainHand: null } });
       const save = makeTestSave(storyPack, actor);
 
       const result = getActorWeapon(save, actor);
@@ -22,7 +22,7 @@ describe("equipment", () => {
 
     it("should return unarmed weapon when weaponId is not in weaponsById", () => {
       const storyPack = makeTestStoryPack();
-      const actor = makeTestActor({ equipment: { weaponId: "nonexistent" } });
+      const actor = makeTestActor({ equipment: { mainHand: { kind: "weapon", id: "nonexistent" } } });
       const save = makeTestSave(storyPack, actor);
 
       const result = getActorWeapon(save, actor);
@@ -40,7 +40,7 @@ describe("equipment", () => {
         kind: "MELEE",
         damage: { die: 10, add: 2 },
       };
-      const actor = makeTestActor({ equipment: { weaponId: "sword" } });
+      const actor = makeTestActor({ equipment: { mainHand: { kind: "weapon", id: "sword" } } });
       const save = {
         ...makeTestSave(storyPack, actor),
         weaponsById: { sword: weapon },
@@ -53,7 +53,7 @@ describe("equipment", () => {
       expect(result.name).toBe("Sword");
     });
 
-    it("should use weaponId from equipment when not explicitly provided", () => {
+    it("should use mainHand from equipment when not explicitly provided", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {
         id: "dagger",
@@ -61,7 +61,7 @@ describe("equipment", () => {
         kind: "MELEE",
         damage: { die: 10, add: 1 },
       };
-      const actor = makeTestActor({ equipment: { weaponId: "dagger" } });
+      const actor = makeTestActor({ equipment: { mainHand: { kind: "weapon", id: "dagger" } } });
       const save = {
         ...makeTestSave(storyPack, actor),
         weaponsById: { dagger: weapon },
@@ -77,7 +77,7 @@ describe("equipment", () => {
   describe("getActorArmor", () => {
     it("should return no armor when actor has no armor", () => {
       const storyPack = makeTestStoryPack();
-      const actor = makeTestActor({ equipment: { armorId: null } });
+      const actor = makeTestActor({ equipment: { armor: null } });
       const save = makeTestSave(storyPack, actor);
 
       const result = getActorArmor(save, actor);
@@ -90,7 +90,7 @@ describe("equipment", () => {
 
     it("should return no armor when armorId is not in armorsById", () => {
       const storyPack = makeTestStoryPack();
-      const actor = makeTestActor({ equipment: { armorId: "nonexistent" } });
+      const actor = makeTestActor({ equipment: { armor: { kind: "armor", id: "nonexistent" } } });
       const save = makeTestSave(storyPack, actor);
 
       const result = getActorArmor(save, actor);
@@ -107,7 +107,7 @@ describe("equipment", () => {
         name: "Leather Armor",
         soak: 3,
       };
-      const actor = makeTestActor({ equipment: { armorId: "leather" } });
+      const actor = makeTestActor({ equipment: { armor: { kind: "armor", id: "leather" } } });
       const save = {
         ...makeTestSave(storyPack, actor),
         armorsById: { leather: armor },
@@ -268,13 +268,13 @@ describe("equipment", () => {
       const storyPack = makeTestStoryPack();
       const actor = makeTestActor({ stats: { STR: 40 } }); // STR 40 -> SB 4
       const save = makeTestSave(storyPack, actor);
-      const d100For8 = FakeRng.d100ForNextInt(8, 1, 10);
-      const rng = new FakeRng([d100For8]);
+      const d100For5 = FakeRng.d100ForNextInt(5, 1, 5); // Unarmed uses d5
+      const rng = new FakeRng([d100For5]);
 
       const result = calculateWeaponDamage(save, actor, "nonexistent", rng);
 
       expect(result.weaponId).toBe("unarmed");
-      expect(result.rawDamage).toBe(12); // 8 (roll) + 4 (SB)
+      expect(result.rawDamage).toBe(9); // 5 (roll) + 4 (SB)
     });
   });
 });

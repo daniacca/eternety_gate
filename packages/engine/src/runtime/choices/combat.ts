@@ -4,6 +4,7 @@ import type { ChoiceHandler } from "./types";
 import { performCheck, resolveActor } from "../checks";
 import { applyEffects } from "../effects";
 import { getCurrentScene } from "../selectors";
+import { getEquippedWeaponId } from "../inventory";
 
 /**
  * Updates magic state based on check result
@@ -58,7 +59,7 @@ function transformCombatAttackToRequestEffect(check: CombatAttackCheck, save: Ga
     return null;
   }
 
-  const weaponId = check.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+  const weaponId = check.attacker.weaponId ?? (attacker ? getEquippedWeaponId(attacker) : null);
 
   return {
     op: "combatRequestAttack",

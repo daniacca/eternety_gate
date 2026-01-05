@@ -16,6 +16,7 @@ import type {
 } from "./types";
 import { type IRNG } from "./rng";
 import { computeCombatModifiersFromConditions } from "./conditions";
+import { getEquippedWeaponId } from "./inventory";
 
 /**
  * Resolves an ActorRef to an Actor
@@ -61,10 +62,17 @@ export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Ac
 }
 
 function getEquippedItems(actor: Actor): string[] {
-  const equipped = actor.equipment.equipped;
-  return [equipped?.weaponMainId, equipped?.weaponOffId, equipped?.armorId, ...(equipped?.accessoryIds ?? [])].filter(
-    (id): id is string => id !== null
-  );
+  const items: string[] = [];
+  if (actor.equipment?.mainHand) {
+    items.push(actor.equipment.mainHand.id);
+  }
+  if (actor.equipment?.offHand) {
+    items.push(actor.equipment.offHand.id);
+  }
+  if (actor.equipment?.armor) {
+    items.push(actor.equipment.armor.id);
+  }
+  return items;
 }
 
 /**
@@ -783,9 +791,9 @@ function performCombatAttackCheck(
   }
 
   // Unarmed penalty: -20 to hit if attacker is unarmed and defender has a weapon
-  const attackerWeaponId = check.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+  const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
   const isAttackerUnarmed = !attackerWeaponId || attackerWeaponId === "unarmed";
-  const defenderWeaponId = defender.equipment?.weaponId ?? null;
+  const defenderWeaponId = getEquippedWeaponId(defender);
   const isDefenderArmed = defenderWeaponId && defenderWeaponId !== "unarmed";
   if (isAttackerUnarmed && isDefenderArmed) {
     combatModifier -= 20;

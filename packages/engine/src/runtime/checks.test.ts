@@ -105,12 +105,7 @@ describe("checks", () => {
       const actor = makeTestActor({
         stats: { STR: 50 } as any,
         equipment: {
-          equipped: {
-            weaponMainId: "item1",
-            weaponOffId: null,
-            armorId: null,
-            accessoryIds: [],
-          },
+          offHand: { kind: "misc", id: "item1" },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -137,12 +132,7 @@ describe("checks", () => {
       const actor = makeTestActor({
         skills: { VATES: 50 },
         equipment: {
-          equipped: {
-            weaponMainId: "item1",
-            weaponOffId: null,
-            armorId: null,
-            accessoryIds: [],
-          },
+          offHand: { kind: "misc", id: "item1" },
         },
       });
       const save = makeTestSave(storyPack, actor);

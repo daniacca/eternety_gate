@@ -25,6 +25,9 @@ export { RNG, rollD100 } from './runtime/rng';
 // Equipment helpers
 export { getActorWeapon, getActorArmor, calculateWeaponDamage } from './runtime/combat/equipment';
 
+// Inventory helpers
+export { posKey, getEquippedWeaponId, getEquippedArmorId, getActorInventory, isWeaponItemRef, isArmorItemRef } from './runtime/inventory';
+
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from './runtime/combat/movement';
 

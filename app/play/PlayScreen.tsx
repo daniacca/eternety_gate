@@ -50,8 +50,8 @@ export function PlayScreen() {
       talents: [],
       traits: [],
       equipment: {
-        weaponId: "shortbow", // Test weapon: ranged
-        armorId: null, // No armor for player initially
+        mainHand: { kind: "weapon", id: "shortbow" }, // Test weapon: ranged
+        armor: null, // No armor for player initially
       },
       status: {
         conditions: [],
@@ -87,8 +87,8 @@ export function PlayScreen() {
       talents: [],
       traits: [],
       equipment: {
-        weaponId: "club",
-        armorId: "leather",
+        mainHand: { kind: "weapon", id: "club" },
+        armor: { kind: "armor", id: "leather" },
       },
       status: {
         conditions: [],
@@ -312,7 +312,12 @@ export function PlayScreen() {
       )}
 
       {/* Player Sheet Modal */}
-      <PlayerSheet visible={playerSheetVisible} save={save} onClose={() => setPlayerSheetVisible(false)} />
+      <PlayerSheet
+        visible={playerSheetVisible}
+        save={save}
+        onClose={() => setPlayerSheetVisible(false)}
+        applySystemEffects={applySystemEffects}
+      />
     </View>
   );
 }

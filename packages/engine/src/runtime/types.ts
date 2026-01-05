@@ -140,6 +140,25 @@ export type Effect =
   | {
       op: "combatPickup";
       actorId: ActorId;
+    }
+  | {
+      op: "combatDrop";
+      actorId: ActorId;
+      itemRef?: ItemRef; // If not provided, drops equipped mainHand
+      fromSlot?: "mainHand" | "offHand" | "armor" | "inventory";
+      inventoryIndex?: number; // If dropping from inventory
+    }
+  | {
+      op: "combatEquipItem";
+      actorId: ActorId;
+      itemRef: ItemRef;
+      slot: "mainHand" | "offHand" | "armor";
+      inventoryIndex?: number; // Index in inventory if equipping from inventory
+    }
+  | {
+      op: "combatUnequipItem";
+      actorId: ActorId;
+      slot: "mainHand" | "offHand" | "armor";
     };
 
 /* ---------- ActorRef ---------- */
@@ -369,6 +388,10 @@ export type Equipment = {
 export type DamageTier = "Half" | "Single" | "Double" | "Triple" | "Fourfold" | "Fivefold";
 export type ItemKind = "weapon" | "armor" | "accessory" | "consumable" | "quest";
 
+// ItemRef uses a simplified ItemKind for inventory/equipment references
+export type ItemRefKind = "weapon" | "armor" | "misc";
+export type ItemRef = { kind: ItemRefKind; id: string };
+
 /**
  * ItemMod:
  * - focus provides step-based (+10) bonuses to magic channeling/casting checks.
@@ -431,17 +454,13 @@ export type Actor = {
   traits: string[];
 
   equipment: {
-    // Legacy equipment system (kept for backward compatibility, but not populated for new actors)
-    equipped?: {
-      weaponMainId: ItemId | null;
-      weaponOffId: ItemId | null;
-      armorId: ItemId | null;
-      accessoryIds: ItemId[];
-    };
-    // New minimal equipment system (single source of truth)
-    weaponId?: WeaponId | null;
-    armorId?: ArmorId | null;
+    mainHand?: ItemRef | null;
+    offHand?: ItemRef | null;
+    armor?: ItemRef | null;
   };
+
+  // Inventory (slice 6.4+)
+  inventory?: ItemRef[];
 
   /**
    * Conditions persist on Actor and survive leaving combat.
@@ -521,8 +540,8 @@ export type CombatState = {
   // Parry disabled until turn counter (by actor ID)
   parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
 
-  // Ground items (weapons dropped during combat)
-  groundItems?: Array<{ kind: "weapon"; weaponId: WeaponId; x: number; y: number; ownerId?: ActorId }>;
+  // Ground items by position
+  groundItemsByPos?: Record<string, ItemRef[]>; // key format: "x,y"
 };
 
 export type GameRuntime = {

@@ -32,12 +32,9 @@ export function makeTestActor(overrides?: TestActorOverrides): Actor {
     talents: [],
     traits: [],
     equipment: {
-      equipped: {
-        weaponMainId: null,
-        weaponOffId: null,
-        armorId: null,
-        accessoryIds: [],
-      },
+      mainHand: null,
+      offHand: null,
+      armor: null,
     },
     status: {
       conditions: [],
@@ -61,16 +58,11 @@ export function makeTestActor(overrides?: TestActorOverrides): Actor {
       ...(overrides?.skills || {}),
     },
     equipment: {
+      mainHand: null,
+      offHand: null,
+      armor: null,
       ...defaultActor.equipment,
       ...(overrides?.equipment || {}),
-      equipped: {
-        weaponMainId: null,
-        weaponOffId: null,
-        armorId: null,
-        accessoryIds: [],
-        ...defaultActor.equipment.equipped,
-        ...(overrides?.equipment?.equipped || {}),
-      },
     },
     status: {
       ...defaultActor.status,

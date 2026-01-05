@@ -43,7 +43,7 @@ function makeDefaultActor(id: string, name?: string): Actor {
     skills: {},
     talents: [],
     traits: [],
-    equipment: { equipped: { weaponMainId: null, weaponOffId: null, armorId: null, accessoryIds: [] } },
+    equipment: { mainHand: null, offHand: null, armor: null },
     status: { conditions: [], tempModifiers: [] },
   };
 }

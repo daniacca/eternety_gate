@@ -17,7 +17,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "sword" },
+        equipment: { mainHand: { kind: "weapon", id: "sword" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -64,7 +64,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -113,7 +113,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -161,7 +161,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -208,7 +208,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -255,7 +255,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -303,7 +303,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -351,7 +351,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" },
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {
@@ -425,7 +425,7 @@ describe("validation", () => {
       };
       const attacker = makeTestActor({
         id: "attacker",
-        equipment: { weaponId: "bow" }, // Actor has bow equipped
+        equipment: { mainHand: { kind: "weapon", id: "bow" } }, // Actor has bow equipped
       });
       const defender = makeTestActor({ id: "defender" });
       const save = {

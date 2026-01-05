@@ -12,6 +12,7 @@ import type { IRNG } from "../rng";
 import { resolveActor, performCheck } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog } from "./narration";
+import { getEquippedWeaponId } from "../inventory";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -44,7 +45,7 @@ export function applyCombatDamageIfHit(
   }
 
   // Get weapon ID from check or actor equipment
-  const weaponId = check.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+  const weaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
   const isUnarmed = !weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId];
   const finalWeaponId = isUnarmed ? "unarmed" : weaponId;
 
