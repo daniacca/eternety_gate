@@ -796,6 +796,21 @@ function performCombatAttackCheck(
     combatModifier -= 20;
   }
 
+  // Prone modifiers
+  const isDefenderProne = defender.conditions?.prone !== undefined;
+  const isAttackerProne = attacker.conditions?.prone !== undefined;
+  if (isDefenderProne) {
+    if (check.attacker.mode === "RANGED") {
+      // Ranged attacks against prone target: -10 to hit
+      combatModifier -= 10;
+    } else if (check.attacker.mode === "MELEE") {
+      // Melee attacks against prone target: +20 if attacker is not prone, 0 if both prone
+      if (!isAttackerProne) {
+        combatModifier += 20;
+      }
+    }
+  }
+
   // Apply fatigue penalty from conditions (capped at -30)
   const conditionModifiers = computeCombatModifiersFromConditions(attacker);
   if (conditionModifiers.toHitPenalty !== undefined) {
@@ -818,6 +833,14 @@ function performCombatAttackCheck(
   }
   if (defenderStance === "defend") {
     tags.push("combat:defenderStance=defend");
+  }
+  // Tag for prone modifiers
+  if (isDefenderProne) {
+    if (check.attacker.mode === "RANGED") {
+      tags.push("combat:mod:prone:ranged=-10");
+    } else if (check.attacker.mode === "MELEE" && !isAttackerProne) {
+      tags.push("combat:mod:prone:melee=+20");
+    }
   }
   tags.push(`combat:attackStat=${attackStatKey}`);
   tags.push(`combat:attackTarget=${attackTarget}`);

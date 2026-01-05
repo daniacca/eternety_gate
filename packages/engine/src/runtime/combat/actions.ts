@@ -1394,7 +1394,22 @@ export function combatPickup(
       actor?.kind === "PC"
         ? `Non c'è nulla da raccogliere qui.`
         : `${actor?.name || effect.actorId} cerca di raccogliere qualcosa ma non trova nulla.`;
-    return { save: appendCombatLog(save, logEntry) };
+    // Consume all movement regardless of success/failure
+    const updatedCombat = {
+      ...combat,
+      turn: {
+        ...combat.turn,
+        moveRemaining: 0,
+      },
+    };
+    const updatedSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: updatedCombat,
+      },
+    };
+    return { save: appendCombatLog(updatedSave, logEntry) };
   }
 
   const item = groundItems[itemIndex];

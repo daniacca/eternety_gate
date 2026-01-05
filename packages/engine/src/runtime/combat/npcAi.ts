@@ -3,6 +3,7 @@ import { RNG } from "../rng";
 import { distanceChebyshev } from "./movement";
 import { getActorWeapon } from "./equipment";
 import { applyEffects } from "../effects";
+import { hasCondition } from "../conditions";
 
 /**
  * Runs an NPC turn (auto-attack or move)
@@ -14,6 +15,21 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
 
   if (!combat?.active) {
     return save;
+  }
+
+  // Get NPC actor
+  const npc = save.actorsById[npcId];
+  if (!npc) {
+    return save;
+  }
+
+  // If NPC is prone, stand up and end turn
+  if (hasCondition(npc, "prone")) {
+    const standUpEffect: Effect = {
+      op: "combatStandUp",
+      actorId: npcId,
+    };
+    return applyEffects([standUpEffect], storyPack, save, rng);
   }
 
   // Target is always the active party member
@@ -30,11 +46,6 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
   const dist = distanceChebyshev(npcPos, targetPos);
 
   // Get NPC weapon to determine attack mode and range
-  const npc = save.actorsById[npcId];
-  if (!npc) {
-    return save;
-  }
-
   const { weapon, weaponId: npcWeaponId } = getActorWeapon(save, npc);
   const npcHasRanged = weapon?.kind === "RANGED";
   const weaponRange = weapon?.range;
