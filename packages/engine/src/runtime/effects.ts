@@ -9,6 +9,11 @@ import {
   combatAim,
   combatAllOut,
   combatRequestAttack,
+  combatKnockdown,
+  combatDisarm,
+  combatGetProne,
+  combatStandUp,
+  combatPickup,
 } from "./combat/actions";
 import { addConditionToActor, removeConditionFromActor } from "./conditions";
 
@@ -60,6 +65,16 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatAllOut(effect as Extract<Effect, { op: "combatAllOut" }>, save),
   combatRequestAttack: (effect, storyPack, save, rng) =>
     combatRequestAttack(effect as Extract<Effect, { op: "combatRequestAttack" }>, storyPack, save, rng),
+  combatKnockdown: (effect, storyPack, save, rng) =>
+    combatKnockdown(effect as Extract<Effect, { op: "combatKnockdown" }>, storyPack, save, rng),
+  combatDisarm: (effect, storyPack, save, rng) =>
+    combatDisarm(effect as Extract<Effect, { op: "combatDisarm" }>, storyPack, save, rng),
+  combatGetProne: (effect, _storyPack, save, _rng) =>
+    combatGetProne(effect as Extract<Effect, { op: "combatGetProne" }>, save),
+  combatStandUp: (effect, _storyPack, save, _rng) =>
+    combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, save),
+  combatPickup: (effect, _storyPack, save, _rng) =>
+    combatPickup(effect as Extract<Effect, { op: "combatPickup" }>, save),
   addCondition: (effect, _storyPack, save, _rng) => ({
     save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, save),
   }),

@@ -2,7 +2,7 @@
 // Copied from schemas/schemas.types.ts
 
 /* ---------------------------------- */
-/* ID Aliases                          */
+/* ID Aliases                         */
 /* ---------------------------------- */
 
 export type StoryId = string;
@@ -19,7 +19,7 @@ export type ArmorId = string;
 export type WorldEventId = string;
 
 /* ---------------------------------- */
-/* Core Stats / Keys                   */
+/* Core Stats / Keys                  */
 /* ---------------------------------- */
 
 export type StatKey =
@@ -45,7 +45,7 @@ export type StatKey =
 export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 
 /* ---------------------------------- */
-/* Conditions                          */
+/* Conditions                         */
 /* ---------------------------------- */
 
 export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue";
@@ -57,12 +57,12 @@ export type ConditionInstance = {
 };
 
 /* ---------------------------------- */
-/* StoryPack Types                     */
+/* StoryPack Types                    */
 /* ---------------------------------- */
 
 export type SceneType = "narration" | "dialogue" | "hub" | "system" | "challenge" | "ending";
 
-/* ---------- Conditions ---------- */
+/* ---------- Conditions ------------ */
 
 export type Condition =
   | { op: "flag"; path: string; value: boolean }
@@ -72,7 +72,7 @@ export type Condition =
   | { op: "or"; clauses: Condition[] }
   | { op: "not"; clause: Condition };
 
-/* ---------- Effects ---------- */
+/* ---------- Effects --------------- */
 
 export type Effect =
   | { op: "setFlag"; path: string; value: boolean }
@@ -118,6 +118,28 @@ export type Effect =
       op: "removeCondition";
       actorId: ActorId;
       condition: ConditionId;
+    }
+  | {
+      op: "combatKnockdown";
+      attackerId: ActorId;
+      defenderId: ActorId;
+    }
+  | {
+      op: "combatDisarm";
+      attackerId: ActorId;
+      defenderId: ActorId;
+    }
+  | {
+      op: "combatGetProne";
+      actorId: ActorId;
+    }
+  | {
+      op: "combatStandUp";
+      actorId: ActorId;
+    }
+  | {
+      op: "combatPickup";
+      actorId: ActorId;
     };
 
 /* ---------- ActorRef ---------- */
@@ -329,7 +351,7 @@ export type Weapon = {
     short: number; // in chebyshev squares, e.g. 4
     long: number; // e.g. 8
   };
-  tags?: string[]; // future use
+  tags?: string[]; // e.g. ["vengeful"] for Righteous Fury, ["vengeful:3"] for best-of-3 rolls
 };
 
 export type Armor = {
@@ -390,7 +412,14 @@ export type Actor = {
     rfMax?: number;
   };
 
-  resources: { hp: number; rf: number; peq: number };
+  resources: {
+    hp: number;
+    rf: number;
+    peq: number;
+    criticalDamage?: number;
+    criticalTierApplied?: number;
+    isDead?: boolean;
+  };
 
   /**
    * Skills/Disciplines are stored without the "SKILL:" prefix here.
@@ -491,6 +520,9 @@ export type CombatState = {
 
   // Parry disabled until turn counter (by actor ID)
   parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
+
+  // Ground items (weapons dropped during combat)
+  groundItems?: Array<{ kind: "weapon"; weaponId: WeaponId; x: number; y: number; ownerId?: ActorId }>;
 };
 
 export type GameRuntime = {
@@ -520,6 +552,11 @@ export type GameRuntime = {
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
   combatCycleStartIndex?: number;
+
+  gameOver?: {
+    reason: "partyDead" | "playerDead";
+    sceneId: SceneId;
+  };
 };
 
 export type GameSave = {

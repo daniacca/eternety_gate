@@ -57,37 +57,54 @@ export function getActorArmor(save: GameSave, actor: Actor): {
 /**
  * Calculates raw damage for a weapon hit
  * Returns: { rawDamage, weaponName, weaponId }
+ * @param rollsCount - For Righteous Fury: number of rolls to make, take best (default 1)
  */
 export function calculateWeaponDamage(
   save: GameSave,
   attacker: Actor,
   weaponId: WeaponId | "unarmed" | null,
-  rng: { nextInt: (min: number, max: number) => number }
+  rng: { nextInt: (min: number, max: number) => number },
+  rollsCount: number = 1
 ): { rawDamage: number; weaponName: string; weaponId: WeaponId | "unarmed" } {
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
-    // Unarmed: 1d10 + SB
-    const dieRoll = rng.nextInt(1, 10);
-    const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
-    const rawDamage = dieRoll + strBonus;
+    // Unarmed: 1d5 (changed from 1d10)
+    let bestRoll = 0;
+    for (let i = 0; i < rollsCount; i++) {
+      const dieRoll = rng.nextInt(1, 5);
+      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      const rollTotal = dieRoll + strBonus;
+      if (rollTotal > bestRoll) {
+        bestRoll = rollTotal;
+      }
+    }
     return {
-      rawDamage,
+      rawDamage: bestRoll,
       weaponName: "Unarmed",
       weaponId: "unarmed",
     };
   }
 
   const weapon = save.weaponsById[weaponId];
-  const dieRoll = rng.nextInt(1, weapon.damage.die);
-  let rawDamage = dieRoll + weapon.damage.add;
+  let bestDamage = 0;
 
-  // Add Strength Bonus if weapon has bonus === "SB"
-  if (weapon.damage.bonus === "SB") {
-    const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
-    rawDamage += strBonus;
+  for (let i = 0; i < rollsCount; i++) {
+    // For multi-dice weapons, roll the whole weapon damage once per iteration
+    const dieRoll = rng.nextInt(1, weapon.damage.die);
+    let rollDamage = dieRoll + weapon.damage.add;
+
+    // Add Strength Bonus if weapon has bonus === "SB"
+    if (weapon.damage.bonus === "SB") {
+      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      rollDamage += strBonus;
+    }
+
+    if (rollDamage > bestDamage) {
+      bestDamage = rollDamage;
+    }
   }
 
   return {
-    rawDamage,
+    rawDamage: bestDamage,
     weaponName: weapon.name,
     weaponId,
   };

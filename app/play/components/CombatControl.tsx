@@ -231,6 +231,122 @@ export function CombatControl({
         </View>
       )}
 
+      {/* System Actions: Knockdown, Disarm, GetProne/StandUp, Pickup */}
+      {model.isPlayerTurn && (
+        <View style={styles.specialActionsContainer}>
+          <Text style={styles.specialActionsTitle}>System Actions</Text>
+          <View style={styles.specialActionsRow}>
+            {/* Knockdown */}
+            <Pressable
+              style={[
+                styles.specialActionButton,
+                (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) && styles.attackButtonDisabled,
+              ]}
+              onPress={() => {
+                if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                  applySystemEffects([
+                    { op: "combatKnockdown", attackerId: save.party.activeActorId, defenderId: model.selectedTargetId },
+                  ]);
+                }
+              }}
+              disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
+            >
+              <Text
+                style={[
+                  styles.specialActionButtonText,
+                  (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                    styles.attackButtonTextDisabled,
+                ]}
+              >
+                Knockdown
+              </Text>
+            </Pressable>
+            {/* Disarm */}
+            <Pressable
+              style={[
+                styles.specialActionButton,
+                (!model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon) &&
+                  styles.attackButtonDisabled,
+              ]}
+              onPress={() => {
+                if (
+                  model.actionAvailable &&
+                  model.canMelee &&
+                  model.selectedTargetId &&
+                  model.npcWeapon?.weapon
+                ) {
+                  applySystemEffects([
+                    { op: "combatDisarm", attackerId: save.party.activeActorId, defenderId: model.selectedTargetId },
+                  ]);
+                }
+              }}
+              disabled={
+                !model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon
+              }
+            >
+              <Text
+                style={[
+                  styles.specialActionButtonText,
+                  (!model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon) &&
+                    styles.attackButtonTextDisabled,
+                ]}
+              >
+                Disarm
+              </Text>
+            </Pressable>
+            {/* Get Prone / Stand Up */}
+            <Pressable
+              style={[
+                styles.specialActionButton,
+                model.moveRemaining <= 0 && styles.attackButtonDisabled,
+              ]}
+              onPress={() => {
+                if (model.moveRemaining > 0) {
+                  const hasProne = model.pcActor?.conditions?.prone;
+                  if (hasProne) {
+                    applySystemEffects([{ op: "combatStandUp", actorId: save.party.activeActorId }]);
+                  } else {
+                    applySystemEffects([{ op: "combatGetProne", actorId: save.party.activeActorId }]);
+                  }
+                }
+              }}
+              disabled={model.moveRemaining <= 0}
+            >
+              <Text
+                style={[
+                  styles.specialActionButtonText,
+                  model.moveRemaining <= 0 && styles.attackButtonTextDisabled,
+                ]}
+              >
+                {model.pcActor?.conditions?.prone ? "Stand Up" : "Get Prone"}
+              </Text>
+            </Pressable>
+            {/* Pickup */}
+            <Pressable
+              style={[
+                styles.specialActionButton,
+                model.moveRemaining <= 0 && styles.attackButtonDisabled,
+              ]}
+              onPress={() => {
+                if (model.moveRemaining > 0) {
+                  applySystemEffects([{ op: "combatPickup", actorId: save.party.activeActorId }]);
+                }
+              }}
+              disabled={model.moveRemaining <= 0}
+            >
+              <Text
+                style={[
+                  styles.specialActionButtonText,
+                  model.moveRemaining <= 0 && styles.attackButtonTextDisabled,
+                ]}
+              >
+                Pickup
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {/* End Turn Button */}
       {model.isPlayerTurn && (
         <View style={styles.endTurnContainer}>

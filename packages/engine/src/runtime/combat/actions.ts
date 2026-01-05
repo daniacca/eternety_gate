@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, CombatAttackCheck } from "../types";
+import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck } from "../types";
 import { IRNG, RNG } from "../rng";
 import { getCurrentTurnActorId, startCombat, advanceCombatTurn } from "./combat";
 import { appendCombatLog, appendAttackNarration } from "./narration";
@@ -492,8 +492,38 @@ export function combatRequestAttack(
   };
 
   // Apply damage if hit
-  const damageResult = applyCombatDamageIfHit(check, result, currentSave, rng);
+  const damageResult = applyCombatDamageIfHit(check, result, currentSave, rng, storyPack);
   currentSave = damageResult.save;
+
+  // Handle death and game over
+  if (damageResult.actorDied) {
+    const deadActor = currentSave.actorsById[effect.defenderId];
+    if (deadActor) {
+      const pcDied = deadActor.kind === "PC";
+
+      // Check if all party members are dead/KO
+      const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
+      const allPartyDead =
+        partyActors.length > 0 &&
+        partyActors.every((actor) => actor.resources.isDead === true || actor.resources.hp <= 0);
+
+      if (pcDied || allPartyDead) {
+        // Set game over
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            gameOver: {
+              reason: pcDied ? "playerDead" : "partyDead",
+              sceneId: currentSave.runtime.currentSceneId,
+            },
+            combat: undefined, // End combat cleanly
+          },
+        };
+        currentSave = appendCombatLog(currentSave, "Game Over.");
+      }
+    }
+  }
 
   // Add narration for attack result (consolidated function)
   const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
@@ -529,6 +559,10 @@ export function combatRequestAttack(
     // Attack hit - emit onSuccess effects
     if (effect.onSuccessEffects && effect.onSuccessEffects.length > 0) {
       emittedEffects.push(...effect.onSuccessEffects);
+    }
+    // Also emit effects from damage (e.g., critical damage conditions)
+    if (damageResult.effects && damageResult.effects.length > 0) {
+      emittedEffects.push(...damageResult.effects);
     }
   } else {
     // Attack missed (including parry/dodge) - emit onFailure effects
@@ -847,4 +881,598 @@ export function combatEndTurn(
   }
 
   return { save: currentSave };
+}
+
+/**
+ * Knockdown: opposed STR vs STR; if attacker wins -> addCondition(prone) on defender
+ */
+export function combatKnockdown(
+  effect: Extract<Effect, { op: "combatKnockdown" }>,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.attackerId) {
+    return { save };
+  }
+
+  if (!combat.turn.actionAvailable) {
+    const blockedCheck = {
+      checkId: "combat:knockdown:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=noAction"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  // Validate melee range
+  const attackerPos = combat.positions[effect.attackerId];
+  const defenderPos = combat.positions[effect.defenderId];
+  if (!attackerPos || !defenderPos) {
+    return { save };
+  }
+
+  const dist = distanceChebyshev(attackerPos, defenderPos);
+  if (dist > 1) {
+    const blockedCheck = {
+      checkId: "combat:knockdown:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=notInMelee", `combat:dist=${dist}`],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  // Consume action
+  const combatWithActionConsumed = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      actionAvailable: false,
+    },
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: combatWithActionConsumed,
+    },
+  };
+
+  // Perform opposed STR check
+  const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
+  const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
+  if (!attacker || !defender) {
+    return { save: currentSave };
+  }
+
+  const opposedCheck: OpposedCheck = {
+    id: `combat:knockdown:${effect.attackerId}:${effect.defenderId}`,
+    kind: "opposed",
+    attacker: {
+      actorRef: { mode: "byId", actorId: effect.attackerId },
+      key: "STR",
+      difficulty: "NORMAL",
+    },
+    defender: {
+      actorRef: { mode: "byId", actorId: effect.defenderId },
+      key: "STR",
+      difficulty: "NORMAL",
+    },
+  };
+
+  const result = performCheck(opposedCheck, storyPack, currentSave, rng);
+  if (!result) {
+    return { save: currentSave };
+  }
+
+  currentSave = {
+    ...currentSave,
+    runtime: {
+      ...currentSave.runtime,
+      lastCheck: result,
+      rngCounter: rng.getCounter(),
+    },
+  };
+
+  const emittedEffects: Effect[] = [];
+  if (result.success) {
+    // Attacker wins - add prone condition
+    emittedEffects.push({
+      op: "addCondition",
+      actorId: effect.defenderId,
+      condition: "prone",
+      source: "knockdown",
+    });
+
+    const attackerName = attacker.name || effect.attackerId;
+    const defenderName = defender.name || effect.defenderId;
+    const logEntry = attacker.kind === "PC" ? `Atterri ${defenderName}!` : `${attackerName} atterra ${defenderName}!`;
+    currentSave = appendCombatLog(currentSave, logEntry);
+  } else {
+    const attackerName = attacker.name || effect.attackerId;
+    const defenderName = defender.name || effect.defenderId;
+    const logEntry =
+      attacker.kind === "PC"
+        ? `Tenti di atterrare ${defenderName} ma resiste.`
+        : `${attackerName} tenta di atterrare ${defenderName} ma resiste.`;
+    currentSave = appendCombatLog(currentSave, logEntry);
+  }
+
+  return { save: currentSave, emittedEffects: emittedEffects.length > 0 ? emittedEffects : undefined };
+}
+
+/**
+ * Disarm: opposed WS vs WS; if attacker wins -> remove defender weapon and add to groundItems
+ */
+export function combatDisarm(
+  effect: Extract<Effect, { op: "combatDisarm" }>,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.attackerId) {
+    return { save };
+  }
+
+  if (!combat.turn.actionAvailable) {
+    const blockedCheck = {
+      checkId: "combat:disarm:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=noAction"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  // Validate melee range
+  const attackerPos = combat.positions[effect.attackerId];
+  const defenderPos = combat.positions[effect.defenderId];
+  if (!attackerPos || !defenderPos) {
+    return { save };
+  }
+
+  const dist = distanceChebyshev(attackerPos, defenderPos);
+  if (dist > 1) {
+    const blockedCheck = {
+      checkId: "combat:disarm:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=notInMelee", `combat:dist=${dist}`],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, save);
+  if (!defender) {
+    return { save };
+  }
+
+  // Check if defender has a weapon
+  const defenderWeaponId = defender.equipment?.weaponId ?? null;
+  if (!defenderWeaponId || defenderWeaponId === "unarmed") {
+    const blockedCheck = {
+      checkId: "combat:disarm:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=defenderUnarmed"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  // Consume action
+  const combatWithActionConsumed = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      actionAvailable: false,
+    },
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: combatWithActionConsumed,
+    },
+  };
+
+  // Perform opposed WS check
+  const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
+  if (!attacker) {
+    return { save: currentSave };
+  }
+
+  const opposedCheck: OpposedCheck = {
+    id: `combat:disarm:${effect.attackerId}:${effect.defenderId}`,
+    kind: "opposed",
+    attacker: {
+      actorRef: { mode: "byId", actorId: effect.attackerId },
+      key: "WS",
+      difficulty: "NORMAL",
+    },
+    defender: {
+      actorRef: { mode: "byId", actorId: effect.defenderId },
+      key: "WS",
+      difficulty: "NORMAL",
+    },
+  };
+
+  const result = performCheck(opposedCheck, storyPack, currentSave, rng);
+  if (!result) {
+    return { save: currentSave };
+  }
+
+  currentSave = {
+    ...currentSave,
+    runtime: {
+      ...currentSave.runtime,
+      lastCheck: result,
+      rngCounter: rng.getCounter(),
+    },
+  };
+
+  if (result.success) {
+    // Attacker wins - disarm defender
+    const updatedDefender = {
+      ...defender,
+      equipment: {
+        ...defender.equipment,
+        weaponId: null,
+      },
+    };
+
+    const updatedActorsById = {
+      ...currentSave.actorsById,
+      [effect.defenderId]: updatedDefender,
+    };
+
+    // Add weapon to groundItems at defender position
+    const groundItems = [...(combat.groundItems || [])];
+    groundItems.push({
+      kind: "weapon",
+      weaponId: defenderWeaponId,
+      x: defenderPos.x,
+      y: defenderPos.y,
+      ownerId: effect.defenderId,
+    });
+
+    const updatedCombat = {
+      ...combatWithActionConsumed,
+      groundItems,
+    };
+
+    currentSave = {
+      ...currentSave,
+      actorsById: updatedActorsById,
+      runtime: {
+        ...currentSave.runtime,
+        combat: updatedCombat,
+      },
+    };
+
+    const attackerName = attacker.name || effect.attackerId;
+    const defenderName = defender.name || effect.defenderId;
+    const weaponName = save.weaponsById?.[defenderWeaponId]?.name || "l'arma";
+    const logEntry =
+      attacker.kind === "PC"
+        ? `Disarmi ${defenderName}! ${weaponName} cade a terra.`
+        : `${attackerName} disarma ${defenderName}! ${weaponName} cade a terra.`;
+    currentSave = appendCombatLog(currentSave, logEntry);
+  } else {
+    const attackerName = attacker.name || effect.attackerId;
+    const defenderName = defender.name || effect.defenderId;
+    const logEntry =
+      attacker.kind === "PC"
+        ? `Tenti di disarmare ${defenderName} ma fallisci.`
+        : `${attackerName} tenta di disarmare ${defenderName} ma fallisce.`;
+    currentSave = appendCombatLog(currentSave, logEntry);
+  }
+
+  return { save: currentSave };
+}
+
+/**
+ * Get Prone: consumes all movement, adds prone condition
+ */
+export function combatGetProne(
+  effect: Extract<Effect, { op: "combatGetProne" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.actorId) {
+    return { save };
+  }
+
+  if (combat.turn.moveRemaining <= 0) {
+    return { save };
+  }
+
+  // Consume all movement and add prone condition
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      moveRemaining: 0,
+    },
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+    },
+  };
+
+  const emittedEffects: Effect[] = [
+    {
+      op: "addCondition",
+      actorId: effect.actorId,
+      condition: "prone",
+      source: "getProne",
+    },
+  ];
+
+  const actor = save.actorsById[effect.actorId];
+  const logEntry = actor?.kind === "PC" ? `Ti metti a terra.` : `${actor?.name || effect.actorId} si mette a terra.`;
+  currentSave = appendCombatLog(currentSave, logEntry);
+
+  return { save: currentSave, emittedEffects };
+}
+
+/**
+ * Stand Up: consumes all movement, removes prone condition
+ */
+export function combatStandUp(
+  effect: Extract<Effect, { op: "combatStandUp" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.actorId) {
+    return { save };
+  }
+
+  if (combat.turn.moveRemaining <= 0) {
+    return { save };
+  }
+
+  // Consume all movement and remove prone condition
+  const updatedCombat = {
+    ...combat,
+    turn: {
+      ...combat.turn,
+      moveRemaining: 0,
+    },
+  };
+
+  let currentSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: updatedCombat,
+    },
+  };
+
+  const emittedEffects: Effect[] = [
+    {
+      op: "removeCondition",
+      actorId: effect.actorId,
+      condition: "prone",
+    },
+  ];
+
+  const actor = save.actorsById[effect.actorId];
+  const logEntry = actor?.kind === "PC" ? `Ti alzi in piedi.` : `${actor?.name || effect.actorId} si alza in piedi.`;
+  currentSave = appendCombatLog(currentSave, logEntry);
+
+  return { save: currentSave, emittedEffects };
+}
+
+/**
+ * Pickup: picks up item at actor position, equips if main hand empty, otherwise adds to inventory
+ */
+export function combatPickup(
+  effect: Extract<Effect, { op: "combatPickup" }>,
+  save: GameSave
+): { save: GameSave; emittedEffects?: Effect[] } {
+  const combat = save.runtime.combat;
+  if (!combat?.active) {
+    return { save };
+  }
+
+  const turnActorId = getCurrentTurnActorId(save);
+  if (!turnActorId || turnActorId !== effect.actorId) {
+    return { save };
+  }
+
+  if (combat.turn.moveRemaining <= 0) {
+    return { save };
+  }
+
+  const actorPos = combat.positions[effect.actorId];
+  if (!actorPos) {
+    return { save };
+  }
+
+  // Find item at actor position
+  const groundItems = combat.groundItems || [];
+  const itemIndex = groundItems.findIndex((item) => item.x === actorPos.x && item.y === actorPos.y);
+
+  if (itemIndex === -1) {
+    const actor = save.actorsById[effect.actorId];
+    const logEntry =
+      actor?.kind === "PC"
+        ? `Non c'è nulla da raccogliere qui.`
+        : `${actor?.name || effect.actorId} cerca di raccogliere qualcosa ma non trova nulla.`;
+    return { save: appendCombatLog(save, logEntry) };
+  }
+
+  const item = groundItems[itemIndex];
+  const actor = save.actorsById[effect.actorId];
+  if (!actor) {
+    return { save };
+  }
+
+  if (item.kind === "weapon") {
+    // Check if actor already has a weapon equipped
+    const currentWeaponId = actor.equipment?.weaponId ?? null;
+    if (currentWeaponId && currentWeaponId !== "unarmed") {
+      // Actor already has a weapon - do not remove ground item
+      const logEntry =
+        actor.kind === "PC" ? `Hai già un'arma in mano.` : `${actor.name || effect.actorId} ha già un'arma in mano.`;
+      // Still consume movement
+      const updatedCombat = {
+        ...combat,
+        turn: {
+          ...combat.turn,
+          moveRemaining: 0,
+        },
+      };
+      const updatedSave = {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          combat: updatedCombat,
+        },
+      };
+      return { save: appendCombatLog(updatedSave, logEntry) };
+    }
+
+    // Main hand is empty - remove item from ground and equip it
+    const updatedGroundItems = groundItems.filter((_, idx) => idx !== itemIndex);
+    const updatedCombat = {
+      ...combat,
+      turn: {
+        ...combat.turn,
+        moveRemaining: 0,
+      },
+      groundItems: updatedGroundItems,
+    };
+
+    let currentSave: GameSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: updatedCombat,
+      },
+    };
+
+    const updatedActor = {
+      ...actor,
+      equipment: {
+        ...actor.equipment,
+        weaponId: item.weaponId,
+      },
+    };
+
+    currentSave = {
+      ...currentSave,
+      actorsById: {
+        ...currentSave.actorsById,
+        [effect.actorId]: updatedActor,
+      },
+    };
+
+    const weaponName = save.weaponsById?.[item.weaponId]?.name || "l'arma";
+    const logEntry =
+      actor.kind === "PC"
+        ? `Raccogli ${weaponName} e la equipaggi.`
+        : `${actor.name || effect.actorId} raccoglie ${weaponName} e la equipaggia.`;
+    currentSave = appendCombatLog(currentSave, logEntry);
+
+    return { save: currentSave };
+  }
+
+  // Non-weapon items (future)
+  return { save };
 }

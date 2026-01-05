@@ -123,31 +123,79 @@ describe("equipment", () => {
   });
 
   describe("calculateWeaponDamage", () => {
-    it("should calculate unarmed damage (1d10 + SB)", () => {
+    it("should calculate unarmed damage (1d5 + SB)", () => {
       const storyPack = makeTestStoryPack();
       const actor = makeTestActor({ stats: { STR: 45 } }); // STR 45 -> SB 4
       const save = makeTestSave(storyPack, actor);
-      // For d10 roll of 5, we need D100 value that maps to 5 in range [1, 10]
-      const d100For5 = FakeRng.d100ForNextInt(5, 1, 10);
-      const rng = new FakeRng([d100For5]);
+      // For d5 roll of 3, we need D100 value that maps to 3 in range [1, 5]
+      const d100For3 = FakeRng.d100ForNextInt(3, 1, 5);
+      const rng = new FakeRng([d100For3]);
 
       const result = calculateWeaponDamage(save, actor, null, rng);
 
       expect(result.weaponId).toBe("unarmed");
       expect(result.weaponName).toBe("Unarmed");
-      expect(result.rawDamage).toBe(9); // 5 (roll) + 4 (SB)
+      expect(result.rawDamage).toBe(7); // 3 (roll) + 4 (SB)
     });
 
     it("should calculate unarmed damage with STR 0 (SB 0)", () => {
       const storyPack = makeTestStoryPack();
       const actor = makeTestActor({ stats: { STR: 0 } });
       const save = makeTestSave(storyPack, actor);
-      const d100For10 = FakeRng.d100ForNextInt(10, 1, 10);
-      const rng = new FakeRng([d100For10]);
+      const d100For5 = FakeRng.d100ForNextInt(5, 1, 5);
+      const rng = new FakeRng([d100For5]);
 
       const result = calculateWeaponDamage(save, actor, "unarmed", rng);
 
-      expect(result.rawDamage).toBe(10); // 10 (roll) + 0 (SB)
+      expect(result.rawDamage).toBe(5); // 5 (roll) + 0 (SB)
+    });
+
+    it("should calculate Righteous Fury best-of-2 rolls", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "sword",
+        name: "Sword",
+        kind: "MELEE",
+        damage: { die: 10, add: 2, bonus: "SB" },
+      };
+      const actor = makeTestActor({ stats: { STR: 50 } }); // SB 5
+      const save = {
+        ...makeTestSave(storyPack, actor),
+        weaponsById: { sword: weapon },
+      };
+      // Roll 3 and 8, best is 8: 8 + 2 + 5 = 15
+      const d100For3 = FakeRng.d100ForNextInt(3, 1, 10);
+      const d100For8 = FakeRng.d100ForNextInt(8, 1, 10);
+      const rng = new FakeRng([d100For3, d100For8]);
+
+      const result = calculateWeaponDamage(save, actor, "sword", rng, 2);
+
+      expect(result.rawDamage).toBe(15); // Best of (3+2+5=10, 8+2+5=15) = 15
+    });
+
+    it("should calculate Righteous Fury best-of-3 rolls for vengeful weapon", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "vengeful_sword",
+        name: "Vengeful Sword",
+        kind: "MELEE",
+        damage: { die: 10, add: 2, bonus: "SB" },
+        tags: ["vengeful:3"],
+      };
+      const actor = makeTestActor({ stats: { STR: 50 } }); // SB 5
+      const save = {
+        ...makeTestSave(storyPack, actor),
+        weaponsById: { vengeful_sword: weapon },
+      };
+      // Roll 2, 7, 9, best is 9: 9 + 2 + 5 = 16
+      const d100For2 = FakeRng.d100ForNextInt(2, 1, 10);
+      const d100For7 = FakeRng.d100ForNextInt(7, 1, 10);
+      const d100For9 = FakeRng.d100ForNextInt(9, 1, 10);
+      const rng = new FakeRng([d100For2, d100For7, d100For9]);
+
+      const result = calculateWeaponDamage(save, actor, "vengeful_sword", rng, 3);
+
+      expect(result.rawDamage).toBe(16); // Best of (2+2+5=9, 7+2+5=14, 9+2+5=16) = 16
     });
 
     it("should calculate weapon damage without SB bonus", () => {

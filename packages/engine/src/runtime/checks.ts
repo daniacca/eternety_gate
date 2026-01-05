@@ -782,6 +782,15 @@ function performCombatAttackCheck(
     combatModifier += check.modifiers.hitBonus;
   }
 
+  // Unarmed penalty: -20 to hit if attacker is unarmed and defender has a weapon
+  const attackerWeaponId = check.attacker.weaponId ?? attacker.equipment?.weaponId ?? null;
+  const isAttackerUnarmed = !attackerWeaponId || attackerWeaponId === "unarmed";
+  const defenderWeaponId = defender.equipment?.weaponId ?? null;
+  const isDefenderArmed = defenderWeaponId && defenderWeaponId !== "unarmed";
+  if (isAttackerUnarmed && isDefenderArmed) {
+    combatModifier -= 20;
+  }
+
   // Defend: -20 to hit against defender
   if (defenderStance === "defend") {
     combatModifier -= 20;

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
 import {
   createNewGame,
   getCurrentScene,
@@ -110,6 +110,7 @@ export function PlayScreen() {
 
   const { scene, text } = getCurrentScene(brunholt as StoryPack, save);
   const choices = listAvailableChoices(brunholt as StoryPack, save);
+  const gameOver = save.runtime.gameOver;
 
   // Determine layout mode: portrait/narrow uses column, landscape/wide uses row
   const isNarrow = width < 700 || height > width;
@@ -225,8 +226,26 @@ export function PlayScreen() {
           styles={styles}
         />
 
+        {/* Game Over Panel */}
+        {gameOver && (
+          <View style={styles.gameOverPanel}>
+            <Text style={styles.gameOverTitle}>Game Over</Text>
+            <Text style={styles.gameOverText}>
+              {gameOver.reason === "playerDead" ? "Sei morto!" : "Tutti i membri del gruppo sono morti!"}
+            </Text>
+            <Pressable
+              style={styles.gameOverButton}
+              onPress={() => {
+                setSave(initialSave);
+              }}
+            >
+              <Text style={styles.gameOverButtonText}>Restart</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Combat End Banner - only show in the scene that started combat */}
-        {showCombatEnded && (
+        {showCombatEnded && !gameOver && (
           <View style={styles.combatEndBanner}>
             <Text style={styles.combatEndText}>Combat ended.</Text>
             {tags.find((t) => t.startsWith("combat:winner=")) && (
@@ -797,6 +816,39 @@ const styles = StyleSheet.create({
   specialActionButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  gameOverPanel: {
+    backgroundColor: "#1a1a1a",
+    padding: 24,
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#dc3545",
+  },
+  gameOverTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#dc3545",
+    marginBottom: 12,
+  },
+  gameOverText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  gameOverButton: {
+    backgroundColor: "#dc3545",
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  gameOverButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
