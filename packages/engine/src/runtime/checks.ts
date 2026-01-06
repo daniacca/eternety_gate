@@ -18,6 +18,7 @@ import { type IRNG } from "./rng";
 import { computeCombatModifiersFromConditions } from "./conditions";
 import { getEquippedWeaponId } from "./inventory";
 import { distanceChebyshev } from "./combat/movement";
+import { appendRuntimeLog } from "./combat/narration";
 
 /**
  * Resolves an ActorRef to an Actor
@@ -38,7 +39,7 @@ export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Ac
       let best: Actor | null = null;
       let bestValue = -Infinity;
 
-      for (const actorId of save.party.actors) {
+      for (const actorId of save.party?.actors ?? []) {
         const actor = save.actorsById[actorId];
         if (!actor) continue;
 
@@ -227,27 +228,95 @@ function computeTargetBreakdown(
 }
 
 /**
- * Performs a D100 check
+ * Outcome of a check execution, including the result and updated save state
  */
-export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
+export type CheckOutcome = { result: CheckResult; save: GameSave };
+
+/**
+ * Performs a D100 check and returns both the result and updated save.
+ * Automatically logs checks performed by party members to runtimeLog.
+ * This is the core function that handles all check execution and logging.
+ */
+export function performCheckWithSave(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckOutcome {
+  let outcome: CheckOutcome;
+
   switch (check.kind) {
-    case "single":
-      return performSingleCheck(check, storyPack, save, rng);
+    case "single": {
+      const result = performSingleCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
     case "multi":
       throw new Error(`Check kind 'multi' is not yet implemented in this vertical slice`);
-    case "opposed":
-      return performOpposedCheck(check, storyPack, save, rng);
-    case "sequence":
-      return performSequenceCheck(check, storyPack, save, rng);
-    case "magicChannel":
-      return performMagicChannelCheck(check, storyPack, save, rng);
-    case "magicEffect":
-      return performMagicEffectCheck(check, storyPack, save, rng);
+    case "opposed": {
+      const result = performOpposedCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
+    case "sequence": {
+      const result = performSequenceCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
+    case "magicChannel": {
+      const result = performMagicChannelCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
+    case "magicEffect": {
+      const result = performMagicEffectCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
     case "combatAttack":
-      return performCombatAttackCheck(check, storyPack, save, rng);
+      // performCombatAttackCheck logs defense checks internally (if defender is party member)
+      // The attack check itself will be logged by centralized logging below
+      outcome = performCombatAttackCheck(check, storyPack, save, rng);
+      break;
     default:
       throw new Error(`Unknown check kind: ${(check as any).kind}`);
   }
+
+  // Centralized logging: log check if party member performed it
+  // This applies to ALL check kinds (attack, parry/dodge, knockdown, disarm, narrative, magic, etc.)
+  // Defense checks are already logged inside performCombatAttackCheck when defender is party member
+  const updatedSave = logCheckIfPartyMember(outcome.save, outcome.result);
+
+  return {
+    result: outcome.result,
+    save: updatedSave,
+  };
+}
+
+/**
+ * Performs a D100 check and returns only the result.
+ * This is a thin wrapper around performCheckWithSave for backward compatibility.
+ * For new code that needs the updated save, use performCheckWithSave instead.
+ */
+export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
+  return performCheckWithSave(check, storyPack, save, rng).result;
+}
+
+/**
+ * Helper to log a check if the actor belongs to the party.
+ * Returns updated save with log entry if logged, or original save if not.
+ */
+export function logCheckIfPartyMember(save: GameSave, result: CheckResult | null): GameSave {
+  if (!result) return save;
+
+  const actorId = result.actorId;
+  const partyIds = new Set(save.party?.actors ?? []);
+  const actor = save.actorsById[actorId];
+  const isPartyMember = partyIds.has(actorId) || actor?.kind === "PC";
+
+  if (isPartyMember) {
+    return appendRuntimeLog(save, {
+      kind: "check",
+      check: result,
+    });
+  }
+
+  return save;
 }
 
 function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
@@ -869,11 +938,11 @@ function performCombatAttackCheck(
   storyPack: StoryPack,
   save: GameSave,
   rng: IRNG
-): CheckResult {
+): { result: CheckResult; save: GameSave } {
   // Resolve actors
   const attacker = resolveActor(check.attacker.actorRef, save);
   const defender = resolveActor(check.defender.actorRef, save);
-  if (!attacker || !defender) return null;
+  if (!attacker || !defender) return { result: null, save };
 
   // Compute attack target using centralized function
   const {
@@ -889,7 +958,7 @@ function performCombatAttackCheck(
   const attackRoll = rng.rollD100();
   const attackResult = evaluateRoll(attackRoll, attackTarget, storyPack, check.id, attacker.id);
 
-  if (!attackResult) return null;
+  if (!attackResult) return { result: null, save };
 
   // Build attack tags
   const tags = [...attackResult.tags];
@@ -945,15 +1014,18 @@ function performCombatAttackCheck(
   // If attack failed, return MISS (with correct DoF)
   if (!attackResult.success) {
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: false,
-      dos: 0,
-      dof: attackResult.dof, // Use the calculated DoF from evaluateRoll
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: false,
+        dos: 0,
+        dof: attackResult.dof, // Use the calculated DoF from evaluateRoll
+        critical: attackResult.critical,
+        tags,
+      },
+      save,
     };
   }
 
@@ -983,18 +1055,24 @@ function performCombatAttackCheck(
     tags.push("combat:defense:parryBlocked=1");
   }
 
+  // Initialize updatedSave (will be updated if defense check is logged)
+  let updatedSave = save;
+
   // If no defense, HIT
   if (defenseType === "none") {
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: true,
-      dos: attackResult.dos,
-      dof: 0,
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: true,
+        dos: attackResult.dos,
+        dof: 0,
+        critical: attackResult.critical,
+        tags,
+      },
+      save: updatedSave,
     };
   }
 
@@ -1006,18 +1084,55 @@ function performCombatAttackCheck(
   const defenseRoll = rng.rollD100();
   const defenseResult = evaluateRoll(defenseRoll, defenseTarget, storyPack, check.id, defender.id);
 
+  // Log defense check if defender belongs to party
+  if (defenseResult) {
+    const partyIds = new Set(save.party?.actors ?? []);
+    const isDefenderPartyMember = partyIds.has(defender.id) || defender.kind === "PC";
+
+    if (isDefenderPartyMember) {
+      const defenseCheckResult: CheckResult = {
+        checkId: `${check.id}:defense:${defenseType}`,
+        actorId: defender.id,
+        roll: defenseRoll,
+        target: defenseTarget,
+        success: defenseResult.success,
+        dos: defenseResult.dos,
+        dof: defenseResult.dof,
+        critical: defenseResult.critical,
+        tags: [
+          `combat:defenseType=${defenseType}`,
+          `combat:defenseStat=${defenseStatKey}`,
+          `combat:defTarget=${defenseTarget}`,
+          `combat:defRoll=${defenseRoll}`,
+          `combat:defDoS=${defenseResult.dos}`,
+          `combat:defDoF=${defenseResult.dof}`,
+          `combat:defCalc:base=${defenseBreakdown.baseValue}`,
+          `combat:defCalc:mods=${defenseBreakdown.tempModsSum}`,
+          `combat:defCalc:target=${defenseTarget}`,
+        ],
+      };
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "check",
+        check: defenseCheckResult,
+      });
+    }
+  }
+
   if (!defenseResult) {
     // Defense roll failed somehow, treat as no defense
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: true,
-      dos: attackResult.dos,
-      dof: 0,
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: true,
+        dos: attackResult.dos,
+        dof: 0,
+        critical: attackResult.critical,
+        tags,
+      },
+      save: updatedSave,
     };
   }
 
@@ -1034,15 +1149,18 @@ function performCombatAttackCheck(
   if (!defenseResult.success) {
     // Defense failed - HIT
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: true,
-      dos: attackResult.dos,
-      dof: 0,
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: true,
+        dos: attackResult.dos,
+        dof: 0,
+        critical: attackResult.critical,
+        tags,
+      },
+      save: updatedSave,
     };
   }
 
@@ -1050,15 +1168,18 @@ function performCombatAttackCheck(
   if (attackResult.dos > defenseResult.dos) {
     // Attacker wins - HIT
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: true,
-      dos: attackResult.dos - defenseResult.dos,
-      dof: 0,
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: true,
+        dos: attackResult.dos - defenseResult.dos,
+        dof: 0,
+        critical: attackResult.critical,
+        tags,
+      },
+      save: updatedSave,
     };
   } else {
     // Tie or defender wins - MISS
@@ -1067,15 +1188,18 @@ function performCombatAttackCheck(
       tags.push("combat:tie=1");
     }
     return {
-      checkId: check.id,
-      actorId: attacker.id,
-      roll: attackRoll,
-      target: attackTarget,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: attackResult.critical,
-      tags,
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: attackResult.critical,
+        tags,
+      },
+      save: updatedSave,
     };
   }
 }

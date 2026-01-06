@@ -3,7 +3,7 @@ import { IRNG, RNG } from "../rng";
 import { getCurrentTurnActorId, startCombat, advanceCombatTurn } from "./combat";
 import { appendCombatLog, appendAttackNarration } from "./narration";
 import { runNpcTurn } from "./npcAi";
-import { performCheck } from "../checks";
+import { performCheckWithSave } from "../checks";
 import { applyCombatDamageIfHit } from "./damage";
 import { distanceChebyshev } from "./movement";
 import { validateAndApplyRangedModifiers } from "./validation";
@@ -485,10 +485,14 @@ export function combatRequestAttack(
   };
 
   // Perform check (aim stance is still available here, so bonus will be applied)
-  const result = performCheck(check, storyPack, currentSave, rng);
+  // performCheckWithSave handles all logging automatically (attack + defense if party members)
+  const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng);
   if (!result) {
     return { save: currentSave };
   }
+
+  // Use the updated save from performCheckWithSave (includes all check logs)
+  currentSave = afterCheckSave;
 
   // Resolve attacker to check if it's a player actor (for lastPlayerCheck)
   const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
@@ -1116,10 +1120,13 @@ export function combatKnockdown(
     },
   };
 
-  const result = performCheck(opposedCheck, storyPack, currentSave, rng);
+  const { result, save: afterCheckSave } = performCheckWithSave(opposedCheck, storyPack, currentSave, rng);
   if (!result) {
     return { save: currentSave };
   }
+
+  // Use the updated save from performCheckWithSave (includes automatic logging)
+  currentSave = afterCheckSave;
 
   currentSave = {
     ...currentSave,
@@ -1300,10 +1307,13 @@ export function combatDisarm(
     },
   };
 
-  const result = performCheck(opposedCheck, storyPack, currentSave, rng);
+  const { result, save: afterCheckSave } = performCheckWithSave(opposedCheck, storyPack, currentSave, rng);
   if (!result) {
     return { save: currentSave };
   }
+
+  // Use the updated save from performCheckWithSave (includes automatic logging)
+  currentSave = afterCheckSave;
 
   currentSave = {
     ...currentSave,

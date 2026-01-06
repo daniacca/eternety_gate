@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { CheckResult, GameSave, RuntimeLogEntry } from "@eg/engine";
 
@@ -9,66 +9,26 @@ interface LogModalProps {
   save?: GameSave;
 }
 
-// Simple in-memory check history (last 100 checks)
-// In a real app, this would be stored in state management or persisted
-let checkHistory: Array<CheckResult & { timestamp: number }> = [];
-
 // Unified log entry type for display
 type UnifiedLogEntry = 
-  | { type: "check"; check: CheckResult; timestamp: number }
+  | { type: "check"; entry: Extract<RuntimeLogEntry, { kind: "check" }> }
   | { type: "initiative"; entry: Extract<RuntimeLogEntry, { kind: "initiative" }> }
   | { type: "damage"; entry: Extract<RuntimeLogEntry, { kind: "damage" }> }
   | { type: "system"; entry: Extract<RuntimeLogEntry, { kind: "system" }> };
 
-export function addCheckToHistory(check: CheckResult | null) {
-  if (!check) return;
-  
-  // Skip actions (marked with combat:kind=action tag) - they're not real checks
-  if (check.tags && check.tags.some((tag) => tag === "combat:kind=action")) {
-    return;
-  }
-  
-  // Avoid duplicates by checking if the last check is the same
-  const lastCheck = checkHistory[checkHistory.length - 1];
-  if (
-    lastCheck &&
-    lastCheck.checkId === check.checkId &&
-    lastCheck.roll === check.roll &&
-    lastCheck.target === check.target &&
-    lastCheck.actorId === check.actorId
-  ) {
-    return; // Already recorded
-  }
-  checkHistory.push({ ...check, timestamp: Date.now() });
-  // Keep only last 100
-  if (checkHistory.length > 100) {
-    checkHistory = checkHistory.slice(-100);
-  }
-}
-
 export function LogModal({ visible, onClose, check, save }: LogModalProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // Ensure current check is in history when modal opens
-  useEffect(() => {
-    if (check && visible) {
-      addCheckToHistory(check);
-    }
-  }, [check, visible]);
-
-  // Merge checkHistory with runtimeLog entries
+  // Build unified log from runtimeLog only (preserves engine append order)
   const unifiedLog = useMemo(() => {
     const entries: UnifiedLogEntry[] = [];
     
-    // Add checks from history
-    checkHistory.forEach((check) => {
-      entries.push({ type: "check", check, timestamp: check.timestamp });
-    });
-    
-    // Add runtime log entries (initiative, damage, system)
+    // Use runtimeLog entries in append order (chronological: oldest -> newest)
     if (save?.runtime.runtimeLog) {
       save.runtime.runtimeLog.forEach((entry) => {
-        if (entry.kind === "initiative") {
+        if (entry.kind === "check") {
+          entries.push({ type: "check", entry });
+        } else if (entry.kind === "initiative") {
           entries.push({ type: "initiative", entry });
         } else if (entry.kind === "damage") {
           entries.push({ type: "damage", entry });
@@ -78,22 +38,20 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
       });
     }
     
-    // Sort by timestamp/turnCounter (newest first)
-    entries.sort((a, b) => {
-      const aTime = a.type === "check" ? a.timestamp : (a.entry.turnCounter ?? 0);
-      const bTime = b.type === "check" ? b.timestamp : (b.entry.turnCounter ?? 0);
-      return bTime - aTime; // Descending
-    });
-    
+    // Display in chronological order (oldest -> newest)
+    // No reverse() - preserve deterministic append order
     return entries;
-  }, [save, checkHistory.length]);
+  }, [save]);
 
   const selectedEntry = selectedIndex !== null ? unifiedLog[selectedIndex] : null;
 
   // Format log entry summary for list
   const formatLogSummary = (entry: UnifiedLogEntry, idx: number) => {
     if (entry.type === "check") {
-      const c = entry.check;
+      const c = entry.entry.check;
+      if (!c) {
+        return `${idx + 1}. Check: (null)`;
+      }
       const isAction = c.tags && c.tags.some((tag) => tag === "combat:kind=action");
       if (isAction) {
         const actionType = c.checkId?.replace("combat:", "") || "Action";
@@ -103,7 +61,7 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
       const typeLabel = checkType.includes("WS") ? "WS" : checkType.includes("BS") ? "BS" : checkType.includes("allOut") ? "All-Out Attack" : checkType.includes("attack") ? "Attack" : "Check";
       return `${idx + 1}. ${typeLabel}: ${c.roll}/${c.target} ${c.success ? "✓" : "✗"} (DoS:${c.dos} DoF:${c.dof})`;
     } else if (entry.type === "initiative") {
-      return `${idx + 1}. Initiative: ${entry.entry.iniBase} + ${entry.entry.iniRoll} = ${entry.entry.iniScore}`;
+      return `${idx + 1}. Initiative: INI bonus ${entry.entry.iniBonus} + ${entry.entry.iniRoll} = ${entry.entry.iniScore}`;
     } else if (entry.type === "damage") {
       return `${idx + 1}. Damage: ${entry.entry.rawDamage} - ${entry.entry.soak} = ${entry.entry.finalDamage}`;
     } else {
@@ -151,55 +109,61 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
                   <>
                     {selectedEntry.type === "check" ? (
                       <>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Check ID:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.checkId || "N/A"}</Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Actor:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.actorId}</Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Roll:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.roll}</Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Target:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.target}</Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Result:</Text>
-                          <Text style={[styles.detailValue, selectedEntry.check.success ? styles.successText : styles.failureText]}>
-                            {selectedEntry.check.success ? "Success" : "Failure"}
-                          </Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>DoS:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.dos}</Text>
-                        </View>
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>DoF:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.check.dof}</Text>
-                        </View>
-                        {selectedEntry.check.critical !== "none" && (
-                          <View style={styles.detailSection}>
-                            <Text style={styles.detailLabel}>Critical:</Text>
-                            <Text style={styles.detailValue}>{selectedEntry.check.critical}</Text>
-                          </View>
-                        )}
-                        <View style={styles.detailSection}>
-                          <Text style={styles.detailLabel}>Tags ({selectedEntry.check.tags.length}):</Text>
-                          <View style={styles.tagsContainer}>
-                            {selectedEntry.check.tags.slice(0, 200).map((tag, idx) => (
-                              <Text key={idx} style={styles.tagText}>
-                                {tag}
+                        {selectedEntry.entry.check ? (
+                          <>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Check ID:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.checkId || "N/A"}</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Actor:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.actorId}</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Roll:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.roll}</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Target:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.target}</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Result:</Text>
+                              <Text style={[styles.detailValue, selectedEntry.entry.check.success ? styles.successText : styles.failureText]}>
+                                {selectedEntry.entry.check.success ? "Success" : "Failure"}
                               </Text>
-                            ))}
-                            {selectedEntry.check.tags.length > 200 && (
-                              <Text style={styles.tagText}>... (trimmed to 200)</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>DoS:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.dos}</Text>
+                            </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>DoF:</Text>
+                              <Text style={styles.detailValue}>{selectedEntry.entry.check.dof}</Text>
+                            </View>
+                            {selectedEntry.entry.check.critical !== "none" && (
+                              <View style={styles.detailSection}>
+                                <Text style={styles.detailLabel}>Critical:</Text>
+                                <Text style={styles.detailValue}>{selectedEntry.entry.check.critical}</Text>
+                              </View>
                             )}
-                          </View>
-                        </View>
+                            <View style={styles.detailSection}>
+                              <Text style={styles.detailLabel}>Tags ({selectedEntry.entry.check.tags.length}):</Text>
+                              <View style={styles.tagsContainer}>
+                                {selectedEntry.entry.check.tags.slice(0, 200).map((tag, idx) => (
+                                  <Text key={idx} style={styles.tagText}>
+                                    {tag}
+                                  </Text>
+                                ))}
+                                {selectedEntry.entry.check.tags.length > 200 && (
+                                  <Text style={styles.tagText}>... (trimmed to 200)</Text>
+                                )}
+                              </View>
+                            </View>
+                          </>
+                        ) : (
+                          <Text style={styles.emptyText}>Check data unavailable</Text>
+                        )}
                       </>
                     ) : selectedEntry.type === "initiative" ? (
                       <>
@@ -213,7 +177,7 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
                         </View>
                         <View style={styles.detailSection}>
                           <Text style={styles.detailLabel}>Base INI:</Text>
-                          <Text style={styles.detailValue}>{selectedEntry.entry.iniBase}</Text>
+                          <Text style={styles.detailValue}>{selectedEntry.entry.iniBonus}</Text>
                         </View>
                         <View style={styles.detailSection}>
                           <Text style={styles.detailLabel}>Roll (d10):</Text>

@@ -3,6 +3,7 @@ import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { hasCondition, getStacks, computeCombatModifiersFromConditions, removeConditionFromActor } from "../conditions";
+import { getInitiativeBonus, getCharacteristicBonus } from "../actors/bonuses";
 
 /**
  * Checks if an actor is alive (not dead)
@@ -19,7 +20,7 @@ function isActorAlive(actor: Actor | undefined): boolean {
  * - All party members (PCs) are dead
  */
 function shouldCombatEnd(save: GameSave, participants: ActorId[]): { shouldEnd: boolean; outcome?: "victory" | "defeat"; winnerId?: ActorId } {
-  const partyIds = new Set(save.party.actors);
+  const partyIds = new Set(save.party?.actors ?? []);
   const enemyIds = participants.filter((id) => !partyIds.has(id));
   
   const partyAlive = participants.filter((id) => {
@@ -51,20 +52,13 @@ function shouldCombatEnd(save: GameSave, participants: ActorId[]): { shouldEnd: 
 }
 
 /**
- * Calculates AGI bonus for movement: Math.floor(AGI / 10)
- */
-function calculateAgiBonus(agi: number | undefined): number {
-  return Math.floor((agi ?? 0) / 10);
-}
-
-/**
  * Initializes turn state for an actor based on their AGI and conditions
  */
-function initializeTurnState(actor: Actor): {
+function initializeTurnState(actor: Actor, save: GameSave): {
   moveRemaining: number;
   actionAvailable: boolean;
 } {
-  const agiBonus = calculateAgiBonus(actor.stats.AGI);
+  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI");
   const modifiers = computeCombatModifiersFromConditions(actor);
 
   // Apply fatigue and prone to movement (minimum 1)
@@ -103,32 +97,31 @@ export function startCombat(
   // Calculate initiative for each participant
   type InitiativeEntry = {
     id: ActorId;
-    iniBase: number;
+    iniBonus: number;
     iniRoll: number;
     iniScore: number;
   };
 
   const initiatives: InitiativeEntry[] = validParticipants.map((id) => {
-    const actor = save.actorsById[id];
-    const iniBase = actor.stats.INI ?? 0;
+    const iniBonus = getInitiativeBonus(save, id);
     const iniRoll = rng.nextInt(1, 10); // d10
-    const iniScore = iniBase + iniRoll;
+    const iniScore = iniBonus + iniRoll;
 
     return {
       id,
-      iniBase,
+      iniBonus,
       iniRoll,
       iniScore,
     };
   });
 
-  // Sort by iniScore desc, then iniBase desc, then actorId asc (deterministic)
+  // Sort by iniScore desc, then iniBonus desc, then actorId asc (deterministic)
   initiatives.sort((a, b) => {
     if (b.iniScore !== a.iniScore) {
       return b.iniScore - a.iniScore;
     }
-    if (b.iniBase !== a.iniBase) {
-      return b.iniBase - a.iniBase;
+    if (b.iniBonus !== a.iniBonus) {
+      return b.iniBonus - a.iniBonus;
     }
     return a.id.localeCompare(b.id);
   });
@@ -161,7 +154,7 @@ export function startCombat(
 
   // Initialize turn state for first actor
   const firstActor = save.actorsById[currentTurnActorId];
-  const initialTurnState = firstActor ? initializeTurnState(firstActor) : { moveRemaining: 0, actionAvailable: true };
+  const initialTurnState = firstActor ? initializeTurnState(firstActor, save) : { moveRemaining: 0, actionAvailable: true };
 
   // Save initial HP for each participant (for UI display of max HP)
   const initialHpByActorId: Record<ActorId, number> = {};
@@ -187,31 +180,6 @@ export function startCombat(
     initialHpByActorId,
   };
 
-  // Create debug lastCheck with position tags
-  const positionTags: string[] = [];
-  for (const id of orderedIds) {
-    const pos = positions[id];
-    positionTags.push(`combat:pos:${id}=${pos.x},${pos.y}`);
-  }
-
-  const debugCheck: CheckResult = {
-    checkId: "combat:start",
-    actorId: currentTurnActorId,
-    roll: 0,
-    target: 0,
-    success: true,
-    dos: 0,
-    dof: 0,
-    critical: "none",
-    tags: [
-      "combat:state=start",
-      `combat:order=${orderedIds.join(",")}`,
-      "combat:round=1",
-      `combat:turn=${currentTurnActorId}`,
-      ...positionTags,
-    ],
-  };
-
   // Reset combat log and initialize with start message
   const initialCombatLog = ["Il combattimento è iniziato."];
 
@@ -221,7 +189,6 @@ export function startCombat(
       ...save.runtime,
       combat: combatState,
       rngCounter: rng.getCounter(),
-      lastCheck: debugCheck,
       combatLog: initialCombatLog,
       combatLogSceneId: sceneIdForCombat,
       runtimeLog: [],
@@ -230,16 +197,26 @@ export function startCombat(
     },
   };
 
-  // Log initiative rolls for all participants
+  // Log initiative rolls - only for player-controlled actors by default
+  // TODO: Add debug flag support for revealing NPC rolls
+  const REVEAL_NPC_ROLLS = false;
+  const partyIds = new Set(save.party?.actors ?? []);
+  
   for (const entry of initiatives) {
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "initiative",
-      actorId: entry.id,
-      iniBase: entry.iniBase,
-      iniRoll: entry.iniRoll,
-      iniScore: entry.iniScore,
-      turnCounter: 0,
-    });
+    const actor = save.actorsById[entry.id];
+    const isPlayerControlled = actor?.kind === "PC" || partyIds.has(entry.id);
+    
+    // Only log if player-controlled or if debug flag is enabled
+    if (isPlayerControlled || REVEAL_NPC_ROLLS) {
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "initiative",
+        actorId: entry.id,
+        iniBonus: entry.iniBonus,
+        iniRoll: entry.iniRoll,
+        iniScore: entry.iniScore,
+        turnCounter: 0,
+      });
+    }
   }
 
   // Add turn header for first turn
@@ -363,7 +340,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   // Initialize turn state for new actor and apply condition effects
   let currentActor = updatedSave.actorsById[currentTurnActorId];
-  let newTurnState = currentActor ? initializeTurnState(currentActor) : { moveRemaining: 0, actionAvailable: true };
+  let newTurnState = currentActor ? initializeTurnState(currentActor, updatedSave) : { moveRemaining: 0, actionAvailable: true };
 
   // Apply condition effects at turn start
   if (currentActor) {

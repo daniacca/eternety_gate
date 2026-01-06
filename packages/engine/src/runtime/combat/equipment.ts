@@ -1,5 +1,6 @@
 import type { GameSave, Actor, Weapon, Armor, WeaponId, ArmorId } from "../types";
 import { getEquippedWeaponId, getEquippedArmorId } from "../inventory";
+import { getCharacteristicBonus } from "../actors/bonuses";
 
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
@@ -72,9 +73,9 @@ export function calculateWeaponDamage(
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
     // Unarmed: 1d5 + STR bonus (always applies STR bonus for unarmed)
     let bestRoll = 0;
+    const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
     for (let i = 0; i < rollsCount; i++) {
       const dieRoll = rng.nextInt(1, 5);
-      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
       const rollTotal = dieRoll + strBonus;
       if (rollTotal > bestRoll) {
         bestRoll = rollTotal;
@@ -98,7 +99,7 @@ export function calculateWeaponDamage(
     // MELEE: Always apply STR bonus
     // RANGED: Never apply STR bonus (only weapon base damage + bonuses)
     if (mode === "MELEE") {
-      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
       rollDamage += strBonus;
     }
     // Note: RANGED mode never adds STR bonus, regardless of weapon.damage.bonus

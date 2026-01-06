@@ -518,7 +518,7 @@ export type RuntimeLogEntry =
   | {
       kind: "initiative";
       actorId: ActorId;
-      iniBase: number;
+      iniBonus: number;
       iniRoll: number;
       iniScore: number;
       turnCounter?: number;

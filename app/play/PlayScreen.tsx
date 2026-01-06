@@ -23,7 +23,6 @@ import { DebugPanels } from "./components/DebugPanels";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
-import { addCheckToHistory } from "./components/LogModal";
 
 export function PlayScreen() {
   // Create a minimal 1-player party with fixed seed
@@ -132,12 +131,6 @@ export function PlayScreen() {
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
 
-  // Track check history for Log modal
-  useEffect(() => {
-    if (lastCheck) {
-      addCheckToHistory(lastCheck);
-    }
-  }, [lastCheck?.checkId, lastCheck?.roll, lastCheck?.target, lastCheck?.actorId]);
 
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(

@@ -14,6 +14,7 @@ import { resolveActor, performCheck } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { getEquippedWeaponId } from "../inventory";
+import { getCharacteristicBonus } from "../actors/bonuses";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -93,7 +94,7 @@ export function applyCombatDamageIfHit(
   if (useFallbackWeapon) {
     // Improvised melee weapon: 1d5 + STR bonus, no penetration
     let bestRoll = 0;
-    const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+    const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
     for (let i = 0; i < rollsCount; i++) {
       const dieRoll = rng.nextInt(1, 5);
       const rollTotal = dieRoll + strBonus;
@@ -115,13 +116,13 @@ export function applyCombatDamageIfHit(
     // Build formula string for logging
     const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
     if (weapon) {
-      const strBonus = mode === "MELEE" ? Math.floor((attacker.stats.STR ?? 0) / 10) : 0;
+      const strBonus = mode === "MELEE" ? getCharacteristicBonus(save, attacker.id, "STR") : 0;
       damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
       // Note: Individual rolls not captured here (would require modifying calculateWeaponDamage)
       // For now, we log the final rawDamage which is the best of rollsCount rolls
     } else {
       // Unarmed
-      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
       damageFormula = `1d5 + ${strBonus} (STR bonus)`;
       // Note: Individual rolls not captured here
     }
