@@ -33,7 +33,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0 },
+        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -123,7 +123,7 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50 } as any,
-        resources: { hp: 0, rf: 0, peq: 0 },
+        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
       });
       const save = makeTestSave(storyPack, actor1);
 
@@ -219,7 +219,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0 },
+        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -241,12 +241,12 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50, AGI: 50 } as any,
-        resources: { hp: 0, rf: 0, peq: 0 },
+        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
       });
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0 },
+        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {

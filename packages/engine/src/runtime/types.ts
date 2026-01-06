@@ -522,6 +522,7 @@ export type RuntimeLogEntry =
       iniRoll: number;
       iniScore: number;
       turnCounter?: number;
+      resolutionId?: string;
     }
   | {
       kind: "damage";
@@ -534,15 +535,18 @@ export type RuntimeLogEntry =
       soak: number;
       finalDamage: number;
       turnCounter?: number;
+      resolutionId?: string;
     }
   | {
       kind: "check";
       check: CheckResult;
+      resolutionId?: string;
     }
   | {
       kind: "system";
       message: string;
       turnCounter?: number;
+      resolutionId?: string;
     };
 
 export type Grid = { width: number; height: number };
@@ -613,6 +617,12 @@ export type GameRuntime = {
    * Extended log entries for initiative, damage rolls, and other combat events
    */
   runtimeLog?: RuntimeLogEntry[];
+
+  /**
+   * Monotonic counter for generating deterministic resolutionIds
+   * Increments each time a resolutionId is needed for correlating check and damage entries
+   */
+  runtimeLogSeq?: number;
 
   gameOver?: {
     reason: "partyDead" | "playerDead";

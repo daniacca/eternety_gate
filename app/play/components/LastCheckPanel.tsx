@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { useState, useMemo } from "react";
+import { View, Text, Pressable, StyleSheet, ScrollView, useWindowDimensions } from "react-native";
 import type { CheckResult, GameSave } from "@eg/engine";
 import { LogModal } from "./LogModal";
+import { getLastPartyCheck, getRelatedDamage } from "../utils/runtimeLogSelectors";
+import { formatCheckTitle } from "../utils/combatLogFormat";
 
 interface LastCheckPanelProps {
   check: CheckResult | null | undefined;
@@ -11,13 +13,30 @@ interface LastCheckPanelProps {
 
 export function LastCheckPanel({ check, save, styles: parentStyles }: LastCheckPanelProps) {
   const [logModalVisible, setLogModalVisible] = useState(false);
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 600;
 
-  // Extract check type from checkId
-  const checkType = check?.checkId || "Unknown Check";
-  const checkTypeLabel = checkType.includes("WS") ? "WS Test" : checkType.includes("BS") ? "BS Test" : checkType;
+  // Get last party check from runtimeLog (more reliable than lastCheck)
+  const lastCheckEntry = useMemo(() => {
+    return save?.runtime.runtimeLog ? getLastPartyCheck(save.runtime.runtimeLog) : null;
+  }, [save]);
+
+  // Get related damage entry if check has resolutionId
+  const relatedDamage = useMemo(() => {
+    if (!save?.runtime.runtimeLog || !lastCheckEntry?.resolutionId) {
+      return null;
+    }
+    return getRelatedDamage(save.runtime.runtimeLog, lastCheckEntry.resolutionId);
+  }, [save, lastCheckEntry]);
+
+  // Use check from entry if available, otherwise fallback to prop
+  const checkToDisplay = lastCheckEntry?.check || check;
+
+  // Format check title using formatter
+  const checkTypeLabel = checkToDisplay?.checkId ? formatCheckTitle(checkToDisplay.checkId, save) : "Unknown Check";
 
   // Extract modifiers from tags
-  const modifierTags = check?.tags.filter((t) => t.startsWith("mod:") || t.startsWith("combat:")) || [];
+  const modifierTags = checkToDisplay?.tags.filter((t) => t.startsWith("mod:") || t.startsWith("combat:")) || [];
 
   return (
     <>
@@ -29,45 +48,82 @@ export function LastCheckPanel({ check, save, styles: parentStyles }: LastCheckP
           </Pressable>
         </View>
 
-        <ScrollView style={styles.scrollContent} nestedScrollEnabled>
-          {!check ? (
-            <Text style={styles.emptyText}>No check performed yet</Text>
-          ) : (
-            <View style={styles.content}>
-              <Text style={styles.checkType}>{checkTypeLabel}</Text>
-              <Text style={styles.rollInfo}>
-                Roll: <Text style={styles.rollValue}>{check.roll}</Text> vs Target: <Text style={styles.targetValue}>{check.target}</Text>
-              </Text>
-              <Text style={check.success ? styles.successText : styles.failureText}>
-                {check.success ? "✓ Success" : "✗ Failure"}
-              </Text>
-              <Text style={styles.dosDof}>
-                DoS: {check.dos} | DoF: {check.dof}
-              </Text>
-              {check.critical !== "none" && (
-                <Text style={styles.criticalText}>Critical: {check.critical}</Text>
-              )}
+        <View style={[styles.splitContainer, isNarrow && styles.splitContainerNarrow]}>
+          {/* LEFT: Last d100 Check */}
+          <View style={[styles.splitSection, isNarrow && styles.splitSectionFull]}>
+            <Text style={styles.sectionTitle}>Last d100</Text>
+            <ScrollView style={styles.scrollContent} nestedScrollEnabled>
+              {!checkToDisplay ? (
+                <Text style={styles.emptyText}>No check performed yet</Text>
+              ) : (
+                <View style={styles.content}>
+                  <Text style={styles.checkType}>{checkTypeLabel}</Text>
+                  <Text style={styles.rollInfo}>
+                    Roll: <Text style={styles.rollValue}>{checkToDisplay.roll}</Text> vs Target:{" "}
+                    <Text style={styles.targetValue}>{checkToDisplay.target}</Text>
+                  </Text>
+                  <Text style={checkToDisplay.success ? styles.successText : styles.failureText}>
+                    {checkToDisplay.success ? "✓ Success" : "✗ Failure"}
+                  </Text>
+                  <Text style={styles.dosDof}>
+                    DoS: {checkToDisplay.dos} | DoF: {checkToDisplay.dof}
+                  </Text>
+                  {checkToDisplay.critical !== "none" && (
+                    <Text style={styles.criticalText}>Critical: {checkToDisplay.critical}</Text>
+                  )}
 
-              {/* Modifiers */}
-              {modifierTags.length > 0 && (
-                <View style={styles.modifiersSection}>
-                  <Text style={styles.modifiersLabel}>Modifiers:</Text>
-                  {modifierTags.slice(0, 5).map((tag, idx) => (
-                    <Text key={idx} style={styles.modifierText}>
-                      {tag.replace("mod:", "").replace("combat:", "")}
-                    </Text>
-                  ))}
-                  {modifierTags.length > 5 && (
-                    <Text style={styles.modifierText}>... and {modifierTags.length - 5} more</Text>
+                  {/* Modifiers */}
+                  {modifierTags.length > 0 && (
+                    <View style={styles.modifiersSection}>
+                      <Text style={styles.modifiersLabel}>Modifiers:</Text>
+                      {modifierTags.slice(0, 3).map((tag, idx) => (
+                        <Text key={idx} style={styles.modifierText}>
+                          {tag.replace("mod:", "").replace("combat:", "")}
+                        </Text>
+                      ))}
+                      {modifierTags.length > 3 && (
+                        <Text style={styles.modifierText}>... and {modifierTags.length - 3} more</Text>
+                      )}
+                    </View>
                   )}
                 </View>
               )}
-            </View>
-          )}
-        </ScrollView>
+            </ScrollView>
+          </View>
+
+          {/* RIGHT: Related Damage */}
+          <View style={[styles.splitSection, isNarrow && styles.splitSectionFull]}>
+            <Text style={styles.sectionTitle}>Related Damage</Text>
+            <ScrollView style={styles.scrollContent} nestedScrollEnabled>
+              {!lastCheckEntry?.resolutionId ? (
+                <Text style={styles.emptyText}>No resolution ID</Text>
+              ) : !relatedDamage ? (
+                <Text style={styles.emptyText}>No damage (miss/parry/dodge)</Text>
+              ) : (
+                <View style={styles.content}>
+                  <Text style={styles.damageLabel}>Final Damage: {relatedDamage.finalDamage}</Text>
+                  <Text style={styles.damageDetail}>
+                    Raw: {relatedDamage.rawDamage} - Soak: {relatedDamage.soak}
+                  </Text>
+                  {relatedDamage.formula && (
+                    <Text style={styles.damageFormula}>Formula: {relatedDamage.formula}</Text>
+                  )}
+                  {relatedDamage.rolls && relatedDamage.rolls.length > 0 && (
+                    <Text style={styles.damageRolls}>
+                      Rolls: {relatedDamage.rolls.join(", ")}
+                    </Text>
+                  )}
+                  {relatedDamage.weaponId && (
+                    <Text style={styles.damageWeapon}>Weapon: {relatedDamage.weaponId}</Text>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
       </View>
 
-      <LogModal visible={logModalVisible} onClose={() => setLogModalVisible(false)} check={check || null} save={save} />
+      <LogModal visible={logModalVisible} onClose={() => setLogModalVisible(false)} check={checkToDisplay || null} save={save} />
     </>
   );
 }
@@ -101,6 +157,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#fff",
     fontWeight: "600",
+  },
+  splitContainer: {
+    flexDirection: "row",
+    gap: 8,
+    flex: 1,
+  },
+  splitContainerNarrow: {
+    flexDirection: "column",
+  },
+  splitSection: {
+    flex: 1,
+    minHeight: 100,
+  },
+  splitSectionFull: {
+    flex: 1,
+    minHeight: 80,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 4,
   },
   scrollContent: {
     flex: 1,
@@ -161,6 +239,34 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#666",
     marginBottom: 2,
+  },
+  damageLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#dc3545",
+    marginBottom: 4,
+  },
+  damageDetail: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+  damageFormula: {
+    fontSize: 11,
+    color: "#888",
+    fontFamily: "monospace",
+    marginBottom: 2,
+  },
+  damageRolls: {
+    fontSize: 11,
+    color: "#888",
+    fontFamily: "monospace",
+    marginBottom: 2,
+  },
+  damageWeapon: {
+    fontSize: 11,
+    color: "#888",
+    marginTop: 4,
   },
 });
 

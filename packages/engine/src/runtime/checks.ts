@@ -237,7 +237,13 @@ export type CheckOutcome = { result: CheckResult; save: GameSave };
  * Automatically logs checks performed by party members to runtimeLog.
  * This is the core function that handles all check execution and logging.
  */
-export function performCheckWithSave(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckOutcome {
+export function performCheckWithSave(
+  check: Check,
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG,
+  resolutionId?: string
+): CheckOutcome {
   let outcome: CheckOutcome;
 
   switch (check.kind) {
@@ -271,7 +277,7 @@ export function performCheckWithSave(check: Check, storyPack: StoryPack, save: G
     case "combatAttack":
       // performCombatAttackCheck logs defense checks internally (if defender is party member)
       // The attack check itself will be logged by centralized logging below
-      outcome = performCombatAttackCheck(check, storyPack, save, rng);
+      outcome = performCombatAttackCheck(check, storyPack, save, rng, resolutionId);
       break;
     default:
       throw new Error(`Unknown check kind: ${(check as any).kind}`);
@@ -280,7 +286,7 @@ export function performCheckWithSave(check: Check, storyPack: StoryPack, save: G
   // Centralized logging: log check if party member performed it
   // This applies to ALL check kinds (attack, parry/dodge, knockdown, disarm, narrative, magic, etc.)
   // Defense checks are already logged inside performCombatAttackCheck when defender is party member
-  const updatedSave = logCheckIfPartyMember(outcome.save, outcome.result);
+  const updatedSave = logCheckIfPartyMember(outcome.save, outcome.result, resolutionId);
 
   return {
     result: outcome.result,
@@ -301,7 +307,7 @@ export function performCheck(check: Check, storyPack: StoryPack, save: GameSave,
  * Helper to log a check if the actor belongs to the party.
  * Returns updated save with log entry if logged, or original save if not.
  */
-export function logCheckIfPartyMember(save: GameSave, result: CheckResult | null): GameSave {
+export function logCheckIfPartyMember(save: GameSave, result: CheckResult | null, resolutionId?: string): GameSave {
   if (!result) return save;
 
   const actorId = result.actorId;
@@ -313,6 +319,7 @@ export function logCheckIfPartyMember(save: GameSave, result: CheckResult | null
     return appendRuntimeLog(save, {
       kind: "check",
       check: result,
+      resolutionId,
     });
   }
 
@@ -937,7 +944,8 @@ function performCombatAttackCheck(
   check: CombatAttackCheck,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  resolutionId?: string
 ): { result: CheckResult; save: GameSave } {
   // Resolve actors
   const attacker = resolveActor(check.attacker.actorRef, save);
@@ -1114,6 +1122,7 @@ function performCombatAttackCheck(
       updatedSave = appendRuntimeLog(updatedSave, {
         kind: "check",
         check: defenseCheckResult,
+        resolutionId,
       });
     }
   }

@@ -25,7 +25,8 @@ export function applyCombatDamageIfHit(
   result: CheckResult,
   save: GameSave,
   rng: IRNG,
-  storyPack?: StoryPack
+  storyPack?: StoryPack,
+  resolutionId?: string
 ): {
   save: GameSave;
   didApplyDamage: boolean;
@@ -398,6 +399,7 @@ export function applyCombatDamageIfHit(
       soak: effectiveSoak,
       finalDamage,
       turnCounter,
+      resolutionId,
     });
   }
 

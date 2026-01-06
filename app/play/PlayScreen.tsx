@@ -18,6 +18,7 @@ import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
 import { LastCheckPanel } from "./components/LastCheckPanel";
+import { InitiativeOrderPanel } from "./components/InitiativeOrderPanel";
 import { ChoiceList } from "./components/ChoiceList";
 import { DebugPanels } from "./components/DebugPanels";
 import { PlayerHud } from "./components/PlayerHud";
@@ -386,6 +387,9 @@ const styles = StyleSheet.create({
     position: "relative",
     minHeight: 200,
   },
+  initiativeOrderPanel: {
+    padding: 0,
+  },
   gameAreaTitle: {
     fontSize: 20,
     fontWeight: "600",
@@ -494,6 +498,17 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 2,
     fontFamily: "monospace",
+  },
+  initiativeOverlay: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    maxWidth: 150,
   },
   content: {
     padding: 20,

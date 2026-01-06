@@ -2747,14 +2747,6 @@ describe("Combat system", () => {
     expect(combatSave.runtime.combat?.participants.length).toBe(2);
     expect(combatSave.runtime.combat?.round).toBe(1);
     expect(combatSave.runtime.combat?.currentIndex).toBe(0);
-
-    // Verify order tag exists
-    const lastCheck = combatSave.runtime.lastCheck;
-    expect(lastCheck).toBeDefined();
-    expect(lastCheck?.tags).toContain("combat:state=start");
-    expect(lastCheck?.tags.some((t) => t.startsWith("combat:order="))).toBe(true);
-    expect(lastCheck?.tags).toContain("combat:round=1");
-    expect(lastCheck?.tags.some((t) => t.startsWith("combat:turn="))).toBe(true);
   });
 
   it("getCurrentTurnActorId returns current turn actor", () => {
@@ -2913,7 +2905,7 @@ describe("Combat system", () => {
   it("advanceCombatTurn removes KO participants and ends combat when one side remains", () => {
     const storyPack = makeTestStoryPack();
     const pc = makeTestActor({ id: "PC_1", resources: { hp: 1, rf: 0, peq: 0 } });
-    const npc = makeTestActor({ id: "NPC_1", resources: { hp: 0, rf: 0, peq: 0 } }); // Already KO
+    const npc = makeTestActor({ id: "NPC_1", resources: { hp: 0, rf: 0, peq: 0, isDead: true } }); // Already dead
     const save = makeTestSave(storyPack, pc);
     save.actorsById["NPC_1"] = npc;
 
@@ -3624,23 +3616,27 @@ describe("Combat system", () => {
       const testSave = { ...save, runtime: { ...save.runtime, rngSeed: 12345, rngCounter: 0 } };
       let combatSave = startCombat(storyPack, testSave, ["PC_1", "NPC_1"], undefined, grid, placements);
 
-      // Add duplicate tags to lastCheck
+      // Add duplicate tags to lastCheck (create one if it doesn't exist)
       combatSave = {
         ...combatSave,
         runtime: {
           ...combatSave.runtime,
-          lastCheck: combatSave.runtime.lastCheck
-            ? {
-                ...combatSave.runtime.lastCheck,
-                tags: [
-                  ...combatSave.runtime.lastCheck.tags,
-                  "combat:round=1",
-                  "combat:turn=PC_1",
-                  "combat:round=2", // duplicate
-                  "combat:turn=NPC_1", // duplicate
-                ],
-              }
-            : null,
+          lastCheck: {
+            checkId: "test:check",
+            actorId: "PC_1",
+            roll: 50,
+            target: 50,
+            success: true,
+            dos: 0,
+            dof: 0,
+            critical: "none",
+            tags: [
+              "combat:round=1",
+              "combat:turn=PC_1",
+              "combat:round=2", // duplicate
+              "combat:turn=NPC_1", // duplicate
+            ],
+          },
         },
       };
 

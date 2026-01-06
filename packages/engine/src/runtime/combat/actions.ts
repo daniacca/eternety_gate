@@ -1,7 +1,7 @@
 import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck, ItemRef, CheckResult } from "../types";
 import { IRNG, RNG } from "../rng";
 import { getCurrentTurnActorId, startCombat, advanceCombatTurn } from "./combat";
-import { appendCombatLog, appendAttackNarration } from "./narration";
+import { appendCombatLog, appendAttackNarration, nextRuntimeSeq } from "./narration";
 import { runNpcTurn } from "./npcAi";
 import { performCheckWithSave } from "../checks";
 import { applyCombatDamageIfHit } from "./damage";
@@ -484,9 +484,15 @@ export function combatRequestAttack(
     },
   };
 
+  // Generate deterministic resolutionId for this attack resolution
+  // This will correlate the attack check, defense check (if any), and damage entry
+  const { save: saveWithSeq, seq } = nextRuntimeSeq(currentSave);
+  const resolutionId = `res:${seq}`;
+  currentSave = saveWithSeq;
+
   // Perform check (aim stance is still available here, so bonus will be applied)
   // performCheckWithSave handles all logging automatically (attack + defense if party members)
-  const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng);
+  const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng, resolutionId);
   if (!result) {
     return { save: currentSave };
   }
@@ -529,8 +535,8 @@ export function combatRequestAttack(
     },
   };
 
-  // Apply damage if hit
-  const damageResult = applyCombatDamageIfHit(check, result, currentSave, rng, storyPack);
+  // Apply damage if hit (pass resolutionId to correlate with check)
+  const damageResult = applyCombatDamageIfHit(check, result, currentSave, rng, storyPack, resolutionId);
   currentSave = damageResult.save;
 
   // Handle death and game over

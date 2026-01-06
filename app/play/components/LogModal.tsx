@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { CheckResult, GameSave, RuntimeLogEntry } from "@eg/engine";
+import { formatCheckTitle } from "../utils/combatLogFormat";
 
 interface LogModalProps {
   visible: boolean;
@@ -52,14 +53,8 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
       if (!c) {
         return `${idx + 1}. Check: (null)`;
       }
-      const isAction = c.tags && c.tags.some((tag) => tag === "combat:kind=action");
-      if (isAction) {
-        const actionType = c.checkId?.replace("combat:", "") || "Action";
-        return `${idx + 1}. Action: ${actionType}`;
-      }
-      const checkType = c.checkId || "Unknown";
-      const typeLabel = checkType.includes("WS") ? "WS" : checkType.includes("BS") ? "BS" : checkType.includes("allOut") ? "All-Out Attack" : checkType.includes("attack") ? "Attack" : "Check";
-      return `${idx + 1}. ${typeLabel}: ${c.roll}/${c.target} ${c.success ? "✓" : "✗"} (DoS:${c.dos} DoF:${c.dof})`;
+      const checkTitle = formatCheckTitle(c.checkId || "", save);
+      return `${idx + 1}. ${checkTitle}: ${c.roll}/${c.target} ${c.success ? "✓" : "✗"} (DoS:${c.dos} DoF:${c.dof})`;
     } else if (entry.type === "initiative") {
       return `${idx + 1}. Initiative: INI bonus ${entry.entry.iniBonus} + ${entry.entry.iniRoll} = ${entry.entry.iniScore}`;
     } else if (entry.type === "damage") {
@@ -112,8 +107,8 @@ export function LogModal({ visible, onClose, check, save }: LogModalProps) {
                         {selectedEntry.entry.check ? (
                           <>
                             <View style={styles.detailSection}>
-                              <Text style={styles.detailLabel}>Check ID:</Text>
-                              <Text style={styles.detailValue}>{selectedEntry.entry.check.checkId || "N/A"}</Text>
+                              <Text style={styles.detailLabel}>Check:</Text>
+                              <Text style={styles.detailValue}>{formatCheckTitle(selectedEntry.entry.check.checkId || "", save)}</Text>
                             </View>
                             <View style={styles.detailSection}>
                               <Text style={styles.detailLabel}>Actor:</Text>

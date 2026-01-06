@@ -104,6 +104,26 @@ export function appendAttackNarration(
 }
 
 /**
+ * Generates the next deterministic resolutionId sequence number.
+ * Returns updated save with incremented runtimeLogSeq and the new sequence number.
+ */
+export function nextRuntimeSeq(save: GameSave): { save: GameSave; seq: number } {
+  const currentSeq = save.runtime.runtimeLogSeq ?? 0;
+  const nextSeq = currentSeq + 1;
+
+  return {
+    save: {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        runtimeLogSeq: nextSeq,
+      },
+    },
+    seq: nextSeq,
+  };
+}
+
+/**
  * Helper to append a runtime log entry (initiative, damage, system messages)
  * Returns a NEW save with the log entry appended
  */

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { getCurrentTurnActorId, type GameSave } from "@eg/engine";
+import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
 
 interface CombatGridProps {
   containerWidth: number;
@@ -205,6 +206,13 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
         )}
         {distance !== null && <Text style={styles.overlayText}>distChebyshev = {distance}</Text>}
       </View>
+
+      {/* Initiative Order Panel - overlay in upper right */}
+      {combat?.active && (
+        <View style={styles.initiativeOverlay}>
+          <InitiativeOrderPanel save={save} styles={styles} />
+        </View>
+      )}
     </View>
   );
 }
