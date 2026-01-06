@@ -157,7 +157,11 @@ export function combatMove(
     dos: 0,
     dof: 0,
     critical: "none" as const,
-    tags: [`combat:move=${effect.dir}`, `combat:pos:${turnActorId}=${newPos.x},${newPos.y}`],
+    tags: [
+      `combat:move=${effect.dir}`,
+      `combat:pos:${turnActorId}=${newPos.x},${newPos.y}`,
+      "combat:kind=action", // Mark as action, not a check
+    ],
   };
 
   const actor = save.actorsById[turnActorId];
@@ -275,7 +279,7 @@ export function combatDefend(
     dos: 0,
     dof: 0,
     critical: "none" as const,
-    tags: ["combat:defend=1", "combat:stance=defend"],
+    tags: ["combat:defend=1", "combat:stance=defend", "combat:kind=action"],
   };
 
   let updatedSave: GameSave = {
@@ -424,8 +428,10 @@ export function combatRequestAttack(
   }
 
   // Build CombatAttackCheck
+  // Include mode and special modifiers in checkId for better identification
+  const checkIdSuffix = effect.modifiers?.hitBonus === 20 ? ":allOut" : "";
   const check: CombatAttackCheck = {
-    id: `combat:requestAttack:${effect.attackerId}:${effect.defenderId}`,
+    id: `combat:requestAttack:${effect.mode.toLowerCase()}:${effect.attackerId}:${effect.defenderId}${checkIdSuffix}`,
     kind: "combatAttack",
     attacker: {
       actorRef: { mode: "byId", actorId: effect.attackerId },
@@ -459,13 +465,15 @@ export function combatRequestAttack(
     }
   }
 
-  // Consume action
+  // Consume action (but NOT aim stance yet - it needs to be available during check calculation)
+  // IMPORTANT: Include stancesByActorId so aim stance is available during check
   const combatWithActionConsumed = {
     ...combat,
     turn: {
       ...combat.turn,
       actionAvailable: false,
     },
+    stancesByActorId: combat.stancesByActorId, // Keep aim stance for check calculation
   };
 
   let currentSave: GameSave = {
@@ -476,18 +484,43 @@ export function combatRequestAttack(
     },
   };
 
-  // Perform check
+  // Perform check (aim stance is still available here, so bonus will be applied)
   const result = performCheck(check, storyPack, currentSave, rng);
   if (!result) {
     return { save: currentSave };
   }
 
-  // Update lastCheck
+  // Resolve attacker to check if it's a player actor (for lastPlayerCheck)
+  const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
+  const isPlayerActor = attacker?.kind === "PC";
+
+  // NOW consume aim stance if this was a ranged attack (after check is performed)
+  let updatedStancesByActorId = combat.stancesByActorId;
+  if (effect.mode === "RANGED" && updatedStancesByActorId?.[effect.attackerId] === "aim") {
+    updatedStancesByActorId = {
+      ...updatedStancesByActorId,
+    };
+    delete updatedStancesByActorId[effect.attackerId];
+    currentSave = {
+      ...currentSave,
+      runtime: {
+        ...currentSave.runtime,
+        combat: {
+          ...currentSave.runtime.combat!,
+          stancesByActorId: updatedStancesByActorId,
+        },
+      },
+    };
+  }
+
+  // Update lastCheck and lastPlayerCheck (for UI)
+  // This ensures checks from emitted effects (like All-Out Attack) are visible in the UI
   currentSave = {
     ...currentSave,
     runtime: {
       ...currentSave.runtime,
       lastCheck: result,
+      lastPlayerCheck: isPlayerActor ? result : currentSave.runtime.lastPlayerCheck,
       rngCounter: rng.getCounter(),
     },
   };
@@ -527,9 +560,11 @@ export function combatRequestAttack(
   }
 
   // Add narration for attack result (consolidated function)
-  const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
+  // attacker is already resolved above (line 493)
   const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
-  currentSave = appendAttackNarration(currentSave, attacker, defender, result);
+  if (attacker && defender) {
+    currentSave = appendAttackNarration(currentSave, attacker, defender, result);
+  }
 
   // Handle KO and end combat if needed (use targetKo from damageResult)
   if (damageResult.targetKo && currentSave.runtime.combat?.active) {
@@ -710,6 +745,7 @@ export function combatAllOut(
   const weaponId = getEquippedWeaponId(attacker);
 
   // Emit combatRequestAttack effect with explicit +20 hitBonus modifier
+  // The check will be performed by combatRequestAttack and will be recorded in lastCheck
   const attackEffect: Effect = {
     op: "combatRequestAttack",
     attackerId: turnActorId,
@@ -790,13 +826,20 @@ export function combatAim(
     };
   }
 
+  // Set aim stance and consume action + all movement
+  const updatedStancesByActorId = {
+    ...(combat.stancesByActorId || {}),
+    [turnActorId]: "aim" as const,
+  };
+
   const updatedCombat = {
     ...combat,
     turn: {
       ...combat.turn,
       actionAvailable: false,
-      // Future: add aimed flag here
+      moveRemaining: 0, // Consume all movement
     },
+    stancesByActorId: updatedStancesByActorId,
   };
 
   const aimCheck = {
@@ -808,7 +851,7 @@ export function combatAim(
     dos: 0,
     dof: 0,
     critical: "none" as const,
-    tags: ["combat:aim=1"],
+    tags: ["combat:aim=1", "combat:kind=action", "combat:stance=aim"],
   };
 
   let updatedSave: GameSave = {

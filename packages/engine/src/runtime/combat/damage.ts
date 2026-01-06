@@ -7,6 +7,7 @@ import type {
   SingleCheck,
   StoryPack,
   StatKey,
+  WeaponId,
 } from "../types";
 import type { IRNG } from "../rng";
 import { resolveActor, performCheck } from "../checks";
@@ -46,19 +47,31 @@ export function applyCombatDamageIfHit(
 
   // Get weapon ID from check or actor equipment
   const weaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
-  const isUnarmed = !weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId];
-  const finalWeaponId = isUnarmed ? "unarmed" : weaponId;
+  const mode = check.attacker.mode; // MELEE or RANGED
+
+  // Check if weapon is melee-capable for the current mode
+  const weapon = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
+  const isUnarmed = !weaponId || weaponId === "unarmed" || !weapon;
+
+  // Fallback: if MELEE attack with RANGED weapon, treat as improvised
+  let finalWeaponId: WeaponId | "unarmed" | "improvised" = isUnarmed ? "unarmed" : weaponId;
+  let useFallbackWeapon = false;
+  if (mode === "MELEE" && weapon && weapon.kind === "RANGED") {
+    // Using ranged weapon in melee: fallback to improvised
+    useFallbackWeapon = true;
+    finalWeaponId = "improvised";
+  }
 
   // Righteous Fury: check for critical success
   const isCriticalSuccess = result.critical === "autoSuccess" || result.critical === "epicSuccess";
   let rollsCount = 1;
-  if (isCriticalSuccess && !isUnarmed) {
-    const weapon = save.weaponsById?.[finalWeaponId];
+  if (isCriticalSuccess && !isUnarmed && !useFallbackWeapon) {
+    const weaponForFury = save.weaponsById?.[finalWeaponId];
     // Base rolls = 2 for all weapons
     rollsCount = 2;
     // Check for vengeful trait in tags (e.g., "vengeful" or "vengeful:3")
-    if (weapon && weapon.tags) {
-      const vengefulTag = weapon.tags.find((tag) => tag.startsWith("vengeful"));
+    if (weaponForFury && weaponForFury.tags) {
+      const vengefulTag = weaponForFury.tags.find((tag) => tag.startsWith("vengeful"));
       if (vengefulTag) {
         // Parse numeric value if present (e.g., "vengeful:3" -> 3)
         const match = vengefulTag.match(/vengeful:(\d+)/);
@@ -71,18 +84,37 @@ export function applyCombatDamageIfHit(
   }
 
   // Calculate raw damage with weapon (using passed RNG for determinism)
-  const {
-    rawDamage,
-    weaponName,
-    weaponId: calculatedWeaponId,
-  } = calculateWeaponDamage(save, attacker, weaponId, rng, rollsCount);
+  let rawDamage: number;
+  let weaponName: string;
+  let calculatedWeaponId: WeaponId | "unarmed" | "improvised";
+
+  if (useFallbackWeapon) {
+    // Improvised melee weapon: 1d5 + STR bonus, no penetration
+    let bestRoll = 0;
+    for (let i = 0; i < rollsCount; i++) {
+      const dieRoll = rng.nextInt(1, 5);
+      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      const rollTotal = dieRoll + strBonus;
+      if (rollTotal > bestRoll) {
+        bestRoll = rollTotal;
+      }
+    }
+    rawDamage = bestRoll;
+    weaponName = "Arma di fortuna";
+    calculatedWeaponId = "improvised";
+  } else {
+    const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount);
+    rawDamage = result.rawDamage;
+    weaponName = result.weaponName;
+    calculatedWeaponId = result.weaponId;
+  }
 
   // Get defender armor soak
   const { soak, armorId, name: armorName } = getActorArmor(save, defender);
 
-  // Unarmed rules: double armor soak unless attacker has natural weapon flag
+  // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
-  if (isUnarmed) {
+  if (isUnarmed || useFallbackWeapon) {
     const hasNaturalWeapon = attacker.tags?.includes("natural_weapon") || attacker.traits?.includes("natural_weapon");
     if (!hasNaturalWeapon) {
       effectiveSoak = soak * 2;
@@ -254,7 +286,8 @@ export function applyCombatDamageIfHit(
             `combat:defHpAfter=${hpAfter}`,
             ...(hpAfter === 0 ? ["combat:defDown=1"] : []),
             ...(isCriticalSuccess ? ["combat:righteousFury=1", `combat:righteousFury:rolls=${rollsCount}`] : []),
-            ...(isUnarmed ? ["combat:unarmed=1"] : []),
+            ...(isUnarmed ? ["combat:unarmed=1", "combat:fallbackWeapon=unarmed"] : []),
+            ...(useFallbackWeapon ? ["combat:fallbackWeapon=improvised"] : []),
             ...(criticalDamage > 0 ? [`combat:criticalDamage=${criticalDamage}`] : []),
           ],
         }
@@ -272,9 +305,19 @@ export function applyCombatDamageIfHit(
 
   // Add narration
   const defenderName = defender.name || "il bersaglio";
-  const weaponIdForName = finalWeaponId === "unarmed" ? "unarmed" : finalWeaponId;
-  const weaponNameForLog =
-    weaponIdForName === "unarmed" ? "i pugni" : save.weaponsById?.[weaponIdForName]?.name || "l'arma";
+  let weaponNameForLog: string;
+  if (useFallbackWeapon) {
+    weaponNameForLog = "un'arma di fortuna";
+  } else if (calculatedWeaponId === "unarmed") {
+    weaponNameForLog = "i pugni";
+  } else {
+    weaponNameForLog = save.weaponsById?.[calculatedWeaponId]?.name || "l'arma";
+  }
+
+  // Add fallback narration if using improvised weapon
+  if (useFallbackWeapon && attacker.kind === "PC") {
+    updatedSave = appendCombatLog(updatedSave, "Usi in mischia un'arma di fortuna.");
+  }
 
   if (finalDamage === 0) {
     updatedSave = appendCombatLog(

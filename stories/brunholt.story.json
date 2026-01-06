@@ -1863,22 +1863,21 @@
         },
         {
           "id": "combat_ranged_long_heavy",
-          "label": "Tiro a distanza (LONG + HEAVY cover)",
+          "label": "Tiro a distanza",
           "checks": [
             {
               "id": "atk_ranged_long_heavy",
               "kind": "combatAttack",
               "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
               "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" },
-              "modifiers": { "rangeBand": "LONG", "cover": "HEAVY" }
+              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" }
             }
           ],
           "effects": []
         },
         {
           "id": "combat_ranged_called_shot",
-          "label": "Tiro mirato (called shot, SHORT)",
+          "label": "Tiro mirato (called shot)",
           "checks": [
             {
               "id": "atk_ranged_called_shot",
@@ -1886,7 +1885,7 @@
               "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
               "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
               "defense": { "allowParry": false, "allowDodge": true, "strategy": "preferDodge" },
-              "modifiers": { "rangeBand": "SHORT", "calledShot": true, "cover": "NONE" }
+              "modifiers": { "calledShot": true }
             }
           ],
           "effects": []

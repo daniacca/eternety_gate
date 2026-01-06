@@ -636,7 +636,9 @@ describe("damage", () => {
         },
       };
       const d100For6 = FakeRng.d100ForNextInt(6, 1, 10);
-      const rng = new FakeRng([d100For6]); // Roll 6: 6 + 2 = 8 raw damage
+      // Attacker has STR 50 (default) -> SB 5
+      // Roll 6 + add 2 + STR bonus 5 = 13 raw damage
+      const rng = new FakeRng([d100For6]);
 
       const check: CombatAttackCheck = {
         id: "test_check",
@@ -669,13 +671,13 @@ describe("damage", () => {
 
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("existing_tag");
-      expect(lastCheck?.tags).toContain("combat:damage:raw=8");
+      expect(lastCheck?.tags).toContain("combat:damage:raw=13"); // 6 + 2 + 5 (STR bonus)
       expect(lastCheck?.tags).toContain("combat:soak=3");
-      expect(lastCheck?.tags).toContain("combat:damage:final=5");
+      expect(lastCheck?.tags).toContain("combat:damage:final=10"); // 13 - 3
       expect(lastCheck?.tags).toContain("combat:weapon=sword");
       expect(lastCheck?.tags).toContain("combat:armor=leather");
       expect(lastCheck?.tags).toContain("combat:defHpBefore=100");
-      expect(lastCheck?.tags).toContain("combat:defHpAfter=95");
+      expect(lastCheck?.tags).toContain("combat:defHpAfter=90"); // 100 - 10
     });
 
     it("should use weaponId from check if provided", () => {
@@ -726,7 +728,9 @@ describe("damage", () => {
         },
       };
       const d100For5 = FakeRng.d100ForNextInt(5, 1, 10);
-      const rng = new FakeRng([d100For5]); // Roll 5: 5 + 3 = 8 (using axe from check)
+      // Attacker has STR 50 (default) -> SB 5
+      // Roll 5 + add 3 + STR bonus 5 = 13 (using axe from check)
+      const rng = new FakeRng([d100For5]);
 
       const check: CombatAttackCheck = {
         id: "test_check",
@@ -758,9 +762,92 @@ describe("damage", () => {
 
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
-      expect(damageResult.finalDamage).toBe(8); // Using axe damage (5 + 3)
+      expect(damageResult.finalDamage).toBe(13); // Using axe damage (5 + 3 + 5 STR bonus)
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:weapon=axe");
+    });
+
+    it("should use improvised weapon fallback when using ranged weapon in melee", () => {
+      const storyPack = makeTestStoryPack();
+      const rangedWeapon: Weapon = {
+        id: "bow",
+        name: "Bow",
+        kind: "RANGED",
+        damage: { die: 10, add: 3 },
+      };
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 50 }, // STR 50 -> SB 5
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { hp: 100, rf: 100, peq: 100 },
+      });
+      const save = {
+        ...makeTestSave(storyPack, attacker),
+        weaponsById: { bow: rangedWeapon },
+        runtime: {
+          ...makeTestSave(storyPack, attacker).runtime,
+          lastCheck: {
+            checkId: "test_check",
+            actorId: attacker.id,
+            roll: 30,
+            target: 40,
+            success: true,
+            dos: 10,
+            dof: 0,
+            critical: "none" as const,
+            tags: [],
+          },
+        },
+      };
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      // Improvised: 1d5 + STR bonus (SB 5)
+      const d100For3 = FakeRng.d100ForNextInt(3, 1, 5);
+      const rng = new FakeRng([d100For3]); // Roll 3: 3 + 5 = 8 improvised damage
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: {
+          actorRef: { mode: "byId", actorId: attacker.id },
+          mode: "MELEE", // MELEE attack with RANGED weapon
+          weaponId: "bow",
+        },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 30,
+        target: 40,
+        success: true,
+        dos: 10,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+
+      // Improvised damage: 3 (roll) + 5 (STR bonus) = 8
+      expect(damageResult.finalDamage).toBe(8);
+      const lastCheck = damageResult.save.runtime.lastCheck;
+      expect(lastCheck?.tags).toContain("combat:weapon=improvised");
+      expect(lastCheck?.tags).toContain("combat:fallbackWeapon=improvised");
     });
   });
 });

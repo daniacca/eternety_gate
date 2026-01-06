@@ -117,6 +117,15 @@ export function startCombat(
   const firstActor = save.actorsById[currentTurnActorId];
   const initialTurnState = firstActor ? initializeTurnState(firstActor) : { moveRemaining: 0, actionAvailable: true };
 
+  // Save initial HP for each participant (for UI display of max HP)
+  const initialHpByActorId: Record<ActorId, number> = {};
+  for (const id of orderedIds) {
+    const actor = save.actorsById[id];
+    if (actor) {
+      initialHpByActorId[id] = actor.resources.hp;
+    }
+  }
+
   const combatState: CombatState = {
     active: true,
     participants: orderedIds,
@@ -129,6 +138,7 @@ export function startCombat(
     stancesByActorId: {},
     turnCounter: 0,
     parryDisabledUntilTurnCounterByActorId: {},
+    initialHpByActorId,
   };
 
   // Create debug lastCheck with position tags
@@ -379,7 +389,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
         if (combatAfterKo) {
           // The actor that just died was at newCurrentIndex in the old participants list
           // We need to advance from the previous actor (combat.currentIndex) in the updated alive list
-          const prevActorId = combat.participants[combat.currentIndex];
+          // Use the prevActorId already declared above (line 251)
           const prevAliveIndex = updatedAliveParticipants.indexOf(prevActorId);
 
           // If previous actor is still alive, use their index; otherwise use 0 as fallback
@@ -433,9 +443,25 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   }
 
   // Reset stance for actor whose turn starts (stances last "until your next turn")
-  // Remove the key instead of setting "none" (absence means "none")
+  // For Aim: it persists until ranged attack is made OR until the actor's NEXT turn starts
+  // So if actor had aim in previous turn, it's still available at start of current turn
+  // and will be consumed when they fire, or removed when their NEXT turn starts
   const updatedStancesByActorId = { ...(combat.stancesByActorId || {}) };
-  delete updatedStancesByActorId[currentTurnActorId];
+  
+  // Remove stance for actor whose turn starts
+  // For Aim: only remove if this is the actor's NEXT turn (same actor, new turn)
+  // Aim persists across other actors' turns until consumed by ranged attack or next turn starts
+  if (prevActorId === currentTurnActorId) {
+    // Same actor's next turn started - remove all stances including aim
+    delete updatedStancesByActorId[currentTurnActorId];
+  } else {
+    // Different actor's turn started - remove their non-aim stances, keep aim if present
+    // (aim from previous turn persists until consumed or next turn)
+    if (updatedStancesByActorId[currentTurnActorId] !== "aim") {
+      delete updatedStancesByActorId[currentTurnActorId];
+    }
+  }
+  // Note: Aim stance persists until consumed by ranged attack OR until actor's next turn starts
 
   // Recompute alive participants based on current HP (after condition effects)
   // This ensures participants list reflects any HP changes from bleeding

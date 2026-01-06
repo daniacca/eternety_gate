@@ -96,21 +96,94 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
           const tokenX = (pos.x / grid.width) * gridSize + cellWidth / 2;
           const tokenY = (pos.y / grid.height) * gridSize + cellHeight / 2;
 
+          // Get HP and critical damage for NPCs
+          const hp = actor?.resources.hp ?? 0;
+          // Use derived.hpMax if available, otherwise use initial HP from combat start
+          const initialHp = combat.initialHpByActorId?.[actorId];
+          const hpMax = actor?.derived?.hpMax ?? initialHp ?? hp;
+          const criticalDamage = actor?.resources.criticalDamage ?? 0;
+          const hasCriticalDamage = criticalDamage > 0;
+          const criticalMax = 10; // Critical damage goes from 0 to 10
+          const hpPercent = hpMax > 0 ? Math.max(0, Math.min(100, (hp / hpMax) * 100)) : 0;
+          const criticalPercent = hasCriticalDamage
+            ? Math.max(0, Math.min(100, (criticalDamage / criticalMax) * 100))
+            : 0;
+
           return (
-            <View
-              key={actorId}
-              style={[
-                styles.token,
-                {
-                  left: tokenX,
-                  top: tokenY,
-                  backgroundColor: isPC ? "#007AFF" : "#DC3545",
-                },
-              ]}
-            >
-              <Text style={styles.tokenText} numberOfLines={1}>
-                {actorId}
-              </Text>
+            <View key={actorId}>
+              {/* HP Bar (above token, only for NPCs) */}
+              {!isPC && (
+                <View
+                  style={[
+                    styles.barsContainer,
+                    {
+                      left: tokenX,
+                      top: tokenY - 30, // Position above token
+                    },
+                  ]}
+                >
+                  <View style={styles.barRow}>
+                    <View style={styles.healthBarBackground}>
+                      <View
+                        style={[
+                          styles.healthBarFill,
+                          {
+                            width: `${hpPercent}%`,
+                            backgroundColor: "#4CAF50", // Green
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barText}>
+                      {hp}/{hpMax}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Token */}
+              <View
+                style={[
+                  styles.token,
+                  {
+                    left: tokenX,
+                    top: tokenY,
+                    backgroundColor: isPC ? "#007AFF" : "#DC3545",
+                  },
+                ]}
+              >
+                <Text style={styles.tokenText} numberOfLines={1}>
+                  {actorId}
+                </Text>
+              </View>
+
+              {/* Critical Damage Bar (below token, only for NPCs, only show if there's critical damage) */}
+              {!isPC && (
+                <View
+                  style={[
+                    styles.barsContainer,
+                    {
+                      left: tokenX,
+                      top: tokenY + 20, // Position below token
+                    },
+                  ]}
+                >
+                  <View style={styles.barRow}>
+                    <View style={styles.criticalBarBackground}>
+                      <View
+                        style={[
+                          styles.criticalBarFill,
+                          {
+                            width: `${criticalPercent}%`,
+                            backgroundColor: "#F44336", // Red
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barText}>{criticalDamage.toFixed(0)}</Text>
+                  </View>
+                </View>
+              )}
             </View>
           );
         })}
@@ -135,4 +208,3 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
     </View>
   );
 }
-

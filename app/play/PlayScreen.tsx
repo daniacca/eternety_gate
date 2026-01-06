@@ -419,6 +419,49 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
   },
+  barsContainer: {
+    position: "absolute",
+    transform: [{ translateX: -30 }], // Center horizontally (width is ~60)
+    alignItems: "flex-start",
+    zIndex: 10,
+  },
+  barRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  healthBarBackground: {
+    width: 40,
+    height: 6,
+    backgroundColor: "#333",
+    borderRadius: 3,
+    overflow: "hidden",
+    marginRight: 4,
+  },
+  healthBarFill: {
+    height: "100%",
+    backgroundColor: "#4CAF50",
+    borderRadius: 3,
+  },
+  criticalBarBackground: {
+    width: 40,
+    height: 6,
+    backgroundColor: "#333",
+    borderRadius: 3,
+    overflow: "hidden",
+    marginRight: 4,
+  },
+  criticalBarFill: {
+    height: "100%",
+    backgroundColor: "#F44336",
+    borderRadius: 3,
+  },
+  barText: {
+    fontSize: 8,
+    fontWeight: "600",
+    color: "#000",
+    minWidth: 20,
+  },
   gridOverlay: {
     position: "absolute",
     top: 8,

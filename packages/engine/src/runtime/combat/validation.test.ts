@@ -194,7 +194,8 @@ describe("validation", () => {
       const result = validateAndApplyRangedModifiers(check, saveWithBoth, 5, "test_check", attacker.id);
 
       expect(result).toBeNull(); // Valid, no blocking
-      expect(check.modifiers?.rangeBand).toBe("LONG"); // Auto-set to LONG (5 > 4)
+      // New global rule: dist 4..5 => NORMAL (not based on weapon.range.short anymore)
+      expect(check.modifiers?.rangeBand).toBe("NORMAL");
     });
 
     it("should auto-set rangeBand to SHORT when dist <= short", () => {
@@ -292,14 +293,14 @@ describe("validation", () => {
       expect(check.modifiers?.rangeBand).toBe("SHORT"); // Preserved, not auto-set
     });
 
-    it("should use fallback range (8) when weapon has no range property", () => {
+    it("should allow unlimited range when weapon has no range property", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
         damage: { die: 10, add: 3 },
-        // No range property
+        // No range property - unlimited range
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -333,15 +334,15 @@ describe("validation", () => {
         },
       };
 
-      // Distance 9 > 8 (fallback long range)
+      // Distance 9 - no range limit, so should be allowed
+      // Range band will be EXTREME (-40) based on global rules
       const result = validateAndApplyRangedModifiers(check, saveWithBoth, 9, "test_check", attacker.id);
 
-      expect(result).not.toBeNull();
-      expect(result?.success).toBe(false);
-      expect(result?.tags).toContain("combat:blocked=outOfRange");
+      expect(result).toBeNull(); // Not blocked - unlimited range
+      expect(check.modifiers?.rangeBand).toBe("EXTREME"); // Auto-set based on distance
     });
 
-    it("should auto-set rangeBand using fallback values when weapon has no range", () => {
+    it("should auto-set rangeBand using global rules when weapon has no range", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {
         id: "bow",
@@ -381,7 +382,7 @@ describe("validation", () => {
         },
       };
 
-      // Distance 3 <= 4 (fallback short range)
+      // Distance 3: global rule dist 2..3 => SHORT (+20)
       const result = validateAndApplyRangedModifiers(check, saveWithBoth, 3, "test_check", attacker.id);
 
       expect(result).toBeNull();

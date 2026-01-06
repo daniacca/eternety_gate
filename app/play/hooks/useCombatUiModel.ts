@@ -11,7 +11,7 @@ export interface CombatUiModel {
   distance: number | null;
   moveRemaining: number;
   actionAvailable: boolean;
-  stance: "none" | "defend" | "allOut";
+  stance: "none" | "defend" | "allOut" | "aim";
 
   // Equipment info
   pcActor: GameSave["actorsById"][string] | null;

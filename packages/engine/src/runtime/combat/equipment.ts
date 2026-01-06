@@ -58,6 +58,7 @@ export function getActorArmor(save: GameSave, actor: Actor): {
 /**
  * Calculates raw damage for a weapon hit
  * Returns: { rawDamage, weaponName, weaponId }
+ * @param mode - Combat mode: "MELEE" always applies STR bonus, "RANGED" never applies STR bonus
  * @param rollsCount - For Righteous Fury: number of rolls to make, take best (default 1)
  */
 export function calculateWeaponDamage(
@@ -65,10 +66,11 @@ export function calculateWeaponDamage(
   attacker: Actor,
   weaponId: WeaponId | "unarmed" | null,
   rng: { nextInt: (min: number, max: number) => number },
+  mode: "MELEE" | "RANGED",
   rollsCount: number = 1
 ): { rawDamage: number; weaponName: string; weaponId: WeaponId | "unarmed" } {
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
-    // Unarmed: 1d5 (changed from 1d10)
+    // Unarmed: 1d5 + STR bonus (always applies STR bonus for unarmed)
     let bestRoll = 0;
     for (let i = 0; i < rollsCount; i++) {
       const dieRoll = rng.nextInt(1, 5);
@@ -93,11 +95,13 @@ export function calculateWeaponDamage(
     const dieRoll = rng.nextInt(1, weapon.damage.die);
     let rollDamage = dieRoll + weapon.damage.add;
 
-    // Add Strength Bonus if weapon has bonus === "SB"
-    if (weapon.damage.bonus === "SB") {
+    // MELEE: Always apply STR bonus
+    // RANGED: Never apply STR bonus (only weapon base damage + bonuses)
+    if (mode === "MELEE") {
       const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
       rollDamage += strBonus;
     }
+    // Note: RANGED mode never adds STR bonus, regardless of weapon.damage.bonus
 
     if (rollDamage > bestDamage) {
       bestDamage = rollDamage;

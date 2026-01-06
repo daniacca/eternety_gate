@@ -532,7 +532,7 @@ export type CombatState = {
 
   // Stances persist across turns until actor's next turn starts
   // Absence of key means "none" stance (only for UI display, not stored in state)
-  stancesByActorId?: Record<ActorId, "defend" | "allOut">;
+  stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">;
 
   // Turn counter (monotonic, increments at start of each turn)
   turnCounter: number;
@@ -542,6 +542,9 @@ export type CombatState = {
 
   // Ground items by position
   groundItemsByPos?: Record<string, ItemRef[]>; // key format: "x,y"
+
+  // Initial HP when combat started (for UI display of max HP)
+  initialHpByActorId?: Record<ActorId, number>;
 };
 
 export type GameRuntime = {

@@ -63,43 +63,42 @@ export function validateAndApplyRangedModifiers(
         dos: 0,
         dof: 0,
         critical: "none",
-        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
-      };
-    }
-
-    // d) Auto-set rangeBand if not specified (SHORT/LONG based on weapon.range.short)
-    if (!combatCheck.modifiers?.rangeBand) {
-      const rangeBand = dist <= weaponRange.short ? "SHORT" : "LONG";
-      combatCheck.modifiers = {
-        ...combatCheck.modifiers,
-        rangeBand: rangeBand as any,
-      };
-    }
-  } else {
-    // Fallback to old hardcoded range if weapon has no range
-    if (dist > 8) {
-      return {
-        checkId,
-        actorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`],
-      };
-    }
-
-    // Auto-set rangeBand if not specified (fallback to hardcoded values)
-    if (!combatCheck.modifiers?.rangeBand) {
-      const rangeBand = dist <= 4 ? "SHORT" : "LONG";
-      combatCheck.modifiers = {
-        ...combatCheck.modifiers,
-        rangeBand: rangeBand as any,
+        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`, `combat:weaponRange=${weaponRange.long}`],
       };
     }
   }
+  // Note: If weapon has no range defined, we don't block based on distance (assume unlimited range)
+
+  // d) Auto-set rangeBand based on Chebyshev distance (global rule, independent of weapon)
+  // This applies regardless of whether weapon.range exists (range check is separate)
+  if (!combatCheck.modifiers?.rangeBand) {
+    let rangeBand: "POINT_BLANK" | "SHORT" | "NORMAL" | "LONG" | "EXTREME";
+    
+    // Global range band rules based on Chebyshev distance (number of squares)
+    if (dist >= 9) {
+      rangeBand = "EXTREME"; // -40
+    } else if (dist >= 6) {
+      rangeBand = "LONG"; // -20
+    } else if (dist >= 4) {
+      rangeBand = "NORMAL"; // +0
+    } else if (dist >= 2) {
+      rangeBand = "SHORT"; // +20
+    } else {
+      // dist 0..1 (shouldn't happen for ranged, but handle it)
+      rangeBand = "POINT_BLANK"; // +30
+    }
+    
+    combatCheck.modifiers = {
+      ...combatCheck.modifiers,
+      rangeBand: rangeBand as any,
+    };
+  }
+  
+  // Add distance and weapon range tags for debugging
+  if (!combatCheck.modifiers) {
+    combatCheck.modifiers = {};
+  }
+  // Note: We'll add these tags in computeAttackTarget to avoid mutating here
 
   return null; // Valid
 }

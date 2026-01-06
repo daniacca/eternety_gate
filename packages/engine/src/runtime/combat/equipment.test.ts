@@ -131,7 +131,7 @@ describe("equipment", () => {
       const d100For3 = FakeRng.d100ForNextInt(3, 1, 5);
       const rng = new FakeRng([d100For3]);
 
-      const result = calculateWeaponDamage(save, actor, null, rng);
+      const result = calculateWeaponDamage(save, actor, null, rng, "MELEE");
 
       expect(result.weaponId).toBe("unarmed");
       expect(result.weaponName).toBe("Unarmed");
@@ -145,7 +145,7 @@ describe("equipment", () => {
       const d100For5 = FakeRng.d100ForNextInt(5, 1, 5);
       const rng = new FakeRng([d100For5]);
 
-      const result = calculateWeaponDamage(save, actor, "unarmed", rng);
+      const result = calculateWeaponDamage(save, actor, "unarmed", rng, "MELEE");
 
       expect(result.rawDamage).toBe(5); // 5 (roll) + 0 (SB)
     });
@@ -168,7 +168,7 @@ describe("equipment", () => {
       const d100For8 = FakeRng.d100ForNextInt(8, 1, 10);
       const rng = new FakeRng([d100For3, d100For8]);
 
-      const result = calculateWeaponDamage(save, actor, "sword", rng, 2);
+      const result = calculateWeaponDamage(save, actor, "sword", rng, "MELEE", 2);
 
       expect(result.rawDamage).toBe(15); // Best of (3+2+5=10, 8+2+5=15) = 15
     });
@@ -193,7 +193,7 @@ describe("equipment", () => {
       const d100For9 = FakeRng.d100ForNextInt(9, 1, 10);
       const rng = new FakeRng([d100For2, d100For7, d100For9]);
 
-      const result = calculateWeaponDamage(save, actor, "vengeful_sword", rng, 3);
+      const result = calculateWeaponDamage(save, actor, "vengeful_sword", rng, "MELEE", 3);
 
       expect(result.rawDamage).toBe(16); // Best of (2+2+5=9, 7+2+5=14, 9+2+5=16) = 16
     });
@@ -214,20 +214,20 @@ describe("equipment", () => {
       const d100For7 = FakeRng.d100ForNextInt(7, 1, 10);
       const rng = new FakeRng([d100For7]);
 
-      const result = calculateWeaponDamage(save, actor, "bow", rng);
+      const result = calculateWeaponDamage(save, actor, "bow", rng, "RANGED");
 
       expect(result.rawDamage).toBe(10); // 7 (roll) + 3 (add), no SB
       expect(result.weaponId).toBe("bow");
       expect(result.weaponName).toBe("Bow");
     });
 
-    it("should calculate melee weapon damage with SB bonus", () => {
+    it("should calculate melee weapon damage with SB bonus (always applies STR bonus for MELEE)", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2, bonus: "SB" },
+        damage: { die: 10, add: 2 }, // No bonus field, but MELEE mode should still apply STR
       };
       const actor = makeTestActor({ stats: { STR: 55 } }); // STR 55 -> SB 5
       const save = {
@@ -237,10 +237,32 @@ describe("equipment", () => {
       const d100For6 = FakeRng.d100ForNextInt(6, 1, 10);
       const rng = new FakeRng([d100For6]);
 
-      const result = calculateWeaponDamage(save, actor, "sword", rng);
+      const result = calculateWeaponDamage(save, actor, "sword", rng, "MELEE");
 
-      expect(result.rawDamage).toBe(13); // 6 (roll) + 2 (add) + 5 (SB)
+      expect(result.rawDamage).toBe(13); // 6 (roll) + 2 (add) + 5 (STR bonus always applied for MELEE)
       expect(result.weaponId).toBe("sword");
+    });
+
+    it("should calculate ranged weapon damage without STR bonus (never applies STR bonus for RANGED)", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "bow",
+        name: "Bow",
+        kind: "RANGED",
+        damage: { die: 10, add: 3 },
+      };
+      const actor = makeTestActor({ stats: { STR: 60 } }); // STR 60 -> SB 6, but should NOT be applied
+      const save = {
+        ...makeTestSave(storyPack, actor),
+        weaponsById: { bow: weapon },
+      };
+      const d100For7 = FakeRng.d100ForNextInt(7, 1, 10);
+      const rng = new FakeRng([d100For7]);
+
+      const result = calculateWeaponDamage(save, actor, "bow", rng, "RANGED");
+
+      expect(result.rawDamage).toBe(10); // 7 (roll) + 3 (add), NO STR bonus for RANGED
+      expect(result.weaponId).toBe("bow");
     });
 
     it("should handle weapon with no SB bonus specified", () => {
@@ -259,9 +281,9 @@ describe("equipment", () => {
       const d100For4 = FakeRng.d100ForNextInt(4, 1, 10);
       const rng = new FakeRng([d100For4]);
 
-      const result = calculateWeaponDamage(save, actor, "staff", rng);
+      const result = calculateWeaponDamage(save, actor, "staff", rng, "MELEE");
 
-      expect(result.rawDamage).toBe(5); // 4 (roll) + 1 (add), no SB
+      expect(result.rawDamage).toBe(11); // 4 (roll) + 1 (add) + 6 (STR bonus always applied for MELEE)
     });
 
     it("should handle nonexistent weapon as unarmed", () => {
@@ -271,7 +293,7 @@ describe("equipment", () => {
       const d100For5 = FakeRng.d100ForNextInt(5, 1, 5); // Unarmed uses d5
       const rng = new FakeRng([d100For5]);
 
-      const result = calculateWeaponDamage(save, actor, "nonexistent", rng);
+      const result = calculateWeaponDamage(save, actor, "nonexistent", rng, "MELEE");
 
       expect(result.weaponId).toBe("unarmed");
       expect(result.rawDamage).toBe(9); // 5 (roll) + 4 (SB)

@@ -14,6 +14,12 @@ let checkHistory: Array<CheckResult & { timestamp: number }> = [];
 
 export function addCheckToHistory(check: CheckResult | null) {
   if (!check) return;
+  
+  // Skip actions (marked with combat:kind=action tag) - they're not real checks
+  if (check.tags && check.tags.some((tag) => tag === "combat:kind=action")) {
+    return;
+  }
+  
   // Avoid duplicates by checking if the last check is the same
   const lastCheck = checkHistory[checkHistory.length - 1];
   if (
@@ -45,9 +51,18 @@ export function LogModal({ visible, onClose, check }: LogModalProps) {
   const selectedCheck = selectedIndex !== null ? checkHistory[selectedIndex] : null;
 
   // Format check summary for list
-  const formatCheckSummary = (c: CheckResult, idx: number) => {
+  const formatCheckSummary = (c: CheckResult | null, idx: number) => {
+    if (!c) return `${idx + 1}. Invalid check`;
+    
+    // Check if this is an action (shouldn't appear, but handle gracefully)
+    const isAction = c.tags && c.tags.some((tag) => tag === "combat:kind=action");
+    if (isAction) {
+      const actionType = c.checkId?.replace("combat:", "") || "Action";
+      return `${idx + 1}. Action: ${actionType}`;
+    }
+    
     const checkType = c.checkId || "Unknown";
-    const typeLabel = checkType.includes("WS") ? "WS" : checkType.includes("BS") ? "BS" : "Check";
+    const typeLabel = checkType.includes("WS") ? "WS" : checkType.includes("BS") ? "BS" : checkType.includes("allOut") ? "All-Out Attack" : checkType.includes("attack") ? "Attack" : "Check";
     return `${idx + 1}. ${typeLabel}: ${c.roll}/${c.target} ${c.success ? "✓" : "✗"} (DoS:${c.dos} DoF:${c.dof})`;
   };
 
