@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck, ItemRef } from "../types";
+import type { Effect, GameSave, StoryPack, CombatAttackCheck, OpposedCheck, ItemRef, CheckResult } from "../types";
 import { IRNG, RNG } from "../rng";
 import { getCurrentTurnActorId, startCombat, advanceCombatTurn } from "./combat";
 import { appendCombatLog, appendAttackNarration } from "./narration";
@@ -535,11 +535,9 @@ export function combatRequestAttack(
     if (deadActor) {
       const pcDied = deadActor.kind === "PC";
 
-      // Check if all party members are dead/KO
+      // Check if all party members are dead
       const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
-      const allPartyDead =
-        partyActors.length > 0 &&
-        partyActors.every((actor) => actor.resources.isDead === true || actor.resources.hp <= 0);
+      const allPartyDead = partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
 
       if (pcDied || allPartyDead) {
         // Set game over
@@ -566,26 +564,105 @@ export function combatRequestAttack(
     currentSave = appendAttackNarration(currentSave, attacker, defender, result);
   }
 
-  // Handle KO and end combat if needed (use targetKo from damageResult)
-  if (damageResult.targetKo && currentSave.runtime.combat?.active) {
-    const aliveParticipants = currentSave.runtime.combat.participants.filter((id) => {
-      const actor = currentSave.actorsById[id];
-      return actor && actor.resources.hp > 0;
-    });
+  // Handle death and end combat if needed (check isDead, not HP)
+  if (damageResult.actorDied && currentSave.runtime.combat?.active) {
+    const deadActor = currentSave.actorsById[effect.defenderId];
+    if (deadActor && deadActor.resources.isDead === true) {
+      const aliveParticipants = currentSave.runtime.combat.participants.filter((id) => {
+        const actor = currentSave.actorsById[id];
+        return actor && actor.resources.isDead !== true;
+      });
 
-    if (aliveParticipants.length <= 1) {
-      // Combat ends
-      const winnerId = aliveParticipants.length === 1 ? aliveParticipants[0] : null;
-      const winner = winnerId ? currentSave.actorsById[winnerId] : null;
-      currentSave = appendCombatLog(currentSave, `Il combattimento termina. Vincitore: ${winner?.name || "Nessuno"}.`);
-      currentSave = {
-        ...currentSave,
-        runtime: {
-          ...currentSave.runtime,
-          combat: undefined,
-          combatEndedSceneId: currentSave.runtime.currentSceneId,
-        },
-      };
+      // Check if combat should end based on factions
+      const partyIds = new Set(currentSave.party.actors);
+      const enemyIds = aliveParticipants.filter((id) => !partyIds.has(id));
+
+      const partyAlive = aliveParticipants.filter((id) => {
+        const actor = currentSave.actorsById[id];
+        return partyIds.has(id) && actor && actor.resources.isDead !== true;
+      });
+
+      const enemiesAlive = aliveParticipants.filter((id) => {
+        const actor = currentSave.actorsById[id];
+        return enemyIds.includes(id) && actor && actor.resources.isDead !== true;
+      });
+
+      if (enemiesAlive.length === 0 && partyAlive.length > 0) {
+        // All enemies dead - party victory
+        const combatState = currentSave.runtime.combat;
+        const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+        currentSave = appendCombatLog(currentSave, "Tutti i nemici presenti nell'area sono stati sconfitti.");
+
+        const last = currentSave.runtime.lastCheck;
+        const endCheck: CheckResult = last
+          ? {
+              ...last,
+              tags: [...last.tags, "combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
+            }
+          : {
+              checkId: "combat:end",
+              actorId: currentSave.party.activeActorId,
+              roll: 0,
+              target: 0,
+              success: true,
+              dos: 0,
+              dof: 0,
+              critical: "none",
+              tags: ["combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
+            };
+
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            combat: undefined,
+            lastCheck: endCheck,
+            combatEndedSceneId: endedSceneId,
+          },
+        };
+      } else if (partyAlive.length === 0) {
+        // All party dead - defeat
+        const combatState = currentSave.runtime.combat;
+        const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+        currentSave = appendCombatLog(currentSave, "Il party è stato annientato. Game over.");
+
+        const last = currentSave.runtime.lastCheck;
+        const endCheck: CheckResult = last
+          ? {
+              ...last,
+              tags: [
+                ...last.tags,
+                "combat:state=end",
+                "combat:outcome=defeat",
+                ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
+              ],
+            }
+          : {
+              checkId: "combat:end",
+              actorId: currentSave.party.activeActorId,
+              roll: 0,
+              target: 0,
+              success: true,
+              dos: 0,
+              dof: 0,
+              critical: "none",
+              tags: [
+                "combat:state=end",
+                "combat:outcome=defeat",
+                ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
+              ],
+            };
+
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            combat: undefined,
+            lastCheck: endCheck,
+            combatEndedSceneId: endedSceneId,
+          },
+        };
+      }
     }
   }
 

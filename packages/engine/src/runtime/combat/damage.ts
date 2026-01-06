@@ -12,7 +12,7 @@ import type {
 import type { IRNG } from "../rng";
 import { resolveActor, performCheck } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
-import { appendCombatLog } from "./narration";
+import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { getEquippedWeaponId } from "../inventory";
 
 /**
@@ -87,14 +87,17 @@ export function applyCombatDamageIfHit(
   let rawDamage: number;
   let weaponName: string;
   let calculatedWeaponId: WeaponId | "unarmed" | "improvised";
+  let damageRolls: number[] = [];
+  let damageFormula: string = "";
 
   if (useFallbackWeapon) {
     // Improvised melee weapon: 1d5 + STR bonus, no penetration
     let bestRoll = 0;
+    const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
     for (let i = 0; i < rollsCount; i++) {
       const dieRoll = rng.nextInt(1, 5);
-      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
       const rollTotal = dieRoll + strBonus;
+      damageRolls.push(rollTotal);
       if (rollTotal > bestRoll) {
         bestRoll = rollTotal;
       }
@@ -102,11 +105,26 @@ export function applyCombatDamageIfHit(
     rawDamage = bestRoll;
     weaponName = "Arma di fortuna";
     calculatedWeaponId = "improvised";
+    damageFormula = `1d5 + ${strBonus} (STR bonus)`;
   } else {
     const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount);
     rawDamage = result.rawDamage;
     weaponName = result.weaponName;
     calculatedWeaponId = result.weaponId;
+
+    // Build formula string for logging
+    const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
+    if (weapon) {
+      const strBonus = mode === "MELEE" ? Math.floor((attacker.stats.STR ?? 0) / 10) : 0;
+      damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
+      // Note: Individual rolls not captured here (would require modifying calculateWeaponDamage)
+      // For now, we log the final rawDamage which is the best of rollsCount rolls
+    } else {
+      // Unarmed
+      const strBonus = Math.floor((attacker.stats.STR ?? 0) / 10);
+      damageFormula = `1d5 + ${strBonus} (STR bonus)`;
+      // Note: Individual rolls not captured here
+    }
   }
 
   // Get defender armor soak
@@ -363,6 +381,24 @@ export function applyCombatDamageIfHit(
 
   const targetKo = hpAfter === 0 || actorDied;
   const didApplyDamage = finalDamage > 0;
+
+  // Log damage roll if damage was applied
+  if (didApplyDamage && finalDamage > 0) {
+    const combat = updatedSave.runtime.combat;
+    const turnCounter = combat?.turnCounter ?? 0;
+    updatedSave = appendRuntimeLog(updatedSave, {
+      kind: "damage",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      weaponId: calculatedWeaponId !== "unarmed" ? calculatedWeaponId : undefined,
+      formula: damageFormula,
+      rolls: damageRolls.length > 0 ? damageRolls : undefined,
+      rawDamage,
+      soak: effectiveSoak,
+      finalDamage,
+      turnCounter,
+    });
+  }
 
   return {
     save: updatedSave,

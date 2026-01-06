@@ -1,4 +1,4 @@
-import type { GameSave, Actor, CheckResult } from "../types";
+import type { GameSave, Actor, CheckResult, RuntimeLogEntry, ActorId } from "../types";
 
 const MAX_LOG = 50;
 
@@ -101,4 +101,23 @@ export function appendAttackNarration(
   }
 
   return updatedSave;
+}
+
+/**
+ * Helper to append a runtime log entry (initiative, damage, system messages)
+ * Returns a NEW save with the log entry appended
+ */
+export function appendRuntimeLog(save: GameSave, entry: RuntimeLogEntry): GameSave {
+  const currentLog = save.runtime.runtimeLog || [];
+  const newLog = [...currentLog, entry];
+  // Keep only last 200 entries to avoid memory issues
+  const trimmedLog = newLog.slice(-200);
+
+  return {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      runtimeLog: trimmedLog,
+    },
+  };
 }

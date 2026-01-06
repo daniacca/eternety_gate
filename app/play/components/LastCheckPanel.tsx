@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
-import type { CheckResult } from "@eg/engine";
+import type { CheckResult, GameSave } from "@eg/engine";
 import { LogModal } from "./LogModal";
 
 interface LastCheckPanelProps {
   check: CheckResult | null | undefined;
+  save?: GameSave;
   styles: any;
 }
 
-export function LastCheckPanel({ check, styles: parentStyles }: LastCheckPanelProps) {
+export function LastCheckPanel({ check, save, styles: parentStyles }: LastCheckPanelProps) {
   const [logModalVisible, setLogModalVisible] = useState(false);
 
   // Extract check type from checkId
@@ -66,7 +67,7 @@ export function LastCheckPanel({ check, styles: parentStyles }: LastCheckPanelPr
         </ScrollView>
       </View>
 
-      <LogModal visible={logModalVisible} onClose={() => setLogModalVisible(false)} check={check || null} />
+      <LogModal visible={logModalVisible} onClose={() => setLogModalVisible(false)} check={check || null} save={save} />
     </>
   );
 }

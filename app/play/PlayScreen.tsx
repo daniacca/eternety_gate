@@ -228,7 +228,7 @@ export function PlayScreen() {
               />
             </View>
             <View style={styles.narrationRight}>
-              <LastCheckPanel check={lastCheck} styles={styles} />
+              <LastCheckPanel check={lastCheck} save={save} styles={styles} />
             </View>
           </View>
         )}
@@ -265,13 +265,37 @@ export function PlayScreen() {
         {/* Combat End Banner - only show in the scene that started combat */}
         {showCombatEnded && !gameOver && (
           <View style={styles.combatEndBanner}>
-            <Text style={styles.combatEndText}>Combat ended.</Text>
-            {tags.find((t) => t.startsWith("combat:winner=")) && (
-              <Text style={styles.combatEndText}>
-                Winner:{" "}
-                {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name || "Unknown"}
-              </Text>
-            )}
+            {(() => {
+              const outcomeTag = tags.find((t) => t.startsWith("combat:outcome="));
+              const outcome = outcomeTag ? outcomeTag.split("=")[1] : null;
+              
+              if (outcome === "victory") {
+                return (
+                  <Text style={styles.combatEndText}>
+                    Tutti i nemici presenti nell'area sono stati sconfitti.
+                  </Text>
+                );
+              } else if (outcome === "defeat") {
+                return (
+                  <Text style={styles.combatEndText}>
+                    Il party è stato annientato. Game over.
+                  </Text>
+                );
+              } else {
+                // Fallback for old saves
+                return (
+                  <>
+                    <Text style={styles.combatEndText}>Combat ended.</Text>
+                    {tags.find((t) => t.startsWith("combat:winner=")) && (
+                      <Text style={styles.combatEndText}>
+                        Winner:{" "}
+                        {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name || "Unknown"}
+                      </Text>
+                    )}
+                  </>
+                );
+              }
+            })()}
           </View>
         )}
 

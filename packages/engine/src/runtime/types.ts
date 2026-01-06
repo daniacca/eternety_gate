@@ -511,6 +511,40 @@ export type CheckResult = {
   tags: string[];
 } | null;
 
+/**
+ * Extended log entry for non-check events (initiative, damage, system messages)
+ */
+export type RuntimeLogEntry =
+  | {
+      kind: "initiative";
+      actorId: ActorId;
+      iniBase: number;
+      iniRoll: number;
+      iniScore: number;
+      turnCounter?: number;
+    }
+  | {
+      kind: "damage";
+      attackerId: ActorId;
+      defenderId: ActorId;
+      weaponId?: string;
+      formula?: string;
+      rolls?: number[];
+      rawDamage: number;
+      soak: number;
+      finalDamage: number;
+      turnCounter?: number;
+    }
+  | {
+      kind: "check";
+      check: CheckResult;
+    }
+  | {
+      kind: "system";
+      message: string;
+      turnCounter?: number;
+    };
+
 export type Grid = { width: number; height: number };
 export type Position = { x: number; y: number };
 
@@ -574,6 +608,11 @@ export type GameRuntime = {
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
   combatCycleStartIndex?: number;
+
+  /**
+   * Extended log entries for initiative, damage rolls, and other combat events
+   */
+  runtimeLog?: RuntimeLogEntry[];
 
   gameOver?: {
     reason: "partyDead" | "playerDead";

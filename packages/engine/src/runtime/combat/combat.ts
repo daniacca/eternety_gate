@@ -1,8 +1,54 @@
 import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, CombatState, CheckResult } from "../types";
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
-import { appendCombatLog } from "./narration";
+import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { hasCondition, getStacks, computeCombatModifiersFromConditions, removeConditionFromActor } from "../conditions";
+
+/**
+ * Checks if an actor is alive (not dead)
+ * Actor is alive if they exist and isDead !== true
+ */
+function isActorAlive(actor: Actor | undefined): boolean {
+  return actor !== undefined && actor.resources.isDead !== true;
+}
+
+/**
+ * Checks if combat should end based on faction deaths
+ * Combat ends when:
+ * - All enemies (NPCs) are dead, OR
+ * - All party members (PCs) are dead
+ */
+function shouldCombatEnd(save: GameSave, participants: ActorId[]): { shouldEnd: boolean; outcome?: "victory" | "defeat"; winnerId?: ActorId } {
+  const partyIds = new Set(save.party.actors);
+  const enemyIds = participants.filter((id) => !partyIds.has(id));
+  
+  const partyAlive = participants.filter((id) => {
+    const actor = save.actorsById[id];
+    return partyIds.has(id) && isActorAlive(actor);
+  });
+  
+  const enemiesAlive = participants.filter((id) => {
+    const actor = save.actorsById[id];
+    return enemyIds.includes(id) && isActorAlive(actor);
+  });
+  
+  if (enemiesAlive.length === 0 && partyAlive.length > 0) {
+    // All enemies dead - party victory
+    return { shouldEnd: true, outcome: "victory", winnerId: partyAlive[0] };
+  }
+  
+  if (partyAlive.length === 0 && enemiesAlive.length > 0) {
+    // All party dead - defeat
+    return { shouldEnd: true, outcome: "defeat", winnerId: enemiesAlive[0] };
+  }
+  
+  if (partyAlive.length === 0 && enemiesAlive.length === 0) {
+    // Everyone dead - mutual defeat
+    return { shouldEnd: true, outcome: "defeat" };
+  }
+  
+  return { shouldEnd: false };
+}
 
 /**
  * Calculates AGI bonus for movement: Math.floor(AGI / 10)
@@ -44,10 +90,10 @@ export function startCombat(
 ): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
 
-  // Filter participants: must exist and be alive (hp > 0)
+  // Filter participants: must exist and be alive (isDead !== true)
   const validParticipants = participantIds.filter((id) => {
     const actor = save.actorsById[id];
-    return actor && actor.resources.hp > 0;
+    return isActorAlive(actor);
   });
 
   if (validParticipants.length === 0) {
@@ -178,10 +224,23 @@ export function startCombat(
       lastCheck: debugCheck,
       combatLog: initialCombatLog,
       combatLogSceneId: sceneIdForCombat,
+      runtimeLog: [],
       // Set combatTurnStartIndex to point after the start message (index 1, after we add header)
       combatTurnStartIndex: 1,
     },
   };
+
+  // Log initiative rolls for all participants
+  for (const entry of initiatives) {
+    updatedSave = appendRuntimeLog(updatedSave, {
+      kind: "initiative",
+      actorId: entry.id,
+      iniBase: entry.iniBase,
+      iniRoll: entry.iniRoll,
+      iniScore: entry.iniScore,
+      turnCounter: 0,
+    });
+  }
 
   // Add turn header for first turn
   const isPlayerTurn = firstActor?.kind === "PC";
@@ -217,18 +276,38 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   const aliveParticipants = combat.participants.filter((id) => {
     const actor = save.actorsById[id];
-    return actor && actor.resources.hp > 0;
+    return isActorAlive(actor);
   });
 
   const last = save.runtime.lastCheck && save.runtime.lastCheck !== null ? save.runtime.lastCheck : null;
 
-  if (aliveParticipants.length <= 1) {
-    const winnerId = aliveParticipants.length === 1 ? aliveParticipants[0] : null;
+  // Check if combat should end based on faction deaths
+  const endCheckResult = shouldCombatEnd(save, aliveParticipants);
+  
+  if (endCheckResult.shouldEnd) {
+    const outcome = endCheckResult.outcome || "victory";
+    const winnerId = endCheckResult.winnerId;
+    const winner = winnerId ? save.actorsById[winnerId] : null;
+    
+    // Determine scene ID where combat ended (use startedBySceneId if available)
+    const endedSceneId = combat.startedBySceneId || save.runtime.currentSceneId;
+    
+    let logEntry: string;
+    if (outcome === "victory") {
+      logEntry = "Tutti i nemici presenti nell'area sono stati sconfitti.";
+    } else {
+      logEntry = "Il party è stato annientato. Game over.";
+    }
 
     const endCheck: CheckResult = last
       ? {
           ...last,
-          tags: [...last.tags, "combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+          tags: [
+            ...last.tags,
+            "combat:state=end",
+            `combat:outcome=${outcome}`,
+            ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+          ],
         }
       : {
           checkId: "combat:end",
@@ -238,12 +317,13 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           success: true,
           dos: 0,
           dof: 0,
-          critical: "none", // o null, coerente col tuo tipo
-          tags: ["combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+          critical: "none",
+          tags: [
+            "combat:state=end",
+            `combat:outcome=${outcome}`,
+            ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+          ],
         };
-
-    const winner = winnerId ? save.actorsById[winnerId] : null;
-    const logEntry = `Il combattimento termina. Vincitore: ${winner?.name || "Nessuno"}.`;
 
     let updatedSave = {
       ...save,
@@ -251,7 +331,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
         ...save.runtime,
         combat: undefined,
         lastCheck: endCheck,
-        combatEndedSceneId: save.runtime.currentSceneId,
+        combatEndedSceneId: endedSceneId,
       },
     };
 
@@ -335,28 +415,46 @@ export function advanceCombatTurn(save: GameSave): GameSave {
         : `${actorName} sanguina e perde ${damage} HP.`;
       updatedSave = appendCombatLog(updatedSave, bleedingLog);
 
-      // Check if bleeding killed the actor
-      if (hpAfter === 0) {
-        const koLog = isPlayerActor ? "Sei stato sconfitto!" : `${actorName} è stato sconfitto!`;
-        updatedSave = appendCombatLog(updatedSave, koLog);
+      // Note: HP=0 does not mean KO anymore - actor can still act if isDead !== true
+      // Only check combat end if actor actually died (isDead === true)
+      // This check happens after damage application, so we check the updated actor state
+      const updatedActor = updatedSave.actorsById[currentTurnActorId];
+      if (updatedActor && updatedActor.resources.isDead === true) {
+        const deathLog = isPlayerActor ? "Sei morto!" : `${actorName} è morto!`;
+        updatedSave = appendCombatLog(updatedSave, deathLog);
 
-        // Recompute alive participants based on updated HP
+        // Recompute alive participants based on isDead
         const updatedAliveParticipants =
           updatedSave.runtime.combat?.participants.filter((id) => {
             const actor = updatedSave.actorsById[id];
-            return actor && actor.resources.hp > 0;
+            return isActorAlive(actor);
           }) || [];
 
-        // Check if combat should end
-        if (updatedAliveParticipants.length <= 1) {
-          const winnerId = updatedAliveParticipants.length === 1 ? updatedAliveParticipants[0] : null;
-          const winner = winnerId ? updatedSave.actorsById[winnerId] : null;
-          const endLog = `Il combattimento termina. Vincitore: ${winner?.name || "Nessuno"}.`;
+        // Check if combat should end based on factions
+        const endCheckResult = shouldCombatEnd(updatedSave, updatedAliveParticipants);
+        
+        if (endCheckResult.shouldEnd) {
+          const outcome = endCheckResult.outcome || "victory";
+          const winnerId = endCheckResult.winnerId;
+          const combatState = updatedSave.runtime.combat;
+          const endedSceneId = combatState?.startedBySceneId || updatedSave.runtime.currentSceneId;
+          
+          let endLog: string;
+          if (outcome === "victory") {
+            endLog = "Tutti i nemici presenti nell'area sono stati sconfitti.";
+          } else {
+            endLog = "Il party è stato annientato. Game over.";
+          }
 
           const endCheck: CheckResult = last
             ? {
                 ...last,
-                tags: [...last.tags, "combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+                tags: [
+                  ...last.tags,
+                  "combat:state=end",
+                  `combat:outcome=${outcome}`,
+                  ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+                ],
               }
             : {
                 checkId: "combat:end",
@@ -367,7 +465,11 @@ export function advanceCombatTurn(save: GameSave): GameSave {
                 dos: 0,
                 dof: 0,
                 critical: "none",
-                tags: ["combat:state=end", ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+                tags: [
+                  "combat:state=end",
+                  `combat:outcome=${outcome}`,
+                  ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+                ],
               };
 
           updatedSave = appendCombatLog(updatedSave, endLog);
@@ -378,18 +480,18 @@ export function advanceCombatTurn(save: GameSave): GameSave {
               ...updatedSave.runtime,
               combat: undefined,
               lastCheck: endCheck,
-              combatEndedSceneId: updatedSave.runtime.currentSceneId,
+              combatEndedSceneId: endedSceneId,
             },
           };
         }
 
         // Combat continues - immediately advance to next living actor
         // Update combat state with updated participants before recursive call
-        const combatAfterKo = updatedSave.runtime.combat;
-        if (combatAfterKo) {
+        const combatAfterDeath = updatedSave.runtime.combat;
+        if (combatAfterDeath) {
           // The actor that just died was at newCurrentIndex in the old participants list
           // We need to advance from the previous actor (combat.currentIndex) in the updated alive list
-          // Use the prevActorId already declared above (line 251)
+          // Use the prevActorId already declared above
           const prevAliveIndex = updatedAliveParticipants.indexOf(prevActorId);
 
           // If previous actor is still alive, use their index; otherwise use 0 as fallback
@@ -402,7 +504,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
             runtime: {
               ...updatedSave.runtime,
               combat: {
-                ...combatAfterKo,
+                ...combatAfterDeath,
                 participants: updatedAliveParticipants,
                 currentIndex: pivotIndex,
               },
@@ -463,12 +565,12 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   }
   // Note: Aim stance persists until consumed by ranged attack OR until actor's next turn starts
 
-  // Recompute alive participants based on current HP (after condition effects)
-  // This ensures participants list reflects any HP changes from bleeding
+  // Recompute alive participants based on isDead (after condition effects)
+  // This ensures participants list reflects any deaths from bleeding or other effects
   const finalAliveParticipants =
     updatedSave.runtime.combat?.participants.filter((id) => {
       const actor = updatedSave.actorsById[id];
-      return actor && actor.resources.hp > 0;
+      return isActorAlive(actor);
     }) || [];
 
   const newCombatState: CombatState = {
