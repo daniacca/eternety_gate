@@ -34,6 +34,18 @@ export { distanceChebyshev, clampToGrid } from './runtime/combat/movement';
 // Content pack types and utilities
 export type { ContentPack } from './content/types';
 export { mergeWeapons, mergeArmors } from './content/merge';
+export { loadCharacterCatalogs, getSkillById, getTalentById, getTraitById } from './content/loadCatalogs';
+export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId } from './content/catalogs';
+
+// Character framework
+export { getXp, addXp, spendXp, buyTalent } from './runtime/characters/xp';
+export { evaluatePrerequisites, hasTrait, hasTalentRank, statAtLeast } from './runtime/characters/prerequisites';
+export { getModifierTotal } from './runtime/characters/modifiers';
+export { getSkillTarget } from './runtime/characters/skills';
+export { getRangedDamageBonusFromMightyShot } from './runtime/characters/mightyShot';
+export { getNaturalWeaponProfile } from './runtime/characters/naturalWeapons';
+export { processRegeneration } from './runtime/characters/regeneration';
+export { getCharacteristicBonus, getStatTestTarget } from './runtime/actors/bonuses';
 
 // Types
 export type * from './runtime/types';

@@ -1,6 +1,8 @@
 import type { GameSave, Actor, Weapon, Armor, WeaponId, ArmorId } from "../types";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import { getEquippedWeaponId, getEquippedArmorId } from "../inventory";
 import { getCharacteristicBonus } from "../actors/bonuses";
+import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
@@ -61,6 +63,7 @@ export function getActorArmor(save: GameSave, actor: Actor): {
  * Returns: { rawDamage, weaponName, weaponId }
  * @param mode - Combat mode: "MELEE" always applies STR bonus, "RANGED" never applies STR bonus
  * @param rollsCount - For Righteous Fury: number of rolls to make, take best (default 1)
+ * @param catalogs - Character catalogs (optional, required for Mighty Shot)
  */
 export function calculateWeaponDamage(
   save: GameSave,
@@ -68,7 +71,8 @@ export function calculateWeaponDamage(
   weaponId: WeaponId | "unarmed" | null,
   rng: { nextInt: (min: number, max: number) => number },
   mode: "MELEE" | "RANGED",
-  rollsCount: number = 1
+  rollsCount: number = 1,
+  catalogs?: CharacterCatalogs
 ): { rawDamage: number; weaponName: string; weaponId: WeaponId | "unarmed" } {
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
     // Unarmed: 1d5 + STR bonus (always applies STR bonus for unarmed)
@@ -91,6 +95,11 @@ export function calculateWeaponDamage(
   const weapon = save.weaponsById[weaponId];
   let bestDamage = 0;
 
+  // Get Mighty Shot bonus for ranged attacks
+  const mightyShotBonus = mode === "RANGED" && catalogs
+    ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id)
+    : 0;
+
   for (let i = 0; i < rollsCount; i++) {
     // For multi-dice weapons, roll the whole weapon damage once per iteration
     const dieRoll = rng.nextInt(1, weapon.damage.die);
@@ -99,8 +108,11 @@ export function calculateWeaponDamage(
     // MELEE: Always apply STR bonus
     // RANGED: Never apply STR bonus (only weapon base damage + bonuses)
     if (mode === "MELEE") {
-      const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
+      const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
       rollDamage += strBonus;
+    } else if (mode === "RANGED") {
+      // RANGED: Add Mighty Shot bonus (flat bonus, not per roll)
+      rollDamage += mightyShotBonus;
     }
     // Note: RANGED mode never adds STR bonus, regardless of weapon.damage.bonus
 

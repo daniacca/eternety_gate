@@ -1,0 +1,139 @@
+[
+  {
+    "id": "trait:weaver",
+    "name": "Tessitore della Trama",
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "magic:cast"
+      },
+      {
+        "type": "unlockAction",
+        "actionId": "magic:channel"
+      }
+    ]
+  },
+  {
+    "id": "trait:natural_armour",
+    "name": "Armatura Naturale",
+    "params": {
+      "armor": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "combat.naturalArmor",
+        "op": "add",
+        "valueRef": "armor"
+      }
+    ]
+  },
+  {
+    "id": "trait:dark_sight",
+    "name": "Vista al Buio",
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "env.darkVision",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "trait:size",
+    "name": "Taglia",
+    "params": {
+      "size": {
+        "type": "number",
+        "required": true,
+        "min": 1,
+        "max": 10
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "combat.toHitAgainstSelf",
+        "op": "add",
+        "valueRef": "size.toHitMod"
+      },
+      {
+        "type": "modifier",
+        "key": "skill.stealth.mod",
+        "op": "add",
+        "valueRef": "size.stealthMod"
+      },
+      {
+        "type": "modifier",
+        "key": "movement.baseMod",
+        "op": "add",
+        "valueRef": "size.moveMod"
+      }
+    ]
+  },
+  {
+    "id": "trait:unnatural_characteristic",
+    "name": "Caratteristica Innaturale",
+    "params": {
+      "stat": {
+        "type": "string",
+        "required": true
+      },
+      "bonusX": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "stat.<stat>.bonusAdd",
+        "op": "add",
+        "valueRef": "bonusX"
+      },
+      {
+        "type": "modifier",
+        "key": "stat.<stat>.testAdd",
+        "op": "add",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "id": "trait:natural_weapons",
+    "name": "Armi Naturali",
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:naturalAttack"
+      },
+      {
+        "type": "modifier",
+        "key": "combat.hasNaturalWeapons",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "trait:regeneration",
+    "name": "Rigenerazione",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "trait:regeneration"
+      }
+    ]
+  }
+]
+

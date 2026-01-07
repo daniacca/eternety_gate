@@ -1,0 +1,199 @@
+[
+  {
+    "id": "talent:arcane_attunement_1",
+    "name": "Sintonia Arcana I",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.pm",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:arcane_attunement_2",
+    "name": "Sintonia Arcana II",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      {
+        "type": "hasTalent",
+        "talentId": "talent:arcane_attunement_1"
+      }
+    ],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.pm",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:arcane_attunement_3",
+    "name": "Sintonia Arcana III",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [
+      {
+        "type": "hasTalent",
+        "talentId": "talent:arcane_attunement_2"
+      }
+    ],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.pm",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:weave_favoured",
+    "name": "Favorito della Trama",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "magic:mitigatePhenomena"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:weave_seal",
+    "name": "Sigillo della Trama",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "magic:ignorePhenomenaOnce"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:quick_draw",
+    "name": "Estrazione Rapida",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:quickDraw"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:takedown",
+    "name": "Atterramento",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:takedown"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:swift_attack",
+    "name": "Attacco Rapido",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      {
+        "type": "statAtLeast",
+        "stat": "WS",
+        "value": 40
+      }
+    ],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:swiftAttack"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:sound_constitution",
+    "name": "Costituzione Solida",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [
+      {
+        "type": "hpMaxFlat",
+        "value": 2
+      }
+    ],
+    "maxRank": 5
+  },
+  {
+    "id": "talent:mighty_shot_1",
+    "name": "Colpo Potente I",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "statAtLeast",
+        "stat": "BS",
+        "value": 30
+      }
+    ],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "combat.rangedDamageFlatFromBSBonusRank",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:mighty_shot_2",
+    "name": "Colpo Potente II",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      {
+        "type": "hasTalent",
+        "talentId": "talent:mighty_shot_1"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "BS",
+        "value": 40
+      }
+    ],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "combat.rangedDamageFlatFromBSBonusRank",
+        "op": "add",
+        "value": 1
+      }
+    ],
+    "maxRank": 1
+  }
+]
+

@@ -25,6 +25,14 @@
       }
     },
 
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "xp": { "type": "number", "minimum": 0 }
+      }
+    },
+
     "state": {
       "type": "object",
       "required": ["flags", "counters", "inventory"],

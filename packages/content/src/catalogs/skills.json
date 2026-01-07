@@ -1,0 +1,63 @@
+[
+  {
+    "id": "skill:dodge",
+    "name": "Schivare",
+    "baseStat": "AGI"
+  },
+  {
+    "id": "skill:parry",
+    "name": "Parare",
+    "baseStat": "WS"
+  },
+  {
+    "id": "skill:awareness",
+    "name": "Consapevolezza",
+    "baseStat": "PER"
+  },
+  {
+    "id": "skill:stealth",
+    "name": "Furtività",
+    "baseStat": "AGI"
+  },
+  {
+    "id": "skill:scrutiny",
+    "name": "Scrutare",
+    "baseStat": "PER"
+  },
+  {
+    "id": "skill:inquiry",
+    "name": "Indagare",
+    "baseStat": "CHA"
+  },
+  {
+    "id": "skill:charm",
+    "name": "Fascino",
+    "baseStat": "CHA"
+  },
+  {
+    "id": "skill:intimidate",
+    "name": "Intimidire",
+    "baseStat": "STR"
+  },
+  {
+    "id": "skill:medicae",
+    "name": "Medicae",
+    "baseStat": "INT"
+  },
+  {
+    "id": "skill:navigate",
+    "name": "Navigare",
+    "baseStat": "INT"
+  },
+  {
+    "id": "skill:weave_sense",
+    "name": "Senso della Trama",
+    "baseStat": "PER"
+  },
+  {
+    "id": "skill:channeling",
+    "name": "Canalizzazione",
+    "baseStat": "WIL"
+  }
+]
+

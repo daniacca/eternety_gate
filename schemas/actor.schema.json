@@ -131,16 +131,14 @@
       }
     },
     "talents": {
-      "type": "array",
-      "items": {
-        "type": "string"
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
       }
     },
     "traits": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "type": "object",
+      "additionalProperties": true
     },
     "equipment": {
       "type": "object",

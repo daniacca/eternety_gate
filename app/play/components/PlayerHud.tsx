@@ -30,6 +30,8 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
   const conditions = activeActor.conditions || {};
   const conditionEntries = Object.entries(conditions) as Array<[ConditionId, { stacks?: number }]>;
 
+  const xp = save.meta?.xp ?? 0;
+
   return (
     <View style={styles.container}>
       {/* Avatar placeholder */}
@@ -43,6 +45,12 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
         <Text style={styles.hpValue}>
           {hp}/{hpMax}
         </Text>
+      </View>
+
+      {/* XP */}
+      <View style={styles.xpContainer}>
+        <Text style={styles.xpLabel}>XP</Text>
+        <Text style={styles.xpValue}>{xp}</Text>
       </View>
 
       {/* Conditions */}
@@ -114,6 +122,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
+  },
+  xpContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  xpLabel: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
+  },
+  xpValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4a90e2",
   },
   conditionsContainer: {
     flexDirection: "row",

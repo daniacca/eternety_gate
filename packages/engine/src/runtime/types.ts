@@ -447,11 +447,19 @@ export type Actor = {
   /**
    * Skills/Disciplines are stored without the "SKILL:" prefix here.
    * When referenced in checks, use key = `SKILL:<id>`.
+   * Value is the rank (0 = untrained, 1+ = trained ranks).
    */
   skills: Record<string, number>;
 
-  talents: string[];
-  traits: string[];
+  /**
+   * Talents: Record of talentId -> rank count (1..maxRank)
+   */
+  talents: Record<string, number>;
+
+  /**
+   * Traits: Record of traitId -> params object (or true for traits without params)
+   */
+  traits: Record<string, any>;
 
   equipment: {
     mainHand?: ItemRef | null;
@@ -640,6 +648,10 @@ export type GameSave = {
   platform?: string;
 
   story: { id: StoryId; version: StoryVersion };
+
+  meta?: {
+    xp?: number;
+  };
 
   state: {
     flags: Record<string, boolean>;

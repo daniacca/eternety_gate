@@ -1,5 +1,7 @@
 import type { GameSave, ActorId, StatKey } from "../types";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import { resolveActor } from "../checks";
+import { getModifierTotal } from "../characters/modifiers";
 
 /**
  * Calculates the base bonus from a characteristic value.
@@ -23,21 +25,36 @@ export function getCharacteristicValue(actorId: ActorId, key: StatKey, save: Gam
 
 /**
  * Gets bonus modifiers for a characteristic.
- * This is a placeholder that returns 0 for now, but can be extended to:
- * - Check actor.conditions for temporary modifiers
- * - Check actor.equipment for item bonuses
- * - Check actor.status.tempModifiers for status effects
- * - Check active combat effects/buffs
+ * Includes unnatural characteristic bonus from traits.
  * 
  * @param save - The game save
+ * @param catalogs - Character catalogs (optional, required for unnatural characteristics)
  * @param actorId - The actor ID
  * @param key - The characteristic key (e.g., "INI", "AGI", "STR")
  * @returns The total modifier to apply to the base bonus
  */
-export function getBonusModifiers(save: GameSave, actorId: ActorId, key: StatKey): number {
+export function getBonusModifiers(
+  save: GameSave,
+  actorId: ActorId,
+  key: StatKey,
+  catalogs?: CharacterCatalogs
+): number {
   const actor = save.actorsById[actorId];
   if (!actor) {
     return 0;
+  }
+
+  let total = 0;
+
+  // Check for unnatural characteristic trait
+  if (catalogs) {
+    const unnaturalModifier = getModifierTotal(
+      save,
+      catalogs,
+      actorId,
+      `stat.${key}.bonusAdd` as any
+    );
+    total += unnaturalModifier;
   }
 
   // TODO: Extend this to check:
@@ -45,26 +62,49 @@ export function getBonusModifiers(save: GameSave, actorId: ActorId, key: StatKey
   // - actor.equipment for item bonuses (via itemCatalogById)
   // - actor.status.tempModifiers for temporary modifiers
   // - active combat effects/buffs
-  
-  // For now, return 0 (no modifiers)
-  return 0;
+
+  return total;
 }
 
 /**
  * Gets the final characteristic bonus for an actor.
- * This is the base bonus (floor(stat/10)) plus any modifiers.
+ * This is the base bonus (floor(stat/10)) plus any modifiers (including unnatural).
  * 
  * @param save - The game save
  * @param actorId - The actor ID
  * @param key - The characteristic key (e.g., "INI", "AGI", "STR")
+ * @param catalogs - Character catalogs (optional, required for unnatural characteristics)
  * @returns The final bonus value
  */
-export function getCharacteristicBonus(save: GameSave, actorId: ActorId, key: StatKey): number {
+export function getCharacteristicBonus(
+  save: GameSave,
+  actorId: ActorId,
+  key: StatKey,
+  catalogs?: CharacterCatalogs
+): number {
   const baseValue = getCharacteristicValue(actorId, key, save);
   const baseBonus = getCharacteristicBonusBase(baseValue);
-  const modifiers = getBonusModifiers(save, actorId, key);
+  const modifiers = getBonusModifiers(save, actorId, key, catalogs);
   
   return baseBonus + modifiers;
+}
+
+/**
+ * Gets stat test target (stat value + test modifiers)
+ */
+export function getStatTestTarget(
+  save: GameSave,
+  catalogs: CharacterCatalogs,
+  actorId: ActorId,
+  statKey: StatKey
+): number {
+  const actor = save.actorsById[actorId];
+  if (!actor) return 0;
+
+  const baseValue = getCharacteristicValue(actorId, statKey, save);
+  const testModifier = getModifierTotal(save, catalogs, actorId, `stat.${statKey}.testAdd` as any);
+  
+  return baseValue + testModifier;
 }
 
 /**

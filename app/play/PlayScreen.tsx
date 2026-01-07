@@ -47,8 +47,8 @@ export function PlayScreen() {
       },
       resources: { hp: 100, rf: 100, peq: 100 },
       skills: {},
-      talents: [],
-      traits: [],
+      talents: {},
+      traits: {},
       equipment: {
         mainHand: { kind: "weapon", id: "shortbow" }, // Test weapon: ranged
         armor: null, // No armor for player initially
@@ -84,8 +84,8 @@ export function PlayScreen() {
       },
       resources: { hp: 50, rf: 50, peq: 50 },
       skills: {},
-      talents: [],
-      traits: [],
+      talents: {},
+      traits: {},
       equipment: {
         mainHand: { kind: "weapon", id: "club" },
         armor: { kind: "armor", id: "leather" },

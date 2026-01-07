@@ -137,6 +137,61 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
                   {rf}/{rfMax}
                 </Text>
               </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>XP:</Text>
+                <Text style={styles.resourceValue}>{save.meta?.xp ?? 0}</Text>
+              </View>
+            </View>
+
+            {/* Skills */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Abilità</Text>
+              {Object.keys(activeActor.skills).length === 0 ? (
+                <Text style={styles.emptyText}>Nessuna abilità</Text>
+              ) : (
+                Object.entries(activeActor.skills).map(([skillId, rank]) => (
+                  <View key={skillId} style={styles.skillRow}>
+                    <Text style={styles.skillName}>{skillId.replace("skill:", "")}</Text>
+                    <Text style={styles.skillRank}>Rango {rank}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Talents */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Talenti</Text>
+              {Object.keys(activeActor.talents).length === 0 ? (
+                <Text style={styles.emptyText}>Nessun talento</Text>
+              ) : (
+                Object.entries(activeActor.talents).map(([talentId, rank]) => (
+                  <View key={talentId} style={styles.talentRow}>
+                    <Text style={styles.talentName}>{talentId.replace("talent:", "")}</Text>
+                    <Text style={styles.talentRank}>Rango {rank}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Traits */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Tratti</Text>
+              {Object.keys(activeActor.traits).length === 0 ? (
+                <Text style={styles.emptyText}>Nessun tratto</Text>
+              ) : (
+                Object.entries(activeActor.traits).map(([traitId, params]) => (
+                  <View key={traitId} style={styles.traitRow}>
+                    <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
+                    {params && typeof params === "object" && Object.keys(params).length > 0 && (
+                      <Text style={styles.traitParams}>
+                        {Object.entries(params)
+                          .map(([key, value]) => `${key}: ${value}`)
+                          .join(", ")}
+                      </Text>
+                    )}
+                  </View>
+                ))
+              )}
             </View>
 
             {/* Conditions */}
@@ -422,5 +477,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     fontStyle: "italic",
+  },
+  skillRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 8,
+    marginBottom: 4,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 4,
+  },
+  skillName: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  skillRank: {
+    fontSize: 14,
+    color: "#666",
+  },
+  talentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 8,
+    marginBottom: 4,
+    backgroundColor: "#e8f4f8",
+    borderRadius: 4,
+  },
+  talentName: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  talentRank: {
+    fontSize: 14,
+    color: "#666",
+  },
+  traitRow: {
+    padding: 8,
+    marginBottom: 4,
+    backgroundColor: "#f0f8e8",
+    borderRadius: 4,
+  },
+  traitName: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  traitParams: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
   },
 });
