@@ -44,9 +44,6 @@
       "suspicion": "number",
       "instability": "number"
     },
-    "inventory": {
-      "items": "string[]"
-    },
     "runVariant": {
       "id": "string",
       "tags": "string[]"
@@ -87,9 +84,6 @@
       "loopCount": 0,
       "suspicion": 0,
       "instability": 0
-    },
-    "inventory": {
-      "items": []
     },
     "runVariant": {
       "id": "VAR_DEFAULT",

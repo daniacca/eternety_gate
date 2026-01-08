@@ -163,53 +163,107 @@ describe("effects", () => {
     });
 
     describe("addItem", () => {
-      it("should add an item to inventory", () => {
+      it("should add an item to actor inventory", () => {
         const storyPack = makeTestStoryPack();
         const actor = makeTestActor();
-        const save = makeTestSave(storyPack, actor);
+        const save = makeTestSave(storyPack, actor, 123456, 0);
+        // Add item to catalog
+        const saveWithCatalog = {
+          ...save,
+          itemCatalogById: {
+            ...save.itemCatalogById,
+            item1: {
+              id: "item1",
+              kind: "weapon",
+              name: "Test Weapon",
+              tags: [],
+              mods: [],
+            },
+          },
+        };
         const rng = new FakeRng([]);
 
         const effect: Effect = {
           op: "addItem",
+          actorId: actor.id,
           itemId: "item1",
         };
 
-        const result = applyEffect(effect, storyPack, save, rng);
-        expect(result.save.state.inventory.items).toContain("item1");
+        const result = applyEffect(effect, storyPack, saveWithCatalog, rng);
+        const updatedActor = result.save.actorsById[actor.id];
+        expect(updatedActor.inventory).toBeDefined();
+        expect(updatedActor.inventory?.some((item) => item.id === "item1")).toBe(true);
       });
 
       it("should add multiple items when applied multiple times", () => {
         const storyPack = makeTestStoryPack();
         const actor = makeTestActor();
         const save = makeTestSave(storyPack, actor);
+        // Add items to catalog
+        const saveWithCatalog = {
+          ...save,
+          itemCatalogById: {
+            ...save.itemCatalogById,
+            item1: {
+              id: "item1",
+              kind: "weapon",
+              name: "Test Weapon 1",
+              tags: [],
+              mods: [],
+            },
+            item2: {
+              id: "item2",
+              kind: "armor",
+              name: "Test Armor",
+              tags: [],
+              mods: [],
+            },
+          },
+        };
         const rng = new FakeRng([]);
 
         const effect1: Effect = {
           op: "addItem",
+          actorId: actor.id,
           itemId: "item1",
         };
         const effect2: Effect = {
           op: "addItem",
+          actorId: actor.id,
           itemId: "item2",
         };
 
-        const result1 = applyEffect(effect1, storyPack, save, rng);
+        const result1 = applyEffect(effect1, storyPack, saveWithCatalog, rng);
         const result2 = applyEffect(effect2, storyPack, result1.save, rng);
-        expect(result2.save.state.inventory.items).toContain("item1");
-        expect(result2.save.state.inventory.items).toContain("item2");
+        const updatedActor = result2.save.actorsById[actor.id];
+        expect(updatedActor.inventory?.some((item) => item.id === "item1")).toBe(true);
+        expect(updatedActor.inventory?.some((item) => item.id === "item2")).toBe(true);
       });
 
       it("should preserve existing items", () => {
         const storyPack = makeTestStoryPack();
-        const actor = makeTestActor();
+        const actor = makeTestActor({
+          inventory: [{ kind: "weapon", id: "existingItem" }],
+        });
         const save = makeTestSave(storyPack, actor);
-        const saveWithItems = {
+        // Add items to catalog
+        const saveWithCatalog = {
           ...save,
-          state: {
-            ...save.state,
-            inventory: {
-              ...save.state.inventory,
-              items: ["existingItem"],
+          itemCatalogById: {
+            ...save.itemCatalogById,
+            existingItem: {
+              id: "existingItem",
+              kind: "weapon",
+              name: "Existing Weapon",
+              tags: [],
+              mods: [],
+            },
+            newItem: {
+              id: "newItem",
+              kind: "armor",
+              name: "New Armor",
+              tags: [],
+              mods: [],
             },
           },
         };
@@ -217,55 +271,60 @@ describe("effects", () => {
 
         const effect: Effect = {
           op: "addItem",
+          actorId: actor.id,
           itemId: "newItem",
         };
 
-        const result = applyEffect(effect, storyPack, saveWithItems, rng);
-        expect(result.save.state.inventory.items).toContain("existingItem");
-        expect(result.save.state.inventory.items).toContain("newItem");
+        const result = applyEffect(effect, storyPack, saveWithCatalog, rng);
+        const updatedActor = result.save.actorsById[actor.id];
+        expect(updatedActor.inventory?.some((item) => item.id === "existingItem")).toBe(true);
+        expect(updatedActor.inventory?.some((item) => item.id === "newItem")).toBe(true);
       });
     });
 
     describe("removeItem", () => {
-      it("should remove an item from inventory", () => {
+      it("should remove an item from actor inventory", () => {
         const storyPack = makeTestStoryPack();
-        const actor = makeTestActor();
+        const actor = makeTestActor({
+          inventory: [
+            { kind: "weapon", id: "item1" },
+            { kind: "armor", id: "item2" },
+          ],
+        });
         const save = makeTestSave(storyPack, actor);
-        const saveWithItems = {
-          ...save,
-          state: {
-            ...save.state,
-            inventory: {
-              ...save.state.inventory,
-              items: ["item1", "item2"],
-            },
-          },
-        };
         const rng = new FakeRng([]);
 
         const effect: Effect = {
           op: "removeItem",
+          actorId: actor.id,
           itemId: "item1",
         };
 
-        const result = applyEffect(effect, storyPack, saveWithItems, rng);
-        expect(result.save.state.inventory.items).not.toContain("item1");
-        expect(result.save.state.inventory.items).toContain("item2");
+        const result = applyEffect(effect, storyPack, save, rng);
+        const updatedActor = result.save.actorsById[actor.id];
+        expect(updatedActor.inventory?.some((item) => item.id === "item1")).toBe(false);
+        expect(updatedActor.inventory?.some((item) => item.id === "item2")).toBe(true);
       });
 
       it("should handle removing non-existent item gracefully", () => {
         const storyPack = makeTestStoryPack();
-        const actor = makeTestActor();
+        const actor = makeTestActor({
+          inventory: [{ kind: "weapon", id: "existingItem" }],
+        });
         const save = makeTestSave(storyPack, actor);
         const rng = new FakeRng([]);
 
         const effect: Effect = {
           op: "removeItem",
+          actorId: actor.id,
           itemId: "nonExistentItem",
         };
 
         const result = applyEffect(effect, storyPack, save, rng);
-        expect(result.save.state.inventory.items).not.toContain("nonExistentItem");
+        const updatedActor = result.save.actorsById[actor.id];
+        // Should still have existing item
+        expect(updatedActor.inventory?.some((item) => item.id === "existingItem")).toBe(true);
+        expect(updatedActor.inventory?.some((item) => item.id === "nonExistentItem")).toBe(false);
       });
     });
 

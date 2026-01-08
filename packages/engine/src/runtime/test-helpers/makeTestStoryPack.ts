@@ -13,7 +13,6 @@ export function makeTestStoryPack(overrides?: Partial<StoryPack>): StoryPack {
     initialState: {
       flags: {},
       counters: {},
-      inventory: { items: [] },
     },
     systems: {
       checks: {

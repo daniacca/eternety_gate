@@ -95,9 +95,6 @@ export function createNewGame(
     state: {
       flags: { ...storyPack.initialState.flags },
       counters: { ...storyPack.initialState.counters },
-      inventory: {
-        items: [...(storyPack.initialState.inventory?.items || [])],
-      },
       runVariant: storyPack.initialState.runVariant,
     },
     party,

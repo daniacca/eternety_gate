@@ -65,8 +65,7 @@
       "type": "object",
       "required": [
         "flags",
-        "counters",
-        "inventory"
+        "counters"
       ],
       "additionalProperties": true,
       "properties": {
@@ -81,10 +80,6 @@
           "additionalProperties": {
             "type": "string"
           }
-        },
-        "inventory": {
-          "type": "object",
-          "additionalProperties": true
         }
       }
     },
@@ -92,8 +87,7 @@
       "type": "object",
       "required": [
         "flags",
-        "counters",
-        "inventory"
+        "counters"
       ],
       "additionalProperties": true,
       "properties": {
@@ -108,21 +102,6 @@
           "additionalProperties": {
             "type": "number"
           }
-        },
-        "inventory": {
-          "type": "object",
-          "required": [
-            "items"
-          ],
-          "properties": {
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "additionalProperties": true
         },
         "runVariant": {
           "type": "object",

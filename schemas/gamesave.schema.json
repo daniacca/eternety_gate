@@ -35,19 +35,11 @@
 
     "state": {
       "type": "object",
-      "required": ["flags", "counters", "inventory"],
+      "required": ["flags", "counters"],
       "additionalProperties": true,
       "properties": {
         "flags": { "type": "object", "additionalProperties": { "type": "boolean" } },
         "counters": { "type": "object", "additionalProperties": { "type": "number" } },
-        "inventory": {
-          "type": "object",
-          "required": ["items"],
-          "additionalProperties": true,
-          "properties": {
-            "items": { "type": "array", "items": { "type": "string" } }
-          }
-        },
         "runVariant": { "type": "object", "additionalProperties": true }
       }
     },

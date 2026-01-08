@@ -69,8 +69,8 @@ export type Condition =
 export type Effect =
   | { op: "setFlag"; path: string; value: boolean }
   | { op: "addCounter"; path: string; value: number }
-  | { op: "addItem"; itemId: ItemId }
-  | { op: "removeItem"; itemId: ItemId }
+  | { op: "addItem"; actorId: ActorId; itemId: ItemId }
+  | { op: "removeItem"; actorId: ActorId; itemId: ItemId }
   | { op: "goto"; sceneId: SceneId }
   | { op: "conditionalEffects"; cases: Array<{ when: Condition; then: Effect[] }> }
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
@@ -345,7 +345,6 @@ export type GameSave = {
   state: {
     flags: Record<string, boolean>;
     counters: Record<string, number>;
-    inventory: { items: ItemId[] } & Record<string, any>;
     runVariant?: any;
   };
 
