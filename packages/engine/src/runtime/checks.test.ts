@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { performCheck, resolveActor, getStatOrSkillValue } from "./checks";
+import { performCheck, resolveActor, getStatOrSkillValue } from "./checks/index";
 import { makeTestSave } from "./test-helpers/makeTestSave";
 import { makeTestStoryPack } from "./test-helpers/makeTestStoryPack";
 import { makeTestActor } from "./test-helpers/makeTestActor";

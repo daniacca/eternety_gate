@@ -105,7 +105,7 @@ export function PlayScreen() {
       resources: { hp: 50, rf: 0, peq: 0 },
       skills: {},
       talents: {},
-      traits: {},
+      traits: { "trait:size": { size: 4 } },
       equipment: {
         mainHand: { kind: "weapon" as const, id: "club" },
         armor: { kind: "armor" as const, id: "leather" },

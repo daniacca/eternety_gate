@@ -39,7 +39,12 @@
     {
       "id": "plate",
       "name": "Plate Armor",
-      "soak": 3
+      "soak": 4
+    },
+    {
+      "id": "fullplate",
+      "name": "Full Plate Armor",
+      "soak": 8
     }
   ]
 }

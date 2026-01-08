@@ -19,7 +19,7 @@ export {
 // Utilities
 export { evaluateCondition, evaluateConditions } from "./runtime/conditions";
 export { applyEffect, applyEffects } from "./runtime/effects";
-export { performCheck, resolveActor, getStatOrSkillValue } from "./runtime/checks";
+export { performCheck, performCheckWithSave, resolveActor, getStatOrSkillValue } from "./runtime/checks";
 export { RNG, rollD100 } from "./runtime/rng";
 
 // Equipment helpers
