@@ -63,7 +63,7 @@ describe("checks", () => {
         },
       };
 
-      const resolved = resolveActor({ mode: "bestOfParty", key: "STR" }, saveWithMultiple);
+      const resolved = resolveActor({ mode: "bestOfParty", key: "STR" }, saveWithMultiple, storyPack);
 
       expect(resolved?.id).toBe("PC_2");
     });
@@ -91,13 +91,21 @@ describe("checks", () => {
     });
 
     it("should return skill value", () => {
-      const storyPack = makeTestStoryPack();
-      const actor = makeTestActor({ skills: { VATES: 40 } });
+      const storyPack = makeTestStoryPack({
+        skills: [
+          { id: "VATES", name: "Vates", baseStat: "WIL" },
+        ],
+      });
+      const actor = makeTestActor({
+        stats: { WIL: 50 } as any,
+        skills: { VATES: 1 }, // Rank 1 = +0 modifier
+      });
       const save = makeTestSave(storyPack, actor);
 
-      const value = getStatOrSkillValue(actor, "SKILL:VATES", save);
+      const value = getStatOrSkillValue(actor, "SKILL:VATES", save, storyPack);
 
-      expect(value).toBe(40);
+      // Rank 1: baseStat (50) + skillModifier (0) = 50
+      expect(value).toBe(50);
     });
 
     it("should apply equipment bonuses to stats", () => {
@@ -128,9 +136,14 @@ describe("checks", () => {
     });
 
     it("should apply equipment bonuses to skills", () => {
-      const storyPack = makeTestStoryPack();
+      const storyPack = makeTestStoryPack({
+        skills: [
+          { id: "VATES", name: "Vates", baseStat: "WIL" },
+        ],
+      });
       const actor = makeTestActor({
-        skills: { VATES: 50 },
+        stats: { WIL: 50 } as any,
+        skills: { VATES: 2 }, // Rank 2 = +10 modifier
         equipment: {
           offHand: { kind: "misc", id: "item1" },
         },
@@ -149,9 +162,28 @@ describe("checks", () => {
         },
       };
 
-      const value = getStatOrSkillValue(actor, "SKILL:VATES", saveWithItem);
+      const value = getStatOrSkillValue(actor, "SKILL:VATES", saveWithItem, storyPack);
 
-      expect(value).toBe(65);
+      // Rank 2: baseStat (50) + skillModifier (+10) + equipment bonus (+15) = 75
+      expect(value).toBe(75);
+    });
+
+    it("should apply -20 penalty for untrained skills (rank 0)", () => {
+      const storyPack = makeTestStoryPack({
+        skills: [
+          { id: "skill:awareness", name: "Awareness", baseStat: "PER" },
+        ],
+      });
+      const actor = makeTestActor({
+        stats: { PER: 50 } as any,
+        skills: {}, // No skill rank = untrained
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const value = getStatOrSkillValue(actor, "SKILL:skill:awareness", save, storyPack);
+
+      // Untrained: baseStat (50) + skillModifier (-20) = 30
+      expect(value).toBe(30);
     });
 
     it("should apply temp modifiers", () => {

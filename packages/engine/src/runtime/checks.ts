@@ -13,6 +13,7 @@ import type {
   Actor,
   CheckResult,
   StoryPack,
+  StatKey,
 } from "./types";
 import { type IRNG } from "./rng";
 import { computeCombatModifiersFromConditions } from "./conditions";
@@ -23,7 +24,7 @@ import { appendRuntimeLog } from "./combat/narration";
 /**
  * Resolves an ActorRef to an Actor
  */
-export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Actor | null {
+export function resolveActor(actorRef: ActorRef | undefined, save: GameSave, storyPack?: StoryPack): Actor | null {
   if (!actorRef) {
     return save.actorsById[save.party.activeActorId] || null;
   }
@@ -43,7 +44,7 @@ export function resolveActor(actorRef: ActorRef | undefined, save: GameSave): Ac
         const actor = save.actorsById[actorId];
         if (!actor) continue;
 
-        const value = getStatOrSkillValue(actor, actorRef.key, save);
+        const value = getStatOrSkillValue(actor, actorRef.key, save, storyPack);
         if (value > bestValue) {
           bestValue = value;
           best = actor;
@@ -78,9 +79,35 @@ function getEquippedItems(actor: Actor): string[] {
 }
 
 /**
- * Gets the value of a stat or skill for an actor
+ * Calculates skill modifier based on rank:
+ * - Rank 0 (untrained): -20 penalty
+ * - Rank 1: +0 (no bonus/malus)
+ * - Rank 2+: +10 per rank above 1 (rank 2 = +10, rank 3 = +20, etc.)
  */
-export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: GameSave): number {
+function getSkillModifierFromRank(rank: number): number {
+  if (rank === 0) {
+    return -20;
+  } else if (rank === 1) {
+    return 0;
+  } else {
+    return (rank - 1) * 10;
+  }
+}
+
+/**
+ * Gets the base stat value for a skill from the skill catalog
+ */
+function getSkillBaseStat(skillId: string, storyPack: StoryPack): StatKey | null {
+  const skills = storyPack.skills || [];
+  const skill = skills.find((s: any) => s.id === skillId);
+  return skill?.baseStat || null;
+}
+
+/**
+ * Gets the value of a stat or skill for an actor
+ * For skills, returns: baseStat + skillModifier(rank) + equipment bonuses + temp modifiers
+ */
+export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: GameSave, storyPack?: StoryPack): number {
   // Check if it's a stat
   if (key in actor.stats) {
     let value = actor.stats[key as keyof typeof actor.stats];
@@ -112,16 +139,36 @@ export function getStatOrSkillValue(actor: Actor, key: StatOrSkillKey, save: Gam
   // Check if it's a skill (SKILL:xxx format)
   if (key.startsWith("SKILL:")) {
     const skillId = key.substring(6);
-    let value = actor.skills[skillId] || 0;
+    const rank = actor.skills[skillId] || 0;
 
-    // Apply equipment bonuses
+    // Get base stat for the skill
+    let baseStatValue = 0;
+    if (storyPack) {
+      const baseStat = getSkillBaseStat(skillId, storyPack);
+      if (baseStat && baseStat in actor.stats) {
+        baseStatValue = actor.stats[baseStat];
+      }
+    }
+
+    // Calculate skill modifier from rank
+    const skillModifier = getSkillModifierFromRank(rank);
+
+    // Start with base stat + skill modifier
+    let value = baseStatValue + skillModifier;
+
+    // Apply equipment bonuses to base stat
     const items = getEquippedItems(actor);
-
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
 
       for (const mod of item.mods) {
+        if (mod.type === "bonusStat") {
+          const baseStat = storyPack ? getSkillBaseStat(skillId, storyPack) : null;
+          if (baseStat && mod.stat === baseStat) {
+            value += mod.value;
+          }
+        }
         if (mod.type === "bonusSkill" && mod.skill === skillId) {
           value += mod.value;
         }
@@ -185,16 +232,30 @@ function computeTargetBreakdown(
     }
   } else if (key.startsWith("SKILL:")) {
     const skillId = key.substring(6);
-    baseValue = actor.skills[skillId] || 0;
+    const rank = actor.skills[skillId] || 0;
 
-    // Apply equipment bonuses to base
+    // Get base stat for the skill
+    const baseStat = getSkillBaseStat(skillId, storyPack);
+    if (baseStat && baseStat in actor.stats) {
+      baseValue = actor.stats[baseStat];
+    } else {
+      baseValue = 0;
+    }
+
+    // Add skill modifier from rank
+    const skillModifier = getSkillModifierFromRank(rank);
+    baseValue += skillModifier;
+
+    // Apply equipment bonuses to base stat
     const items = getEquippedItems(actor);
-
     for (const itemId of items) {
       const item = save.itemCatalogById[itemId];
       if (!item) continue;
 
       for (const mod of item.mods) {
+        if (mod.type === "bonusStat" && baseStat && mod.stat === baseStat) {
+          baseValue += mod.value;
+        }
         if (mod.type === "bonusSkill" && mod.skill === skillId) {
           baseValue += mod.value;
         }
@@ -215,7 +276,7 @@ function computeTargetBreakdown(
   }
 
   // Use getStatOrSkillValue for final value (includes temp modifiers)
-  const finalValue = getStatOrSkillValue(actor, key, save);
+  const finalValue = getStatOrSkillValue(actor, key, save, storyPack);
   const target = finalValue + difficultyMod;
 
   return {
@@ -327,7 +388,7 @@ export function logCheckIfPartyMember(save: GameSave, result: CheckResult | null
 }
 
 function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
-  const actor = resolveActor(check.actorRef, save);
+  const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
 
   const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty, save, storyPack);
@@ -346,12 +407,12 @@ function performSingleCheck(check: SingleCheck, storyPack: StoryPack, save: Game
 }
 
 function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
-  const actor = resolveActor(check.actorRef, save);
+  const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
 
   // Try each option, succeed if any succeeds
   for (const option of check.options) {
-    const baseValue = getStatOrSkillValue(actor, option.key, save);
+    const baseValue = getStatOrSkillValue(actor, option.key, save, storyPack);
     const difficultyMod = resolveDifficulty(option.difficulty, storyPack);
     const target = baseValue + difficultyMod;
 
@@ -363,7 +424,7 @@ function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSa
 
   // All failed, return last result
   const lastOption = check.options[check.options.length - 1];
-  const baseValue = getStatOrSkillValue(actor, lastOption.key, save);
+  const baseValue = getStatOrSkillValue(actor, lastOption.key, save, storyPack);
   const difficultyMod = resolveDifficulty(lastOption.difficulty, storyPack);
   const target = baseValue + difficultyMod;
 
@@ -372,8 +433,8 @@ function performMultiCheck(check: MultiCheck, storyPack: StoryPack, save: GameSa
 
 function performOpposedCheck(check: OpposedCheck, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
   // Resolve actors - default to active actor if not specified
-  const attacker = resolveActor(check.attacker.actorRef, save);
-  const defender = resolveActor(check.defender.actorRef, save) || resolveActor(undefined, save);
+  const attacker = resolveActor(check.attacker.actorRef, save, storyPack);
+  const defender = resolveActor(check.defender.actorRef, save, storyPack) || resolveActor(undefined, save, storyPack);
   if (!attacker || !defender) return null;
 
   const attackerBreakdown = computeTargetBreakdown(
@@ -542,7 +603,7 @@ function performMagicChannelCheck(
   save: GameSave,
   rng: IRNG
 ): CheckResult {
-  const actor = resolveActor(check.actorRef, save);
+  const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
 
   // Magic channel behaves like a normal single check
@@ -621,7 +682,7 @@ function performMagicEffectCheck(
   save: GameSave,
   rng: IRNG
 ): CheckResult {
-  const actor = resolveActor(check.actorRef, save);
+  const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
 
   // Magic effect performs a D100 check using chosenStat
@@ -948,8 +1009,8 @@ function performCombatAttackCheck(
   resolutionId?: string
 ): { result: CheckResult; save: GameSave } {
   // Resolve actors
-  const attacker = resolveActor(check.attacker.actorRef, save);
-  const defender = resolveActor(check.defender.actorRef, save);
+  const attacker = resolveActor(check.attacker.actorRef, save, storyPack);
+  const defender = resolveActor(check.defender.actorRef, save, storyPack);
   if (!attacker || !defender) return { result: null, save };
 
   // Compute attack target using centralized function
@@ -1045,16 +1106,49 @@ function performCombatAttackCheck(
   const canParry = turnCounter >= disabledUntil && check.defense.allowParry;
   const canDodge = check.defense.allowDodge;
 
+  // Use skill keys for defense
+  const parrySkillKey: StatOrSkillKey = "SKILL:skill:parry";
+  const dodgeSkillKey: StatOrSkillKey = "SKILL:skill:dodge";
+
   let defenseType: "parry" | "dodge" | "none" = "none";
+  let defenseSkillKey: StatOrSkillKey | null = null;
+
   if (check.defense.strategy === "preferParry" && canParry) {
     defenseType = "parry";
+    defenseSkillKey = parrySkillKey;
   } else if (check.defense.strategy === "preferDodge" && canDodge) {
     defenseType = "dodge";
+    defenseSkillKey = dodgeSkillKey;
   } else if (check.defense.strategy === "autoBest") {
+    // Calculate both defense targets and choose the best one
+    let parryTarget = -Infinity;
+    let dodgeTarget = -Infinity;
+
     if (canParry) {
+      const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "NORMAL", save, storyPack);
+      parryTarget = parryBreakdown.target;
+    }
+
+    if (canDodge) {
+      const dodgeBreakdown = computeTargetBreakdown(defender, dodgeSkillKey, "NORMAL", save, storyPack);
+      dodgeTarget = dodgeBreakdown.target;
+    }
+
+    // Choose the defense with the highest target (best chance to succeed)
+    if (canParry && canDodge) {
+      if (parryTarget >= dodgeTarget) {
+        defenseType = "parry";
+        defenseSkillKey = parrySkillKey;
+      } else {
+        defenseType = "dodge";
+        defenseSkillKey = dodgeSkillKey;
+      }
+    } else if (canParry) {
       defenseType = "parry";
+      defenseSkillKey = parrySkillKey;
     } else if (canDodge) {
       defenseType = "dodge";
+      defenseSkillKey = dodgeSkillKey;
     }
   }
 
@@ -1067,7 +1161,7 @@ function performCombatAttackCheck(
   let updatedSave = save;
 
   // If no defense, HIT
-  if (defenseType === "none") {
+  if (defenseType === "none" || !defenseSkillKey) {
     return {
       result: {
         checkId: check.id,
@@ -1084,9 +1178,8 @@ function performCombatAttackCheck(
     };
   }
 
-  // Roll defense
-  const defenseStatKey: StatOrSkillKey = defenseType === "parry" ? "WS" : "AGI";
-  const defenseBreakdown = computeTargetBreakdown(defender, defenseStatKey, "NORMAL", save, storyPack);
+  // Roll defense using the chosen skill
+  const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "NORMAL", save, storyPack);
   const defenseTarget = defenseBreakdown.target;
 
   const defenseRoll = rng.rollD100();
@@ -1109,7 +1202,7 @@ function performCombatAttackCheck(
         critical: defenseResult.critical,
         tags: [
           `combat:defenseType=${defenseType}`,
-          `combat:defenseStat=${defenseStatKey}`,
+          `combat:defenseSkill=${defenseSkillKey}`,
           `combat:defTarget=${defenseTarget}`,
           `combat:defRoll=${defenseRoll}`,
           `combat:defDoS=${defenseResult.dos}`,
