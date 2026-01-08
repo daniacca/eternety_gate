@@ -1,5 +1,5 @@
 import type { Effect, GameSave, ItemRef, ItemRefKind } from "../types";
-import { getActorInventory } from "../inventory";
+import { getActorInventory } from "../characters/inventory";
 
 /**
  * Converts ItemKind to ItemRefKind

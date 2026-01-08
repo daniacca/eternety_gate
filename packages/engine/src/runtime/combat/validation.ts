@@ -1,7 +1,7 @@
 import type { CombatAttackCheck, GameSave, CheckResult, ActorId } from "../types";
 import { resolveActor } from "../checks";
 import { getActorWeapon } from "./equipment";
-import { getEquippedWeaponId } from "../inventory";
+import { getEquippedWeaponId } from "../characters/inventory";
 
 /**
  * Validates ranged attack and applies range band modifiers

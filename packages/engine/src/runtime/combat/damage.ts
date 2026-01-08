@@ -13,7 +13,7 @@ import type { IRNG } from "../rng";
 import { resolveActor, performCheck } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
-import { getEquippedWeaponId } from "../inventory";
+import { getEquippedWeaponId } from "../characters/inventory";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 

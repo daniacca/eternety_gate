@@ -1,5 +1,5 @@
 import type { Effect, GameSave, ItemRef } from "../../types";
-import { getActorInventory } from "../../inventory";
+import { getActorInventory } from "../../characters/inventory";
 
 /**
  * EquipItem: equips an item from inventory into a slot (swaps if slot occupied)

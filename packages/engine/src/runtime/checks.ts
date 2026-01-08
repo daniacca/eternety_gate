@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import { type IRNG } from "./rng";
 import { computeCombatModifiersFromConditions } from "./conditions";
-import { getEquippedWeaponId } from "./inventory";
+import { getEquippedWeaponId } from "./characters/inventory";
 import { distanceChebyshev } from "./combat/movement";
 import { appendRuntimeLog } from "./combat/narration";
 

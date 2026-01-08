@@ -5,7 +5,7 @@ import { appendCombatLog, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
 import { distanceChebyshev } from "../movement";
-import { getEquippedWeaponId } from "../../inventory";
+import { getEquippedWeaponId } from "../../characters/inventory";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
 

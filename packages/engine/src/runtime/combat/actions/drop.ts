@@ -1,7 +1,8 @@
 import type { Effect, GameSave, ItemRef } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
-import { posKey, getActorInventory } from "../../inventory";
+import { posKey } from "../../items";
+import { getActorInventory } from "../../characters/inventory";
 
 /**
  * Drop: drops an item from inventory or equipment to the ground at actor position

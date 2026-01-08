@@ -4,7 +4,6 @@ import type { StoryPack, GameSave, Scene } from "./types";
 /**
  * Gets the current scene and resolved text blocks
  */
-
 export function getCurrentScene(storyPack: StoryPack, save: GameSave): { scene: Scene; text: string[] } {
   const scene = storyPack.scenes.find((s) => s.id === save.runtime.currentSceneId);
   if (!scene) {

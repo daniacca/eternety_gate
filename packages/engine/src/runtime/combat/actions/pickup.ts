@@ -1,7 +1,8 @@
 import type { Effect, GameSave, ItemRef } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
-import { posKey, getActorInventory, isWeaponItemRef } from "../../inventory";
+import { posKey, isWeaponItemRef } from "../../items";
+import { getActorInventory } from "../../characters/inventory";
 
 /**
  * Pickup: picks up item at actor position, adds to inventory, and optionally auto-equips if main hand empty

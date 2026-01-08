@@ -1,5 +1,5 @@
 import type { Effect, GameSave } from "../../types";
-import { getActorInventory } from "../../inventory";
+import { getActorInventory } from "../../characters/inventory";
 
 /**
  * UnequipItem: moves an equipped item back to inventory

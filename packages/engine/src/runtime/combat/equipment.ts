@@ -1,6 +1,6 @@
 import type { GameSave, Actor, Weapon, Armor, WeaponId, ArmorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { getEquippedWeaponId, getEquippedArmorId } from "../inventory";
+import { getEquippedWeaponId, getEquippedArmorId } from "../characters/inventory";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 

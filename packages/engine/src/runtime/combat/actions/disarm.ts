@@ -4,7 +4,7 @@ import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { distanceChebyshev } from "../movement";
-import { posKey } from "../../inventory";
+import { posKey } from "../../items";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
 

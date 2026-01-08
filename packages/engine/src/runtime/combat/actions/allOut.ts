@@ -3,7 +3,7 @@ import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { resolveActor } from "../../checks";
 import { distanceChebyshev } from "../movement";
-import { getEquippedWeaponId } from "../../inventory";
+import { getEquippedWeaponId } from "../../characters/inventory";
 
 /**
  * All-Out Attack effect: sets stance, disables parry for attacker, and triggers immediate attack
