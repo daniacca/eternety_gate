@@ -3,7 +3,7 @@ import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { hasCondition, getStacks, computeCombatModifiersFromConditions, removeConditionFromActor } from "../conditions";
-import { getInitiativeBonus, getCharacteristicBonus } from "../actors/bonuses";
+import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuses";
 
 /**
  * Checks if an actor is alive (not dead)

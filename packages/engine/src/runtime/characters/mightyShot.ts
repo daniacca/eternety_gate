@@ -1,7 +1,7 @@
 import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getModifierTotal } from "./modifiers";
-import { getCharacteristicBonus } from "../actors/bonuses";
+import { getCharacteristicBonus } from "./bonuses";
 
 /**
  * Gets ranged damage bonus from Mighty Shot talent

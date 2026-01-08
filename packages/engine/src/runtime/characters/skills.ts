@@ -1,7 +1,7 @@
 import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs, SkillId } from "../../content/catalogs";
 import { getSkillById } from "../../content/loadCatalogs";
-import { getCharacteristicValue } from "../actors/bonuses";
+import { getCharacteristicValue } from "./bonuses";
 import { getModifierTotal } from "./modifiers";
 
 /**

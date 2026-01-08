@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getModifierTotal } from "./modifiers";
-import { getStatTestTarget } from "../actors/bonuses";
+import { getStatTestTarget } from "./bonuses";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";

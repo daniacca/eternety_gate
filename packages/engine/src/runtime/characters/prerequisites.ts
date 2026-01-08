@@ -1,6 +1,6 @@
 import type { GameSave, Actor } from "../types";
 import type { CharacterCatalogs, Prerequisite } from "../../content/catalogs";
-import { getCharacteristicValue } from "../actors/bonuses";
+import { getCharacteristicValue } from "./bonuses";
 
 /**
  * Evaluates prerequisites for a talent

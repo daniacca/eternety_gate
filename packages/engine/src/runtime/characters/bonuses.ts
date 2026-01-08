@@ -1,6 +1,6 @@
 import type { GameSave, ActorId, StatKey } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { getModifierTotal } from "../characters/modifiers";
+import { getModifierTotal } from "./modifiers";
 
 /**
  * Calculates the base bonus from a characteristic value.
@@ -112,3 +112,4 @@ export function getStatTestTarget(
 export function getInitiativeBonus(save: GameSave, actorId: ActorId): number {
   return getCharacteristicBonus(save, actorId, "INI");
 }
+

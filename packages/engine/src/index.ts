@@ -53,7 +53,7 @@ export { getSkillTarget } from "./runtime/characters/skills";
 export { getRangedDamageBonusFromMightyShot } from "./runtime/characters/mightyShot";
 export { getNaturalWeaponProfile } from "./runtime/characters/naturalWeapons";
 export { processRegeneration } from "./runtime/characters/regeneration";
-export { getCharacteristicBonus, getStatTestTarget } from "./runtime/actors/bonuses";
+export { getCharacteristicBonus, getStatTestTarget } from "./runtime/characters/bonuses";
 
 // Types
 export type * from "./runtime/types";
