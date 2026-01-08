@@ -19,42 +19,48 @@ function isActorAlive(actor: Actor | undefined): boolean {
  * - All enemies (NPCs) are dead, OR
  * - All party members (PCs) are dead
  */
-function shouldCombatEnd(save: GameSave, participants: ActorId[]): { shouldEnd: boolean; outcome?: "victory" | "defeat"; winnerId?: ActorId } {
+function shouldCombatEnd(
+  save: GameSave,
+  participants: ActorId[]
+): { shouldEnd: boolean; outcome?: "victory" | "defeat"; winnerId?: ActorId } {
   const partyIds = new Set(save.party?.actors ?? []);
   const enemyIds = participants.filter((id) => !partyIds.has(id));
-  
+
   const partyAlive = participants.filter((id) => {
     const actor = save.actorsById[id];
     return partyIds.has(id) && isActorAlive(actor);
   });
-  
+
   const enemiesAlive = participants.filter((id) => {
     const actor = save.actorsById[id];
     return enemyIds.includes(id) && isActorAlive(actor);
   });
-  
+
   if (enemiesAlive.length === 0 && partyAlive.length > 0) {
     // All enemies dead - party victory
     return { shouldEnd: true, outcome: "victory", winnerId: partyAlive[0] };
   }
-  
+
   if (partyAlive.length === 0 && enemiesAlive.length > 0) {
     // All party dead - defeat
     return { shouldEnd: true, outcome: "defeat", winnerId: enemiesAlive[0] };
   }
-  
+
   if (partyAlive.length === 0 && enemiesAlive.length === 0) {
     // Everyone dead - mutual defeat
     return { shouldEnd: true, outcome: "defeat" };
   }
-  
+
   return { shouldEnd: false };
 }
 
 /**
  * Initializes turn state for an actor based on their AGI and conditions
  */
-function initializeTurnState(actor: Actor, save: GameSave): {
+function initializeTurnState(
+  actor: Actor,
+  save: GameSave
+): {
   moveRemaining: number;
   actionAvailable: boolean;
 } {
@@ -154,7 +160,9 @@ export function startCombat(
 
   // Initialize turn state for first actor
   const firstActor = save.actorsById[currentTurnActorId];
-  const initialTurnState = firstActor ? initializeTurnState(firstActor, save) : { moveRemaining: 0, actionAvailable: true };
+  const initialTurnState = firstActor
+    ? initializeTurnState(firstActor, save)
+    : { moveRemaining: 0, actionAvailable: true };
 
   // Save initial HP for each participant (for UI display of max HP)
   const initialHpByActorId: Record<ActorId, number> = {};
@@ -177,6 +185,7 @@ export function startCombat(
     stancesByActorId: {},
     turnCounter: 0,
     parryDisabledUntilTurnCounterByActorId: {},
+    equippedThisRoundByActorId: {},
     initialHpByActorId,
   };
 
@@ -201,11 +210,11 @@ export function startCombat(
   // TODO: Add debug flag support for revealing NPC rolls
   const REVEAL_NPC_ROLLS = false;
   const partyIds = new Set(save.party?.actors ?? []);
-  
+
   for (const entry of initiatives) {
     const actor = save.actorsById[entry.id];
     const isPlayerControlled = actor?.kind === "PC" || partyIds.has(entry.id);
-    
+
     // Only log if player-controlled or if debug flag is enabled
     if (isPlayerControlled || REVEAL_NPC_ROLLS) {
       updatedSave = appendRuntimeLog(updatedSave, {
@@ -260,15 +269,15 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   // Check if combat should end based on faction deaths
   const endCheckResult = shouldCombatEnd(save, aliveParticipants);
-  
+
   if (endCheckResult.shouldEnd) {
     const outcome = endCheckResult.outcome || "victory";
     const winnerId = endCheckResult.winnerId;
     const winner = winnerId ? save.actorsById[winnerId] : null;
-    
+
     // Determine scene ID where combat ended (use startedBySceneId if available)
     const endedSceneId = combat.startedBySceneId || save.runtime.currentSceneId;
-    
+
     let logEntry: string;
     if (outcome === "victory") {
       logEntry = "Tutti i nemici presenti nell'area sono stati sconfitti.";
@@ -295,11 +304,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           dos: 0,
           dof: 0,
           critical: "none",
-          tags: [
-            "combat:state=end",
-            `combat:outcome=${outcome}`,
-            ...(winnerId ? [`combat:winner=${winnerId}`] : []),
-          ],
+          tags: ["combat:state=end", `combat:outcome=${outcome}`, ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
     let updatedSave = {
@@ -340,7 +345,9 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
   // Initialize turn state for new actor and apply condition effects
   let currentActor = updatedSave.actorsById[currentTurnActorId];
-  let newTurnState = currentActor ? initializeTurnState(currentActor, updatedSave) : { moveRemaining: 0, actionAvailable: true };
+  let newTurnState = currentActor
+    ? initializeTurnState(currentActor, updatedSave)
+    : { moveRemaining: 0, actionAvailable: true };
 
   // Apply condition effects at turn start
   if (currentActor) {
@@ -409,13 +416,13 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
         // Check if combat should end based on factions
         const endCheckResult = shouldCombatEnd(updatedSave, updatedAliveParticipants);
-        
+
         if (endCheckResult.shouldEnd) {
           const outcome = endCheckResult.outcome || "victory";
           const winnerId = endCheckResult.winnerId;
           const combatState = updatedSave.runtime.combat;
           const endedSceneId = combatState?.startedBySceneId || updatedSave.runtime.currentSceneId;
-          
+
           let endLog: string;
           if (outcome === "victory") {
             endLog = "Tutti i nemici presenti nell'area sono stati sconfitti.";
@@ -526,7 +533,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   // So if actor had aim in previous turn, it's still available at start of current turn
   // and will be consumed when they fire, or removed when their NEXT turn starts
   const updatedStancesByActorId = { ...(combat.stancesByActorId || {}) };
-  
+
   // Remove stance for actor whose turn starts
   // For Aim: only remove if this is the actor's NEXT turn (same actor, new turn)
   // Aim persists across other actors' turns until consumed by ranged attack or next turn starts

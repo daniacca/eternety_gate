@@ -595,6 +595,9 @@ export type CombatState = {
   // Parry disabled until turn counter (by actor ID)
   parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
 
+  // Equipped this round (by actor ID) - tracks which round each actor last equipped an item
+  equippedThisRoundByActorId?: Record<ActorId, number>;
+
   // Ground items by position
   groundItemsByPos?: Record<string, ItemRef[]>; // key format: "x,y"
 
