@@ -104,12 +104,14 @@ A `GameSave` represents the complete game state at a point in time:
 
 ### Effects
 Effects are actions that modify game state:
-- `setFlag` - Set a boolean flag
-- `addCounter` - Modify a counter
-- `addItem` / `removeItem` - Inventory management
-- `goto` - Change scene
-- `combatStart` - Start combat
-- And more...
+- **State Effects**: `setFlag`, `addCounter`
+- **Inventory Effects**: `addItem`, `removeItem`
+- **Navigation Effects**: `goto`
+- **Conditional Effects**: `conditionalEffects`
+- **Variant Effects**: `chooseRunVariant`, `applyVariantStartEffects`
+- **World Events**: `fireWorldEvents`
+- **Combat Effects**: `combatStart`, `combatMove`, `combatEndTurn`, `combatDefend`, `combatAim`, `combatAllOut`, `combatRequestAttack`, `combatKnockdown`, `combatDisarm`, `combatSwiftAttack`, `combatGetProne`, `combatStandUp`, `combatPickup`, `combatDrop`, `combatEquipItem`, `combatUnequipItem`
+- **Actor Conditions**: `addCondition`, `removeCondition`
 
 ### Checks
 Checks are skill tests using D100 rolls:
@@ -177,6 +179,75 @@ Applies multiple effects in sequence.
 #### `performCheck(check, storyPack, save, rng): CheckResult | null`
 Performs a check and returns the result.
 
+### Character System Functions
+
+#### `getXp(save): number`
+Gets current XP from save.
+
+#### `addXp(save, amount): GameSave`
+Adds XP to save.
+
+#### `spendXp(save, amount): GameSave`
+Spends XP from save (throws if insufficient).
+
+#### `buyTalent(save, catalogs, actorId, talentId, rank): GameSave`
+Purchases a talent rank for an actor.
+
+#### `evaluatePrerequisites(prerequisites, actor, catalogs): boolean`
+Evaluates if actor meets prerequisites.
+
+#### `hasTrait(actor, traitId): boolean`
+Checks if actor has a trait.
+
+#### `hasTalentRank(actor, talentId, rank): boolean`
+Checks if actor has a talent at a specific rank.
+
+#### `hasUnlockedAction(actor, catalogs, actionId): boolean`
+Checks if actor has unlocked an action.
+
+#### `getModifierTotal(modifiers, actor, catalogs): number`
+Calculates total modifier value.
+
+#### `getSkillTarget(actor, catalogs, skillId): number`
+Gets skill target value for an actor.
+
+### Content System Functions
+
+#### `loadCharacterCatalogs(contentPack): CharacterCatalogs`
+Loads character catalogs from content pack.
+
+#### `getSkillById(catalogs, skillId): Skill | null`
+Gets skill by ID from catalogs.
+
+#### `getTalentById(catalogs, talentId): Talent | null`
+Gets talent by ID from catalogs.
+
+#### `getTraitById(catalogs, traitId): Trait | null`
+Gets trait by ID from catalogs.
+
+#### `mergeWeapons(globalWeapons, storyWeapons): Record<WeaponId, Weapon>`
+Merges global and story weapons.
+
+#### `mergeArmors(globalArmors, storyArmors): Record<ArmorId, Armor>`
+Merges global and story armors.
+
+### Inventory Functions
+
+#### `getEquippedWeaponId(actor): WeaponId | null`
+Gets equipped weapon ID from actor.
+
+#### `getEquippedArmorId(actor): ArmorId | null`
+Gets equipped armor ID from actor.
+
+#### `getActorInventory(actor): ItemRef[]`
+Gets actor inventory.
+
+#### `isWeaponItemRef(itemRef): boolean`
+Checks if item reference is a weapon.
+
+#### `isArmorItemRef(itemRef): boolean`
+Checks if item reference is armor.
+
 ## Testing
 
 ```bash
@@ -199,8 +270,12 @@ All types are exported from the main package. Key types include:
 - `Actor` - Character definition
 - `Party` - Player party
 - `CombatState` - Combat encounter state
+- `ContentPack` - Content pack structure
+- `CharacterCatalogs` - Character catalogs (skills, talents, traits)
+- `Skill`, `Talent`, `Trait` - Character catalog types
+- `SkillId`, `TalentId`, `TraitId` - Catalog ID types
 
-See `src/runtime/types.ts` for complete type definitions.
+See `src/runtime/types.ts` and `src/content/types.ts` for complete type definitions.
 
 ## Contributing
 

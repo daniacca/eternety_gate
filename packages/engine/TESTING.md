@@ -6,15 +6,29 @@ The engine package includes comprehensive unit tests for all core modules:
 
 ### ✅ Passing Test Suites
 
-- **conditions.test.ts** (26 tests) - Condition evaluation system
-- **effects.test.ts** (25 tests) - Effect application system
-- **checks.test.ts** (23 tests) - Check resolution system
-- **rng.test.ts** (18 tests) - Random number generation
-- **combat/combat.test.ts** (15 tests) - Combat state management
-- **combat/movement.test.ts** (8 tests) - Grid movement utilities
-- **selectors.test.ts** (7 tests) - State selection utilities
+**Core Runtime Tests:**
+- **conditions.test.ts** - Condition evaluation system
+- **conditions.actor.test.ts** - Actor condition system
+- **effects.test.ts** - Effect application system
+- **checks.test.ts** - Check resolution system
+- **rng.test.ts** - Random number generation
+- **selectors.test.ts** - State selection utilities
+- **engine.test.ts** - Engine core functionality
 
-**Total: 122 new tests, all passing**
+**Combat System Tests:**
+- **combat/combat.test.ts** - Combat state management
+- **combat/movement.test.ts** - Grid movement utilities
+- **combat/damage.test.ts** - Damage calculation and application
+- **combat/equipment.test.ts** - Equipment resolution
+- **combat/validation.test.ts** - Combat validation
+- **combat/narration.test.ts** - Combat narration
+- **combat/swiftAttack.test.ts** - Swift attack mechanics
+
+**Character System Tests:**
+- **characters/modifiers.test.ts** - Modifier calculation
+- **characters/actions.test.ts** - Character actions
+
+**Total: Comprehensive test coverage across all modules**
 
 ### Test Helpers
 

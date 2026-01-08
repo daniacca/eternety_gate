@@ -128,25 +128,36 @@ Full TypeScript coverage ensures:
 - Combat guard (blocking actions when not player's turn)
 - Delegating to specialized handlers
 
-### `/runtime/effects.ts`
+### `/runtime/effects/`
 
 **Purpose**: Effect application system
 
+**Structure**: Effects are organized into modules by category:
+
+- **`index.ts`** - Main effect registry and queue processing
+- **`state.ts`** - State effects (`setFlag`, `addCounter`)
+- **`items.ts`** - Inventory effects (`addItem`, `removeItem`)
+- **`navigation.ts`** - Navigation effects (`goto`)
+- **`conditional.ts`** - Conditional branching (`conditionalEffects`)
+- **`variants.ts`** - Run variant effects (`chooseRunVariant`, `applyVariantStartEffects`)
+- **`worldEvents.ts`** - World event effects (`fireWorldEvents`)
+- **`actorConditions.ts`** - Actor condition effects (`addCondition`, `removeCondition`)
+
 **Key Functions**:
 
-- `applyEffect()` - Apply single effect
-- `applyEffects()` - Apply multiple effects with queue
+- `applyEffect()` - Apply single effect (in `index.ts`)
+- `applyEffects()` - Apply multiple effects with queue (in `index.ts`)
 
 **Pattern**: Registry-based handler system
 
 ```typescript
 const effectHandlers: Record<Effect["op"], EffectHandler> = {
-  setFlag: (effect, storyPack, save, rng) => {
-    /* ... */
-  },
-  addCounter: (effect, storyPack, save, rng) => {
-    /* ... */
-  },
+  setFlag: (effect, storyPack, save, rng) => ({
+    save: applySetFlag(effect, save),
+  }),
+  addCounter: (effect, storyPack, save, rng) => ({
+    save: applyAddCounter(effect, save),
+  }),
   // ...
 };
 ```
@@ -156,6 +167,7 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - Effect queue processing
 - Emitted effects (effects can emit other effects)
 - Deterministic processing order
+- Modular organization for maintainability
 
 ### `/runtime/checks.ts`
 
@@ -224,9 +236,29 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - KO participant removal
 - Combat end detection
 
-### `/runtime/combat/actions.ts`
+### `/runtime/combat/actions/`
 
 **Purpose**: Combat action handlers
+
+**Structure**: Each combat action has its own module:
+
+- **`index.ts`** - Exports all combat actions
+- **`start.ts`** - Start combat effect handler
+- **`move.ts`** - Movement action
+- **`endTurn.ts`** - End turn action
+- **`defend.ts`** - Defend stance
+- **`aim.ts`** - Aim stance
+- **`allOut.ts`** - All-out attack stance
+- **`requestAttack.ts`** - Attack action
+- **`knockdown.ts`** - Knockdown action
+- **`disarm.ts`** - Disarm action
+- **`swiftAttack.ts`** - Swift attack action
+- **`getProne.ts`** - Get prone action
+- **`standUp.ts`** - Stand up action
+- **`pickup.ts`** - Pick up item action
+- **`drop.ts`** - Drop item action
+- **`equipItem.ts`** - Equip item action
+- **`unequipItem.ts`** - Unequip item action
 
 **Key Functions**:
 
@@ -237,6 +269,15 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - `combatAim()` - Aim stance
 - `combatAllOut()` - All-out attack stance
 - `combatRequestAttack()` - Attack action
+- `combatKnockdown()` - Knockdown action
+- `combatDisarm()` - Disarm action
+- `combatSwiftAttack()` - Swift attack action
+- `combatGetProne()` - Get prone action
+- `combatStandUp()` - Stand up action
+- `combatPickup()` - Pick up item action
+- `combatDrop()` - Drop item action
+- `combatEquipItem()` - Equip item action
+- `combatUnequipItem()` - Unequip item action
 
 **Features**:
 
@@ -244,6 +285,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - Movement tracking
 - Stance application
 - Attack resolution with defense
+- Item management in combat
+- Prone/standing state management
 
 ### `/runtime/combat/damage.ts`
 
@@ -304,6 +347,25 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - D100 rolling
 - Integer range generation
 
+### `/runtime/inventory.ts`
+
+**Purpose**: Inventory and equipment utilities
+
+**Key Functions**:
+
+- `posKey()` - Convert position to key string
+- `getEquippedWeaponId()` - Get equipped weapon ID from actor
+- `getEquippedArmorId()` - Get equipped armor ID from actor
+- `getActorInventory()` - Get actor inventory
+- `isWeaponItemRef()` - Check if item reference is a weapon
+- `isArmorItemRef()` - Check if item reference is armor
+
+**Features**:
+
+- Equipment resolution
+- Inventory management
+- Item type checking
+
 ### `/runtime/selectors.ts`
 
 **Purpose**: State selection utilities
@@ -317,13 +379,67 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - Conditional text block resolution
 - Scene lookup
 
-### `/runtime/choices/handlers.ts`
+### `/runtime/characters/`
 
-**Purpose**: Choice routing system
+**Purpose**: Character progression and abilities system
+
+**Structure**: Character system modules:
+
+- **`xp.ts`** - XP management (`getXp`, `addXp`, `spendXp`, `buyTalent`)
+- **`prerequisites.ts`** - Prerequisite evaluation (`evaluatePrerequisites`, `hasTrait`, `hasTalentRank`, `statAtLeast`)
+- **`actions.ts`** - Character actions (`hasUnlockedAction`)
+- **`modifiers.ts`** - Modifier calculation (`getModifierTotal`)
+- **`skills.ts`** - Skill system (`getSkillTarget`)
+- **`mightyShot.ts`** - Mighty shot ability (`getRangedDamageBonusFromMightyShot`)
+- **`naturalWeapons.ts`** - Natural weapon profiles (`getNaturalWeaponProfile`)
+- **`regeneration.ts`** - Regeneration system (`processRegeneration`)
+- **`bonuses.ts`** - Characteristic bonuses (`getCharacteristicBonus`, `getStatTestTarget`)
+- **`grants.ts`** - Grant application system
+
+**Features**:
+
+- XP and talent purchasing
+- Prerequisite checking
+- Modifier calculation
+- Skill target resolution
+- Special abilities (mighty shot, regeneration)
+- Natural weapon support
+
+### `/content/`
+
+**Purpose**: Content pack loading and management
+
+**Structure**: Content system modules:
+
+- **`types.ts`** - Content pack type definitions (`ContentPack`)
+- **`catalogs.ts`** - Character catalog types (`Skill`, `Talent`, `Trait`, `CharacterCatalogs`)
+- **`loadCatalogs.ts`** - Catalog loading utilities (`loadCharacterCatalogs`, `getSkillById`, `getTalentById`, `getTraitById`)
+- **`merge.ts`** - Content merging (`mergeWeapons`, `mergeArmors`)
+
+**Features**:
+
+- Character catalog loading (skills, talents, traits)
+- Content pack merging
+- Type-safe catalog access
+
+### `/runtime/choices/`
+
+**Purpose**: Choice routing and handling system
+
+**Structure**: Choices are organized into modules by handler type:
+
+- **`handlers.ts`** - Choice routing system and registry
+- **`types.ts`** - Choice handler types (`ChoiceKind`, `ChoiceHandler`)
+- **`generic.ts`** - Generic choice handler (effects only)
+- **`check.ts`** - Check choice handler (has checks)
+- **`combat.ts`** - Combat choice handler (has combatAttack checks)
 
 **Key Functions**:
 
-- `handleChoice()` - Route choice to appropriate handler
+- `handleChoice()` - Route choice to appropriate handler (in `handlers.ts`)
+- `handleGenericChoice()` - Handle generic choices (in `generic.ts`)
+- `handleCheckChoice()` - Handle check choices (in `check.ts`)
+- `handleCombatChoice()` - Handle combat choices (in `combat.ts`)
 
 **Pattern**: Registry-based handler system
 
@@ -806,6 +922,20 @@ When tens digit = ones digit (e.g., 11, 22, 33):
 - `combatAim` - Aim stance
 - `combatAllOut` - All-out attack stance
 - `combatRequestAttack` - Attack action
+- `combatKnockdown` - Knockdown action
+- `combatDisarm` - Disarm action
+- `combatSwiftAttack` - Swift attack action
+- `combatGetProne` - Get prone action
+- `combatStandUp` - Stand up action
+- `combatPickup` - Pick up item action
+- `combatDrop` - Drop item action
+- `combatEquipItem` - Equip item action
+- `combatUnequipItem` - Unequip item action
+
+#### Actor Condition Effects
+
+- `addCondition` - Add condition to actor
+- `removeCondition` - Remove condition from actor
 
 ### Effect Queue
 
@@ -835,9 +965,10 @@ Some effects emit other effects:
 ### Adding New Effect Types
 
 1. Add type to `Effect` union in `types.ts`
-2. Add handler to `effectHandlers` registry in `effects.ts`
-3. Implement handler function
-4. Add tests
+2. Create handler function in appropriate effects module (e.g., `state.ts`, `items.ts`, etc.)
+3. Add handler to `effectHandlers` registry in `effects/index.ts`
+4. Export handler function from the module
+5. Add tests
 
 ### Adding New Check Types
 
@@ -855,10 +986,12 @@ Some effects emit other effects:
 
 ### Adding New Combat Actions
 
-1. Add effect type to `Effect` union
-2. Add handler to `effectHandlers` registry
-3. Implement action logic in `combat/actions.ts`
-4. Add tests
+1. Add effect type to `Effect` union in `types.ts`
+2. Create new action module in `combat/actions/` (e.g., `newAction.ts`)
+3. Implement action logic in the new module
+4. Export from `combat/actions/index.ts`
+5. Add handler to `effectHandlers` registry in `effects/index.ts`
+6. Add tests
 
 ## Testing Strategy
 
@@ -911,14 +1044,16 @@ Immutable updates create new objects, which has overhead. However:
 
 Potential areas for extension:
 
-1. **Talent System**: Character talents/abilities
-2. **Trait System**: Character traits
-3. **Skill System**: Expanded skill mechanics
+1. **Talent System**: Expanded talent mechanics (partially implemented)
+2. **Trait System**: Expanded trait mechanics (partially implemented)
+3. **Skill System**: Expanded skill mechanics (partially implemented)
 4. **Item System**: More item types and effects
 5. **Quest System**: Quest tracking and rewards
 6. **Dialogue System**: More complex dialogue trees
 7. **Save Compression**: Compress save files
 8. **Replay System**: Record and replay gameplay
+9. **More Combat Actions**: Additional tactical combat options
+10. **Condition System**: Expanded condition mechanics
 
 ## Conclusion
 
