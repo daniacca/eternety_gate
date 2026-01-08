@@ -10,7 +10,6 @@ import type {
   CheckResult,
   StoryPack,
   GameSave,
-  CheckOutcome,
 } from "../types";
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";

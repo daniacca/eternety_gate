@@ -223,7 +223,7 @@ describe("combatSwiftAttack", () => {
       },
       weaponsById: {
         ...save.weaponsById,
-        sword: { id: "sword", name: "Spada", kind: "MELEE" as const, damage: { die: 10 as const, add: 0 } },
+        sword: { id: "sword", name: "Spada", kind: "MELEE" as const, damage: { tier: "single" as const, add: 0 }, damageType: "impact" as const, penetration: 1 },
       },
       runtime: {
         ...save.runtime,
@@ -339,7 +339,7 @@ describe("combatSwiftAttack", () => {
       },
       weaponsById: {
         ...save.weaponsById,
-        sword: { id: "sword", name: "Spada", kind: "MELEE" as const, damage: { die: 10 as const, add: 0 } },
+        sword: { id: "sword", name: "Spada", kind: "MELEE" as const, damage: { tier: "single" as const, add: 0 }, damageType: "impact" as const, penetration: 1 },
       },
       runtime: {
         ...save.runtime,

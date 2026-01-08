@@ -364,16 +364,20 @@ export type StoryPack = {
 /* Runtime: Items / Actors / Party     */
 /* ---------------------------------- */
 
+export type WeaponDamageTier = "fixed" | "half" | "single" | "double" | "triple" | "quadfold" | "fivefold";
+export type WeaponDamageType = "energy" | "explosive" | "impact" | "rendering" | "piercing";
+
 export type Weapon = {
   id: WeaponId;
   name: string;
   kind: "MELEE" | "RANGED";
-  // damage: base d10 + add (we keep it simple)
   damage: {
-    die: 10; // fixed 1d10 for now
+    tier: WeaponDamageTier; // fixed (0), half (1d5), single (1d10), double (2d10), triple (3d10), quadfold (4d10), fivefold (5d10)
     add: number; // e.g. +0, +2
     bonus?: "SB"; // melee adds Strength Bonus, ranged doesn't (for now)
   };
+  damageType: WeaponDamageType; // energy | explosive | impact | rendering | piercing
+  penetration: number; // amount of armor soak ignored by this weapon
   // ranged only
   range?: {
     short: number; // in chebyshev squares, e.g. 4

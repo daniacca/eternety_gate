@@ -7,13 +7,16 @@ import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
  */
-export function getActorWeapon(save: GameSave, actor: Actor): {
+export function getActorWeapon(
+  save: GameSave,
+  actor: Actor
+): {
   weapon: Weapon | null;
   weaponId: WeaponId | "unarmed";
   name: string;
 } {
   const weaponId = getEquippedWeaponId(actor);
-  
+
   if (!weaponId || !save.weaponsById?.[weaponId]) {
     // Unarmed: MELEE with 1d10 + SB
     return {
@@ -33,14 +36,17 @@ export function getActorWeapon(save: GameSave, actor: Actor): {
 /**
  * Gets the equipped armor for an actor, or returns no armor data
  */
-export function getActorArmor(save: GameSave, actor: Actor): {
+export function getActorArmor(
+  save: GameSave,
+  actor: Actor
+): {
   armor: Armor | null;
   armorId: ArmorId | "none";
   name: string;
   soak: number;
 } {
   const armorId = getEquippedArmorId(actor);
-  
+
   if (!armorId || !save.armorsById?.[armorId]) {
     return {
       armor: null,
@@ -96,13 +102,37 @@ export function calculateWeaponDamage(
   let bestDamage = 0;
 
   // Get Mighty Shot bonus for ranged attacks
-  const mightyShotBonus = mode === "RANGED" && catalogs
-    ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id)
-    : 0;
+  const mightyShotBonus =
+    mode === "RANGED" && catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
 
   for (let i = 0; i < rollsCount; i++) {
-    // For multi-dice weapons, roll the whole weapon damage once per iteration
-    const dieRoll = rng.nextInt(1, weapon.damage.die);
+    // Calculate damage based on weapon damage tier
+    let dieRoll = 0;
+    switch (weapon.damage.tier) {
+      case "fixed":
+        dieRoll = 0; // No die roll, just add bonus
+        break;
+      case "half":
+        dieRoll = rng.nextInt(1, 5); // 1d5
+        break;
+      case "single":
+        dieRoll = rng.nextInt(1, 10); // 1d10
+        break;
+      case "double":
+        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10); // 2d10
+        break;
+      case "triple":
+        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 3d10
+        break;
+      case "quadfold":
+        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 4d10
+        break;
+      case "fivefold":
+        dieRoll =
+          rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 5d10
+        break;
+    }
+
     let rollDamage = dieRoll + weapon.damage.add;
 
     // MELEE: Always apply STR bonus
@@ -127,4 +157,3 @@ export function calculateWeaponDamage(
     weaponId,
   };
 }
-

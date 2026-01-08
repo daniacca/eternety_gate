@@ -13,7 +13,9 @@ describe("validation", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2 },
+        damage: { tier: "single", add: 2 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -60,7 +62,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -108,7 +112,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
         range: { short: 4, long: 8 },
       };
       const attacker = makeTestActor({
@@ -156,7 +162,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
         range: { short: 4, long: 8 },
       };
       const attacker = makeTestActor({
@@ -204,7 +212,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
         range: { short: 4, long: 8 },
       };
       const attacker = makeTestActor({
@@ -251,7 +261,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
         range: { short: 4, long: 8 },
       };
       const attacker = makeTestActor({
@@ -299,7 +311,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
         // No range property - unlimited range
       };
       const attacker = makeTestActor({
@@ -348,7 +362,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -422,7 +438,9 @@ describe("validation", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",

@@ -6,12 +6,29 @@
       "name": "Shortbow",
       "kind": "RANGED",
       "damage": {
-        "die": 10,
+        "tier": "single",
         "add": 0
       },
+      "damageType": "piercing",
+      "penetration": 2,
       "range": {
         "short": 4,
         "long": 8
+      }
+    },
+    {
+      "id": "longbow",
+      "name": "Longbow",
+      "kind": "RANGED",
+      "damage": {
+        "tier": "single",
+        "add": 3
+      },
+      "damageType": "piercing",
+      "penetration": 4,
+      "range": {
+        "short": 6,
+        "long": 12
       }
     },
     {
@@ -19,10 +36,24 @@
       "name": "Club",
       "kind": "MELEE",
       "damage": {
-        "die": 10,
+        "tier": "single",
         "add": 1,
         "bonus": "SB"
-      }
+      },
+      "damageType": "impact",
+      "penetration": 0
+    },
+    {
+      "id": "longsword",
+      "name": "Longsword",
+      "kind": "MELEE",
+      "damage": {
+        "tier": "single",
+        "add": 2,
+        "bonus": "SB"
+      },
+      "damageType": "rendering",
+      "penetration": 1
     }
   ],
   "armors": [

@@ -208,7 +208,9 @@ describe("damage", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2, bonus: "SB" },
+        damage: { tier: "single", add: 2, bonus: "SB" },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -375,7 +377,9 @@ describe("damage", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 3, bonus: "SB" },
+        damage: { tier: "single", add: 3, bonus: "SB" },
+        damageType: "impact",
+        penetration: 1,
       };
       const armor: Armor = {
         id: "leather",
@@ -449,7 +453,9 @@ describe("damage", () => {
         id: "dagger",
         name: "Dagger",
         kind: "MELEE",
-        damage: { die: 10, add: 1 },
+        damage: { tier: "single", add: 1 },
+        damageType: "impact",
+        penetration: 0,
       };
       const armor: Armor = {
         id: "plate",
@@ -593,7 +599,9 @@ describe("damage", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2 },
+        damage: { tier: "single", add: 2 },
+        damageType: "impact",
+        penetration: 1,
       };
       const armor: Armor = {
         id: "leather",
@@ -686,13 +694,17 @@ describe("damage", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 5 },
+        damage: { tier: "single", add: 5 },
+        damageType: "impact",
+        penetration: 1,
       };
       const weapon2: Weapon = {
         id: "axe",
         name: "Axe",
         kind: "MELEE",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -773,7 +785,9 @@ describe("damage", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",

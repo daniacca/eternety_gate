@@ -119,17 +119,29 @@ export function applyCombatDamageIfHit(
     // Build formula string for logging
     const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
     if (weapon) {
+      // Format damage tier as dice notation
+      const tierToDice = {
+        fixed: "0",
+        half: "1d5",
+        single: "1d10",
+        double: "2d10",
+        triple: "3d10",
+        quadfold: "4d10",
+        fivefold: "5d10",
+      };
+      const diceNotation = tierToDice[weapon.damage.tier];
+
       if (mode === "MELEE") {
         const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
-        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
+        damageFormula = `${diceNotation} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
       } else if (mode === "RANGED") {
         // Get Mighty Shot bonus for formula display
         const mightyShotBonus = catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
-        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${
+        damageFormula = `${diceNotation} + ${weapon.damage.add}${
           mightyShotBonus > 0 ? ` + ${mightyShotBonus} (Mighty Shot)` : ""
         }`;
       } else {
-        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}`;
+        damageFormula = `${diceNotation} + ${weapon.damage.add}`;
       }
       // Note: Individual rolls not captured here (would require modifying calculateWeaponDamage)
       // For now, we log the final rawDamage which is the best of rollsCount rolls
@@ -144,6 +156,10 @@ export function applyCombatDamageIfHit(
   // Get defender armor soak
   const { soak, armorId } = getActorArmor(save, defender);
 
+  // Get weapon for penetration calculation
+  const weaponForPenetration =
+    calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
   if (isUnarmed || useFallbackWeapon) {
@@ -152,6 +168,10 @@ export function applyCombatDamageIfHit(
     if (!hasNaturalWeapon) {
       effectiveSoak = soak * 2;
     }
+  } else if (weaponForPenetration) {
+    // Apply weapon penetration: penetration ignores that much armor soak
+    // Penetration reduces effective soak (but not below 0)
+    effectiveSoak = Math.max(0, soak - weaponForPenetration.penetration);
   }
 
   // Calculate final damage after soak

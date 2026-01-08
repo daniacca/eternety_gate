@@ -38,7 +38,9 @@ describe("equipment", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2 },
+        damage: { tier: "single", add: 2 },
+        damageType: "impact",
+        penetration: 1,
       };
       const actor = makeTestActor({ equipment: { mainHand: { kind: "weapon", id: "sword" } } });
       const save = {
@@ -59,7 +61,9 @@ describe("equipment", () => {
         id: "dagger",
         name: "Dagger",
         kind: "MELEE",
-        damage: { die: 10, add: 1 },
+        damage: { tier: "single", add: 1 },
+        damageType: "piercing",
+        penetration: 1,
       };
       const actor = makeTestActor({ equipment: { mainHand: { kind: "weapon", id: "dagger" } } });
       const save = {
@@ -156,7 +160,9 @@ describe("equipment", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2, bonus: "SB" },
+        damage: { tier: "single", add: 2, bonus: "SB" },
+        damageType: "impact",
+        penetration: 1,
       };
       const actor = makeTestActor({ stats: { STR: 50 } }); // SB 5
       const save = {
@@ -179,7 +185,9 @@ describe("equipment", () => {
         id: "vengeful_sword",
         name: "Vengeful Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2, bonus: "SB" },
+        damage: { tier: "single", add: 2, bonus: "SB" },
+        damageType: "impact",
+        penetration: 1,
         tags: ["vengeful:3"],
       };
       const actor = makeTestActor({ stats: { STR: 50 } }); // SB 5
@@ -204,7 +212,9 @@ describe("equipment", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "piercing",
+        penetration: 2,
       };
       const actor = makeTestActor({ stats: { STR: 50 } });
       const save = {
@@ -227,7 +237,9 @@ describe("equipment", () => {
         id: "sword",
         name: "Sword",
         kind: "MELEE",
-        damage: { die: 10, add: 2 }, // No bonus field, but MELEE mode should still apply STR
+        damage: { tier: "single", add: 2 }, // No bonus field, but MELEE mode should still apply STR
+        damageType: "impact",
+        penetration: 1,
       };
       const actor = makeTestActor({ stats: { STR: 55 } }); // STR 55 -> SB 5
       const save = {
@@ -249,7 +261,9 @@ describe("equipment", () => {
         id: "bow",
         name: "Bow",
         kind: "RANGED",
-        damage: { die: 10, add: 3 },
+        damage: { tier: "single", add: 3 },
+        damageType: "piercing",
+        penetration: 2,
       };
       const actor = makeTestActor({ stats: { STR: 60 } }); // STR 60 -> SB 6, but should NOT be applied
       const save = {
@@ -271,7 +285,9 @@ describe("equipment", () => {
         id: "staff",
         name: "Staff",
         kind: "MELEE",
-        damage: { die: 10, add: 1 },
+        damage: { tier: "single", add: 1 },
+        damageType: "impact",
+        penetration: 0,
       };
       const actor = makeTestActor({ stats: { STR: 60 } }); // STR 60 -> SB 6
       const save = {
