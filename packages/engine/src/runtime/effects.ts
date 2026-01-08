@@ -11,6 +11,7 @@ import {
   combatRequestAttack,
   combatKnockdown,
   combatDisarm,
+  combatSwiftAttack,
   combatGetProne,
   combatStandUp,
   combatPickup,
@@ -72,6 +73,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatKnockdown(effect as Extract<Effect, { op: "combatKnockdown" }>, storyPack, save, rng),
   combatDisarm: (effect, storyPack, save, rng) =>
     combatDisarm(effect as Extract<Effect, { op: "combatDisarm" }>, storyPack, save, rng),
+  combatSwiftAttack: (effect, storyPack, save, rng) =>
+    combatSwiftAttack(effect as Extract<Effect, { op: "combatSwiftAttack" }>, storyPack, save, rng),
   combatGetProne: (effect, _storyPack, save, _rng) =>
     combatGetProne(effect as Extract<Effect, { op: "combatGetProne" }>, save),
   combatStandUp: (effect, _storyPack, save, _rng) =>

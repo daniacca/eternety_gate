@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
 import {
   createNewGame,
@@ -14,13 +14,14 @@ import {
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
 import sigilContent from "@eg/content/sigil.content.json";
+import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import talentsCatalog from "@eg/content/src/catalogs/talents.json";
+import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
 import { LastCheckPanel } from "./components/LastCheckPanel";
-import { InitiativeOrderPanel } from "./components/InitiativeOrderPanel";
 import { ChoiceList } from "./components/ChoiceList";
-import { DebugPanels } from "./components/DebugPanels";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
@@ -45,18 +46,37 @@ export function PlayScreen() {
         INI: 50,
         PER: 50,
       },
-      resources: { hp: 100, rf: 100, peq: 100 },
-      skills: {},
-      talents: {},
-      traits: {},
+      resources: { hp: 100, rf: 0, peq: 3 },
+      skills: {
+        "skill:dodge": 2,
+        "skill:parry": 1,
+        "skill:awareness": 3,
+        "skill:stealth": 1,
+        "skill:weave_sense": 2,
+      },
+      talents: {
+        "talent:quick_draw": 1,
+        "talent:sound_constitution": 2,
+        "talent:mighty_shot_1": 1,
+        "talent:swift_attack": 1,
+        "talent:disarm": 1,
+        "talent:knockdown": 1,
+        "talent:takedown": 1,
+      },
+      traits: {
+        "trait:weaver": true,
+        "trait:size": { size: 4 },
+        "trait:unnatural_characteristic": { stat: "STR", bonusX: 2 },
+      },
       equipment: {
-        mainHand: { kind: "weapon", id: "shortbow" }, // Test weapon: ranged
-        armor: null, // No armor for player initially
+        mainHand: { kind: "weapon" as const, id: "shortbow" }, // Test weapon: ranged
+        armor: { kind: "armor" as const, id: "plate" },
       },
       status: {
         conditions: [],
         tempModifiers: [],
       },
+      inventory: [{ kind: "weapon" as const, id: "club" }],
     };
 
     const party = {
@@ -82,13 +102,13 @@ export function PlayScreen() {
         INI: 30,
         PER: 30,
       },
-      resources: { hp: 50, rf: 50, peq: 50 },
+      resources: { hp: 50, rf: 0, peq: 0 },
       skills: {},
       talents: {},
       traits: {},
       equipment: {
-        mainHand: { kind: "weapon", id: "club" },
-        armor: { kind: "armor", id: "leather" },
+        mainHand: { kind: "weapon" as const, id: "club" },
+        armor: { kind: "armor" as const, id: "leather" },
       },
       status: {
         conditions: [],
@@ -96,8 +116,16 @@ export function PlayScreen() {
       },
     };
 
+    // Merge content pack catalogs into story pack for combat system access
+    const storyPackWithCatalogs = {
+      ...(brunholt as StoryPack),
+      skills: skillsCatalog as any,
+      talents: talentsCatalog as any,
+      traits: traitsCatalog as any,
+    };
+
     return createNewGame(
-      brunholt as StoryPack,
+      storyPackWithCatalogs,
       123456, // fixed seed
       party,
       { PC_1: minimalActor, NPC_DUMMY: npcDummy },
@@ -106,32 +134,42 @@ export function PlayScreen() {
     );
   }, []);
 
+  // Merge catalogs into story pack reference (reused throughout component)
+  const storyPackWithCatalogs = useMemo(
+    () => ({
+      ...(brunholt as StoryPack),
+      skills: skillsCatalog as any,
+      talents: talentsCatalog as any,
+      traits: traitsCatalog as any,
+    }),
+    []
+  );
+
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const { width, height } = useWindowDimensions();
 
-  const { scene, text } = getCurrentScene(brunholt as StoryPack, save);
-  const choices = listAvailableChoices(brunholt as StoryPack, save);
+  const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
+  const choices = listAvailableChoices(storyPackWithCatalogs, save);
   const gameOver = save.runtime.gameOver;
 
   // Determine layout mode: portrait/narrow uses column, landscape/wide uses row
   const isNarrow = width < 700 || height > width;
 
   const handleChoice = (choiceId: string) => {
-    const newSave = applyChoice(brunholt as StoryPack, save, choiceId);
+    const newSave = applyChoice(storyPackWithCatalogs, save, choiceId);
     setSave(newSave);
   };
 
   const applySystemEffects = (effects: Effect[]) => {
     const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
-    const newSave = applyEffects(effects, brunholt as StoryPack, save, rng);
+    const newSave = applyEffects(effects, storyPackWithCatalogs, save, rng);
     setSave(newSave);
   };
 
   const lastCheck = save.runtime.lastPlayerCheck || save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
-
 
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(
@@ -234,6 +272,7 @@ export function PlayScreen() {
           combatChoices={combatChoices}
           handleChoice={handleChoice}
           applySystemEffects={applySystemEffects}
+          storyPack={storyPackWithCatalogs}
           width={width}
           styles={styles}
         />
@@ -262,19 +301,13 @@ export function PlayScreen() {
             {(() => {
               const outcomeTag = tags.find((t) => t.startsWith("combat:outcome="));
               const outcome = outcomeTag ? outcomeTag.split("=")[1] : null;
-              
+
               if (outcome === "victory") {
                 return (
-                  <Text style={styles.combatEndText}>
-                    Tutti i nemici presenti nell'area sono stati sconfitti.
-                  </Text>
+                  <Text style={styles.combatEndText}>Tutti i nemici presenti nell'area sono stati sconfitti.</Text>
                 );
               } else if (outcome === "defeat") {
-                return (
-                  <Text style={styles.combatEndText}>
-                    Il party è stato annientato. Game over.
-                  </Text>
-                );
+                return <Text style={styles.combatEndText}>Il party è stato annientato. Game over.</Text>;
               } else {
                 // Fallback for old saves
                 return (
@@ -283,7 +316,8 @@ export function PlayScreen() {
                     {tags.find((t) => t.startsWith("combat:winner=")) && (
                       <Text style={styles.combatEndText}>
                         Winner:{" "}
-                        {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name || "Unknown"}
+                        {save.actorsById[tags.find((t) => t.startsWith("combat:winner="))!.split("=")[1]]?.name ||
+                          "Unknown"}
                       </Text>
                     )}
                   </>

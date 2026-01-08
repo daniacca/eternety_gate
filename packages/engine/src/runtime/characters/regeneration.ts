@@ -1,9 +1,7 @@
 import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { getModifierTotal } from "./modifiers";
-import { getStatTestTarget } from "../actors/bonuses";
 import { performCheck } from "../checks";
-import type { StoryPack, SingleCheck, StatKey } from "../types";
+import type { StoryPack, SingleCheck } from "../types";
 import type { IRNG } from "../rng";
 import { appendRuntimeLog } from "../combat/narration";
 
@@ -76,4 +74,3 @@ export function processRegeneration(
 
   return updatedSave;
 }
-

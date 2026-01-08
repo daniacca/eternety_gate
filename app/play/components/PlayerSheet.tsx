@@ -1,7 +1,11 @@
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
-import type { GameSave, Effect, ItemRef } from "@eg/engine";
-import { getActorWeapon, getActorArmor } from "@eg/engine";
+import type { GameSave, Effect, ItemRef, StatKey } from "@eg/engine";
+import { getActorWeapon, getActorArmor, getCharacteristicBonus, loadCharacterCatalogs } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
+import sigilContent from "@eg/content/sigil.content.json";
+import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import talentsCatalog from "@eg/content/src/catalogs/talents.json";
+import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 
 interface PlayerSheetProps {
   visible: boolean;
@@ -33,6 +37,14 @@ const statLabels: Record<string, string> = {
 export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
   const activeActor = save.actorsById[save.party.activeActorId];
   if (!activeActor) return null;
+
+  // Load catalogs for bonus calculation
+  const catalogs = loadCharacterCatalogs({
+    ...sigilContent,
+    skills: skillsCatalog as any,
+    talents: talentsCatalog as any,
+    traits: traitsCatalog as any,
+  } as any);
 
   const hp = activeActor.resources.hp;
   const hpMax = activeActor.derived?.hpMax ?? 100;
@@ -113,12 +125,21 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Statistiche</Text>
               <View style={styles.statsGrid}>
-                {Object.entries(activeActor.stats).map(([key, value]) => (
-                  <View key={key} style={styles.statRow}>
-                    <Text style={styles.statLabel}>{statLabels[key] || key}:</Text>
-                    <Text style={styles.statValue}>{value}</Text>
-                  </View>
-                ))}
+                {Object.entries(activeActor.stats).map(([key, value]) => {
+                  const bonus = getCharacteristicBonus(save, activeActor.id, key as StatKey, catalogs);
+                  return (
+                    <View key={key} style={styles.statRow}>
+                      <Text style={styles.statLabel}>{statLabels[key] || key}:</Text>
+                      <View style={styles.statValueContainer}>
+                        <Text style={styles.statValue}>{value}</Text>
+                        <Text style={styles.statBonus}>
+                          (Bonus: {bonus >= 0 ? "+" : ""}
+                          {bonus})
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             </View>
 
@@ -381,10 +402,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
+  statValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   statValue: {
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
+  },
+  statBonus: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
   },
   resourceRow: {
     flexDirection: "row",

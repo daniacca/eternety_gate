@@ -2,19 +2,20 @@ import type {
   GameSave,
   CombatAttackCheck,
   CheckResult,
-  ActorId,
   Effect,
   SingleCheck,
   StoryPack,
   StatKey,
   WeaponId,
 } from "../types";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { resolveActor, performCheck } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { getEquippedWeaponId } from "../inventory";
 import { getCharacteristicBonus } from "../actors/bonuses";
+import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -26,7 +27,8 @@ export function applyCombatDamageIfHit(
   save: GameSave,
   rng: IRNG,
   storyPack?: StoryPack,
-  resolutionId?: string
+  resolutionId?: string,
+  catalogs?: CharacterCatalogs
 ): {
   save: GameSave;
   didApplyDamage: boolean;
@@ -109,7 +111,7 @@ export function applyCombatDamageIfHit(
     calculatedWeaponId = "improvised";
     damageFormula = `1d5 + ${strBonus} (STR bonus)`;
   } else {
-    const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount);
+    const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs);
     rawDamage = result.rawDamage;
     weaponName = result.weaponName;
     calculatedWeaponId = result.weaponId;
@@ -117,25 +119,36 @@ export function applyCombatDamageIfHit(
     // Build formula string for logging
     const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
     if (weapon) {
-      const strBonus = mode === "MELEE" ? getCharacteristicBonus(save, attacker.id, "STR") : 0;
-      damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
+      if (mode === "MELEE") {
+        const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
+        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
+      } else if (mode === "RANGED") {
+        // Get Mighty Shot bonus for formula display
+        const mightyShotBonus = catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
+        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}${
+          mightyShotBonus > 0 ? ` + ${mightyShotBonus} (Mighty Shot)` : ""
+        }`;
+      } else {
+        damageFormula = `1d${weapon.damage.die} + ${weapon.damage.add}`;
+      }
       // Note: Individual rolls not captured here (would require modifying calculateWeaponDamage)
       // For now, we log the final rawDamage which is the best of rollsCount rolls
     } else {
       // Unarmed
-      const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
+      const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
       damageFormula = `1d5 + ${strBonus} (STR bonus)`;
       // Note: Individual rolls not captured here
     }
   }
 
   // Get defender armor soak
-  const { soak, armorId, name: armorName } = getActorArmor(save, defender);
+  const { soak, armorId } = getActorArmor(save, defender);
 
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
   if (isUnarmed || useFallbackWeapon) {
-    const hasNaturalWeapon = attacker.tags?.includes("natural_weapon") || attacker.traits?.includes("natural_weapon");
+    const hasNaturalWeapon =
+      attacker.tags?.includes("natural_weapon") || (attacker.traits && "trait:natural_weapons" in attacker.traits);
     if (!hasNaturalWeapon) {
       effectiveSoak = soak * 2;
     }

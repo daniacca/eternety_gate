@@ -30,7 +30,16 @@
       "id": "leather",
       "name": "Leather Armor",
       "soak": 1
+    },
+    {
+      "id": "chainmail",
+      "name": "Chainmail",
+      "soak": 2
+    },
+    {
+      "id": "plate",
+      "name": "Plate Armor",
+      "soak": 3
     }
   ]
 }
-

@@ -108,7 +108,7 @@
     "grants": [
       {
         "type": "unlockAction",
-        "actionId": "combat:takedown"
+        "actionId": "combat:knockdown"
       }
     ],
     "maxRank": 1
@@ -129,6 +129,26 @@
       {
         "type": "unlockAction",
         "actionId": "combat:swiftAttack"
+      }
+    ],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:disarm",
+    "name": "Disarmare",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      {
+        "type": "statAtLeast",
+        "stat": "WS",
+        "value": 40
+      }
+    ],
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:disarm"
       }
     ],
     "maxRank": 1
@@ -196,4 +216,3 @@
     "maxRank": 1
   }
 ]
-

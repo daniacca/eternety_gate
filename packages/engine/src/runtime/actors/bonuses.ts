@@ -1,6 +1,5 @@
 import type { GameSave, ActorId, StatKey } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { resolveActor } from "../checks";
 import { getModifierTotal } from "../characters/modifiers";
 
 /**
@@ -26,7 +25,7 @@ export function getCharacteristicValue(actorId: ActorId, key: StatKey, save: Gam
 /**
  * Gets bonus modifiers for a characteristic.
  * Includes unnatural characteristic bonus from traits.
- * 
+ *
  * @param save - The game save
  * @param catalogs - Character catalogs (optional, required for unnatural characteristics)
  * @param actorId - The actor ID
@@ -48,12 +47,7 @@ export function getBonusModifiers(
 
   // Check for unnatural characteristic trait
   if (catalogs) {
-    const unnaturalModifier = getModifierTotal(
-      save,
-      catalogs,
-      actorId,
-      `stat.${key}.bonusAdd` as any
-    );
+    const unnaturalModifier = getModifierTotal(save, catalogs, actorId, `stat.${key}.bonusAdd` as any);
     total += unnaturalModifier;
   }
 
@@ -69,7 +63,7 @@ export function getBonusModifiers(
 /**
  * Gets the final characteristic bonus for an actor.
  * This is the base bonus (floor(stat/10)) plus any modifiers (including unnatural).
- * 
+ *
  * @param save - The game save
  * @param actorId - The actor ID
  * @param key - The characteristic key (e.g., "INI", "AGI", "STR")
@@ -85,7 +79,7 @@ export function getCharacteristicBonus(
   const baseValue = getCharacteristicValue(actorId, key, save);
   const baseBonus = getCharacteristicBonusBase(baseValue);
   const modifiers = getBonusModifiers(save, actorId, key, catalogs);
-  
+
   return baseBonus + modifiers;
 }
 
@@ -103,14 +97,14 @@ export function getStatTestTarget(
 
   const baseValue = getCharacteristicValue(actorId, statKey, save);
   const testModifier = getModifierTotal(save, catalogs, actorId, `stat.${statKey}.testAdd` as any);
-  
+
   return baseValue + testModifier;
 }
 
 /**
  * Gets the initiative bonus for an actor.
  * This uses the INI characteristic bonus.
- * 
+ *
  * @param save - The game save
  * @param actorId - The actor ID
  * @returns The initiative bonus
@@ -118,4 +112,3 @@ export function getStatTestTarget(
 export function getInitiativeBonus(save: GameSave, actorId: ActorId): number {
   return getCharacteristicBonus(save, actorId, "INI");
 }
-

@@ -1,7 +1,8 @@
 import { View, Text, Pressable } from "react-native";
-import type { GameSave, Choice, Effect } from "@eg/engine";
-import { distanceChebyshev } from "@eg/engine";
-import { CombatUiModel, useCombatUiModel } from "../hooks/useCombatUiModel";
+import type { GameSave, Choice, Effect, StoryPack } from "@eg/engine";
+import { hasUnlockedAction, loadCharacterCatalogs } from "@eg/engine";
+import { CombatUiModel } from "../hooks/useCombatUiModel";
+import { useMemo } from "react";
 
 interface CombatControlProps {
   model: CombatUiModel | undefined;
@@ -9,6 +10,7 @@ interface CombatControlProps {
   combatChoices: Choice[];
   handleChoice: (choiceId: string) => void;
   applySystemEffects: (effects: Effect[]) => void;
+  storyPack?: StoryPack;
   width: number;
   styles: any;
 }
@@ -19,6 +21,7 @@ export function CombatControl({
   combatChoices,
   handleChoice,
   applySystemEffects,
+  storyPack,
   width,
   styles,
 }: CombatControlProps) {
@@ -26,10 +29,29 @@ export function CombatControl({
 
   const combat = save.runtime.combat;
 
-  const pcHp = model.pcActor?.resources.hp ?? 0;
-  const pcFatigue = model.pcActor?.resources.rf ?? 0;
-  const npcHp = model.npcActor?.resources.hp ?? 0;
-  const npcFatigue = model.npcActor?.resources.rf ?? 0;
+  // Load catalogs for action unlock checks
+  const catalogs = useMemo(() => {
+    if (!storyPack?.skills && !storyPack?.talents && !storyPack?.traits) return undefined;
+    return loadCharacterCatalogs({
+      id: storyPack.id,
+      weapons: storyPack.weapons || [],
+      armors: storyPack.armors || [],
+      skills: storyPack.skills || [],
+      talents: storyPack.talents || [],
+      traits: storyPack.traits || [],
+    });
+  }, [storyPack]);
+
+  // Check if actions are unlocked
+  const hasDisarmUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:disarm")
+    : false;
+  const hasKnockdownUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:knockdown")
+    : true; // Default to true if no catalogs (backward compatibility)
+  const hasSwiftAttackUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:swiftAttack")
+    : false;
 
   // Move pad grid structure: 3x3 with blank center
   const moveGrid = [
@@ -93,7 +115,9 @@ export function CombatControl({
                             onPress={() => model.canMove && moveChoice && handleChoice(moveChoice.id)}
                             disabled={!model.canMove}
                           >
-                            <Text style={[styles.movePadButtonText, !model.canMove && styles.movePadButtonTextDisabled]}>
+                            <Text
+                              style={[styles.movePadButtonText, !model.canMove && styles.movePadButtonTextDisabled]}
+                            >
                               {move.label}
                             </Text>
                           </Pressable>
@@ -122,7 +146,9 @@ export function CombatControl({
                   }}
                   disabled={model.moveRemaining <= 0}
                 >
-                  <Text style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}>
+                  <Text
+                    style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                  >
                     {model.pcActor?.conditions?.prone ? "Stand Up" : "Get Prone"}
                   </Text>
                 </Pressable>
@@ -135,7 +161,9 @@ export function CombatControl({
                   }}
                   disabled={model.moveRemaining <= 0}
                 >
-                  <Text style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}>
+                  <Text
+                    style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                  >
                     Pickup
                   </Text>
                 </Pressable>
@@ -145,7 +173,7 @@ export function CombatControl({
           {/* Attacks Block - Contains Melee and Ranged sections */}
           <View style={[styles.combatBlock, styles.attacksBlock]}>
             <Text style={styles.combatBlockTitle}>Attacks</Text>
-            
+
             {/* Melee Attacks Section */}
             <View style={styles.attackSection}>
               <Text style={styles.attackSectionTitle}>Melee Attacks</Text>
@@ -181,66 +209,118 @@ export function CombatControl({
                   </Text>
                 </Pressable>
               </View>
-              <View style={styles.attackButtonItem}>
-                <Pressable
-                  style={[
-                    styles.attackButton,
-                    (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) && styles.attackButtonDisabled,
-                  ]}
-                  onPress={() => {
-                    if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
-                      applySystemEffects([
-                        { op: "combatKnockdown", attackerId: save.party.activeActorId, defenderId: model.selectedTargetId },
-                      ]);
-                    }
-                  }}
-                  disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
-                >
-                  <Text
+              {hasKnockdownUnlock && (
+                <View style={styles.attackButtonItem}>
+                  <Pressable
                     style={[
-                      styles.attackButtonText,
+                      styles.attackButton,
                       (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
-                        styles.attackButtonTextDisabled,
+                        styles.attackButtonDisabled,
                     ]}
+                    onPress={() => {
+                      if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                        applySystemEffects([
+                          {
+                            op: "combatKnockdown",
+                            attackerId: save.party.activeActorId,
+                            defenderId: model.selectedTargetId,
+                          },
+                        ]);
+                      }
+                    }}
+                    disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
                   >
-                    Knockdown
-                  </Text>
-                </Pressable>
-              </View>
-              <View style={styles.attackButtonItem}>
-                <Pressable
-                  style={[
-                    styles.attackButton,
-                    (!model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon) &&
-                      styles.attackButtonDisabled,
-                  ]}
-                  onPress={() => {
-                    if (
-                      model.actionAvailable &&
-                      model.canMelee &&
-                      model.selectedTargetId &&
-                      model.npcWeapon?.weapon
-                    ) {
-                      applySystemEffects([
-                        { op: "combatDisarm", attackerId: save.party.activeActorId, defenderId: model.selectedTargetId },
-                      ]);
-                    }
-                  }}
-                  disabled={
-                    !model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon
-                  }
-                >
-                  <Text
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                          styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Knockdown
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+              {hasSwiftAttackUnlock && (
+                <View style={styles.attackButtonItem}>
+                  <Pressable
                     style={[
-                      styles.attackButtonText,
-                      (!model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon) &&
-                        styles.attackButtonTextDisabled,
+                      styles.attackButton,
+                      (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                        styles.attackButtonDisabled,
                     ]}
+                    onPress={() => {
+                      if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                        applySystemEffects([
+                          {
+                            op: "combatSwiftAttack",
+                            attackerId: save.party.activeActorId,
+                            defenderId: model.selectedTargetId,
+                          },
+                        ]);
+                      }
+                    }}
+                    disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
                   >
-                    Disarm
-                  </Text>
-                </Pressable>
-              </View>
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                          styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Swift Attack
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+              {hasDisarmUnlock && (
+                <View style={styles.attackButtonItem}>
+                  <Pressable
+                    style={[
+                      styles.attackButton,
+                      (!model.actionAvailable ||
+                        !model.canMelee ||
+                        !model.selectedTargetId ||
+                        !model.npcWeapon?.weapon) &&
+                        styles.attackButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      if (
+                        model.actionAvailable &&
+                        model.canMelee &&
+                        model.selectedTargetId &&
+                        model.npcWeapon?.weapon
+                      ) {
+                        applySystemEffects([
+                          {
+                            op: "combatDisarm",
+                            attackerId: save.party.activeActorId,
+                            defenderId: model.selectedTargetId,
+                          },
+                        ]);
+                      }
+                    }}
+                    disabled={
+                      !model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!model.actionAvailable ||
+                          !model.canMelee ||
+                          !model.selectedTargetId ||
+                          !model.npcWeapon?.weapon) &&
+                          styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Disarm
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
 
             {/* Ranged Attacks Section */}
@@ -279,10 +359,7 @@ export function CombatControl({
                       disabled={model.rangedCalledDisabled}
                     >
                       <Text
-                        style={[
-                          styles.attackButtonText,
-                          model.rangedCalledDisabled && styles.attackButtonTextDisabled,
-                        ]}
+                        style={[styles.attackButtonText, model.rangedCalledDisabled && styles.attackButtonTextDisabled]}
                       >
                         Called Shot
                       </Text>

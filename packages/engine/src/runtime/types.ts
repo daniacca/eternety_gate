@@ -130,6 +130,12 @@ export type Effect =
       defenderId: ActorId;
     }
   | {
+      op: "combatSwiftAttack";
+      attackerId: ActorId;
+      defenderId: ActorId;
+      weaponId?: WeaponId | null;
+    }
+  | {
       op: "combatGetProne";
       actorId: ActorId;
     }
@@ -347,6 +353,9 @@ export type StoryPack = {
   // Story-local content (weapons/armors override or extend global content pack)
   weapons?: Weapon[];
   armors?: Armor[];
+  skills?: any[];
+  talents?: any[];
+  traits?: any[];
 
   scenes: Scene[];
 };
