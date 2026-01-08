@@ -1,17 +1,4 @@
-import type {
-  StoryPack,
-  GameSave,
-  Actor,
-  ActorId,
-  SceneId,
-  Grid,
-  Position,
-  CombatState,
-  CheckResult,
-  SingleCheck,
-  StatKey,
-  Effect,
-} from "../types";
+import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, CombatState, CheckResult } from "../types";
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
@@ -23,6 +10,8 @@ import {
   addConditionToActor,
 } from "../conditions";
 import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuses";
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
 import { applyDamageToActor } from "./criticalDamage";
 
@@ -76,24 +65,67 @@ function shouldCombatEnd(
 }
 
 /**
- * Initializes turn state for an actor based on their AGI and conditions
+ * Gets size-based movement modifier according to the size table:
+ * Size 1: -3, Size 2: -2, Size 3: -1, Size 4: 0, Size 5: +1,
+ * Size 6: +2, Size 7: +3, Size 8: +4, Size 9: +5, Size 10: +6
+ * Defaults to size 4 (average human) if no size trait is present
+ */
+export function getSizeMovementModifier(actor: Actor): number {
+  const sizeParams = actor.traits["trait:size"];
+  const size =
+    sizeParams && typeof sizeParams === "object" && typeof sizeParams.size === "number" ? sizeParams.size : 4; // Default to Average (size 4) if no size trait
+
+  const sizeMovementTable: Record<number, number> = {
+    1: -3,
+    2: -2,
+    3: -1,
+    4: 0,
+    5: 1,
+    6: 2,
+    7: 3,
+    8: 4,
+    9: 5,
+    10: 6,
+  };
+
+  return sizeMovementTable[size] ?? 0; // Default to 0 if size is out of range
+}
+
+/**
+ * Calculates initial movement for an actor based on AGI bonus, size, and conditions
+ * This is used to determine the starting movement value for a turn
+ *
+ * @param actor - The actor
+ * @param save - The game save
+ * @param catalogs - Character catalogs (optional, required for catalog-based AGI bonuses)
+ */
+export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?: CharacterCatalogs): number {
+  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI", catalogs);
+  const sizeModifier = getSizeMovementModifier(actor);
+  const modifiers = computeCombatModifiersFromConditions(actor);
+  const moveDelta = modifiers.moveDelta ?? 0;
+  const baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
+  return Math.max(1, baseMove); // Minimum 1 movement
+}
+
+/**
+ * Initializes turn state for an actor based on their AGI, size, and conditions
+ *
+ * @param actor - The actor
+ * @param save - The game save
+ * @param catalogs - Character catalogs (optional, required for catalog-based AGI bonuses)
  */
 function initializeTurnState(
   actor: Actor,
-  save: GameSave
+  save: GameSave,
+  catalogs?: CharacterCatalogs
 ): {
   moveRemaining: number;
   actionAvailable: boolean;
 } {
-  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI");
-  const modifiers = computeCombatModifiersFromConditions(actor);
-
-  // Apply fatigue and prone to movement (minimum 1)
-  const moveDelta = modifiers.moveDelta ?? 0;
-  const baseMove = Math.max(1, agiBonus + moveDelta);
-
+  const initialMove = calculateInitialMovement(actor, save, catalogs);
   return {
-    moveRemaining: Math.max(1, baseMove), // Minimum 1 movement
+    moveRemaining: initialMove,
     actionAvailable: true,
   };
 }
@@ -121,6 +153,19 @@ export function startCombat(
     return save;
   }
 
+  // Load catalogs from storyPack for initiative bonus calculation
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+
   // Calculate initiative for each participant
   type InitiativeEntry = {
     id: ActorId;
@@ -130,7 +175,7 @@ export function startCombat(
   };
 
   const initiatives: InitiativeEntry[] = validParticipants.map((id) => {
-    const iniBonus = getInitiativeBonus(save, id);
+    const iniBonus = getInitiativeBonus(save, id, catalogs);
     const iniRoll = rng.nextInt(1, 10); // d10
     const iniScore = iniBonus + iniRoll;
 
@@ -182,7 +227,7 @@ export function startCombat(
   // Initialize turn state for first actor
   const firstActor = save.actorsById[currentTurnActorId];
   const initialTurnState = firstActor
-    ? initializeTurnState(firstActor, save)
+    ? initializeTurnState(firstActor, save, catalogs)
     : { moveRemaining: 0, actionAvailable: true };
 
   // Save initial HP for each participant (for UI display of max HP)
@@ -370,9 +415,11 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   const newTurnCounter = (combat.turnCounter ?? 0) + 1;
 
   // Initialize turn state for new actor and apply condition effects
+  // Note: catalogs not available here, so movement won't include catalog-based AGI bonuses
+  // but will still include base AGI bonus + size modifier
   let currentActor = updatedSave.actorsById[currentTurnActorId];
   let newTurnState = currentActor
-    ? initializeTurnState(currentActor, updatedSave)
+    ? initializeTurnState(currentActor, updatedSave, undefined)
     : { moveRemaining: 0, actionAvailable: true };
 
   // Apply condition effects at turn start

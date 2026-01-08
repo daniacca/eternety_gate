@@ -1,8 +1,6 @@
 import type { Effect, GameSave, ItemRef } from "../../types";
 import { getActorInventory } from "../../characters/inventory";
-import { getCurrentTurnActorId } from "../combat";
-import { getCharacteristicBonus } from "../../characters/bonuses";
-import { computeCombatModifiersFromConditions } from "../../conditions";
+import { getCurrentTurnActorId, calculateInitialMovement } from "../combat";
 
 /**
  * EquipItem: equips an item from inventory into a slot (swaps if slot occupied)
@@ -43,12 +41,8 @@ export function combatEquipItem(
 
     // If no quick_draw talent, check if all movement is remaining
     if (!hasQuickDraw) {
-      // Calculate initial movement for this actor
-      const agiBonus = getCharacteristicBonus(save, actor.id, "AGI");
-      const modifiers = computeCombatModifiersFromConditions(actor);
-      const moveDelta = modifiers.moveDelta ?? 0;
-      const baseMove = Math.max(1, agiBonus + moveDelta);
-      const initialMove = Math.max(1, baseMove);
+      // Calculate initial movement for this actor (includes size modifier)
+      const initialMove = calculateInitialMovement(actor, save);
 
       // Can only equip if all movement is still remaining
       if (combat.turn.moveRemaining !== initialMove) {

@@ -103,13 +103,13 @@ export function getStatTestTarget(
 
 /**
  * Gets the initiative bonus for an actor.
- * This uses the INI characteristic bonus.
+ * This uses the INI characteristic bonus, including modifiers from catalogs (traits, talents).
  *
  * @param save - The game save
  * @param actorId - The actor ID
+ * @param catalogs - Character catalogs (optional, required for catalog-based modifiers)
  * @returns The initiative bonus
  */
-export function getInitiativeBonus(save: GameSave, actorId: ActorId): number {
-  return getCharacteristicBonus(save, actorId, "INI");
+export function getInitiativeBonus(save: GameSave, actorId: ActorId, catalogs?: CharacterCatalogs): number {
+  return getCharacteristicBonus(save, actorId, "INI", catalogs);
 }
-
