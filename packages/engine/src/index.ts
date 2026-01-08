@@ -48,6 +48,7 @@ export { getRangedDamageBonusFromMightyShot } from "./runtime/characters/mightyS
 export { getNaturalWeaponProfile } from "./runtime/characters/naturalWeapons";
 export { processRegeneration } from "./runtime/characters/regeneration";
 export { getCharacteristicBonus, getStatTestTarget } from "./runtime/characters/bonuses";
+export { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./runtime/characters/hp";
 
 // Types
 export type * from "./runtime/types";

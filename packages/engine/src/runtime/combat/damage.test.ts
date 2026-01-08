@@ -11,7 +11,7 @@ describe("damage", () => {
     it("should not apply damage when check result is unsuccessful", () => {
       const storyPack = makeTestStoryPack();
       const attacker = makeTestActor({ id: "attacker" });
-      const defender = makeTestActor({ id: "defender", resources: { hp: 100, rf: 100, peq: 100 } });
+      const defender = makeTestActor({ id: "defender", resources: { wounds: 0, rf: 100, peq: 100 } });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
         ...save,
@@ -50,7 +50,7 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(false);
       expect(damageResult.targetKo).toBe(false);
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(100);
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(0);
     });
 
     it("should not apply damage when attacker is not found", () => {
@@ -97,7 +97,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -139,7 +139,7 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(true);
       expect(damageResult.finalDamage).toBe(9); // 9 raw - 0 soak
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(91); // 100 - 9
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(9); // 9 wounds taken
       expect(damageResult.targetKo).toBe(false);
     });
 
@@ -151,7 +151,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
       });
       const armor: Armor = {
         id: "leather",
@@ -199,7 +199,7 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(true);
       expect(damageResult.finalDamage).toBe(3); // 9 raw - 6 (double soak) = 3
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(97); // 100 - 3
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(3); // 3 wounds taken
     });
 
     it("should apply Righteous Fury on critical success", () => {
@@ -219,7 +219,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -277,7 +277,7 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(true);
       expect(damageResult.finalDamage).toBe(15); // Best of 2 rolls: 15
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(85); // 100 - 15
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(15); // 15 wounds taken
       // Check for Righteous Fury tag
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:righteousFury=1");
@@ -298,7 +298,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 0, rf: 100, peq: 100 }, // Already at 0 HP
+        resources: { wounds: 100, rf: 100, peq: 100 }, // Already at 0 HP (assuming maxHp=100)
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -393,7 +393,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 50, rf: 100, peq: 100 },
+        resources: { wounds: 50, rf: 100, peq: 100 }, // Assuming maxHp=100
         equipment: { armor: { kind: "armor", id: "leather" } },
       });
       const save = {
@@ -443,8 +443,9 @@ describe("damage", () => {
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
       expect(damageResult.didApplyDamage).toBe(true);
-      expect(damageResult.finalDamage).toBe(10); // 15 raw - 5 soak
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(40); // 50 - 10
+      // Weapon penetration: 1, armor soak: 5, effective soak: 5 - 1 = 4
+      expect(damageResult.finalDamage).toBe(11); // 15 raw - 4 effective soak
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(61); // Assuming maxHp=100, 50 wounds + 11 = 61 wounds
     });
 
     it("should reduce damage to 0 when armor soak exceeds raw damage", () => {
@@ -468,7 +469,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
         equipment: { armor: { kind: "armor", id: "plate" } },
       });
       const save = {
@@ -518,7 +519,7 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(false); // No damage applied
       expect(damageResult.finalDamage).toBe(0);
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(100);
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(0);
       // Should have narration about armor absorbing all damage
       expect(damageResult.save.runtime.combatLog).toBeDefined();
       expect(damageResult.save.runtime.combatLog?.length).toBeGreaterThan(0);
@@ -532,7 +533,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 10, rf: 100, peq: 100 },
+        resources: { wounds: 90, rf: 100, peq: 100 }, // Assuming maxHp=100
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -557,8 +558,15 @@ describe("damage", () => {
         },
       };
       // Roll 5 on d5: 5 + 5 (SB) = 10 raw damage (unarmed uses d5)
+      // When HP reaches 0, critical damage = 10, which triggers tiers 1-10
+      // Tier 2 needs d5 roll, tier 6 needs d5 roll, tiers 7-9 need toughness checks (d100)
       const d100For5 = FakeRng.d100ForNextInt(5, 1, 5);
-      const rng = new FakeRng([d100For5]);
+      const d100ForTier2D5 = FakeRng.d100ForNextInt(3, 1, 5); // Tier 2 fatigue roll
+      const d100ForTier6D5 = FakeRng.d100ForNextInt(2, 1, 5); // Tier 6 stunned rounds
+      const d100ForTier7 = 50; // Tier 7 toughness check (pass)
+      const d100ForTier8 = 50; // Tier 8 toughness check (pass)
+      const d100ForTier9 = 50; // Tier 9 toughness check (pass)
+      const rng = new FakeRng([d100For5, d100ForTier2D5, d100ForTier6D5, d100ForTier7, d100ForTier8, d100ForTier9]);
 
       const check: CombatAttackCheck = {
         id: "test_check",
@@ -587,7 +595,9 @@ describe("damage", () => {
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
       expect(damageResult.targetKo).toBe(true);
-      expect(damageResult.save.actorsById[defender.id].resources.hp).toBe(0);
+      // Actor should be at max wounds (HP = 0)
+      const maxHp = damageResult.save.actorsById[defender.id].derived?.hpMax ?? 100;
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBeGreaterThanOrEqual(maxHp);
       // Should have combat:defDown=1 tag
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:defDown=1");
@@ -614,7 +624,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
         equipment: { armor: { kind: "armor", id: "leather" } },
       });
       const save = {
@@ -680,12 +690,13 @@ describe("damage", () => {
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("existing_tag");
       expect(lastCheck?.tags).toContain("combat:damage:raw=13"); // 6 + 2 + 5 (STR bonus)
-      expect(lastCheck?.tags).toContain("combat:soak=3");
-      expect(lastCheck?.tags).toContain("combat:damage:final=10"); // 13 - 3
+      // Weapon penetration: 1, armor soak: 3, effective soak: 3 - 1 = 2
+      expect(lastCheck?.tags).toContain("combat:soak=2");
+      expect(lastCheck?.tags).toContain("combat:damage:final=11"); // 13 - 2
       expect(lastCheck?.tags).toContain("combat:weapon=sword");
       expect(lastCheck?.tags).toContain("combat:armor=leather");
       expect(lastCheck?.tags).toContain("combat:defHpBefore=100");
-      expect(lastCheck?.tags).toContain("combat:defHpAfter=90"); // 100 - 10
+      expect(lastCheck?.tags).toContain("combat:defHpAfter=89"); // 100 - 11
     });
 
     it("should use weaponId from check if provided", () => {
@@ -712,7 +723,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
       });
       const save = {
         ...makeTestSave(storyPack, attacker),
@@ -796,7 +807,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { hp: 100, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100, peq: 100 },
       });
       const save = {
         ...makeTestSave(storyPack, attacker),

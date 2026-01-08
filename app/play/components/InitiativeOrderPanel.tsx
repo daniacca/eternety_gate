@@ -1,6 +1,10 @@
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import type { GameSave } from "@eg/engine";
-import { getCurrentTurnActorId } from "@eg/engine";
+import { getCurrentTurnActorId, calculateMaxHp, getCurrentHp, loadCharacterCatalogs } from "@eg/engine";
+import sigilContent from "@eg/content/sigil.content.json";
+import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import talentsCatalog from "@eg/content/src/catalogs/talents.json";
+import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 
 interface InitiativeOrderPanelProps {
   save: GameSave;
@@ -19,12 +23,19 @@ export function InitiativeOrderPanel({ save, styles: parentStyles }: InitiativeO
   const currentTurnActorId = getCurrentTurnActorId(save);
   const participants = combat.participants;
 
+  // Load catalogs for HP calculation
+  const catalogs = loadCharacterCatalogs({
+    ...sigilContent,
+    skills: skillsCatalog as any,
+    talents: talentsCatalog as any,
+    traits: traitsCatalog as any,
+  } as any);
+
   // Get HP info for each participant
   const participantInfo = participants.map((actorId) => {
     const actor = save.actorsById[actorId];
-    const hp = actor?.resources.hp ?? 0;
-    const initialHp = combat.initialHpByActorId?.[actorId];
-    const hpMax = actor?.derived?.hpMax ?? initialHp ?? hp;
+    const hpMax = actor ? calculateMaxHp(save, actor, catalogs) : (combat.initialHpByActorId?.[actorId] ?? 100);
+    const hp = actor ? getCurrentHp(save, actor, catalogs) : 0;
     return {
       actorId,
       name: actor?.name || actorId,

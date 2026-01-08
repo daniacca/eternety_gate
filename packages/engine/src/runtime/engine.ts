@@ -39,7 +39,7 @@ function makeDefaultActor(id: string, name?: string): Actor {
       INI: 0,
       PER: 0,
     },
-    resources: { hp: 1, rf: 0, peq: 0 },
+    resources: { wounds: 0, rf: 0, peq: 0 },
     skills: {},
     talents: {},
     traits: {},

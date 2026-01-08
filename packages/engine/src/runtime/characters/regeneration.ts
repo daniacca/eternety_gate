@@ -4,6 +4,7 @@ import { performCheck } from "../checks";
 import type { StoryPack, SingleCheck } from "../types";
 import type { IRNG } from "../rng";
 import { appendRuntimeLog } from "../combat/narration";
+import { calculateMaxHp, getCurrentHp } from "./hp";
 
 /**
  * Processes regeneration trait for an actor at turn start/end
@@ -41,20 +42,22 @@ export function processRegeneration(
     return save; // Regeneration failed
   }
 
-  // Heal X HP
-  const currentHp = actor.resources.hp;
-  const maxHp = actor.derived?.hpMax ?? currentHp;
-  const newHp = Math.min(maxHp, currentHp + regenAmount);
+  // Heal X HP by reducing wounds
+  const maxHp = calculateMaxHp(save, actor, catalogs);
+  const woundsBefore = actor.resources.wounds ?? 0;
+  const currentHp = maxHp - woundsBefore;
+  const woundsAfter = Math.max(0, woundsBefore - regenAmount);
+  const newHp = maxHp - woundsAfter;
 
-  if (newHp === currentHp) {
-    return save; // Already at max HP
+  if (woundsAfter === woundsBefore) {
+    return save; // Already at max HP (no wounds)
   }
 
   const updatedActor = {
     ...actor,
     resources: {
       ...actor.resources,
-      hp: newHp,
+      wounds: woundsAfter,
     },
   };
 

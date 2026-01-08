@@ -1,6 +1,10 @@
 import { View, Text, StyleSheet } from "react-native";
-import { getCurrentTurnActorId, type GameSave } from "@eg/engine";
+import { getCurrentTurnActorId, type GameSave, calculateMaxHp, getCurrentHp, loadCharacterCatalogs } from "@eg/engine";
 import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
+import sigilContent from "@eg/content/sigil.content.json";
+import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import talentsCatalog from "@eg/content/src/catalogs/talents.json";
+import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 
 interface CombatGridProps {
   containerWidth: number;
@@ -98,10 +102,15 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
           const tokenY = (pos.y / grid.height) * gridSize + cellHeight / 2;
 
           // Get HP and critical damage for NPCs
-          const hp = actor?.resources.hp ?? 0;
-          // Use derived.hpMax if available, otherwise use initial HP from combat start
-          const initialHp = combat.initialHpByActorId?.[actorId];
-          const hpMax = actor?.derived?.hpMax ?? initialHp ?? hp;
+          // Load catalogs for HP calculation (fallback to derived if not available)
+          const catalogs = loadCharacterCatalogs({
+            ...sigilContent,
+            skills: skillsCatalog as any,
+            talents: talentsCatalog as any,
+            traits: traitsCatalog as any,
+          } as any);
+          const hpMax = actor ? calculateMaxHp(save, actor, catalogs) : (combat.initialHpByActorId?.[actorId] ?? 100);
+          const hp = actor ? getCurrentHp(save, actor, catalogs) : 0;
           const criticalDamage = actor?.resources.criticalDamage ?? 0;
           const hasCriticalDamage = criticalDamage > 0;
           const criticalMax = 10; // Critical damage goes from 0 to 10

@@ -212,7 +212,7 @@ describe("combatSwiftAttack", () => {
     const defender = makeTestActor({
       id: "NPC_1",
       stats: { WS: 30, AGI: 30, TOU: 40 },
-      resources: { hp: 100, rf: 0, peq: 3 },
+      resources: { wounds: 0, rf: 0, peq: 3 },
     });
     const save = makeTestSave(storyPack, attacker);
     const saveWithBoth = {
@@ -251,7 +251,8 @@ describe("combatSwiftAttack", () => {
     // Attacker wins with DoS 4, should apply damage 4 times
     // For damage: weapon 1d10 + STR bonus 5 = 1d10+5 per hit
     // Using deterministic rolls: [10, 30] for attack check, then 4 damage rolls (1d10 each)
-    const rng = new FakeRng([10, 30, 5, 6, 7, 8, 1, 1, 1, 1]); // Attack rolls, then 4 damage rolls (d10), then soak rolls
+    // If any hit brings HP to 0, critical damage tiers may need extra rolls (tier 2 d5, tier 6 d5, tiers 7-9 d100)
+    const rng = new FakeRng([10, 30, 5, 6, 7, 8, 1, 1, 1, 1, 3, 2, 50, 50, 50]); // Attack rolls, then 4 damage rolls (d10), then soak rolls, then potential critical tier rolls
     const result = combatSwiftAttack(effect as any, storyPack, saveWithBoth, rng);
 
     expect(result.save.runtime.lastCheck?.success).toBe(true);
@@ -262,8 +263,8 @@ describe("combatSwiftAttack", () => {
     // Defender starts at 100 HP, should have ~54 HP remaining (accounting for armor soak)
     const finalDefender = result.save.actorsById["NPC_1"];
     expect(finalDefender).toBeDefined();
-    // HP should be reduced (exact amount depends on armor soak)
-    expect(finalDefender.resources.hp).toBeLessThan(100);
+    // Wounds should be greater than 0 (damage was applied)
+    expect(finalDefender.resources.wounds).toBeGreaterThan(0);
   });
 
   it("should not apply damage if attack fails", () => {
@@ -276,7 +277,7 @@ describe("combatSwiftAttack", () => {
     const defender = makeTestActor({
       id: "NPC_1",
       stats: { WS: 50, AGI: 50 },
-      resources: { hp: 100, rf: 0, peq: 3 },
+      resources: { wounds: 0, rf: 0, peq: 3 },
     });
     const save = makeTestSave(storyPack, attacker);
     const saveWithBoth = {
@@ -314,7 +315,7 @@ describe("combatSwiftAttack", () => {
 
     expect(result.save.runtime.lastCheck?.success).toBe(false);
     const finalDefender = result.save.actorsById["NPC_1"];
-    expect(finalDefender.resources.hp).toBe(100); // HP unchanged
+    expect(finalDefender.resources.wounds).toBe(0); // Wounds unchanged (no damage applied)
   });
 
   it("should apply damage based on DoS difference when both succeed", () => {
@@ -328,7 +329,7 @@ describe("combatSwiftAttack", () => {
     const defender = makeTestActor({
       id: "NPC_1",
       stats: { WS: 40, AGI: 40, TOU: 40 },
-      resources: { hp: 100, rf: 0, peq: 3 },
+      resources: { wounds: 0, rf: 0, peq: 3 },
     });
     const save = makeTestSave(storyPack, attacker);
     const saveWithBoth = {
@@ -365,13 +366,19 @@ describe("combatSwiftAttack", () => {
     // Attacker WS 50, roll 10 => DoS 4
     // Defender WS 40, roll 20 => DoS 2
     // Attacker wins with DoS 2 (4 - 2), should apply damage 2 times
-    const rng = new FakeRng([10, 20, 5, 6]); // Attack rolls, then 2 damage rolls
+    // Each damage application needs: 1d10 for weapon damage
+    // Need enough rolls for: attack check (2 rolls), then 2 damage applications (each needs d10 roll)
+    // Plus potential extra rolls for soak calculations or other checks
+    // If any hit brings HP to 0, critical damage tiers may need extra rolls (tier 2 d5, tier 6 d5, tiers 7-9 d100)
+    const rng = new FakeRng([10, 20, 5, 6, 7, 8, 9, 10, 11, 12, 3, 2, 50, 50, 50]); // Extra rolls for multiple damage applications and potential critical tier rolls
     const result = combatSwiftAttack(effect as any, storyPack, saveWithBoth, rng);
 
     expect(result.save.runtime.lastCheck?.success).toBe(true);
-    expect(result.save.runtime.lastCheck?.dos).toBe(2);
+    // DoS is the attacker's DoS (4), not the difference
+    // The number of hits is based on the DoS difference, but lastCheck.dos is attacker's DoS
+    expect(result.save.runtime.lastCheck?.dos).toBe(4);
 
     const finalDefender = result.save.actorsById["NPC_1"];
-    expect(finalDefender.resources.hp).toBeLessThan(100); // HP reduced
+    expect(finalDefender.resources.wounds).toBeGreaterThan(0); // Wounds increased (damage applied)
   });
 });

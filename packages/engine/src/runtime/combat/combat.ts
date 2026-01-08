@@ -1,9 +1,30 @@
-import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, CombatState, CheckResult } from "../types";
+import type {
+  StoryPack,
+  GameSave,
+  Actor,
+  ActorId,
+  SceneId,
+  Grid,
+  Position,
+  CombatState,
+  CheckResult,
+  SingleCheck,
+  StatKey,
+  Effect,
+} from "../types";
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
-import { hasCondition, getStacks, computeCombatModifiersFromConditions, removeConditionFromActor } from "../conditions";
+import {
+  hasCondition,
+  getStacks,
+  computeCombatModifiersFromConditions,
+  removeConditionFromActor,
+  addConditionToActor,
+} from "../conditions";
 import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuses";
+import { calculateMaxHp } from "../characters/hp";
+import { applyDamageToActor } from "./criticalDamage";
 
 /**
  * Checks if an actor is alive (not dead)
@@ -169,7 +190,12 @@ export function startCombat(
   for (const id of orderedIds) {
     const actor = save.actorsById[id];
     if (actor) {
-      initialHpByActorId[id] = actor.resources.hp;
+      // Store initial HP (maxHp - wounds) for UI display
+      // We'll calculate maxHp when needed, but for now store current HP
+      const wounds = actor.resources.wounds ?? 0;
+      // We'll need to calculate maxHp properly, but for backward compatibility store current HP
+      // This will be recalculated in UI components using calculateMaxHp
+      initialHpByActorId[id] = actor.derived?.hpMax ?? 100 - wounds;
     }
   }
 
@@ -370,34 +396,76 @@ export function advanceCombatTurn(save: GameSave): GameSave {
       }
     }
 
-    // Check for bleeding condition
+    // Check for bleeding condition - use centralized damage application
     if (hasCondition(currentActor, "bleeding")) {
       const bleedingStacks = getStacks(currentActor, "bleeding");
       const damage = Math.max(1, bleedingStacks);
-      const hpBefore = currentActor.resources.hp;
-      const hpAfter = Math.max(0, hpBefore - damage);
 
-      // Update actor HP immutably
-      currentActor = {
-        ...currentActor,
-        resources: {
-          ...currentActor.resources,
-          hp: hpAfter,
-        },
-      };
+      // Create RNG from save state for deterministic bleeding damage
+      const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
 
+      // Calculate HP before damage for logging
+      const maxHp = calculateMaxHp(updatedSave, currentActor);
+      const woundsBefore = currentActor.resources.wounds ?? 0;
+      const hpBefore = maxHp - woundsBefore;
+
+      // Apply bleeding damage using centralized function
+      const damageResult = applyDamageToActor(currentActor, damage, updatedSave, rng);
+      currentActor = damageResult.updatedActor;
+      const emittedEffects = damageResult.effects;
+      const actorDied = damageResult.actorDied;
+
+      // Update save with new actor state
       updatedSave = {
         ...updatedSave,
         actorsById: {
           ...updatedSave.actorsById,
           [currentTurnActorId]: currentActor,
         },
+        runtime: {
+          ...updatedSave.runtime,
+          rngCounter: rng.getCounter(),
+        },
       };
+
+      // Apply emitted effects (conditions from critical damage tiers)
+      for (const effect of emittedEffects) {
+        if (effect.op === "addCondition") {
+          const actorToUpdate = updatedSave.actorsById[effect.actorId];
+          if (actorToUpdate) {
+            const updatedActorWithCondition = addConditionToActor(
+              actorToUpdate,
+              effect.condition,
+              effect.stacks,
+              effect.durationTurns,
+              effect.source
+            );
+            updatedSave = {
+              ...updatedSave,
+              actorsById: {
+                ...updatedSave.actorsById,
+                [effect.actorId]: updatedActorWithCondition,
+              },
+            };
+          }
+        }
+      }
+
+      // Calculate HP after damage for logging
+      const woundsAfter = currentActor.resources.wounds ?? 0;
+      const hpAfter = maxHp - woundsAfter;
 
       const bleedingLog = isPlayerActor
         ? `Sanguini e perdi ${damage} HP.`
         : `${actorName} sanguina e perde ${damage} HP.`;
       updatedSave = appendCombatLog(updatedSave, bleedingLog);
+
+      if (hpAfter === 0 && hpBefore > 0) {
+        const criticalLog = isPlayerActor
+          ? "Sei entrato nella traccia del danno critico!"
+          : `${actorName} è entrato nella traccia del danno critico!`;
+        updatedSave = appendCombatLog(updatedSave, criticalLog);
+      }
 
       // Note: HP=0 does not mean KO anymore - actor can still act if isDead !== true
       // Only check combat end if actor actually died (isDead === true)

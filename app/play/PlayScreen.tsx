@@ -46,7 +46,7 @@ export function PlayScreen() {
         INI: 50,
         PER: 50,
       },
-      resources: { hp: 100, rf: 0, peq: 3 },
+      resources: { wounds: 0, rf: 0, peq: 3 },
       skills: {
         "skill:dodge": 2,
         "skill:parry": 1,
@@ -102,7 +102,7 @@ export function PlayScreen() {
         INI: 30,
         PER: 30,
       },
-      resources: { hp: 50, rf: 0, peq: 0 },
+      resources: { wounds: 0, rf: 0, peq: 0 },
       skills: {},
       talents: {},
       traits: { "trait:size": { size: 4 } },

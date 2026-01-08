@@ -444,13 +444,16 @@ export type Actor = {
 
   derived?: {
     mod?: Partial<Record<StatKey, number>>;
+    // Note: hpMax and rfMax are now always calculated dynamically
+    // They are kept here for backward compatibility and caching, but should not be relied upon
+    // Use calculateMaxHp() and calculateMaxRf() functions instead
     hpMax?: number;
     rfMax?: number;
   };
 
   resources: {
-    hp: number;
-    rf: number;
+    wounds: number; // Damage taken (wounds), current HP = maxHp - wounds
+    rf: number; // Fatigue (current RF)
     peq: number;
     criticalDamage?: number;
     criticalTierApplied?: number;

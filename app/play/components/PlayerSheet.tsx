@@ -1,6 +1,14 @@
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { GameSave, Effect, ItemRef, StatKey } from "@eg/engine";
-import { getActorWeapon, getActorArmor, getCharacteristicBonus, loadCharacterCatalogs } from "@eg/engine";
+import {
+  getActorWeapon,
+  getActorArmor,
+  getCharacteristicBonus,
+  loadCharacterCatalogs,
+  calculateMaxHp,
+  getCurrentHp,
+  calculateMaxRf,
+} from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
 import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -46,10 +54,10 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
     traits: traitsCatalog as any,
   } as any);
 
-  const hp = activeActor.resources.hp;
-  const hpMax = activeActor.derived?.hpMax ?? 100;
+  const hpMax = calculateMaxHp(save, activeActor, catalogs);
+  const hp = getCurrentHp(save, activeActor, catalogs);
+  const rfMax = calculateMaxRf(save, activeActor, catalogs);
   const rf = activeActor.resources.rf;
-  const rfMax = activeActor.derived?.rfMax ?? 100;
 
   // Get equipment (using backward compatibility helpers)
   const weapon = getActorWeapon(save, activeActor);

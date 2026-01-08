@@ -1,7 +1,12 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import type { GameSave } from "@eg/engine";
-import { getActorWeapon, getActorArmor } from "@eg/engine";
+import { getActorWeapon, getActorArmor, calculateMaxHp, getCurrentHp } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
+import { loadCharacterCatalogs } from "@eg/engine";
+import sigilContent from "@eg/content/sigil.content.json";
+import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import talentsCatalog from "@eg/content/src/catalogs/talents.json";
+import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 
 interface PlayerHudProps {
   save: GameSave;
@@ -19,8 +24,16 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
   const activeActor = save.actorsById[save.party.activeActorId];
   if (!activeActor) return null;
 
-  const hp = activeActor.resources.hp;
-  const hpMax = activeActor.derived?.hpMax ?? 100;
+  // Load catalogs for HP calculation
+  const catalogs = loadCharacterCatalogs({
+    ...sigilContent,
+    skills: skillsCatalog as any,
+    talents: talentsCatalog as any,
+    traits: traitsCatalog as any,
+  } as any);
+
+  const hpMax = calculateMaxHp(save, activeActor, catalogs);
+  const hp = getCurrentHp(save, activeActor, catalogs);
 
   // Get equipment
   const weapon = getActorWeapon(save, activeActor);
@@ -181,4 +194,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

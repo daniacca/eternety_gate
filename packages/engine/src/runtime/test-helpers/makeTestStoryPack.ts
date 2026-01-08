@@ -27,6 +27,18 @@ export function makeTestStoryPack(overrides?: Partial<StoryPack>): StoryPack {
         },
       },
     },
+    skills: [
+      {
+        id: 'skill:parry',
+        name: 'Parry',
+        baseStat: 'WS',
+      },
+      {
+        id: 'skill:dodge',
+        name: 'Dodge',
+        baseStat: 'AGI',
+      },
+    ],
     scenes: [],
   };
 
@@ -45,6 +57,7 @@ export function makeTestStoryPack(overrides?: Partial<StoryPack>): StoryPack {
         },
       },
     },
+    skills: overrides?.skills ?? defaultStoryPack.skills,
     initialState: {
       ...defaultStoryPack.initialState,
       ...(overrides?.initialState || {}),

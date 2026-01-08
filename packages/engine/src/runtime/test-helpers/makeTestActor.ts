@@ -27,7 +27,7 @@ export function makeTestActor(overrides?: TestActorOverrides): Actor {
       INI: 50,
       PER: 50,
     },
-    resources: { hp: 100, rf: 100, peq: 100 },
+    resources: { wounds: 0, rf: 0, peq: 100 },
     skills: {},
     talents: {},
     traits: {},

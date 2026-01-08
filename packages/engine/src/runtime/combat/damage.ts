@@ -1,21 +1,14 @@
-import type {
-  GameSave,
-  CombatAttackCheck,
-  CheckResult,
-  Effect,
-  SingleCheck,
-  StoryPack,
-  StatKey,
-  WeaponId,
-} from "../types";
+import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
-import { resolveActor, performCheck } from "../checks";
+import { resolveActor } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
+import { calculateMaxHp } from "../characters/hp";
+import { applyDamageToActor } from "./criticalDamage";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -177,142 +170,18 @@ export function applyCombatDamageIfHit(
   // Calculate final damage after soak
   const finalDamage = Math.max(0, rawDamage - effectiveSoak);
 
-  // Get current HP
-  const hpBefore = defender.resources.hp;
-  const hpAfter = Math.max(0, hpBefore - finalDamage);
+  // Apply damage using centralized function
+  const damageResult = applyDamageToActor(defender, finalDamage, save, rng, storyPack, catalogs);
+  const updatedDefender = damageResult.updatedActor;
+  const emittedEffects = damageResult.effects;
+  const actorDied = damageResult.actorDied;
 
-  // Critical Damage Track: when defender is at 0 HP and takes damage
-  let criticalDamage = defender.resources.criticalDamage ?? 0;
-  let criticalTierApplied = defender.resources.criticalTierApplied ?? 0;
-  const emittedEffects: Effect[] = [];
-  let actorDied = false;
-
-  if (hpBefore === 0 && finalDamage > 0 && !defender.resources.isDead) {
-    criticalDamage += finalDamage;
-    const newTier = Math.min(10, Math.floor(criticalDamage));
-
-    // Apply effects only for tiers (criticalTierApplied+1 .. newTier), in order
-    for (let tier = criticalTierApplied + 1; tier <= newTier; tier++) {
-      if (tier === 1) {
-        // Tier 1: +1 fatigue stack
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "fatigue",
-          stacks: 1,
-          source: "criticalDamage",
-        });
-      } else if (tier === 2) {
-        // Tier 2: +1d5 fatigue stacks, and a normal Toughness test; fail => stunned for (1d10 + DoF) rounds
-        const fatigueRoll = rng.nextInt(1, 5);
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "fatigue",
-          stacks: fatigueRoll,
-          source: "criticalDamage",
-        });
-        // Toughness test handled below after damage application
-      } else if (tier === 3) {
-        // Tier 3: bleeding (stacks 1) + reduce random physical stat by 1d5
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "bleeding",
-          stacks: 1,
-          source: "criticalDamage",
-        });
-        // Stat reduction handled separately (future)
-      } else if (tier === 4) {
-        // Tier 4: reduce random physical stat by 1d10; hard Toughness test fail => prone
-        // Stat reduction handled separately (future)
-      } else if (tier === 5) {
-        // Tier 5: prone and movement halved until medical care
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "prone",
-          source: "criticalDamage",
-        });
-      } else if (tier === 6) {
-        // Tier 6: prone + stunned 1d5 rounds + bleeding
-        const stunnedRounds = rng.nextInt(1, 5);
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "stunned",
-          durationTurns: stunnedRounds,
-          source: "criticalDamage",
-        });
-        emittedEffects.push({
-          op: "addCondition",
-          actorId: defender.id,
-          condition: "bleeding",
-          stacks: 1,
-          source: "criticalDamage",
-        });
-      } else if (tier === 7) {
-        // Tier 7: normal Toughness test; fail => die
-        const saveKey: StatKey = defender.stats.TOU != null ? "TOU" : "WIL";
-        const toughnessCheck: SingleCheck = {
-          id: `combat:criticalDamage:tier7:${defender.id}`,
-          kind: "single",
-          actorRef: { mode: "byId", actorId: defender.id },
-          key: saveKey,
-          difficulty: "NORMAL",
-        };
-        const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
-        if (!toughnessResult || !toughnessResult.success) {
-          actorDied = true;
-        }
-      } else if (tier === 8) {
-        // Tier 8: hard Toughness test; fail => die
-        const saveKey: StatKey = defender.stats.TOU != null ? "TOU" : "WIL";
-        const toughnessCheck: SingleCheck = {
-          id: `combat:criticalDamage:tier8:${defender.id}`,
-          kind: "single",
-          actorRef: { mode: "byId", actorId: defender.id },
-          key: saveKey,
-          difficulty: "HARD",
-        };
-        const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
-        if (!toughnessResult || !toughnessResult.success) {
-          actorDied = true;
-        }
-      } else if (tier === 9) {
-        // Tier 9: very hard Toughness test; fail => die
-        const saveKey: StatKey = defender.stats.TOU != null ? "TOU" : "WIL";
-        const toughnessCheck: SingleCheck = {
-          id: `combat:criticalDamage:tier9:${defender.id}`,
-          kind: "single",
-          actorRef: { mode: "byId", actorId: defender.id },
-          key: saveKey,
-          difficulty: "VERY_HARD",
-        };
-        const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
-        if (!toughnessResult || !toughnessResult.success) {
-          actorDied = true;
-        }
-      } else if (tier >= 10) {
-        // Tier 10+: die immediately
-        actorDied = true;
-      }
-    }
-
-    criticalTierApplied = newTier;
-  }
-
-  // Update defender immutably
-  const updatedDefender: typeof defender = {
-    ...defender,
-    resources: {
-      ...defender.resources,
-      hp: actorDied ? 0 : hpAfter,
-      criticalDamage: criticalDamage > 0 ? criticalDamage : undefined,
-      criticalTierApplied: criticalTierApplied > 0 ? criticalTierApplied : undefined,
-      isDead: actorDied ? true : defender.resources.isDead,
-    },
-  };
+  // Calculate HP values for logging
+  const maxHp = catalogs ? calculateMaxHp(save, updatedDefender, catalogs) : updatedDefender.derived?.hpMax ?? 100;
+  const woundsAfter = updatedDefender.resources.wounds ?? 0;
+  const hpAfter = maxHp - woundsAfter;
+  const woundsBefore = defender.resources.wounds ?? 0;
+  const hpBefore = maxHp - woundsBefore;
 
   // Update actorsById immutably
   const updatedActorsById = {
@@ -341,7 +210,9 @@ export function applyCombatDamageIfHit(
             ...(isCriticalSuccess ? ["combat:righteousFury=1", `combat:righteousFury:rolls=${rollsCount}`] : []),
             ...(isUnarmed ? ["combat:unarmed=1", "combat:fallbackWeapon=unarmed"] : []),
             ...(useFallbackWeapon ? ["combat:fallbackWeapon=improvised"] : []),
-            ...(criticalDamage > 0 ? [`combat:criticalDamage=${criticalDamage}`] : []),
+            ...((updatedDefender.resources.criticalDamage ?? 0) > 0
+              ? [`combat:criticalDamage=${updatedDefender.resources.criticalDamage}`]
+              : []),
           ],
         }
       : lastCheck; // if null/undefined, leave it as is
@@ -390,6 +261,7 @@ export function applyCombatDamageIfHit(
   }
 
   // Add critical damage narration
+  const criticalDamage = updatedDefender.resources.criticalDamage ?? 0;
   if (hpBefore === 0 && finalDamage > 0 && criticalDamage > 0) {
     const tier = Math.min(10, Math.floor(criticalDamage));
     let criticalMsg = "";
