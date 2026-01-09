@@ -69,6 +69,7 @@ export function combatDefend(
     [turnActorId]: "defend" as const,
   };
 
+  // Reset channeling (non-magic action)
   const updatedCombat = {
     ...combat,
     turn: {
@@ -76,6 +77,7 @@ export function combatDefend(
       actionAvailable: false, // Consume action
     },
     stancesByActorId: updatedStancesByActorId,
+    channeling: combat.channeling?.actorId === turnActorId ? undefined : combat.channeling,
   };
 
   const defendCheck = {

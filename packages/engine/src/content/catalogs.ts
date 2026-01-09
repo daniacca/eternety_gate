@@ -15,7 +15,8 @@ export type Skill = {
 export type Prerequisite =
   | { type: "statAtLeast"; stat: StatKey; value: number }
   | { type: "hasTalent"; talentId: TalentId }
-  | { type: "hasTrait"; traitId: TraitId };
+  | { type: "hasTrait"; traitId: TraitId }
+  | { type: "hasSpell"; spellId: string };
 
 export type Grant =
   | { type: "modifier"; key: string; op: "add"; value: number; valueRef?: string }

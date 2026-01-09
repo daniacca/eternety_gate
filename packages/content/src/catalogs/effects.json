@@ -1,0 +1,63 @@
+[
+  {
+    "id": "effect:flame_bolt",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "baseCN": 2,
+    "baseDamageDice": {
+      "dice": 2,
+      "sides": 10
+    },
+    "baseDamageFlat": 0,
+    "damageType": "energy",
+    "description": "Infligge danno da fuoco"
+  },
+  {
+    "id": "effect:force_push",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "baseCN": 2,
+    "applyConditions": [
+      {
+        "conditionId": "prone",
+        "durationRounds": 1
+      }
+    ],
+    "description": "Spinge il bersaglio a terra"
+  },
+  {
+    "id": "effect:disrupt",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "baseCN": 1,
+    "applyConditions": [
+      {
+        "conditionId": "fatigue",
+        "durationRounds": 2,
+        "value": 1
+      }
+    ],
+    "description": "Indebolisce il bersaglio con affaticamento"
+  },
+  {
+    "id": "effect:sense_magic",
+    "discipline": "VATES",
+    "castingStat": "PER",
+    "baseCN": 1,
+    "description": "Rileva la presenza di magia nell'area"
+  },
+  {
+    "id": "effect:soothe_wounds",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 5
+    },
+    "baseDamageFlat": 0,
+    "specialFatigue": 1,
+    "description": "Ripristina HP (1d5) e applica +1 RF"
+  }
+]
+

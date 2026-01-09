@@ -14,4 +14,6 @@ export { combatPickup } from "./pickup";
 export { combatDrop } from "./drop";
 export { combatEquipItem } from "./equipItem";
 export { combatUnequipItem } from "./unequipItem";
+export { combatChannel } from "./channel";
+export { combatCastSpell } from "./castSpell";
 

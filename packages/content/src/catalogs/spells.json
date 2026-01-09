@@ -1,0 +1,92 @@
+[
+  {
+    "id": "spell:flame_bolt",
+    "name": "Fiamma Bolt",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:flame_bolt",
+    "baseCN": 2,
+    "rangeMode": "medium",
+    "targetShape": "single",
+    "notes": "Danno da fuoco a bersaglio singolo",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:force_push",
+    "name": "Spinta di Forza",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:force_push",
+    "baseCN": 2,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "notes": "Spinge il bersaglio a terra",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:disrupt",
+    "name": "Disrupt",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:disrupt",
+    "baseCN": 1,
+    "rangeMode": "medium",
+    "targetShape": "single",
+    "notes": "Indebolisce il bersaglio",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:sense_magic",
+    "name": "Senso della Magia",
+    "discipline": "VATES",
+    "castTime": "free",
+    "effectId": "effect:sense_magic",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Rileva la presenza di magia",
+    "xpCost": 300,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:soothe_wounds",
+    "name": "Lenire Ferite",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:soothe_wounds",
+    "baseCN": 1,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "notes": "Ripristina una piccola quantità di HP",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  }
+]

@@ -119,7 +119,7 @@ export function combatSwiftAttack(
     };
   }
 
-  // Consume action AND all movement (full round action)
+  // Consume action AND all movement (full round action) and reset channeling (non-magic action)
   const combatWithActionAndMovementConsumed = {
     ...combat,
     turn: {
@@ -127,6 +127,7 @@ export function combatSwiftAttack(
       actionAvailable: false,
       moveRemaining: 0,
     },
+    channeling: combat.channeling?.actorId === effect.attackerId ? undefined : combat.channeling,
   };
 
   let currentSave: GameSave = {

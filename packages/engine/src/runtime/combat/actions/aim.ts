@@ -69,6 +69,7 @@ export function combatAim(
     [turnActorId]: "aim" as const,
   };
 
+  // Reset channeling (non-magic action)
   const updatedCombat = {
     ...combat,
     turn: {
@@ -77,6 +78,7 @@ export function combatAim(
       moveRemaining: 0, // Consume all movement
     },
     stancesByActorId: updatedStancesByActorId,
+    channeling: combat.channeling?.actorId === turnActorId ? undefined : combat.channeling,
   };
 
   const aimCheck = {

@@ -173,6 +173,7 @@ export function combatRequestAttack(
 
   // Consume action (but NOT aim stance yet - it needs to be available during check calculation)
   // IMPORTANT: Include stancesByActorId so aim stance is available during check
+  // Reset channeling (non-magic action)
   const combatWithActionConsumed = {
     ...combat,
     turn: {
@@ -180,6 +181,7 @@ export function combatRequestAttack(
       actionAvailable: false,
     },
     stancesByActorId: combat.stancesByActorId, // Keep aim stance for check calculation
+    channeling: combat.channeling?.actorId === effect.attackerId ? undefined : combat.channeling,
   };
 
   let currentSave: GameSave = {

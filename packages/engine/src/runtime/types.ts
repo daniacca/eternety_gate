@@ -48,7 +48,7 @@ export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 /* Conditions                         */
 /* ---------------------------------- */
 
-export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue";
+export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue" | "unconscious";
 
 export type ConditionInstance = {
   stacks?: number;
@@ -165,6 +165,26 @@ export type Effect =
       op: "combatUnequipItem";
       actorId: ActorId;
       slot: "mainHand" | "offHand" | "armor";
+    }
+  | {
+      op: "combatChannel";
+      actorId: ActorId;
+    }
+  | {
+      op: "combatCastSpell";
+      actorId: ActorId;
+      spellId: string;
+      targetSpec: {
+        type: "self" | "actor" | "position";
+        actorId?: string;
+        position?: { x: number; y: number };
+        direction?: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+      };
+    }
+  | {
+      op: "learnSpell";
+      actorId: ActorId;
+      spellId: string;
     };
 
 /* ---------- ActorRef ---------- */
@@ -477,6 +497,12 @@ export type Actor = {
    */
   traits: Record<string, any>;
 
+  /**
+   * Learned spells: Record of spellId -> true
+   * Spells must be learned before they can be cast
+   */
+  spells?: Record<string, true>;
+
   equipment: {
     mainHand?: ItemRef | null;
     offHand?: ItemRef | null;
@@ -610,6 +636,16 @@ export type CombatState = {
 
   // Initial HP when combat started (for UI display of max HP)
   initialHpByActorId?: Record<ActorId, number>;
+
+  // Magic channeling state
+  channeling?: {
+    actorId: ActorId;
+    accumulatedDoS: number;
+    lastChannelTurnCounter: number; // Turn counter when channeling was last performed
+  };
+
+  // Free spell used this turn (by actor ID)
+  freeSpellUsedThisTurn?: Record<ActorId, boolean>;
 };
 
 export type GameRuntime = {

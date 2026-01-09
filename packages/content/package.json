@@ -4,7 +4,11 @@
   "main": "sigil.content.json",
   "types": "sigil.content.json",
   "exports": {
-    "./sigil.content.json": "./sigil.content.json"
+    "./sigil.content.json": "./sigil.content.json",
+    "./src/catalogs/spells.json": "./src/catalogs/spells.json",
+    "./src/catalogs/effects.json": "./src/catalogs/effects.json",
+    "./src/catalogs/skills.json": "./src/catalogs/skills.json",
+    "./src/catalogs/talents.json": "./src/catalogs/talents.json",
+    "./src/catalogs/traits.json": "./src/catalogs/traits.json"
   }
 }
-

@@ -1,8 +1,9 @@
 import { View, Text, Pressable } from "react-native";
 import type { GameSave, Choice, Effect, StoryPack } from "@eg/engine";
-import { hasUnlockedAction, loadCharacterCatalogs } from "@eg/engine";
+import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { SpellPickerModal } from "./SpellPickerModal";
 
 interface CombatControlProps {
   model: CombatUiModel | undefined;
@@ -25,6 +26,8 @@ export function CombatControl({
   width,
   styles,
 }: CombatControlProps) {
+  const [spellPickerVisible, setSpellPickerVisible] = useState(false);
+
   if (!model || !model.isCombatActive) return null;
 
   const combat = save.runtime.combat;
@@ -52,6 +55,11 @@ export function CombatControl({
   const hasSwiftAttackUnlock = catalogs
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:swiftAttack")
     : false;
+  const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:cast") : false;
+
+  // Get learned spells
+  const learnedSpells = catalogs ? getLearnedSpells(save, save.party.activeActorId, catalogs) : [];
+  const hasLearnedSpells = learnedSpells.length > 0;
 
   // Move pad grid structure: 3x3 with blank center
   const moveGrid = [
@@ -405,6 +413,53 @@ export function CombatControl({
               </Pressable>
             </View>
           </View>
+
+          {/* Magic Block */}
+          <View style={[styles.combatBlock, styles.stanceBlock]}>
+            <Text style={styles.combatBlockTitle}>Magic</Text>
+            <View style={styles.stanceActions}>
+              <Pressable
+                style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
+                onPress={() => {
+                  if (model.actionAvailable) {
+                    applySystemEffects([{ op: "combatChannel", actorId: save.party.activeActorId }]);
+                  }
+                }}
+                disabled={!model.actionAvailable}
+              >
+                <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
+                  Channel
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.stanceButton,
+                  (!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable) && styles.attackButtonDisabled,
+                ]}
+                onPress={() => {
+                  if (hasMagicUnlock && hasLearnedSpells) {
+                    setSpellPickerVisible(true);
+                  }
+                }}
+                disabled={!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable}
+              >
+                <Text
+                  style={[
+                    styles.attackButtonText,
+                    (!hasMagicUnlock || !hasLearnedSpells) && styles.attackButtonTextDisabled,
+                  ]}
+                >
+                  Cast Spell
+                </Text>
+              </Pressable>
+              {!hasMagicUnlock && (
+                <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede tratto magico</Text>
+              )}
+              {hasMagicUnlock && !hasLearnedSpells && (
+                <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
+              )}
+            </View>
+          </View>
         </View>
       )}
 
@@ -416,6 +471,25 @@ export function CombatControl({
           </Pressable>
         </View>
       )}
+
+      {/* Spell Picker Modal */}
+      <SpellPickerModal
+        visible={spellPickerVisible}
+        save={save}
+        actorId={save.party.activeActorId}
+        selectedTargetId={model.selectedTargetId || null}
+        onClose={() => setSpellPickerVisible(false)}
+        onSelectSpell={(spellId, targetSpec) => {
+          applySystemEffects([
+            {
+              op: "combatCastSpell",
+              actorId: save.party.activeActorId,
+              spellId,
+              targetSpec,
+            },
+          ]);
+        }}
+      />
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import type { GameSave } from "@eg/engine";
-import { getActorWeapon, getActorArmor, calculateMaxHp, getCurrentHp } from "@eg/engine";
+import { getActorWeapon, getActorArmor, calculateMaxHp, getCurrentHp, calculateMaxRf, getMagicPower } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
 import { loadCharacterCatalogs } from "@eg/engine";
 import sigilContent from "@eg/content/sigil.content.json";
@@ -18,6 +18,7 @@ const conditionLabels: Record<ConditionId, string> = {
   stunned: "Stordito",
   bleeding: "Sanguinante",
   fatigue: "Affaticato",
+  unconscious: "Incosciente",
 };
 
 export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
@@ -34,6 +35,9 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
 
   const hpMax = calculateMaxHp(save, activeActor, catalogs);
   const hp = getCurrentHp(save, activeActor, catalogs);
+  const rfMax = calculateMaxRf(save, activeActor, catalogs);
+  const rf = activeActor.resources.rf ?? 0;
+  const pm = getMagicPower(save, activeActor.id, catalogs);
 
   // Get equipment
   const weapon = getActorWeapon(save, activeActor);
@@ -58,6 +62,20 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
         <Text style={styles.hpValue}>
           {hp}/{hpMax}
         </Text>
+      </View>
+
+      {/* RF */}
+      <View style={styles.hpContainer}>
+        <Text style={styles.hpLabel}>RF</Text>
+        <Text style={[styles.hpValue, rf > hpMax && styles.rfWarning]}>
+          {rf}/{rfMax}
+        </Text>
+      </View>
+
+      {/* PM */}
+      <View style={styles.xpContainer}>
+        <Text style={styles.xpLabel}>PM</Text>
+        <Text style={styles.xpValue}>{pm}</Text>
       </View>
 
       {/* XP */}
@@ -150,6 +168,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#4a90e2",
+  },
+  rfWarning: {
+    color: "#ff6b6b",
   },
   conditionsContainer: {
     flexDirection: "row",

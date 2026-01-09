@@ -36,6 +36,14 @@ export function evaluatePrerequisites(
           reason: `Requires trait ${prereq.traitId}`,
         };
       }
+    } else if (prereq.type === "hasSpell") {
+      const hasSpell = actor.spells?.[prereq.spellId] === true;
+      if (!hasSpell) {
+        return {
+          valid: false,
+          reason: `Requires spell ${prereq.spellId}`,
+        };
+      }
     }
   }
   return { valid: true };

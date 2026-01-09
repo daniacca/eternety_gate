@@ -109,10 +109,12 @@ export function combatAllOut(
     [turnActorId]: currentTurnCounter + 1,
   };
 
+  // Reset channeling (non-magic action)
   const updatedCombat = {
     ...combat,
     stancesByActorId: updatedStancesByActorId,
     parryDisabledUntilTurnCounterByActorId,
+    channeling: combat.channeling?.actorId === turnActorId ? undefined : combat.channeling,
   };
 
   let updatedSave: GameSave = {

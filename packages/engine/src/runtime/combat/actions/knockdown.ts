@@ -116,13 +116,14 @@ export function combatKnockdown(
     };
   }
 
-  // Consume action
+  // Consume action and reset channeling (non-magic action)
   const combatWithActionConsumed = {
     ...combat,
     turn: {
       ...combat.turn,
       actionAvailable: false,
     },
+    channeling: combat.channeling?.actorId === effect.attackerId ? undefined : combat.channeling,
   };
 
   let currentSave: GameSave = {

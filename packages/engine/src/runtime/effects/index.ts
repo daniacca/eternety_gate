@@ -17,7 +17,10 @@ import {
   combatDrop,
   combatEquipItem,
   combatUnequipItem,
+  combatChannel,
+  combatCastSpell,
 } from "../combat/actions";
+import { handleLearnSpell } from "./learnSpell";
 import { applySetFlag, applyAddCounter } from "./state";
 import { applyAddItem, applyRemoveItem } from "./items";
 import { applyGoto } from "./navigation";
@@ -91,6 +94,12 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatEquipItem(effect as Extract<Effect, { op: "combatEquipItem" }>, save),
   combatUnequipItem: (effect, _storyPack, save, _rng) =>
     combatUnequipItem(effect as Extract<Effect, { op: "combatUnequipItem" }>, save),
+  combatChannel: (effect, storyPack, save, rng) =>
+    combatChannel(effect as Extract<Effect, { op: "combatChannel" }>, storyPack, save, rng),
+  combatCastSpell: (effect, storyPack, save, rng) =>
+    combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, save, rng),
+  learnSpell: (effect, storyPack, save, _rng) =>
+    handleLearnSpell(effect as Extract<Effect, { op: "learnSpell" }>, storyPack, save),
   addCondition: (effect, _storyPack, save, _rng) => ({
     save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, save),
   }),

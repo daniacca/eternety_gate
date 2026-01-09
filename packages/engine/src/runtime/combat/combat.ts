@@ -460,7 +460,6 @@ export function advanceCombatTurn(save: GameSave): GameSave {
       const damageResult = applyDamageToActor(currentActor, damage, updatedSave, rng);
       currentActor = damageResult.updatedActor;
       const emittedEffects = damageResult.effects;
-      const actorDied = damageResult.actorDied;
 
       // Update save with new actor state
       updatedSave = {
@@ -672,6 +671,18 @@ export function advanceCombatTurn(save: GameSave): GameSave {
       return isActorAlive(actor);
     }) || [];
 
+  // NOTE FOR Channeling persistence: Only reset if actor's make an action other than channeling,
+  // OR Casting a spell. In all other cases, we persist the channeling state and we don't reset it
+  // only by passing time.
+
+  // Reset freeSpellUsedThisTurn ONLY for the actor whose turn is STARTING (nextTurnActorId)
+  // Note: currentTurnActorId is the actor who will act NEXT (their turn is starting)
+  const updatedFreeSpellUsed = {
+    ...(combat.freeSpellUsedThisTurn || {}),
+  };
+  // Clear free spell flag for currentTurnActorId (the actor whose turn is starting)
+  delete updatedFreeSpellUsed[currentTurnActorId];
+
   const newCombatState: CombatState = {
     ...combat,
     participants: finalAliveParticipants,
@@ -681,6 +692,7 @@ export function advanceCombatTurn(save: GameSave): GameSave {
     stancesByActorId: updatedStancesByActorId,
     turnCounter: newTurnCounter,
     parryDisabledUntilTurnCounterByActorId: combat.parryDisabledUntilTurnCounterByActorId || {},
+    freeSpellUsedThisTurn: updatedFreeSpellUsed,
   };
 
   const updatedLastCheck: CheckResult | null = last

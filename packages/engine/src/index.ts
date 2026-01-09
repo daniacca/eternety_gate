@@ -49,6 +49,9 @@ export { getNaturalWeaponProfile } from "./runtime/characters/naturalWeapons";
 export { processRegeneration } from "./runtime/characters/regeneration";
 export { getCharacteristicBonus, getStatTestTarget } from "./runtime/characters/bonuses";
 export { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./runtime/characters/hp";
+export { getMagicPower } from "./runtime/magic/pm";
+export { canLearnSpell, learnSpell, getLearnedSpells, hasLearnedSpell } from "./runtime/magic/learning";
+export { getAllSpells, getSpellById, getEffectById } from "./runtime/magic/catalogs";
 
 // Types
 export type * from "./runtime/types";

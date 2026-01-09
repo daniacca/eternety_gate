@@ -8,7 +8,12 @@ import {
   calculateMaxHp,
   getCurrentHp,
   calculateMaxRf,
+  getAllSpells,
+  canLearnSpell,
+  getLearnedSpells,
+  getMagicPower,
 } from "@eg/engine";
+import { useState } from "react";
 import type { ConditionId } from "@eg/engine";
 import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -27,6 +32,7 @@ const conditionLabels: Record<ConditionId, string> = {
   stunned: "Stordito",
   bleeding: "Sanguinante",
   fatigue: "Affaticato",
+  unconscious: "Incosciente",
 };
 
 const statLabels: Record<string, string> = {
@@ -43,6 +49,7 @@ const statLabels: Record<string, string> = {
 };
 
 export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
+  const [showLearnSpells, setShowLearnSpells] = useState(false);
   const activeActor = save.actorsById[save.party.activeActorId];
   if (!activeActor) return null;
 
@@ -58,6 +65,10 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
   const hp = getCurrentHp(save, activeActor, catalogs);
   const rfMax = calculateMaxRf(save, activeActor, catalogs);
   const rf = activeActor.resources.rf;
+  const pm = getMagicPower(save, activeActor.id, catalogs);
+  const learnedSpells = getLearnedSpells(save, activeActor.id, catalogs);
+  const allSpells = getAllSpells();
+  const currentXp = save.meta?.xp ?? 0;
 
   // Get equipment (using backward compatibility helpers)
   const weapon = getActorWeapon(save, activeActor);
@@ -220,6 +231,94 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
                     )}
                   </View>
                 ))
+              )}
+            </View>
+
+            {/* Magic */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Magia</Text>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>PM:</Text>
+                <Text style={styles.resourceValue}>{pm}</Text>
+              </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>RF:</Text>
+                <Text style={styles.resourceValue}>
+                  {rf}/{rfMax}
+                </Text>
+              </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>Incantesimi Imparati:</Text>
+                <Text style={styles.resourceValue}>{learnedSpells.length}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.actionButton, { marginTop: 8 }]}
+                onPress={() => setShowLearnSpells(!showLearnSpells)}
+              >
+                <Text style={styles.actionButtonText}>{showLearnSpells ? "Nascondi" : "Impara Incantesimi"}</Text>
+              </TouchableOpacity>
+              {showLearnSpells && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>XP disponibili: {currentXp}</Text>
+                  {allSpells.map((spell) => {
+                    const isLearned = learnedSpells.some((s) => s.id === spell.id);
+                    const canLearnResult = canLearnSpell(save, catalogs, activeActor.id, spell.id);
+
+                    return (
+                      <View
+                        key={spell.id}
+                        style={{
+                          padding: 8,
+                          marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: "#ddd",
+                          borderRadius: 4,
+                          backgroundColor: isLearned ? "#e8f5e9" : "#fff",
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: "600" }}>{spell.name}</Text>
+                        <Text style={{ fontSize: 12, color: "#666" }}>
+                          {spell.discipline} - CN: {spell.baseCN} - Costo: {spell.xpCost} XP
+                        </Text>
+                        <Text style={{ fontSize: 11, color: "#888" }}>{spell.notes}</Text>
+                        {isLearned ? (
+                          <Text style={{ fontSize: 11, color: "#4a90e2", marginTop: 4 }}>✓ Imparato</Text>
+                        ) : (
+                          <View style={{ marginTop: 4 }}>
+                            {!canLearnResult.canLearn && (
+                              <Text style={{ fontSize: 10, color: "#ff6b6b" }}>{canLearnResult.reason}</Text>
+                            )}
+                            {canLearnResult.canLearn && (
+                              <TouchableOpacity
+                                style={{
+                                  backgroundColor: "#4a90e2",
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 6,
+                                  borderRadius: 4,
+                                  marginTop: 4,
+                                  alignSelf: "flex-start",
+                                }}
+                                onPress={() => {
+                                  if (applySystemEffects) {
+                                    applySystemEffects([
+                                      {
+                                        op: "learnSpell",
+                                        actorId: activeActor.id,
+                                        spellId: spell.id,
+                                      },
+                                    ]);
+                                  }
+                                }}
+                              >
+                                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Impara</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
               )}
             </View>
 

@@ -118,6 +118,8 @@ export function combatMove(
       ...combat.turn,
       moveRemaining: Math.max(0, combat.turn.moveRemaining - 1),
     },
+    // Reset channeling when actor moves
+    channeling: combat.channeling?.actorId === turnActorId ? undefined : combat.channeling,
   };
 
   const moveCheck = {
