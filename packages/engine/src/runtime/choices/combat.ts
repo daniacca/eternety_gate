@@ -5,7 +5,7 @@ import { performCheck, resolveActor } from "../checks";
 import { applyEffects } from "../effects";
 import { getCurrentScene } from "../selectors";
 import { getEquippedWeaponId } from "../characters/inventory";
-import { isActorAlive } from "../combat/combat";
+import { isActorAlive } from "../characters/actors";
 
 /**
  * Updates magic state based on check result

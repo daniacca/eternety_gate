@@ -87,7 +87,7 @@ export type Effect =
   | {
       op: "combatStart";
       participantIds: ActorId[];
-      grid: Grid;
+      grid?: Grid;
       placements: Array<{ actorId: ActorId; x: number; y: number }>;
     }
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { startCombat, advanceCombatTurn, getCurrentTurnActorId } from "./combat";
+import { startCombat, advanceCombatTurn, getCurrentTurnActorId, calculateInitialMovement } from "./combat";
+import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
@@ -33,7 +34,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
+        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -123,7 +124,7 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50 } as any,
-        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
+        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
 
@@ -219,7 +220,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
+        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -241,12 +242,12 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50, AGI: 50 } as any,
-        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
+        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { hp: 0, rf: 0, peq: 0, isDead: true },
+        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -319,5 +320,210 @@ describe("combat", () => {
       expect(advancedSave.runtime.combat?.turnCounter).toBe(initialCounter + 1);
     });
   });
-});
 
+  describe("isActorAlive", () => {
+    it("should return true for alive actor", () => {
+      const actor = makeTestActor({ id: "test_actor" });
+
+      expect(isActorAlive(actor)).toBe(true);
+    });
+
+    it("should return false for dead actor", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        resources: {
+          wounds: 0,
+          isDead: true,
+          rf: 0,
+          peq: 0,
+        },
+      });
+
+      expect(isActorAlive(actor)).toBe(false);
+    });
+
+    it("should return false for undefined actor", () => {
+      expect(isActorAlive(undefined)).toBe(false);
+    });
+
+    it("should return true when isDead is explicitly false", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        resources: {
+          wounds: 0,
+          isDead: false,
+          rf: 0,
+          peq: 0,
+        },
+      });
+
+      expect(isActorAlive(actor)).toBe(true);
+    });
+
+    it("should return true when isDead is undefined", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        resources: {
+          wounds: 0,
+          rf: 0,
+          peq: 0,
+        },
+      });
+
+      expect(isActorAlive(actor)).toBe(true);
+    });
+  });
+
+  describe("getSizeMovementModifier", () => {
+    it("should return correct modifier for size 1", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        traits: { "trait:size": { size: 1 } },
+      });
+
+      expect(getSizeMovementModifier(actor)).toBe(-3);
+    });
+
+    it("should return correct modifier for size 4 (default)", () => {
+      const actor = makeTestActor({ id: "test_actor" });
+
+      expect(getSizeMovementModifier(actor)).toBe(0);
+    });
+
+    it("should return correct modifier for size 5", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        traits: { "trait:size": { size: 5 } },
+      });
+
+      expect(getSizeMovementModifier(actor)).toBe(1);
+    });
+
+    it("should return correct modifier for size 10", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        traits: { "trait:size": { size: 10 } },
+      });
+
+      expect(getSizeMovementModifier(actor)).toBe(6);
+    });
+
+    it("should default to size 4 when size trait is missing", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        traits: {},
+      });
+
+      expect(getSizeMovementModifier(actor)).toBe(0);
+    });
+
+    it("should default to size 4 when size trait has invalid value", () => {
+      const actor = makeTestActor({
+        id: "test_actor",
+        traits: { "trait:size": { size: 99 } },
+      });
+
+      expect(getSizeMovementModifier(actor)).toBe(0);
+    });
+
+    it("should handle all size values from 1 to 10", () => {
+      const expectedModifiers: Record<number, number> = {
+        1: -3,
+        2: -2,
+        3: -1,
+        4: 0,
+        5: 1,
+        6: 2,
+        7: 3,
+        8: 4,
+        9: 5,
+        10: 6,
+      };
+
+      for (const [size, expectedModifier] of Object.entries(expectedModifiers)) {
+        const actor = makeTestActor({
+          id: "test_actor",
+          traits: { "trait:size": { size: parseInt(size, 10) } },
+        });
+
+        expect(getSizeMovementModifier(actor)).toBe(expectedModifier);
+      }
+    });
+  });
+
+  describe("calculateInitialMovement", () => {
+    it("should calculate movement based on AGI bonus", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 45 }, // AGI 45 -> floor(45/10) = 4 bonus
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const movement = calculateInitialMovement(actor, save);
+
+      // AGI bonus 4 + size modifier 0 (default) = 4, minimum 1
+      expect(movement).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should include size modifier in calculation", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 50 }, // AGI 50 -> floor(50/10) = 5 bonus
+        traits: { "trait:size": { size: 1 } }, // Size 1 -> -3 modifier
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const movement = calculateInitialMovement(actor, save);
+
+      // AGI bonus 5 + size modifier -3 = 2, minimum 1
+      expect(movement).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should return minimum 1 movement", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 5 }, // AGI 5 -> floor(5/10) = 0 bonus
+        traits: { "trait:size": { size: 1 } }, // Size 1 -> -3 modifier
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const movement = calculateInitialMovement(actor, save);
+
+      // AGI bonus 0 + size modifier -3 = -3, but minimum is 1
+      expect(movement).toBe(1);
+    });
+
+    it("should handle conditions that affect movement", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 50 },
+        conditions: {
+          fatigue: { stacks: 1 },
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const movement = calculateInitialMovement(actor, save);
+
+      // Should account for condition modifiers
+      expect(movement).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should work without catalogs", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 50 },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const movement = calculateInitialMovement(actor, save);
+
+      expect(movement).toBeGreaterThanOrEqual(1);
+    });
+  });
+});

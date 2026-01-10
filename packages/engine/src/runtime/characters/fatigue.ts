@@ -44,6 +44,10 @@ export function applyFatigue(save: GameSave, actorId: ActorId, amount: number, c
       ...actor.resources,
       rf: newRF,
     },
+    status: {
+      ...actor.status,
+      tempModifiers: actor.status?.tempModifiers || [],
+    },
   };
 
   // Apply threshold conditions

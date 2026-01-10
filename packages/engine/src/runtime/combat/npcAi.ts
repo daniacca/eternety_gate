@@ -4,7 +4,7 @@ import { distanceChebyshev } from "./movement";
 import { getActorWeapon } from "./equipment";
 import { applyEffects } from "../effects";
 import { hasCondition } from "../conditions";
-import { isActorAlive } from "./combat";
+import { isActorAlive } from "../characters/actors";
 
 /**
  * Runs an NPC turn (auto-attack or move)
