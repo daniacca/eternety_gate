@@ -522,6 +522,8 @@ export function CombatControl({
         save={save}
         actorId={save.party.activeActorId}
         selectedTargetId={model.selectedTargetId || null}
+        actionAvailable={model.actionAvailable}
+        moveRemaining={model.moveRemaining}
         onClose={() => setSpellPickerVisible(false)}
         onSelectSpell={(spellId, targetSpec) => {
           applySystemEffects([

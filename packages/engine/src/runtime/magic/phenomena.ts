@@ -100,14 +100,19 @@ export function rollPhenomena(
     kind = "castingPenalty";
     description = "-20 al prossimo lancio";
     // Add a temporary modifier that will be consumed on next cast
+    // Use stable ID without actorId since modifiers are per-actor
+    // Remove any existing penalty first to prevent stacking
+    const existingModifiers = (actor.status.tempModifiers || []).filter(
+      (mod) => mod.id !== "phenomena:castingPenalty"
+    );
     const updatedActor = {
       ...actor,
       status: {
         ...actor.status,
         tempModifiers: [
-          ...(actor.status.tempModifiers || []),
+          ...existingModifiers,
           {
-            id: `phenomena:castingPenalty:${actorId}`,
+            id: "phenomena:castingPenalty",
             scope: "check" as const,
             key: null, // Applies to all checks
             value: -20,

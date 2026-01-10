@@ -71,5 +71,18 @@
     "baseDamageFlat": 0,
     "specialFatigue": 1,
     "description": "Ripristina HP (1d5) e applica +1 RF"
+  },
+  {
+    "id": "effect:pyra_explosion",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "baseCN": 3,
+    "baseDamageDice": {
+      "dice": 3,
+      "sides": 10
+    },
+    "baseDamageFlat": 5,
+    "damageType": "energy",
+    "description": "Esplosione di fuoco che infligge danni a tutti i bersagli nell'area"
   }
 ]

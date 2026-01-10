@@ -208,9 +208,10 @@ export function combatCastSpell(
   const channeling = combat.channeling;
   const channelDoS = channeling?.actorId === turnActorId ? channeling.accumulatedDoS : 0;
 
-  // Check for casting penalty from phenomena and remove it after applying
+  // Check for casting penalty from phenomena (will be consumed after check)
+  // Use stable ID "phenomena:castingPenalty"
   const castingPenaltyModifier = actor.status.tempModifiers?.find(
-    (mod) => mod.id === `phenomena:castingPenalty:${turnActorId}`
+    (mod) => mod.id === "phenomena:castingPenalty"
   );
   const hasCastingPenalty = !!castingPenaltyModifier;
 
@@ -236,7 +237,7 @@ export function combatCastSpell(
     resolutionId
   );
 
-  // Remove casting penalty modifier AFTER check (it was consumed)
+  // Remove casting penalty modifier AFTER check (consumes it even if cast fails)
   let saveAfterPenaltyRemoval = afterCheckSave;
   if (hasCastingPenalty && afterCheckSave.actorsById[turnActorId]) {
     const actorAfterCheck = afterCheckSave.actorsById[turnActorId];
@@ -245,7 +246,7 @@ export function combatCastSpell(
       status: {
         ...actorAfterCheck.status,
         tempModifiers: (actorAfterCheck.status.tempModifiers || []).filter(
-          (mod) => mod.id !== `phenomena:castingPenalty:${turnActorId}`
+          (mod) => mod.id !== "phenomena:castingPenalty"
         ),
       },
     };
@@ -256,10 +257,6 @@ export function combatCastSpell(
         [turnActorId]: updatedActorAfterPenalty,
       },
     };
-  }
-
-  if (!result) {
-    return { save: saveAfterPenaltyRemoval };
   }
 
   // Calculate CN and effective DoS
@@ -314,12 +311,13 @@ export function combatCastSpell(
     updatedSave = applyFatigue(updatedSave, turnActorId, rfToApply, catalogs);
   }
 
-  // Resolve phenomena if triggered
+  // Resolve phenomena if triggered (applies to both success and failure)
   let phenomenaResult: { save: GameSave; kind: string; description: string } | null = null;
   if (phenomenaTriggered) {
     phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
     updatedSave = phenomenaResult.save;
     const phenomenaDesc = phenomenaResult.description;
+    const severity = phenomenaSeverity || "mild";
 
     // Log phenomena
     updatedSave = appendRuntimeLog(updatedSave, {
@@ -329,13 +327,86 @@ export function combatCastSpell(
       resolutionId,
     });
 
-    const actorName = actor.name || turnActorId;
-    const logEntry =
-      actor.kind === "PC"
-        ? `Fenomeno magico: ${phenomenaDesc}`
-        : `${actorName} subisce un fenomeno magico: ${phenomenaDesc}`;
-    updatedSave = appendCombatLog(updatedSave, logEntry);
+    const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
+    const actorName = actorAfterCheck.name || turnActorId;
+    const phenomenaLog = actorAfterCheck.kind === "PC"
+      ? `Fenomeno: ${phenomenaDesc} (${severity})`
+      : `${actorName} subisce un fenomeno magico: ${phenomenaDesc} (${severity})`;
+    updatedSave = appendCombatLog(updatedSave, phenomenaLog);
+    
+    // Persist RNG counter after phenomena rolls (if RNG is an RNG instance)
+    // Note: This ensures determinism - phenomena rolls consume RNG state
+    if (typeof (rng as any).getCounter === "function") {
+      updatedSave = {
+        ...updatedSave,
+        runtime: {
+          ...updatedSave.runtime,
+          rngCounter: (rng as any).getCounter(),
+        },
+      };
+    }
   }
+
+  // Consume action economy and reset channeling (applies to both success and failure)
+  // Cast is "the next action after channeling", so channeling resets
+  const updatedCombat = {
+    ...updatedSave.runtime.combat!,
+    turn: {
+      ...updatedSave.runtime.combat!.turn,
+      actionAvailable: spell.castTime === "free" ? updatedSave.runtime.combat!.turn.actionAvailable : false,
+      moveRemaining: spell.castTime === "fullRound" ? 0 : updatedSave.runtime.combat!.turn.moveRemaining,
+    },
+    freeSpellUsedThisTurn: {
+      ...(updatedSave.runtime.combat!.freeSpellUsedThisTurn || {}),
+      ...(spell.castTime === "free" ? { [turnActorId]: true } : {}),
+    },
+    channeling: undefined, // Consume channeling after cast attempt
+  };
+
+  // Handle failure case
+  if (!success) {
+    const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
+    const actorName = actorAfterCheck.name || turnActorId;
+    const spellName = spell.name;
+    
+    // Log cast failure
+    const failureLog = actorAfterCheck.kind === "PC"
+      ? `Lanci ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`
+      : `${actorName} lancia ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`;
+    updatedSave = appendCombatLog(updatedSave, failureLog);
+    
+    // Return with action economy consumed, channeling reset, and lastCheck set
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        combat: updatedCombat,
+        lastCheck: {
+          ...result,
+          tags: [
+            ...(result.tags || []),
+            `magic:spell=${spell.id}`,
+            `magic:effect=${effectDef.id}`,
+            `magic:cn=${cnBase}`,
+            `magic:dosTotal=${effectiveDoS}`,
+            `magic:overcast=${overcast}`,
+            ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
+          ],
+        },
+      },
+    };
+    
+    return { save: updatedSave };
+  }
+
+  // Log cast summary for success (standardized format)
+  const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
+  const actorName = actorAfterCheck.name || turnActorId;
+  const spellName = spell.name;
+  const castSummaryLog = actorAfterCheck.kind === "PC"
+    ? `Lanci ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""} = ${effectiveDoS}, Overcast: ${overcast})`
+    : `${actorName} lancia ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""} = ${effectiveDoS}, Overcast: ${overcast})`;
+  updatedSave = appendCombatLog(updatedSave, castSummaryLog);
 
   // Apply spell effects if successful
   if (success) {
@@ -409,6 +480,13 @@ export function combatCastSpell(
       actor: updatedSave.actorsById[id]!,
     }));
 
+    // Log target resolution
+    if (targetActors.length > 0) {
+      const targetNames = targetActors.map((t) => t.actor.name || t.actorId).join(", ");
+      const targetLog = `Bersagli: ${targetNames}`;
+      updatedSave = appendCombatLog(updatedSave, targetLog);
+    }
+
     // Apply damage if effect has damage
     if (effectDef.baseDamageDice && targetActors.length > 0) {
       const scaled = scaleDamage(effectDef.baseDamageDice, effectDef.baseDamageFlat, overcast);
@@ -475,10 +553,12 @@ export function combatCastSpell(
           });
 
           const targetName = target.actor.name || target.actorId;
-          const healLog =
-            actor.kind === "PC"
-              ? `Ripristini ${healed} HP a ${targetName}.`
-              : `${actor.name || turnActorId} ripristina ${healed} HP a ${targetName}.`;
+          const maxHpActual = catalogs
+            ? calculateMaxHp(updatedSave, target.actor, catalogs)
+            : target.actor.derived?.hpMax ?? 100;
+          const hpBefore = maxHpActual - woundsBefore;
+          const hpAfter = maxHpActual - woundsAfter;
+          const healLog = `${targetName} recupera ${healed} HP (HP: ${hpBefore}→${hpAfter})`;
           updatedSave = appendCombatLog(updatedSave, healLog);
         } else {
           // Damage: apply true damage (bypasses armor for MVP)
@@ -516,10 +596,15 @@ export function combatCastSpell(
           });
 
           const targetName = target.actor.name || target.actorId;
-          const damageLog =
-            actor.kind === "PC"
-              ? `Infliggi ${totalDamage} danni a ${targetName}.`
-              : `${actor.name || turnActorId} infligge ${totalDamage} danni a ${targetName}.`;
+          // Calculate HP before/after for logging
+          const maxHpActual = catalogs
+            ? calculateMaxHp(updatedSave, target.actor, catalogs)
+            : target.actor.derived?.hpMax ?? 100;
+          const woundsBefore = target.actor.resources.wounds ?? 0;
+          const woundsAfter = damageResult.updatedActor.resources.wounds ?? 0;
+          const hpBefore = maxHpActual - woundsBefore;
+          const hpAfter = maxHpActual - woundsAfter;
+          const damageLog = `${targetName} subisce ${totalDamage} danni (HP: ${hpBefore}→${hpAfter})`;
           updatedSave = appendCombatLog(updatedSave, damageLog);
         }
       }
@@ -547,26 +632,18 @@ export function combatCastSpell(
               [target.actorId]: updatedTargetActor,
             },
           };
+
+          // Log condition application
+          const targetName = target.actor.name || target.actorId;
+          const conditionName = conditionSpec.conditionId;
+          const conditionLog = `${targetName} ottiene ${conditionName} (stacks ${scaled.stacks}, durata ${scaled.durationTurns} turni)`;
+          updatedSave = appendCombatLog(updatedSave, conditionLog);
         }
       }
     }
   }
 
-  // Update combat state: consume action/movement
-  const updatedCombat = {
-    ...updatedSave.runtime.combat!,
-    turn: {
-      ...updatedSave.runtime.combat!.turn,
-      actionAvailable: spell.castTime === "free" ? updatedSave.runtime.combat!.turn.actionAvailable : false,
-      moveRemaining: spell.castTime === "fullRound" ? 0 : updatedSave.runtime.combat!.turn.moveRemaining,
-    },
-    freeSpellUsedThisTurn: {
-      ...(updatedSave.runtime.combat!.freeSpellUsedThisTurn || {}),
-      ...(spell.castTime === "free" ? { [turnActorId]: true } : {}),
-    },
-    channeling: undefined, // Consume channeling after cast
-  };
-
+  // Update combat state with action economy consumption (already done above for failure case)
   updatedSave = {
     ...updatedSave,
     runtime: {
@@ -586,20 +663,6 @@ export function combatCastSpell(
       },
     },
   };
-
-  // Add narration
-  const actorName = actor.name || turnActorId;
-  const spellName = spell.name;
-  if (success) {
-    const logEntry = actor.kind === "PC" ? `Lanci ${spellName}.` : `${actorName} lancia ${spellName}.`;
-    updatedSave = appendCombatLog(updatedSave, logEntry);
-  } else {
-    const logEntry =
-      actor.kind === "PC"
-        ? `Tentativo di lanciare ${spellName} fallito.`
-        : `${actorName} fallisce il tentativo di lanciare ${spellName}.`;
-    updatedSave = appendCombatLog(updatedSave, logEntry);
-  }
 
   return { save: updatedSave };
 }

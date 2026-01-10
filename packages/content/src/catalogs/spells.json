@@ -106,5 +106,25 @@
         "traitId": "trait:weaver"
       }
     ]
+  },
+  {
+    "id": "spell:pyra_explosion",
+    "name": "Esplosione di Fuoco",
+    "discipline": "PYRA",
+    "castTime": "fullRound",
+    "effectId": "effect:pyra_explosion",
+    "baseCN": 3,
+    "rangeMode": "medium",
+    "targetShape": "radius",
+    "rangeSquares": 6,
+    "radiusSquares": 2,
+    "notes": "Esplosione devastante che infligge danni a tutti i bersagli nell'area",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
   }
 ]
