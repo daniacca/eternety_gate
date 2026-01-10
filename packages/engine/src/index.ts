@@ -31,6 +31,7 @@ export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./ru
 
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from "./runtime/combat/movement";
+export { isActorAlive } from "./runtime/combat/combat";
 
 // Content pack types and utilities
 export type { ContentPack } from "./content/types";
@@ -52,6 +53,10 @@ export { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./runtime/characte
 export { getMagicPower } from "./runtime/magic/pm";
 export { canLearnSpell, learnSpell, getLearnedSpells, hasLearnedSpell } from "./runtime/magic/learning";
 export { getAllSpells, getSpellById, getEffectById } from "./runtime/magic/catalogs";
+
+// Targeting types
+export type { TargetSpec, TargetingDefinition, TargetResolution, Direction9, Point } from "./runtime/targeting/types";
+export { getActorsInRange } from "./runtime/targeting/getActorsInRange";
 
 // Types
 export type * from "./runtime/types";

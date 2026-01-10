@@ -6,10 +6,17 @@ import { applyDamageToActor } from "../combat/criticalDamage";
 import { getCurrentTurnActorId } from "../combat/combat";
 
 /**
+ * Normalizes d100 roll for doubles detection
+ * 00/0 is treated as 100
+ */
+export function normalizeD100(roll: number): number {
+  return roll === 0 ? 100 : roll;
+}
+
+/**
  * Checks if phenomena should trigger based on casting roll
  * Triggers on:
- * - Doubles on roll (11, 22, 33, ..., 99, 00)
- * - Severe failure (2+ DoF)
+ * - Doubles on roll (11, 22, 33, ..., 99, 00/100)
  */
 export function shouldTriggerPhenomena(check: CheckResult): boolean {
   if (!check) {
@@ -18,25 +25,27 @@ export function shouldTriggerPhenomena(check: CheckResult): boolean {
 
   // Check for doubles (11, 22, 33, ..., 99, 00/100)
   const roll = check.roll;
-  // Normalize: 00 = 100 for doubles detection
-  const normalizedRoll = roll === 0 ? 100 : roll;
+  const normalizedRoll = normalizeD100(roll);
   const tens = Math.floor(normalizedRoll / 10);
   const ones = normalizedRoll % 10;
   const isDoubles = tens === ones;
 
-  // Check for severe failure (2+ DoF)
-  const isSevereFailure = check.dof >= 2;
-
-  return isDoubles || isSevereFailure;
+  return isDoubles;
 }
 
 /**
  * Determines phenomena severity
- * - Mild: if PI <= PM
- * - Severe: if PI > PM
+ * - Severe: if (cnBase > PM) OR (effectiveDoS < cnBase)  // "pushed" or failed
+ * - Mild: otherwise
  */
-export function getPhenomenaSeverity(powerIntensity: number, powerMagic: number): "mild" | "severe" {
-  return powerIntensity > powerMagic ? "severe" : "mild";
+export function getPhenomenaSeverity(
+  cnBase: number,
+  powerMagic: number,
+  effectiveDoS: number
+): "mild" | "severe" {
+  const isPushed = cnBase > powerMagic;
+  const isFailed = effectiveDoS < cnBase;
+  return isPushed || isFailed ? "severe" : "mild";
 }
 
 /**

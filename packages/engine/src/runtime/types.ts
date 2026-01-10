@@ -174,12 +174,11 @@ export type Effect =
       op: "combatCastSpell";
       actorId: ActorId;
       spellId: string;
-      targetSpec: {
-        type: "self" | "actor" | "position";
-        actorId?: string;
-        position?: { x: number; y: number };
-        direction?: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
-      };
+      targetSpec:
+        | { kind: "self" }
+        | { kind: "actor"; actorId: ActorId }
+        | { kind: "point"; x: number; y: number }
+        | { kind: "direction"; dir: 1 | 2 | 3 | 4 | 6 | 7 | 8 | 9 };
     }
   | {
       op: "learnSpell";
@@ -501,7 +500,7 @@ export type Actor = {
    * Learned spells: Record of spellId -> true
    * Spells must be learned before they can be cast
    */
-  spells?: Record<string, true>;
+  spells?: Record<string, boolean>;
 
   equipment: {
     mainHand?: ItemRef | null;
@@ -586,6 +585,7 @@ export type RuntimeLogEntry =
       finalDamage: number;
       turnCounter?: number;
       resolutionId?: string;
+      tags?: string[];
     }
   | {
       kind: "check";

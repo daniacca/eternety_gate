@@ -1,5 +1,12 @@
 import { View, Text, StyleSheet } from "react-native";
-import { getCurrentTurnActorId, type GameSave, calculateMaxHp, getCurrentHp, loadCharacterCatalogs } from "@eg/engine";
+import {
+  getCurrentTurnActorId,
+  type GameSave,
+  calculateMaxHp,
+  getCurrentHp,
+  loadCharacterCatalogs,
+  isActorAlive,
+} from "@eg/engine";
 import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
 import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -37,9 +44,13 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
   const cellWidth = gridSize / grid.width;
   const cellHeight = gridSize / grid.height;
 
-  // Get PC and NPC positions for overlay
+  // Get PC and NPC positions for overlay (only alive actors)
   const pcPos = positions[save.party.activeActorId];
-  const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
+  const npcIds = combat.participants.filter((id) => {
+    if (id === save.party.activeActorId) return false;
+    const actor = save.actorsById[id];
+    return actor && actor.resources.isDead !== true;
+  });
   const npcPos = npcIds.length > 0 ? positions[npcIds[0]] : null;
 
   // Calculate Chebyshev distance
@@ -91,11 +102,12 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
           ))}
         </View>
 
-        {/* Tokens */}
+        {/* Tokens (all actors, including dead ones) */}
         {combat.participants.map((actorId) => {
           const actor = save.actorsById[actorId];
           const pos = clampPosition(positions[actorId]);
           const isPC = actor?.kind === "PC";
+          const isDead = actor?.resources.isDead === true;
 
           // Position token at cell center
           const tokenX = (pos.x / grid.width) * gridSize + cellWidth / 2;
@@ -109,7 +121,7 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
             talents: talentsCatalog as any,
             traits: traitsCatalog as any,
           } as any);
-          const hpMax = actor ? calculateMaxHp(save, actor, catalogs) : (combat.initialHpByActorId?.[actorId] ?? 100);
+          const hpMax = actor ? calculateMaxHp(save, actor, catalogs) : combat.initialHpByActorId?.[actorId] ?? 100;
           const hp = actor ? getCurrentHp(save, actor, catalogs) : 0;
           const criticalDamage = actor?.resources.criticalDamage ?? 0;
           const hasCriticalDamage = criticalDamage > 0;
@@ -121,8 +133,8 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
 
           return (
             <View key={actorId}>
-              {/* HP Bar (above token, only for NPCs) */}
-              {!isPC && (
+              {/* HP Bar (above token, only for NPCs, only if alive) */}
+              {!isPC && !isDead && (
                 <View
                   style={[
                     styles.barsContainer,
@@ -158,7 +170,8 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
                   {
                     left: tokenX,
                     top: tokenY,
-                    backgroundColor: isPC ? "#007AFF" : "#DC3545",
+                    backgroundColor: isDead ? "#666666" : isPC ? "#007AFF" : "#DC3545",
+                    opacity: isDead ? 0.5 : 1,
                   },
                 ]}
               >
@@ -166,9 +179,23 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
                   {actorId}
                 </Text>
               </View>
+              {/* DEAD indicator (only for dead actors) */}
+              {isDead && (
+                <View
+                  style={[
+                    styles.barsContainer,
+                    {
+                      left: tokenX,
+                      top: tokenY + 25, // Position below token
+                    },
+                  ]}
+                >
+                  <Text style={[styles.barText, { color: "#FF0000", fontWeight: "bold" }]}>DEAD</Text>
+                </View>
+              )}
 
-              {/* Critical Damage Bar (below token, only for NPCs, only show if there's critical damage) */}
-              {!isPC && (
+              {/* Critical Damage Bar (below token, only for NPCs, only if alive and has critical damage) */}
+              {!isPC && !isDead && (
                 <View
                   style={[
                     styles.barsContainer,

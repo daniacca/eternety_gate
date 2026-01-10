@@ -68,6 +68,14 @@ export function PlayScreen() {
         "trait:size": { size: 4 },
         "trait:unnatural_characteristic": { stat: "STR", bonusX: 2 },
       },
+      spells: {
+        "spell:flame_bolt": true,
+        "spell:flame_cone": true,
+        "spell:soothe_wounds": true,
+        "spell:force_push": true,
+        "spell:disrupt": true,
+        "spell:sense_magic": true,
+      },
       equipment: {
         mainHand: { kind: "weapon" as const, id: "shortbow" }, // Test weapon: ranged
         armor: { kind: "armor" as const, id: "plate" },
@@ -128,7 +136,7 @@ export function PlayScreen() {
       storyPackWithCatalogs,
       123456, // fixed seed
       party,
-      { PC_1: minimalActor, NPC_DUMMY: npcDummy },
+      { PC_1: minimalActor, NPC_DUMMY: npcDummy, NPC_DUMMY_2: { ...npcDummy, id: "NPC_DUMMY_2", name: "Dummy 2" } },
       {}, // empty item catalog for now
       sigilContent as ContentPack
     );

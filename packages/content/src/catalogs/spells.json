@@ -18,6 +18,24 @@
     ]
   },
   {
+    "id": "spell:flame_cone",
+    "name": "Respiro di Fuoco",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:flame_cone",
+    "baseCN": 2,
+    "rangeMode": "medium",
+    "targetShape": "cone",
+    "notes": "Danno da fuoco a area",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:force_push",
     "name": "Spinta di Forza",
     "discipline": "KINESIS",

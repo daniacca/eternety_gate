@@ -106,6 +106,42 @@ export function combatMove(
     y: Math.max(0, Math.min(combat.grid.height - 1, currentPos.y + delta.y)),
   };
 
+  // Check if target position is occupied by another LIVING actor (dead actors don't block movement)
+  const occupiedBy = Object.entries(combat.positions).find(([actorId, pos]) => {
+    if (actorId === turnActorId) return false; // Don't check self
+    if (pos.x !== newPos.x || pos.y !== newPos.y) return false; // Not at target position
+    const actor = save.actorsById[actorId];
+    // Only block if actor is alive (dead actors don't block)
+    return actor && actor.resources.isDead !== true;
+  });
+
+  if (occupiedBy) {
+    const blockedCheck = {
+      checkId: "combat:move:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: [
+        "combat:blocked=positionOccupied",
+        `combat:pos=${newPos.x},${newPos.y}`,
+        `combat:occupiedBy=${occupiedBy[0]}`,
+      ],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
   const updatedPositions = {
     ...combat.positions,
     [turnActorId]: newPos,
@@ -167,4 +203,3 @@ export function combatMove(
 
   return { save: updatedSave };
 }
-

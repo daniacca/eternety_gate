@@ -5,6 +5,7 @@ import { performCheck, resolveActor } from "../checks";
 import { applyEffects } from "../effects";
 import { getCurrentScene } from "../selectors";
 import { getEquippedWeaponId } from "../characters/inventory";
+import { isActorAlive } from "../combat/combat";
 
 /**
  * Updates magic state based on check result
@@ -55,7 +56,7 @@ function transformCombatAttackToRequestEffect(check: CombatAttackCheck, save: Ga
   const attacker = resolveActor(check.attacker.actorRef, save);
   const defender = resolveActor(check.defender.actorRef, save);
 
-  if (!attacker || !defender) {
+  if (!attacker || !defender || !isActorAlive(defender)) {
     return null;
   }
 

@@ -15,6 +15,12 @@ import { calculateMaxHp } from "../../characters/hp";
 import { hasUnlockedAction } from "../../characters/actions";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
+import { resolveTargets } from "../../targeting/resolveTargets";
+import { buildTargetingDefinition } from "../../targeting/spellTargeting";
+import { convertLegacyTargetSpec } from "../../targeting/convertTargetSpec";
+import { scaleDamage, scaleCondition, scaleHeal } from "../../magic/scaling";
+import { getActorsInRange } from "../../targeting/getActorsInRange";
+import type { TargetSpec } from "../../targeting/types";
 
 /**
  * Cast Spell action: performs spell casting check and applies effects
@@ -98,7 +104,7 @@ export function combatCastSpell(
       critical: "none",
       tags: ["combat:blocked=noMagicGate"],
     };
-    let updatedSave = {
+    let updatedSave: GameSave = {
       ...save,
       runtime: {
         ...save.runtime,
@@ -126,7 +132,7 @@ export function combatCastSpell(
       critical: "none",
       tags: ["combat:blocked=spellNotLearned"],
     };
-    let updatedSave = {
+    let updatedSave: GameSave = {
       ...save,
       runtime: {
         ...save.runtime,
@@ -195,15 +201,12 @@ export function combatCastSpell(
   }
 
   // Check channeling bonus
-  // Channeling bonus applies if channeling was done on current turn or previous turn
+  // Channeling persists until the actor does a non-channeling, non-casting action
+  // OR until they cast a spell (then it's consumed)
+  // Since channeling is only reset by non-channeling/non-casting actions, if it exists
+  // and belongs to this actor, it's still valid
   const channeling = combat.channeling;
-  const currentTurnCounter = combat.turnCounter ?? 0;
-  const channelBonus =
-    channeling?.actorId === turnActorId &&
-    (channeling.lastChannelTurnCounter === currentTurnCounter ||
-      channeling.lastChannelTurnCounter === currentTurnCounter - 1)
-      ? channeling.accumulatedDoS
-      : 0;
+  const channelDoS = channeling?.actorId === turnActorId ? channeling.accumulatedDoS : 0;
 
   // Check for casting penalty from phenomena and remove it after applying
   const castingPenaltyModifier = actor.status.tempModifiers?.find(
@@ -259,24 +262,26 @@ export function combatCastSpell(
     return { save: saveAfterPenaltyRemoval };
   }
 
-  // Calculate effective DoS (check DoS + channel bonus)
-  const effectiveDoS = result.dos + channelBonus;
-  const requiredCN = spell.baseCN;
-  const powerIntensity = spell.baseCN; // MVP: PI = baseCN (no extra CN chosen)
-  const success = effectiveDoS >= requiredCN;
+  // Calculate CN and effective DoS
+  // Use effectDef.baseCN (which is the CN for the effect) or fallback to spell.baseCN
+  const cnBase = effectDef.baseCN ?? spell.baseCN;
+  const castDoS = result.dos;
+  const effectiveDoS = castDoS + channelDoS;
+  const success = effectiveDoS >= cnBase;
+  const overcast = Math.max(0, effectiveDoS - cnBase);
 
   // Calculate PM
-  const pm = getMagicPower(save, turnActorId, catalogs);
+  const pm = getMagicPower(saveAfterPenaltyRemoval, turnActorId, catalogs);
 
-  // Check for phenomena trigger
+  // Check for phenomena trigger (doubles only)
   const phenomenaTriggered = shouldTriggerPhenomena(result);
-  const phenomenaSeverity = phenomenaTriggered ? getPhenomenaSeverity(powerIntensity, pm) : null;
+  const phenomenaSeverity = phenomenaTriggered ? getPhenomenaSeverity(cnBase, pm, effectiveDoS) : null;
   let rfToApply = 0;
 
   // Apply RF based on success/failure
   if (success) {
     // Success: apply RF
-    if (powerIntensity > pm) {
+    if (cnBase > pm) {
       rfToApply += 1;
     }
     if (phenomenaTriggered) {
@@ -291,7 +296,7 @@ export function combatCastSpell(
     }
   } else {
     // Failure: apply RF
-    if (powerIntensity > pm) {
+    if (cnBase > pm) {
       rfToApply += 1;
     }
     if (result.dof >= 2) {
@@ -304,13 +309,15 @@ export function combatCastSpell(
   }
 
   // Apply RF
+  let updatedSave = saveAfterPenaltyRemoval;
   if (rfToApply > 0) {
     updatedSave = applyFatigue(updatedSave, turnActorId, rfToApply, catalogs);
   }
 
   // Resolve phenomena if triggered
+  let phenomenaResult: { save: GameSave; kind: string; description: string } | null = null;
   if (phenomenaTriggered) {
-    const phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
+    phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
     updatedSave = phenomenaResult.save;
     const phenomenaDesc = phenomenaResult.description;
 
@@ -332,46 +339,99 @@ export function combatCastSpell(
 
   // Apply spell effects if successful
   if (success) {
-    // Determine target(s)
-    const targetSpec = effect.targetSpec;
-    let targets: Array<{ actorId: ActorId; actor: typeof actor }> = [];
+    // Convert targetSpec to new format (handle legacy format)
+    let targetSpec: TargetSpec;
+    if ("kind" in effect.targetSpec) {
+      targetSpec = effect.targetSpec as TargetSpec;
+    } else {
+      // Legacy format - convert it
+      targetSpec = convertLegacyTargetSpec(effect.targetSpec as any);
+    }
 
-    if (spell.targetShape === "self") {
-      targets = [{ actorId: turnActorId, actor }];
-    } else if (targetSpec.type === "actor" && targetSpec.actorId) {
-      const targetActor = updatedSave.actorsById[targetSpec.actorId];
-      if (targetActor) {
-        targets = [{ actorId: targetSpec.actorId, actor: targetActor }];
+    // Build targeting definition
+    const targetingDef = buildTargetingDefinition(spell, effectDef, cnBase);
+
+    // Handle random target phenomena
+    if (phenomenaResult?.kind === "targetRandomization") {
+      // Get rangeSquares from targeting definition
+      let rangeSquares = 0;
+      if (targetingDef.shape === "single" || targetingDef.shape === "line" || targetingDef.shape === "cone") {
+        rangeSquares = targetingDef.rangeSquares;
+      } else if (targetingDef.shape === "radius") {
+        rangeSquares = targetingDef.rangeSquares;
+      } else {
+        // Self targeting - no randomization needed
+        rangeSquares = 0;
+      }
+
+      if (rangeSquares > 0) {
+        // Get original target actor ID if applicable (to exclude it)
+        const originalTargetId = targetSpec.kind === "actor" ? targetSpec.actorId : undefined;
+
+        // Get all valid actors in range
+        const candidates = getActorsInRange(updatedSave, turnActorId, rangeSquares, {
+          includeCaster: false,
+          allowFriendlyFire: true,
+          excludeActorId: originalTargetId, // Optional: avoid picking original target
+        });
+
+        if (candidates.length > 0) {
+          // Pick random from candidates
+          const randomIndex = rng.nextInt(0, candidates.length - 1);
+          const randomTargetId = candidates[randomIndex];
+          // Update targetSpec to point to random target
+          targetSpec = { kind: "actor", actorId: randomTargetId };
+        }
+        // If no candidates, keep original targetSpec (fallback)
       }
     }
-    // MVP: line/cone/radius targeting not fully implemented - just use single target
+
+    // Resolve targets using new system
+    const targetResolution = resolveTargets(updatedSave, turnActorId, targetSpec, targetingDef, {
+      allowFriendlyFire: true, // MVP: allow friendly fire for spells
+      includeCaster: spell.targetShape === "self",
+    });
+
+    if (targetResolution.invalidReason) {
+      // Invalid targeting - log and return
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Targeting failed: ${targetResolution.invalidReason}`,
+        turnCounter: combat.turnCounter,
+        resolutionId,
+      });
+      return { save: updatedSave };
+    }
+
+    // Get target actors
+    const targetActors = targetResolution.targetActorIds.map((id) => ({
+      actorId: id,
+      actor: updatedSave.actorsById[id]!,
+    }));
 
     // Apply damage if effect has damage
-    if (effectDef.baseDamageDice && targets.length > 0) {
-      const dice = effectDef.baseDamageDice.dice;
-      const sides = effectDef.baseDamageDice.sides;
-      const flat = effectDef.baseDamageFlat ?? 0;
+    if (effectDef.baseDamageDice && targetActors.length > 0) {
+      const scaled = scaleDamage(effectDef.baseDamageDice, effectDef.baseDamageFlat, overcast);
 
       // Roll damage dice
       let damageRolls: number[] = [];
-      let totalDamage = flat;
-      for (let i = 0; i < dice; i++) {
-        const roll = rng.nextInt(1, sides);
+      let totalDamage = scaled.flatPlus;
+      for (let i = 0; i < scaled.diceCount; i++) {
+        const roll = rng.nextInt(1, scaled.diceSides);
         damageRolls.push(roll);
         totalDamage += roll;
       }
 
-      // Damage scaling: +2 flat damage per CN above baseCN
-      const extraCN = Math.max(0, effectiveDoS - requiredCN);
-      const scaledDamage = totalDamage + extraCN * 2;
-
       // Apply damage to each target
-      for (const target of targets) {
+      for (const target of targetActors) {
         if (spell.discipline === "CORPUS" && effectDef.baseDamageDice) {
           // Healing: reduce wounds instead of applying damage
-          const maxHp = catalogs ? calculateMaxHp(updatedSave, target.actor, catalogs) : target.actor.derived?.hpMax ?? 100;
+          const maxHp = catalogs
+            ? calculateMaxHp(updatedSave, target.actor, catalogs)
+            : target.actor.derived?.hpMax ?? 100;
           const woundsBefore = target.actor.resources.wounds ?? 0;
-          const woundsAfter = Math.max(0, woundsBefore - scaledDamage);
+          const healedAmount = scaleHeal(totalDamage, overcast);
+          const woundsAfter = Math.max(0, woundsBefore - healedAmount);
           const healed = woundsBefore - woundsAfter;
 
           const updatedTargetActor = {
@@ -391,17 +451,27 @@ export function combatCastSpell(
           };
 
           // Log healing
+          const formula = `${scaled.diceCount}d${scaled.diceSides}${
+            scaled.flatPlus > 0 ? ` + ${scaled.flatPlus}` : ""
+          }${overcast > 0 ? ` (overcast +${overcast * 2})` : ""}`;
           updatedSave = appendRuntimeLog(updatedSave, {
             kind: "damage",
             attackerId: turnActorId,
             defenderId: target.actorId,
-            formula: `${dice}d${sides}${flat > 0 ? ` + ${flat}` : ""}${extraCN > 0 ? ` + ${extraCN * 2} (CN bonus)` : ""}`,
+            formula,
             rolls: damageRolls,
-            rawDamage: scaledDamage,
+            rawDamage: totalDamage,
             soak: 0,
             finalDamage: -healed, // Negative for healing
             turnCounter: combat.turnCounter,
             resolutionId,
+            tags: [
+              `magic:spell=${spell.id}`,
+              `magic:effect=${effectDef.id}`,
+              `magic:cn=${cnBase}`,
+              `magic:dosTotal=${effectiveDoS}`,
+              `magic:overcast=${overcast}`,
+            ],
           });
 
           const targetName = target.actor.name || target.actorId;
@@ -412,7 +482,7 @@ export function combatCastSpell(
           updatedSave = appendCombatLog(updatedSave, healLog);
         } else {
           // Damage: apply true damage (bypasses armor for MVP)
-          const damageResult = applyDamageToActor(target.actor, scaledDamage, updatedSave, rng, storyPack, catalogs);
+          const damageResult = applyDamageToActor(target.actor, totalDamage, updatedSave, rng, storyPack, catalogs);
           updatedSave = {
             ...updatedSave,
             actorsById: {
@@ -422,41 +492,50 @@ export function combatCastSpell(
           };
 
           // Log damage
+          const formula = `${scaled.diceCount}d${scaled.diceSides}${
+            scaled.flatPlus > 0 ? ` + ${scaled.flatPlus}` : ""
+          }${overcast > 0 ? ` (overcast +${overcast * 2})` : ""}`;
           updatedSave = appendRuntimeLog(updatedSave, {
             kind: "damage",
             attackerId: turnActorId,
             defenderId: target.actorId,
-            formula: `${dice}d${sides}${flat > 0 ? ` + ${flat}` : ""}${extraCN > 0 ? ` + ${extraCN * 2} (CN bonus)` : ""}`,
+            formula,
             rolls: damageRolls,
-            rawDamage: scaledDamage,
+            rawDamage: totalDamage,
             soak: 0,
-            finalDamage: scaledDamage,
+            finalDamage: totalDamage,
             turnCounter: combat.turnCounter,
             resolutionId,
+            tags: [
+              `magic:spell=${spell.id}`,
+              `magic:effect=${effectDef.id}`,
+              `magic:cn=${cnBase}`,
+              `magic:dosTotal=${effectiveDoS}`,
+              `magic:overcast=${overcast}`,
+            ],
           });
 
           const targetName = target.actor.name || target.actorId;
           const damageLog =
             actor.kind === "PC"
-              ? `Infliggi ${scaledDamage} danni a ${targetName}.`
-              : `${actor.name || turnActorId} infligge ${scaledDamage} danni a ${targetName}.`;
+              ? `Infliggi ${totalDamage} danni a ${targetName}.`
+              : `${actor.name || turnActorId} infligge ${totalDamage} danni a ${targetName}.`;
           updatedSave = appendCombatLog(updatedSave, damageLog);
         }
       }
     }
 
     // Apply conditions if effect has conditions
-    if (effectDef.applyConditions && targets.length > 0) {
+    if (effectDef.applyConditions && targetActors.length > 0) {
       for (const conditionSpec of effectDef.applyConditions) {
-        for (const target of targets) {
-          const durationRounds = conditionSpec.durationRounds ?? 1;
-          const untilTurnCounter = combat.turnCounter + durationRounds;
-          const stacks = conditionSpec.value ?? 1;
+        for (const target of targetActors) {
+          const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
+          const untilTurnCounter = combat.turnCounter + scaled.durationTurns;
 
           const updatedTargetActor = addConditionToActor(
             target.actor,
             conditionSpec.conditionId as any,
-            stacks,
+            scaled.stacks,
             untilTurnCounter,
             `spell:${spell.id}`
           );
@@ -475,14 +554,14 @@ export function combatCastSpell(
 
   // Update combat state: consume action/movement
   const updatedCombat = {
-    ...combat,
+    ...updatedSave.runtime.combat!,
     turn: {
-      ...combat.turn,
-      actionAvailable: spell.castTime === "free" ? combat.turn.actionAvailable : false,
-      moveRemaining: spell.castTime === "fullRound" ? 0 : combat.turn.moveRemaining,
+      ...updatedSave.runtime.combat!.turn,
+      actionAvailable: spell.castTime === "free" ? updatedSave.runtime.combat!.turn.actionAvailable : false,
+      moveRemaining: spell.castTime === "fullRound" ? 0 : updatedSave.runtime.combat!.turn.moveRemaining,
     },
     freeSpellUsedThisTurn: {
-      ...(combat.freeSpellUsedThisTurn || {}),
+      ...(updatedSave.runtime.combat!.freeSpellUsedThisTurn || {}),
       ...(spell.castTime === "free" ? { [turnActorId]: true } : {}),
     },
     channeling: undefined, // Consume channeling after cast
@@ -493,7 +572,18 @@ export function combatCastSpell(
     runtime: {
       ...updatedSave.runtime,
       combat: updatedCombat,
-      lastCheck: result,
+      lastCheck: {
+        ...result,
+        tags: [
+          ...(result.tags || []),
+          `magic:spell=${spell.id}`,
+          `magic:effect=${effectDef.id}`,
+          `magic:cn=${cnBase}`,
+          `magic:dosTotal=${effectiveDoS}`,
+          `magic:overcast=${overcast}`,
+          ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
+        ],
+      },
     },
   };
 
@@ -501,10 +591,7 @@ export function combatCastSpell(
   const actorName = actor.name || turnActorId;
   const spellName = spell.name;
   if (success) {
-    const logEntry =
-      actor.kind === "PC"
-        ? `Lanci ${spellName}.`
-        : `${actorName} lancia ${spellName}.`;
+    const logEntry = actor.kind === "PC" ? `Lanci ${spellName}.` : `${actorName} lancia ${spellName}.`;
     updatedSave = appendCombatLog(updatedSave, logEntry);
   } else {
     const logEntry =
@@ -516,4 +603,3 @@ export function combatCastSpell(
 
   return { save: updatedSave };
 }
-

@@ -6,13 +6,14 @@ import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 import { useState } from "react";
+import type { TargetSpec, Direction9 } from "@eg/engine";
 
 interface SpellPickerModalProps {
   visible: boolean;
   save: GameSave;
   actorId: ActorId;
   onClose: () => void;
-  onSelectSpell: (spellId: string, targetSpec: { type: "self" | "actor" | "position"; actorId?: string }) => void;
+  onSelectSpell: (spellId: string, targetSpec: TargetSpec) => void;
   selectedTargetId?: string | null;
   showLearnSpells?: boolean;
   onLearnSpell?: (spellId: string) => void;
@@ -40,19 +41,71 @@ export function SpellPickerModal({
   const actor = save.actorsById[actorId];
   const currentXp = save.meta?.xp ?? 0;
 
+  // State for direction picker (for cone/line spells)
+  const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
+  const [selectedDir, setSelectedDir] = useState<Direction9>(8); // Default to North
+
+  const directionLabels: Record<Direction9, string> = {
+    7: "↖",
+    8: "↑",
+    9: "↗",
+    4: "←",
+    6: "→",
+    1: "↙",
+    2: "↓",
+    3: "↘",
+  };
+
+  const directionNames: Record<Direction9, string> = {
+    7: "NW",
+    8: "N",
+    9: "NE",
+    4: "W",
+    6: "E",
+    1: "SW",
+    2: "S",
+    3: "SE",
+  };
+
   const handleSpellSelect = (spellId: string) => {
     const spell = allSpells.find((s) => s.id === spellId);
     if (!spell) return;
 
-    if (spell.targetShape === "self") {
-      onSelectSpell(spellId, { type: "self" });
-    } else if (spell.targetShape === "single" && selectedTargetId) {
-      onSelectSpell(spellId, { type: "actor", actorId: selectedTargetId });
-    } else {
-      // For MVP: default to selected target or self
-      onSelectSpell(spellId, { type: selectedTargetId ? "actor" : "self", actorId: selectedTargetId || undefined });
+    // For cone/line spells, show direction picker first
+    if (spell.targetShape === "cone" || spell.targetShape === "line") {
+      setSelectedSpellId(spellId);
+      return;
     }
+
+    // For other spells, proceed directly
+    let targetSpec: TargetSpec;
+    if (spell.targetShape === "self") {
+      targetSpec = { kind: "self" };
+    } else if (spell.targetShape === "single" && selectedTargetId) {
+      targetSpec = { kind: "actor", actorId: selectedTargetId as ActorId };
+    } else if (spell.targetShape === "radius" && selectedTargetId) {
+      // For radius, use actor position
+      targetSpec = { kind: "actor", actorId: selectedTargetId as ActorId };
+    } else {
+      // Fallback to self
+      targetSpec = { kind: "self" };
+    }
+    onSelectSpell(spellId, targetSpec);
     onClose();
+  };
+
+  const handleDirectionConfirm = () => {
+    if (!selectedSpellId) return;
+    const targetSpec: TargetSpec = { kind: "direction", dir: selectedDir };
+    onSelectSpell(selectedSpellId, targetSpec);
+    setSelectedSpellId(null);
+    setSelectedDir(8); // Reset to default
+    onClose();
+  };
+
+  const handleDirectionCancel = () => {
+    setSelectedSpellId(null);
+    setSelectedDir(8); // Reset to default
   };
 
   const handleLearnSpell = (spellId: string) => {
@@ -60,6 +113,196 @@ export function SpellPickerModal({
       onLearnSpell(spellId);
     }
   };
+
+  // Show direction picker if a cone/line spell is selected
+  if (selectedSpellId) {
+    const spell = allSpells.find((s) => s.id === selectedSpellId);
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={handleDirectionCancel}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, maxWidth: "90%" }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 8 }}>
+              Seleziona Direzione: {spell?.name}
+            </Text>
+            <Text style={{ fontSize: 12, color: "#666", marginBottom: 16 }}>
+              Direzione selezionata: {directionNames[selectedDir]}
+            </Text>
+
+            {/* Direction pad (3x3 grid) */}
+            <View style={{ alignItems: "center", marginBottom: 16 }}>
+              <View style={{ flexDirection: "row", gap: 4 }}>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 7 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(7)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[7]}</Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 8 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(8)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[8]}</Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 9 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(9)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[9]}</Text>
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: "row", gap: 4, marginTop: 4 }}>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 4 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(4)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[4]}</Text>
+                </Pressable>
+                <View
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: "#999" }}>—</Text>
+                </View>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 6 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(6)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[6]}</Text>
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: "row", gap: 4, marginTop: 4 }}>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 1 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(1)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[1]}</Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 2 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(2)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[2]}</Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    width: 50,
+                    height: 50,
+                    backgroundColor: selectedDir === 3 ? "#4a90e2" : "#f0f0f0",
+                    borderRadius: 4,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                  }}
+                  onPress={() => setSelectedDir(3)}
+                >
+                  <Text style={{ fontSize: 20 }}>{directionLabels[3]}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: "#666",
+                  borderRadius: 4,
+                  alignItems: "center",
+                }}
+                onPress={handleDirectionCancel}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Annulla</Text>
+              </Pressable>
+              <Pressable
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: "#4a90e2",
+                  borderRadius: 4,
+                  alignItems: "center",
+                }}
+                onPress={handleDirectionConfirm}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Conferma</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -140,6 +383,11 @@ export function SpellPickerModal({
                     <Text style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{spell.notes}</Text>
                     {spell.targetShape === "single" && !selectedTargetId && (
                       <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Seleziona un bersaglio</Text>
+                    )}
+                    {(spell.targetShape === "cone" || spell.targetShape === "line") && (
+                      <Text style={{ fontSize: 10, color: "#4a90e2", marginTop: 4 }}>
+                        Richiede selezione direzione
+                      </Text>
                     )}
                   </Pressable>
                 ))

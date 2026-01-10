@@ -72,6 +72,31 @@ export function combatRequestAttack(
     };
   }
 
+  // Validate defender is alive
+  const defenderActor = save.actorsById[effect.defenderId];
+  if (!defenderActor || defenderActor.resources.isDead === true) {
+    const blockedCheck = {
+      checkId: "combat:attack:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=targetDead", `combat:defenderId=${effect.defenderId}`],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
   // Validate distance and range
   const attackerPos = combat.positions[effect.attackerId];
   const defenderPos = combat.positions[effect.defenderId];
@@ -417,4 +442,3 @@ export function combatRequestAttack(
 
   return { save: currentSave, emittedEffects: emittedEffects.length > 0 ? emittedEffects : undefined };
 }
-

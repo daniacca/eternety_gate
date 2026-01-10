@@ -1828,11 +1828,12 @@
                 },
                 {
                   "op": "combatStart",
-                  "participantIds": ["PC_1", "NPC_DUMMY"],
+                  "participantIds": ["PC_1", "NPC_DUMMY", "NPC_DUMMY_2"],
                   "grid": { "width": 10, "height": 10 },
                   "placements": [
-                    { "actorId": "PC_1", "x": 2, "y": 2 },
-                    { "actorId": "NPC_DUMMY", "x": 6, "y": 2 }
+                    { "actorId": "PC_1", "x": 2, "y": 5 },
+                    { "actorId": "NPC_DUMMY", "x": 6, "y": 4 },
+                    { "actorId": "NPC_DUMMY_2", "x": 6, "y": 6 }
                   ]
                 }
               ]

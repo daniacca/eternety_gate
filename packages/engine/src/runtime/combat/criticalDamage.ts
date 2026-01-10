@@ -1,11 +1,4 @@
-import type {
-  GameSave,
-  Actor,
-  Effect,
-  SingleCheck,
-  StoryPack,
-  StatKey,
-} from "../types";
+import type { GameSave, Actor, Effect, SingleCheck, StoryPack, StatKey } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { performCheck } from "../checks";
@@ -14,7 +7,7 @@ import { calculateMaxHp } from "../characters/hp";
 /**
  * Applies critical damage tier effects and determines if actor dies.
  * This is the single source of truth for critical damage tier application.
- * 
+ *
  * @param actor - The actor taking critical damage
  * @param criticalDamage - The total critical damage amount
  * @param criticalTierApplied - The highest tier already applied
@@ -172,7 +165,7 @@ export function applyCriticalDamageTiers(
 /**
  * Applies damage to an actor, handling wounds and critical damage track.
  * This is the single source of truth for damage application logic.
- * 
+ *
  * @param actor - The actor taking damage
  * @param damage - The amount of damage to apply
  * @param save - The game save
@@ -246,20 +239,20 @@ export function applyDamageToActor(
       woundsAfter = maxHp;
       hpAfter = 0;
       // First time reaching 0 HP - start critical damage track
+      // Critical damage = excess damage beyond what was needed to bring HP to 0
       if (criticalDamage === 0) {
-        criticalDamage = damage;
-        const tierResult = applyCriticalDamageTiers(
-          actor,
-          criticalDamage,
-          0,
-          save,
-          rng,
-          storyPack,
-          catalogs
-        );
-        effects = tierResult.emittedEffects;
-        actorDied = tierResult.actorDied;
-        criticalTierApplied = tierResult.newTierApplied;
+        // Calculate excess: damage needed to bring HP to 0 is (maxHp - woundsBefore)
+        // Excess = damage - (maxHp - woundsBefore)
+        const damageToZero = maxHp - woundsBefore;
+        const excessDamage = Math.max(0, damage - damageToZero);
+        criticalDamage = excessDamage;
+
+        if (criticalDamage > 0) {
+          const tierResult = applyCriticalDamageTiers(actor, criticalDamage, 0, save, rng, storyPack, catalogs);
+          effects = tierResult.emittedEffects;
+          actorDied = tierResult.actorDied;
+          criticalTierApplied = tierResult.newTierApplied;
+        }
       }
     }
   } else {
@@ -286,4 +279,3 @@ export function applyDamageToActor(
     actorDied,
   };
 }
-

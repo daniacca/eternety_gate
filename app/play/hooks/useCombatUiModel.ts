@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { GameSave, Choice } from "@eg/engine";
-import { getCurrentTurnActorId, getActorWeapon, getActorArmor, distanceChebyshev } from "@eg/engine";
+import { getCurrentTurnActorId, getActorWeapon, getActorArmor, distanceChebyshev, isActorAlive } from "@eg/engine";
 
 export interface CombatUiModel {
   // Combat state
@@ -70,18 +70,31 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
     const actionAvailable = combat?.turn.actionAvailable ?? false;
     // Get stance from stancesByActorId for current turn actor
     // Absence of key means "none" (only for UI display, not stored in state)
-    const stance =
-      (isCombatActive && currentTurnActorId && combat?.stancesByActorId?.[currentTurnActorId]) || "none";
+    const stance = (isCombatActive && currentTurnActorId && combat?.stancesByActorId?.[currentTurnActorId]) || "none";
 
-    // Calculate distance
+    // Calculate distance (find closest alive NPC)
     let distance: number | null = null;
     if (isCombatActive && combat?.positions) {
       const pcPos = combat.positions[save.party.activeActorId];
-      const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
+      const npcIds = combat.participants.filter((id) => {
+        if (id === save.party.activeActorId) return false;
+        const actor = save.actorsById[id];
+        return isActorAlive(actor);
+      });
       if (pcPos && npcIds.length > 0) {
-        const npcPos = combat.positions[npcIds[0]];
-        if (npcPos) {
-          distance = distanceChebyshev(pcPos, npcPos);
+        // Find the closest NPC
+        let closestDist = Infinity;
+        for (const npcId of npcIds) {
+          const npcPos = combat.positions[npcId];
+          if (npcPos) {
+            const dist = distanceChebyshev(pcPos, npcPos);
+            if (dist < closestDist) {
+              closestDist = dist;
+            }
+          }
+        }
+        if (closestDist !== Infinity) {
+          distance = closestDist;
         }
       }
     }
@@ -100,8 +113,28 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
     const hasRangedWeapon = pcWeapon?.weapon?.kind === "RANGED";
     const weaponRange = pcWeapon?.weapon?.range || null;
 
-    // Basic attack availability
-    const canMelee = distance !== null && distance <= 1;
+    // Basic attack availability - check if any NPC is in melee range
+    let canMelee = false;
+    if (isCombatActive && combat?.positions) {
+      const pcPos = combat.positions[save.party.activeActorId];
+      if (pcPos) {
+        const npcIds = combat.participants.filter((id) => {
+          if (id === save.party.activeActorId) return false;
+          const actor = save.actorsById[id];
+          return isActorAlive(actor);
+        });
+        for (const npcId of npcIds) {
+          const npcPos = combat.positions[npcId];
+          if (npcPos) {
+            const dist = distanceChebyshev(pcPos, npcPos);
+            if (dist <= 1) {
+              canMelee = true;
+              break;
+            }
+          }
+        }
+      }
+    }
     let canRanged = distance !== null && distance > 1 && distance <= 8;
     let canRangedReason: string | null = null;
 
@@ -158,19 +191,42 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
     const rangedCalledDisabled = !isPlayerTurn || !actionAvailable || !canRanged;
     const rangedCalledDisabledReason = rangedDisabledReason;
 
-    // Selected target for melee attacks (first enemy in melee range)
+    // Selected target for attacks (first alive enemy in range)
+    // For melee: must be in melee range (dist <= 1)
+    // For ranged: must be in weapon range
     let selectedTargetId: string | null = null;
-    if (isCombatActive && combat?.positions && isPlayerTurn && canMelee) {
+    if (isCombatActive && combat?.positions && isPlayerTurn && (canMelee || canRanged)) {
       const pcPos = combat.positions[save.party.activeActorId];
-      const npcIds = combat.participants.filter((id) => id !== save.party.activeActorId);
+      const npcIds = combat.participants.filter((id) => {
+        if (id === save.party.activeActorId) return false;
+        const actor = save.actorsById[id];
+        return isActorAlive(actor);
+      });
       if (pcPos) {
         for (const npcId of npcIds) {
           const npcPos = combat.positions[npcId];
           if (!npcPos) continue;
+          const npcActor = save.actorsById[npcId];
+          if (!isActorAlive(npcActor)) continue; // Skip dead actors
           const dist = distanceChebyshev(pcPos, npcPos);
-          if (dist <= 1) {
+
+          // Check melee range
+          if (canMelee && dist <= 1) {
             selectedTargetId = npcId;
             break;
+          }
+          // Check ranged range
+          if (canRanged && hasRangedWeapon && weaponRange) {
+            if (dist > 1 && dist <= weaponRange.long) {
+              selectedTargetId = npcId;
+              break;
+            }
+          } else if (canRanged && !hasRangedWeapon) {
+            // Fallback: if canRanged is true but no weapon, use default range (2-8)
+            if (dist > 1 && dist <= 8) {
+              selectedTargetId = npcId;
+              break;
+            }
           }
         }
       }

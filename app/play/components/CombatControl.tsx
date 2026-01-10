@@ -188,15 +188,30 @@ export function CombatControl({
               {model.meleeChoice && (
                 <View style={styles.attackButtonItem}>
                   <Pressable
-                    style={[styles.attackButton, model.meleeDisabled && styles.attackButtonDisabled]}
+                    style={[
+                      styles.attackButton,
+                      (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                    ]}
                     onPress={() => {
-                      if (!model.meleeDisabled) {
-                        handleChoice(model.meleeChoice!.id);
+                      if (!model.meleeDisabled && model.selectedTargetId) {
+                        applySystemEffects([
+                          {
+                            op: "combatRequestAttack",
+                            attackerId: save.party.activeActorId,
+                            defenderId: model.selectedTargetId,
+                            mode: "MELEE",
+                          },
+                        ]);
                       }
                     }}
-                    disabled={model.meleeDisabled}
+                    disabled={model.meleeDisabled || !model.selectedTargetId}
                   >
-                    <Text style={[styles.attackButtonText, model.meleeDisabled && styles.attackButtonTextDisabled]}>
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                      ]}
+                    >
                       Melee Attack
                     </Text>
                   </Pressable>
@@ -338,15 +353,30 @@ export function CombatControl({
                 {model.rangedLongChoice && (
                   <View style={styles.attackButtonItem}>
                     <Pressable
-                      style={[styles.attackButton, model.rangedDisabled && styles.attackButtonDisabled]}
+                      style={[
+                        styles.attackButton,
+                        (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                      ]}
                       onPress={() => {
-                        if (!model.rangedDisabled) {
-                          handleChoice(model.rangedLongChoice!.id);
+                        if (!model.rangedDisabled && model.selectedTargetId) {
+                          applySystemEffects([
+                            {
+                              op: "combatRequestAttack",
+                              attackerId: save.party.activeActorId,
+                              defenderId: model.selectedTargetId,
+                              mode: "RANGED",
+                            },
+                          ]);
                         }
                       }}
-                      disabled={model.rangedDisabled}
+                      disabled={model.rangedDisabled || !model.selectedTargetId}
                     >
-                      <Text style={[styles.attackButtonText, model.rangedDisabled && styles.attackButtonTextDisabled]}>
+                      <Text
+                        style={[
+                          styles.attackButtonText,
+                          (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                        ]}
+                      >
                         Ranged Attack
                       </Text>
                     </Pressable>
@@ -358,16 +388,30 @@ export function CombatControl({
                 {model.rangedCalledChoice && (
                   <View style={styles.attackButtonItem}>
                     <Pressable
-                      style={[styles.attackButton, model.rangedCalledDisabled && styles.attackButtonDisabled]}
+                      style={[
+                        styles.attackButton,
+                        (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                      ]}
                       onPress={() => {
-                        if (!model.rangedCalledDisabled) {
-                          handleChoice(model.rangedCalledChoice!.id);
+                        if (!model.rangedCalledDisabled && model.selectedTargetId) {
+                          applySystemEffects([
+                            {
+                              op: "combatRequestAttack",
+                              attackerId: save.party.activeActorId,
+                              defenderId: model.selectedTargetId,
+                              mode: "RANGED",
+                              modifiers: { calledShot: true },
+                            },
+                          ]);
                         }
                       }}
-                      disabled={model.rangedCalledDisabled}
+                      disabled={model.rangedCalledDisabled || !model.selectedTargetId}
                     >
                       <Text
-                        style={[styles.attackButtonText, model.rangedCalledDisabled && styles.attackButtonTextDisabled]}
+                        style={[
+                          styles.attackButtonText,
+                          (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                        ]}
                       >
                         Called Shot
                       </Text>

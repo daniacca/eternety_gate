@@ -33,6 +33,9 @@ export type SpellDefinition = {
   baseCN: number; // Base Casting Number
   rangeMode: RangeMode;
   targetShape: TargetShape;
+  rangeMultiplier?: number; // Multiplier for range calculation (rangeSquares = cnBase * rangeMultiplier)
+  rangeSquares?: number; // Explicit range in squares (overrides rangeMultiplier if present)
+  radiusSquares?: number; // For radius spells: AoE radius (default 2)
   notes?: string;
   xpCost: number; // XP cost to learn this spell
   prerequisites?: Prerequisite[]; // Prerequisites to learn this spell

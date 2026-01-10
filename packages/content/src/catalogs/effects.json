@@ -40,6 +40,19 @@
     "description": "Indebolisce il bersaglio con affaticamento"
   },
   {
+    "id": "effect:flame_cone",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "baseCN": 2,
+    "baseDamageDice": {
+      "dice": 2,
+      "sides": 10
+    },
+    "baseDamageFlat": 5,
+    "damageType": "energy",
+    "description": "Chiudi le mani a pugno, le avvicini alla bocca e soffi: un getto di fuoco innonda l'area circostante"
+  },
+  {
     "id": "effect:sense_magic",
     "discipline": "VATES",
     "castingStat": "PER",
@@ -60,4 +73,3 @@
     "description": "Ripristina HP (1d5) e applica +1 RF"
   }
 ]
-

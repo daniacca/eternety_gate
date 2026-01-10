@@ -19,7 +19,7 @@ import { applyDamageToActor } from "./criticalDamage";
  * Checks if an actor is alive (not dead)
  * Actor is alive if they exist and isDead !== true
  */
-function isActorAlive(actor: Actor | undefined): boolean {
+export function isActorAlive(actor: Actor | undefined): boolean {
   return actor !== undefined && actor.resources.isDead !== true;
 }
 
