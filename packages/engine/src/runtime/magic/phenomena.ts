@@ -3,7 +3,6 @@ import type { IRNG } from "../rng";
 import { addConditionToActor } from "../conditions";
 import { applyFatigue } from "../characters/fatigue";
 import { applyDamageToActor } from "../combat/criticalDamage";
-import { getCurrentTurnActorId } from "../combat/combat";
 
 /**
  * Normalizes d100 roll for doubles detection
@@ -38,11 +37,7 @@ export function shouldTriggerPhenomena(check: CheckResult): boolean {
  * - Severe: if (cnBase > PM) OR (effectiveDoS < cnBase)  // "pushed" or failed
  * - Mild: otherwise
  */
-export function getPhenomenaSeverity(
-  cnBase: number,
-  powerMagic: number,
-  effectiveDoS: number
-): "mild" | "severe" {
+export function getPhenomenaSeverity(cnBase: number, powerMagic: number, effectiveDoS: number): "mild" | "severe" {
   const isPushed = cnBase > powerMagic;
   const isFailed = effectiveDoS < cnBase;
   return isPushed || isFailed ? "severe" : "mild";
@@ -50,14 +45,14 @@ export function getPhenomenaSeverity(
 
 /**
  * Rolls on the phenomena table and applies the result
- * 
+ *
  * Table (d100):
  * - 01-20: stunned 1 round
  * - 21-40: +1 RF
  * - 41-60: -20 next casting (temporary condition)
  * - 61-80: target randomization (spell retarget)
  * - 81-100: backlash: 1d10 true damage (no mitigation)
- * 
+ *
  * @param save - The game save
  * @param actorId - The caster actor ID
  * @param rng - Random number generator
@@ -87,13 +82,7 @@ export function rollPhenomena(
     // 01-20: stunned 1 round
     kind = "stunned";
     description = "Stordito per 1 round";
-    const updatedActor = addConditionToActor(
-      actor,
-      "stunned",
-      1,
-      currentTurnCounter + 1,
-      "phenomena"
-    );
+    const updatedActor = addConditionToActor(actor, "stunned", 1, currentTurnCounter + 1, "phenomena");
     updatedSave = {
       ...updatedSave,
       actorsById: {
@@ -119,7 +108,7 @@ export function rollPhenomena(
           ...(actor.status.tempModifiers || []),
           {
             id: `phenomena:castingPenalty:${actorId}`,
-            scope: "check",
+            scope: "check" as const,
             key: null, // Applies to all checks
             value: -20,
             expires: currentTurnCounter + 999, // Lasts until consumed
@@ -162,4 +151,3 @@ export function rollPhenomena(
     description,
   };
 }
-
