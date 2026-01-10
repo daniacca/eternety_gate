@@ -1,43 +1,33 @@
 import type { GameSave, ActorId, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { calculateMaxHp, calculateMaxRf } from "../characters/hp";
+import { calculateMaxHp, calculateMaxRf } from "./hp";
 import { addConditionToActor, removeConditionFromActor, hasCondition } from "../conditions";
-import { getCurrentTurnActorId } from "../combat/combat";
 
 /**
  * Gets the maximum RF (Fatigue Reserve) for an actor
  * RFMax = 3 * HP
  */
-export function getFatigueMax(
-  save: GameSave,
-  actor: Actor,
-  catalogs?: CharacterCatalogs
-): number {
+export function getFatigueMax(save: GameSave, actor: Actor, catalogs?: CharacterCatalogs): number {
   return calculateMaxRf(save, actor, catalogs);
 }
 
 /**
  * Applies fatigue (RF) to an actor and handles threshold conditions
- * 
+ *
  * Thresholds:
  * - RF <= HP: ok
  * - RF > HP: -10 all tests (apply tempModifier)
  * - RF > 2*HP: -20 all tests, movement halved (apply tempModifier + condition)
  * - RF >= 2.5*HP: unconscious (apply condition)
  * - RF >= 3*HP: dead by collapse (set isDead true)
- * 
+ *
  * @param save - The game save
  * @param actorId - The actor ID
  * @param amount - Amount of RF to add
  * @param catalogs - Optional character catalogs (for maxHp calculation)
  * @returns Updated save
  */
-export function applyFatigue(
-  save: GameSave,
-  actorId: ActorId,
-  amount: number,
-  catalogs?: CharacterCatalogs
-): GameSave {
+export function applyFatigue(save: GameSave, actorId: ActorId, amount: number, catalogs?: CharacterCatalogs): GameSave {
   const actor = save.actorsById[actorId];
   if (!actor) {
     return save;
@@ -129,9 +119,7 @@ export function applyFatigue(
         ...updatedActor,
         status: {
           ...updatedActor.status,
-          tempModifiers: (updatedActor.status.tempModifiers || []).filter(
-            (mod) => mod.id !== `fatigue:${actorId}`
-          ),
+          tempModifiers: (updatedActor.status.tempModifiers || []).filter((mod) => mod.id !== `fatigue:${actorId}`),
         },
       };
     }
@@ -166,4 +154,3 @@ export function applyFatigue(
     },
   };
 }
-

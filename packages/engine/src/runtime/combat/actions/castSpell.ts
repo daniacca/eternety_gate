@@ -6,7 +6,7 @@ import { performCheckWithSave, resolveActor } from "../../checks";
 import { getCharacteristicBonus } from "../../characters/bonuses";
 import { getSpellById, getEffectById } from "../../magic/catalogs";
 import { getMagicPower } from "../../magic/pm";
-import { applyFatigue } from "../../magic/fatigue";
+import { applyFatigue } from "../../characters/fatigue";
 import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../magic/phenomena";
 import { hasLearnedSpell } from "../../magic/learning";
 import { addConditionToActor } from "../../conditions";

@@ -1,4 +1,4 @@
-import type { GameSave, StoryPack } from "../types";
+import type { Effect, GameSave, StoryPack } from "../types";
 import { IRNG } from "../rng";
 import { evaluateCondition } from "../conditions";
 
@@ -36,4 +36,3 @@ export function applyFireWorldEvents(
 
   return { save: currentSave, emittedEffects: emittedEffects.length > 0 ? emittedEffects : undefined };
 }
-

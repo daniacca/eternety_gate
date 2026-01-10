@@ -1,7 +1,7 @@
 import type { CheckResult, GameSave, ActorId } from "../types";
 import type { IRNG } from "../rng";
 import { addConditionToActor } from "../conditions";
-import { applyFatigue } from "./fatigue";
+import { applyFatigue } from "../characters/fatigue";
 import { applyDamageToActor } from "../combat/criticalDamage";
 import { getCurrentTurnActorId } from "../combat/combat";
 
