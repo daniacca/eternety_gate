@@ -48,7 +48,7 @@ export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 /* Conditions                         */
 /* ---------------------------------- */
 
-export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue" | "unconscious";
+export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue" | "unconscious" | "bound" | "force_shield" | "steel_body" | "warp_speed";
 
 export type ConditionInstance = {
   stacks?: number;

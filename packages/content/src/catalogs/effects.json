@@ -4,6 +4,7 @@
     "discipline": "PYRA",
     "castingStat": "WIL",
     "baseCN": 2,
+    "kind": "damage",
     "baseDamageDice": {
       "dice": 2,
       "sides": 10
@@ -17,6 +18,7 @@
     "discipline": "KINESIS",
     "castingStat": "WIL",
     "baseCN": 2,
+    "kind": "malediction",
     "applyConditions": [
       {
         "conditionId": "prone",
@@ -30,6 +32,7 @@
     "discipline": "MENTIS",
     "castingStat": "INT",
     "baseCN": 1,
+    "kind": "malediction",
     "applyConditions": [
       {
         "conditionId": "fatigue",
@@ -44,6 +47,7 @@
     "discipline": "PYRA",
     "castingStat": "WIL",
     "baseCN": 2,
+    "kind": "damage",
     "baseDamageDice": {
       "dice": 2,
       "sides": 10
@@ -57,6 +61,7 @@
     "discipline": "VATES",
     "castingStat": "PER",
     "baseCN": 1,
+    "kind": "blessing",
     "description": "Rileva la presenza di magia nell'area"
   },
   {
@@ -64,12 +69,14 @@
     "discipline": "CORPUS",
     "castingStat": "WIL",
     "baseCN": 1,
+    "kind": "heal",
     "baseDamageDice": {
       "dice": 1,
       "sides": 5
     },
     "baseDamageFlat": 0,
     "specialFatigue": 1,
+    "rfOnSuccess": 1,
     "description": "Ripristina HP (1d5) e applica +1 RF"
   },
   {
@@ -77,6 +84,7 @@
     "discipline": "PYRA",
     "castingStat": "WIL",
     "baseCN": 3,
+    "kind": "damage",
     "baseDamageDice": {
       "dice": 3,
       "sides": 10
@@ -84,5 +92,190 @@
     "baseDamageFlat": 5,
     "damageType": "energy",
     "description": "Esplosione di fuoco che infligge danni a tutti i bersagli nell'area"
+  },
+  {
+    "id": "effect:pyra_flame_control_touch",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "damage",
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 5
+    },
+    "baseDamageFlat": 0,
+    "damageType": "energy",
+    "description": "Touch heat burst"
+  },
+  {
+    "id": "effect:kinesis_force_push",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "malediction",
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 10
+    },
+    "baseDamageFlat": 0,
+    "damageType": "impact",
+    "applyConditions": [
+      {
+        "conditionId": "prone",
+        "durationRounds": 1
+      }
+    ],
+    "description": "Push/backlash simplified MVP"
+  },
+  {
+    "id": "effect:kinesis_force_shield",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "force_shield"
+      }
+    ],
+    "description": "Grants temporary NaturalArmor based on CN/overcast"
+  },
+  {
+    "id": "effect:kinesis_disarm",
+    "discipline": "KINESIS",
+    "castingStat": "WS",
+    "baseCN": 2,
+    "kind": "malediction",
+    "specialOp": "combatDisarmAtRange",
+    "opposedStat": "STR",
+    "opposedDifficulty": "-20",
+    "description": "Ranged disarm via opposed check"
+  },
+  {
+    "id": "effect:kinesis_force_bind",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "malediction",
+    "applyConditions": [
+      {
+        "conditionId": "bound",
+        "durationRounds": 3
+      }
+    ],
+    "description": "Binds target, preventing movement and applying melee penalties"
+  },
+  {
+    "id": "effect:mentis_disrupt",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "baseCN": 1,
+    "kind": "fatigue",
+    "applyFatigueDice": {
+      "dice": 1,
+      "sides": 5
+    },
+    "description": "Applies fatigue (1d5) to target"
+  },
+  {
+    "id": "effect:mentis_suggestion",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "baseCN": 2,
+    "kind": "malediction",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "opposedDifficulty": "NORMAL",
+    "applyConditions": [
+      {
+        "conditionId": "stunned",
+        "durationRounds": 1
+      }
+    ],
+    "description": "Opposed INT vs WIL check, applies stunned on success"
+  },
+  {
+    "id": "effect:mentis_sensory_distortion",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "baseCN": 2,
+    "kind": "malediction",
+    "tempModifier": {
+      "scope": "all",
+      "value": -20,
+      "durationRounds": 2
+    },
+    "description": "Applies -20 to all tests for duration"
+  },
+  {
+    "id": "effect:vates_premonition",
+    "discipline": "VATES",
+    "castingStat": "PER",
+    "baseCN": 1,
+    "kind": "blessing",
+    "tempModifier": {
+      "scope": "all",
+      "value": 20,
+      "durationRounds": 1
+    },
+    "description": "Grants +20 to all tests until end of next round"
+  },
+  {
+    "id": "effect:corpus_mend",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "heal",
+    "baseDamageDice": {
+      "dice": 2,
+      "sides": 5
+    },
+    "baseDamageFlat": 0,
+    "specialFatigue": 2,
+    "rfOnSuccess": 1,
+    "description": "Stronger heal (2d5) with +2 RF cost"
+  },
+  {
+    "id": "effect:corpus_suture",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 2,
+    "kind": "heal",
+    "baseDamageDice": {
+      "dice": 3,
+      "sides": 5
+    },
+    "baseDamageFlat": 0,
+    "specialFatigue": 3,
+    "rfOnSuccess": 1,
+    "description": "Full round strong heal (3d5) with +3 RF cost"
+  },
+  {
+    "id": "effect:corpus_steel_body",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "steel_body",
+        "durationRounds": 3
+      }
+    ],
+    "description": "Grants temporary Unnatural STR +1 and TOU +1"
+  },
+  {
+    "id": "effect:corpus_warp_speed",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "warp_speed",
+        "durationRounds": 3
+      }
+    ],
+    "description": "Grants temporary Unnatural WS/BS/AGI +1"
   }
 ]

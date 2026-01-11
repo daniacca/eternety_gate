@@ -95,7 +95,39 @@ function getModifierTotalBase(
     }
   }
 
-  // TODO: Check conditions
+  // Check conditions for modifiers
+  if (actor.conditions) {
+    // force_shield: provides NaturalArmor based on stacks (default 1 stack = +1 armor per overcast)
+    if (key === "combat.naturalArmor" && actor.conditions.force_shield) {
+      const stacks = actor.conditions.force_shield.stacks ?? 1;
+      total += stacks; // Each stack = +1 NaturalArmor
+    }
+
+    // steel_body: provides Unnatural STR and TOU +1 per stack
+    if (key === "stat.STR.bonusAdd" && actor.conditions.steel_body) {
+      const stacks = actor.conditions.steel_body.stacks ?? 1;
+      total += stacks;
+    }
+    if (key === "stat.TOU.bonusAdd" && actor.conditions.steel_body) {
+      const stacks = actor.conditions.steel_body.stacks ?? 1;
+      total += stacks;
+    }
+
+    // warp_speed: provides Unnatural WS/BS/AGI +1 per stack
+    if (key === "stat.WS.bonusAdd" && actor.conditions.warp_speed) {
+      const stacks = actor.conditions.warp_speed.stacks ?? 1;
+      total += stacks;
+    }
+    if (key === "stat.BS.bonusAdd" && actor.conditions.warp_speed) {
+      const stacks = actor.conditions.warp_speed.stacks ?? 1;
+      total += stacks;
+    }
+    if (key === "stat.AGI.bonusAdd" && actor.conditions.warp_speed) {
+      const stacks = actor.conditions.warp_speed.stacks ?? 1;
+      total += stacks;
+    }
+  }
+
   // TODO: Check equipment
 
   return total;

@@ -2,8 +2,7 @@ import type { Effect, GameSave, StoryPack, SingleCheck, ActorId, CheckResult } f
 import type { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration";
-import { performCheckWithSave, resolveActor } from "../../checks";
-import { getCharacteristicBonus } from "../../characters/bonuses";
+import { performCheckWithSave } from "../../checks";
 import { getSpellById, getEffectById } from "../../magic/catalogs";
 import { getMagicPower } from "../../magic/pm";
 import { applyFatigue } from "../../characters/fatigue";
@@ -21,6 +20,8 @@ import { convertLegacyTargetSpec } from "../../targeting/convertTargetSpec";
 import { scaleDamage, scaleCondition, scaleHeal } from "../../magic/scaling";
 import { getActorsInRange } from "../../targeting/getActorsInRange";
 import type { TargetSpec } from "../../targeting/types";
+import { posKey } from "../../items";
+import type { ItemRef } from "../../types";
 
 /**
  * Cast Spell action: performs spell casting check and applies effects
@@ -210,9 +211,7 @@ export function combatCastSpell(
 
   // Check for casting penalty from phenomena (will be consumed after check)
   // Use stable ID "phenomena:castingPenalty"
-  const castingPenaltyModifier = actor.status.tempModifiers?.find(
-    (mod) => mod.id === "phenomena:castingPenalty"
-  );
+  const castingPenaltyModifier = actor.status.tempModifiers?.find((mod) => mod.id === "phenomena:castingPenalty");
   const hasCastingPenalty = !!castingPenaltyModifier;
 
   // Create casting check
@@ -236,6 +235,17 @@ export function combatCastSpell(
     rng,
     resolutionId
   );
+
+  // Handle null result (should not happen, but TypeScript requires it)
+  if (!result) {
+    return {
+      save: appendRuntimeLog(afterCheckSave, {
+        kind: "system",
+        message: "Errore nel controllo di lancio incantesimo",
+        turnCounter: combat.turnCounter,
+      }),
+    };
+  }
 
   // Remove casting penalty modifier AFTER check (consumes it even if cast fails)
   let saveAfterPenaltyRemoval = afterCheckSave;
@@ -287,9 +297,9 @@ export function combatCastSpell(
     if (effectDef.specialFatigue) {
       rfToApply += effectDef.specialFatigue;
     }
-    // Healing spells: +1 RF total
-    if (spell.discipline === "CORPUS" && effectDef.baseDamageDice) {
-      rfToApply += 1;
+    // RF on success (e.g., healing spells)
+    if (effectDef.rfOnSuccess) {
+      rfToApply += effectDef.rfOnSuccess;
     }
   } else {
     // Failure: apply RF
@@ -329,11 +339,12 @@ export function combatCastSpell(
 
     const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
     const actorName = actorAfterCheck.name || turnActorId;
-    const phenomenaLog = actorAfterCheck.kind === "PC"
-      ? `Fenomeno: ${phenomenaDesc} (${severity})`
-      : `${actorName} subisce un fenomeno magico: ${phenomenaDesc} (${severity})`;
+    const phenomenaLog =
+      actorAfterCheck.kind === "PC"
+        ? `Fenomeno: ${phenomenaDesc} (${severity})`
+        : `${actorName} subisce un fenomeno magico: ${phenomenaDesc} (${severity})`;
     updatedSave = appendCombatLog(updatedSave, phenomenaLog);
-    
+
     // Persist RNG counter after phenomena rolls (if RNG is an RNG instance)
     // Note: This ensures determinism - phenomena rolls consume RNG state
     if (typeof (rng as any).getCounter === "function") {
@@ -368,13 +379,14 @@ export function combatCastSpell(
     const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
     const actorName = actorAfterCheck.name || turnActorId;
     const spellName = spell.name;
-    
+
     // Log cast failure
-    const failureLog = actorAfterCheck.kind === "PC"
-      ? `Lanci ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`
-      : `${actorName} lancia ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`;
+    const failureLog =
+      actorAfterCheck.kind === "PC"
+        ? `Lanci ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`
+        : `${actorName} lancia ${spellName} (CN ${cnBase}) → FALLIMENTO (DoF: ${result.dof})`;
     updatedSave = appendCombatLog(updatedSave, failureLog);
-    
+
     // Return with action economy consumed, channeling reset, and lastCheck set
     updatedSave = {
       ...updatedSave,
@@ -390,12 +402,13 @@ export function combatCastSpell(
             `magic:cn=${cnBase}`,
             `magic:dosTotal=${effectiveDoS}`,
             `magic:overcast=${overcast}`,
+            `magic:kind=${effectDef.kind}`,
             ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
           ],
         },
       },
     };
-    
+
     return { save: updatedSave };
   }
 
@@ -403,9 +416,14 @@ export function combatCastSpell(
   const actorAfterCheck = updatedSave.actorsById[turnActorId] || actor;
   const actorName = actorAfterCheck.name || turnActorId;
   const spellName = spell.name;
-  const castSummaryLog = actorAfterCheck.kind === "PC"
-    ? `Lanci ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""} = ${effectiveDoS}, Overcast: ${overcast})`
-    : `${actorName} lancia ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""} = ${effectiveDoS}, Overcast: ${overcast})`;
+  const castSummaryLog =
+    actorAfterCheck.kind === "PC"
+      ? `Lanci ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${
+          channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""
+        } = ${effectiveDoS}, Overcast: ${overcast})`
+      : `${actorName} lancia ${spellName} (CN ${cnBase}) → SUCCESSO (DoS: ${castDoS}${
+          channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""
+        } = ${effectiveDoS}, Overcast: ${overcast})`;
   updatedSave = appendCombatLog(updatedSave, castSummaryLog);
 
   // Apply spell effects if successful
@@ -419,8 +437,8 @@ export function combatCastSpell(
       targetSpec = convertLegacyTargetSpec(effect.targetSpec as any);
     }
 
-    // Build targeting definition
-    const targetingDef = buildTargetingDefinition(spell, effectDef, cnBase);
+    // Build targeting definition (with overcast for range scaling)
+    const targetingDef = buildTargetingDefinition(spell, effectDef, cnBase, overcast);
 
     // Handle random target phenomena
     if (phenomenaResult?.kind === "targetRandomization") {
@@ -487,8 +505,73 @@ export function combatCastSpell(
       updatedSave = appendCombatLog(updatedSave, targetLog);
     }
 
-    // Apply damage if effect has damage
-    if (effectDef.baseDamageDice && targetActors.length > 0) {
+    // Initialize valid targets (will be filtered by opposed saves if needed)
+    let validTargetActors = [...targetActors];
+
+    // Handle opposed saves FIRST (before any effect application)
+    // Filter out targets that successfully resist
+    // Skip this block for combatDisarmAtRange - it handles its own opposed check
+    if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && targetActors.length > 0) {
+      const opposedStat = effectDef.opposedStat || effectDef.castingStat;
+      const opposedDifficulty = effectDef.opposedDifficulty || "NORMAL";
+
+      const resistedTargetIds = new Set<ActorId>();
+
+      for (const target of targetActors) {
+        // Perform opposed check: caster's casting check result vs defender's resistance check
+        const defenderCheck: SingleCheck = {
+          id: `combat:cast:opposed:${spell.id}:${target.actorId}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: target.actorId },
+          key: opposedStat,
+          difficulty: opposedDifficulty,
+        };
+
+        const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+          defenderCheck,
+          storyPack,
+          updatedSave,
+          rng,
+          `res:opposed:${spell.id}:${target.actorId}`
+        );
+
+        updatedSave = saveAfterDefenderCheck;
+
+        if (!defenderResult) {
+          // Check failed - treat as resisted
+          resistedTargetIds.add(target.actorId);
+          continue;
+        }
+
+        // Compare DoS: attacker wins if attacker DoS > defender DoS
+        const attackerDoS = effectiveDoS;
+        const defenderDoS = defenderResult.success ? defenderResult.dos : -1; // Failed defender = -1 DoS
+
+        if (attackerDoS > defenderDoS) {
+          // Attacker wins - target is valid for effect application
+          const targetName = target.actor.name || target.actorId;
+          const opposedLog = `${targetName} resiste con ${opposedStat} ma fallisce (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
+          updatedSave = appendCombatLog(updatedSave, opposedLog);
+        } else {
+          // Defender wins - spell fails against this target
+          const targetName = target.actor.name || target.actorId;
+          const resistedLog = `${targetName} resiste con successo (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
+          updatedSave = appendCombatLog(updatedSave, resistedLog);
+
+          // Mark as resisted
+          resistedTargetIds.add(target.actorId);
+        }
+      }
+
+      // Filter out resisted targets
+      validTargetActors = targetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    }
+
+    // Apply damage/heal if effect has baseDamageDice
+    // Skip if kind is "fatigue" (handled separately)
+    // "blessing" and "malediction" effects should not have baseDamageDice (they use conditions/modifiers)
+    // But if they do, we still process damage (e.g., kinesis_force_push has damage + condition)
+    if (effectDef.baseDamageDice && effectDef.kind !== "fatigue" && validTargetActors.length > 0) {
       const scaled = scaleDamage(effectDef.baseDamageDice, effectDef.baseDamageFlat, overcast);
 
       // Roll damage dice
@@ -500,13 +583,10 @@ export function combatCastSpell(
         totalDamage += roll;
       }
 
-      // Apply damage to each target
-      for (const target of targetActors) {
-        if (spell.discipline === "CORPUS" && effectDef.baseDamageDice) {
+      // Apply damage/heal to each target
+      for (const target of validTargetActors) {
+        if (effectDef.kind === "heal") {
           // Healing: reduce wounds instead of applying damage
-          const maxHp = catalogs
-            ? calculateMaxHp(updatedSave, target.actor, catalogs)
-            : target.actor.derived?.hpMax ?? 100;
           const woundsBefore = target.actor.resources.wounds ?? 0;
           const healedAmount = scaleHeal(totalDamage, overcast);
           const woundsAfter = Math.max(0, woundsBefore - healedAmount);
@@ -549,6 +629,7 @@ export function combatCastSpell(
               `magic:cn=${cnBase}`,
               `magic:dosTotal=${effectiveDoS}`,
               `magic:overcast=${overcast}`,
+              `magic:kind=${effectDef.kind}`,
             ],
           });
 
@@ -592,6 +673,7 @@ export function combatCastSpell(
               `magic:cn=${cnBase}`,
               `magic:dosTotal=${effectiveDoS}`,
               `magic:overcast=${overcast}`,
+              `magic:kind=${effectDef.kind}`,
             ],
           });
 
@@ -610,17 +692,230 @@ export function combatCastSpell(
       }
     }
 
+    // Handle special operations (e.g., combatDisarmAtRange)
+    if (effectDef.specialOp === "combatDisarmAtRange" && validTargetActors.length > 0) {
+      const disarmedTargetIds = new Set<ActorId>();
+
+      for (const target of validTargetActors) {
+        // For ranged disarm, we need to perform an opposed check first
+        // Then if successful, apply disarm effect
+        const opposedStat = effectDef.opposedStat || "STR";
+        const opposedDifficulty = effectDef.opposedDifficulty || "-20";
+
+        const defenderCheck: SingleCheck = {
+          id: `combat:cast:disarm:opposed:${spell.id}:${target.actorId}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: target.actorId },
+          key: opposedStat,
+          difficulty: opposedDifficulty,
+        };
+
+        const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+          defenderCheck,
+          storyPack,
+          updatedSave,
+          rng,
+          `res:disarm:opposed:${spell.id}:${target.actorId}`
+        );
+
+        updatedSave = saveAfterDefenderCheck;
+
+        if (!defenderResult) {
+          // Check failed - treat as resisted
+          const targetName = target.actor.name || target.actorId;
+          const resistedLog = `${targetName} resiste al disarmo a distanza`;
+          updatedSave = appendCombatLog(updatedSave, resistedLog);
+          continue;
+        }
+
+        const attackerDoS = effectiveDoS;
+        const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+
+        if (attackerDoS > defenderDoS) {
+          // Success - perform disarm (reuse disarm logic but skip range/action checks)
+          const defender = target.actor;
+          const defenderMainHand = defender.equipment?.mainHand;
+          const defenderWeaponId = defenderMainHand?.kind === "weapon" ? defenderMainHand.id : null;
+
+          if (defenderWeaponId && defenderWeaponId !== "unarmed") {
+            // Create ItemRef for the weapon being dropped
+            const weaponItemRef: ItemRef = { kind: "weapon", id: defenderWeaponId };
+
+            // Update defender equipment (clear mainHand)
+            const updatedDefender = {
+              ...defender,
+              equipment: {
+                ...defender.equipment,
+                mainHand: null,
+              },
+            };
+
+            // Add weapon to groundItemsByPos at defender position
+            const defenderPos = combat.positions[target.actorId];
+            if (defenderPos) {
+              const posKeyStr = posKey(defenderPos);
+              const currentGroundItemsByPos = combat.groundItemsByPos || {};
+              const itemsAtPos = currentGroundItemsByPos[posKeyStr] || [];
+              const updatedGroundItemsByPos = {
+                ...currentGroundItemsByPos,
+                [posKeyStr]: [...itemsAtPos, weaponItemRef],
+              };
+
+              const updatedCombat = {
+                ...updatedSave.runtime.combat!,
+                groundItemsByPos: updatedGroundItemsByPos,
+              };
+
+              updatedSave = {
+                ...updatedSave,
+                actorsById: {
+                  ...updatedSave.actorsById,
+                  [target.actorId]: updatedDefender,
+                },
+                runtime: {
+                  ...updatedSave.runtime,
+                  combat: updatedCombat,
+                },
+              };
+
+              const attacker = updatedSave.actorsById[turnActorId];
+              const attackerName = attacker?.name || turnActorId;
+              const targetName = target.actor.name || target.actorId;
+              const weaponName = save.weaponsById?.[defenderWeaponId]?.name || "l'arma";
+              const disarmLog =
+                attacker?.kind === "PC"
+                  ? `Disarmi ${targetName} a distanza! ${weaponName} cade a terra.`
+                  : `${attackerName} disarma ${targetName} a distanza! ${weaponName} cade a terra.`;
+              updatedSave = appendCombatLog(updatedSave, disarmLog);
+              disarmedTargetIds.add(target.actorId);
+            }
+          }
+        }
+      }
+
+      // Remove disarmed targets from valid targets (they've been processed)
+      validTargetActors = validTargetActors.filter((t) => !disarmedTargetIds.has(t.actorId));
+    }
+
+    // Apply fatigue effects (for mentis_disrupt)
+    if (effectDef.kind === "fatigue" && validTargetActors.length > 0) {
+      for (const target of validTargetActors) {
+        let totalFatigue = 0;
+
+        // Use applyFatigueDice if present
+        if (effectDef.applyFatigueDice) {
+          // Roll fatigue dice
+          let fatigueRolls: number[] = [];
+          for (let i = 0; i < effectDef.applyFatigueDice.dice; i++) {
+            const roll = rng.nextInt(1, effectDef.applyFatigueDice.sides);
+            fatigueRolls.push(roll);
+            totalFatigue += roll;
+          }
+
+          // Scale with overcast
+          totalFatigue += overcast;
+
+          // Apply fatigue
+          updatedSave = applyFatigue(updatedSave, target.actorId, totalFatigue, catalogs);
+
+          const targetName = target.actor.name || target.actorId;
+          const fatigueLog = `${targetName} subisce ${totalFatigue} Fatigue (${effectDef.applyFatigueDice.dice}d${
+            effectDef.applyFatigueDice.sides
+          }${overcast > 0 ? ` + ${overcast} overcast` : ""})`;
+          updatedSave = appendCombatLog(updatedSave, fatigueLog);
+
+          // Log fatigue application (tags are in combat log, not runtime log)
+          // Runtime log doesn't support tags, so we just log the message
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: `${targetName} subisce ${totalFatigue} Fatigue (spell: ${spell.id}, kind: ${effectDef.kind})`,
+            turnCounter: combat.turnCounter,
+            resolutionId,
+          });
+        }
+      }
+    }
+
+    // Apply temp modifiers with duration (for mentis_sensory_distortion, vates_premonition)
+    if (effectDef.tempModifier && validTargetActors.length > 0) {
+      for (const target of validTargetActors) {
+        const scaledDuration = effectDef.tempModifier.durationRounds + overcast;
+        const untilTurnCounter = combat.turnCounter + scaledDuration;
+        const modifierId = `spell:${spell.id}:${target.actorId}`;
+
+        // Remove existing modifier with same id to prevent stacking
+        const existingModifiers = (target.actor.status.tempModifiers || []).filter((mod) => mod.id !== modifierId);
+
+        const updatedTargetActor = {
+          ...target.actor,
+          status: {
+            ...target.actor.status,
+            tempModifiers: [
+              ...existingModifiers,
+              {
+                id: modifierId,
+                scope: effectDef.tempModifier.scope,
+                key: null, // Applies to all checks when scope is "all"
+                value:
+                  spell.id === "spell:vates_premonition"
+                    ? effectDef.tempModifier.value + overcast * 5
+                    : effectDef.tempModifier.value,
+                expires: untilTurnCounter,
+              },
+            ],
+          },
+        };
+
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: updatedTargetActor,
+          },
+        };
+
+        const targetName = target.actor.name || target.actorId;
+        // Premonition adds +5 per overcast, other temp modifiers don't scale
+        const modifierValue =
+          spell.id === "spell:vates_premonition"
+            ? effectDef.tempModifier.value + overcast * 5
+            : effectDef.tempModifier.value;
+        const modifierLog = `${targetName} ottiene modificatore ${
+          modifierValue >= 0 ? "+" : ""
+        }${modifierValue} a tutti i test (durata: ${scaledDuration} turni)`;
+        updatedSave = appendCombatLog(updatedSave, modifierLog);
+      }
+    }
+
     // Apply conditions if effect has conditions
-    if (effectDef.applyConditions && targetActors.length > 0) {
+    if (effectDef.applyConditions && validTargetActors.length > 0) {
       for (const conditionSpec of effectDef.applyConditions) {
-        for (const target of targetActors) {
-          const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
-          const untilTurnCounter = combat.turnCounter + scaled.durationTurns;
+        for (const target of validTargetActors) {
+          let finalStacks: number;
+          let finalDuration: number;
+
+          if (conditionSpec.conditionId === "force_shield") {
+            // Force Shield: stacks = cnBase + overcast, duration = cnBase + overcast
+            finalStacks = cnBase + overcast;
+            finalDuration = cnBase + overcast;
+          } else if (conditionSpec.conditionId === "steel_body" || conditionSpec.conditionId === "warp_speed") {
+            // Steel Body / Warp Speed: stacks = 1 + overcast (for scaling bonuses)
+            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
+            finalStacks = 1 + overcast;
+            finalDuration = scaled.durationTurns;
+          } else {
+            // Other conditions: use normal scaling
+            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
+            finalStacks = scaled.stacks;
+            finalDuration = scaled.durationTurns;
+          }
+
+          const untilTurnCounter = combat.turnCounter + finalDuration;
 
           const updatedTargetActor = addConditionToActor(
             target.actor,
             conditionSpec.conditionId as any,
-            scaled.stacks,
+            finalStacks,
             untilTurnCounter,
             `spell:${spell.id}`
           );
@@ -636,7 +931,7 @@ export function combatCastSpell(
           // Log condition application
           const targetName = target.actor.name || target.actorId;
           const conditionName = conditionSpec.conditionId;
-          const conditionLog = `${targetName} ottiene ${conditionName} (stacks ${scaled.stacks}, durata ${scaled.durationTurns} turni)`;
+          const conditionLog = `${targetName} ottiene ${conditionName} (stacks ${finalStacks}, durata ${finalDuration} turni)`;
           updatedSave = appendCombatLog(updatedSave, conditionLog);
         }
       }
@@ -658,6 +953,7 @@ export function combatCastSpell(
           `magic:cn=${cnBase}`,
           `magic:dosTotal=${effectiveDoS}`,
           `magic:overcast=${overcast}`,
+          `magic:kind=${effectDef.kind}`,
           ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
         ],
       },

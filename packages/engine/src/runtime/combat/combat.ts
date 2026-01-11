@@ -15,6 +15,8 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
 import { applyDamageToActor } from "./criticalDamage";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
+import { performCheckWithSave } from "../checks";
+import type { SingleCheck } from "../types";
 
 /**
  * Checks if combat should end based on faction deaths
@@ -495,6 +497,72 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           }) || [];
 
         // Check if combat should end based on factions
+      }
+    }
+
+    // Check for bound condition - escape attempt
+    if (hasCondition(currentActor, "bound")) {
+      const boundCondition = currentActor.conditions?.bound;
+      if (boundCondition?.untilTurnCounter !== undefined && boundCondition.untilTurnCounter >= newTurnCounter) {
+        // Bound: set move to 0 and attempt escape
+        newTurnState = {
+          ...newTurnState,
+          moveRemaining: 0,
+        };
+
+        // Create RNG for escape check
+        const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
+
+        // Escape check: STR test -20
+        const escapeCheck: SingleCheck = {
+          id: `combat:bound:escape:${currentTurnActorId}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: currentTurnActorId },
+          key: "STR",
+          difficulty: "-20",
+        };
+
+        const { result, save: saveAfterCheck } = performCheckWithSave(
+          escapeCheck,
+          undefined, // storyPack not needed for simple stat check
+          updatedSave,
+          rng,
+          `res:bound:escape:${currentTurnActorId}`
+        );
+
+        updatedSave = {
+          ...saveAfterCheck,
+          runtime: {
+            ...saveAfterCheck.runtime,
+            rngCounter: rng.getCounter(),
+          },
+        };
+
+        if (result.success) {
+          // Escape successful - remove bound condition
+          currentActor = removeConditionFromActor(currentActor, "bound");
+          updatedSave = {
+            ...updatedSave,
+            actorsById: {
+              ...updatedSave.actorsById,
+              [currentTurnActorId]: currentActor,
+            },
+          };
+          const escapeLog = isPlayerActor
+            ? "Riesci a liberarti dai legami!"
+            : `${actorName} riesce a liberarsi dai legami!`;
+          updatedSave = appendCombatLog(updatedSave, escapeLog);
+        } else {
+          // Still bound
+          const boundLog = isPlayerActor
+            ? "Sei legato e non puoi muoverti."
+            : `${actorName} è legato e non può muoversi.`;
+          updatedSave = appendCombatLog(updatedSave, boundLog);
+        }
+      }
+    }
+
+    // Check if combat should end based on factions
         const endCheckResult = shouldCombatEnd(updatedSave, updatedAliveParticipants);
 
         if (endCheckResult.shouldEnd) {

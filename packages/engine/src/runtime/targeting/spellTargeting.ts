@@ -27,7 +27,8 @@ function rangeModeToMultiplier(rangeMode: string): number {
 export function buildTargetingDefinition(
   spell: SpellDefinition,
   effect: EffectDefinition,
-  cnBase: number
+  cnBase: number,
+  overcast?: number
 ): TargetingDefinition {
   const shape = spell.targetShape;
 
@@ -38,7 +39,13 @@ export function buildTargetingDefinition(
   // Calculate rangeSquares
   let rangeSquares: number;
   if (spell.rangeSquares !== undefined) {
-    rangeSquares = spell.rangeSquares;
+    // For spells with explicit rangeSquares, add overcast if effect has specialOp requiring it
+    // (e.g., kinesis_disarm: rangeSquares = 4 + overcast)
+    if (effect.specialOp === "combatDisarmAtRange" && overcast !== undefined) {
+      rangeSquares = spell.rangeSquares + overcast;
+    } else {
+      rangeSquares = spell.rangeSquares;
+    }
   } else if (spell.rangeMultiplier !== undefined) {
     rangeSquares = cnBase * spell.rangeMultiplier;
   } else {

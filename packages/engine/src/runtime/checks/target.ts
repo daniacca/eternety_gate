@@ -102,7 +102,12 @@ export function computeTargetBreakdown(
 
   // Calculate temp modifiers sum for debug tags
   let tempModsSum = 0;
+  const currentTurnCounter = save.runtime.combat?.turnCounter ?? -1;
   for (const tempMod of actor.status.tempModifiers) {
+    // Check expiration: if expires is set and current turn >= expires, skip this modifier
+    if (tempMod.expires !== undefined && currentTurnCounter >= tempMod.expires) {
+      continue;
+    }
     if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
       tempModsSum += tempMod.value;
     }

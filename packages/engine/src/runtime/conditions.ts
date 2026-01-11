@@ -147,6 +147,12 @@ export function computeCombatModifiersFromConditions(actor: Actor): {
     allowDodge = false;
   }
 
+  // Bound: -20 to melee (attack/parry/dodge)
+  // Note: Movement blocking is handled in advanceCombatTurn (moveRemaining=0 + escape attempt)
+  if (hasCondition(actor, "bound")) {
+    toHitPenalty += 20;
+  }
+
   return {
     toHitPenalty: toHitPenalty > 0 ? toHitPenalty : undefined,
     moveDelta: moveDelta !== 0 ? moveDelta : undefined,

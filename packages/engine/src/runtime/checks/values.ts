@@ -48,8 +48,13 @@ export function getStatOrSkillValue(
       }
     }
 
-    // Apply temp modifiers
+    // Apply temp modifiers (check expiration)
+    const currentTurnCounter = save.runtime.combat?.turnCounter ?? -1;
     for (const tempMod of actor.status.tempModifiers) {
+      // Check expiration: if expires is set and current turn >= expires, skip this modifier
+      if (tempMod.expires !== undefined && currentTurnCounter >= tempMod.expires) {
+        continue;
+      }
       if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }
@@ -97,8 +102,13 @@ export function getStatOrSkillValue(
       }
     }
 
-    // Apply temp modifiers
+    // Apply temp modifiers (check expiration)
+    const currentTurnCounter = save.runtime.combat?.turnCounter ?? -1;
     for (const tempMod of actor.status.tempModifiers) {
+      // Check expiration: if expires is set and current turn >= expires, skip this modifier
+      if (tempMod.expires !== undefined && currentTurnCounter >= tempMod.expires) {
+        continue;
+      }
       if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }

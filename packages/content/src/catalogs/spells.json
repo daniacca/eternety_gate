@@ -126,5 +126,288 @@
         "traitId": "trait:weaver"
       }
     ]
+  },
+  {
+    "id": "spell:pyra_flame_control",
+    "name": "Controllo delle Fiamme",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:pyra_flame_control_touch",
+    "baseCN": 1,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "rangeSquares": 1,
+    "notes": "Touch heat burst",
+    "xpCost": 400,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_force_push",
+    "name": "Spinta di Forza",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_force_push",
+    "baseCN": 1,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Push/backlash simplified MVP",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_force_shield",
+    "name": "Scudo di Forza",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_force_shield",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Grants temporary NaturalArmor",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_push"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_disarm",
+    "name": "Disarmo",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_disarm",
+    "baseCN": 2,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeSquares": 4,
+    "notes": "Ranged disarm via opposed check",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_push"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WS",
+        "value": 35
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_force_bind",
+    "name": "Blocco di Forza",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_force_bind",
+    "baseCN": 1,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Binds target, preventing movement",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_push"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 35
+      }
+    ]
+  },
+  {
+    "id": "spell:mentis_disrupt",
+    "name": "Disrupt",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_disrupt",
+    "baseCN": 1,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Applies fatigue to target",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:mentis_suggestion",
+    "name": "Suggestione",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_suggestion",
+    "baseCN": 2,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Opposed check to stun target",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_disrupt"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "INT",
+        "value": 35
+      }
+    ]
+  },
+  {
+    "id": "spell:mentis_sensory_distortion",
+    "name": "Distorsione dei Sensi",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_sensory_distortion",
+    "baseCN": 2,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Applies -20 to all tests",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_suggestion"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "INT",
+        "value": 40
+      }
+    ]
+  },
+  {
+    "id": "spell:vates_premonition",
+    "name": "Presagio",
+    "discipline": "VATES",
+    "castTime": "free",
+    "effectId": "effect:vates_premonition",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Grants +20 to all tests until end of next round",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "PER",
+        "value": 35
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_mend",
+    "name": "Rigenerazione Minore",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_mend",
+    "baseCN": 1,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "rangeSquares": 1,
+    "notes": "Stronger heal (2d5) with +2 RF cost",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:soothe_wounds"
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_suture",
+    "name": "Sutura",
+    "discipline": "CORPUS",
+    "castTime": "fullRound",
+    "effectId": "effect:corpus_suture",
+    "baseCN": 2,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "rangeSquares": 1,
+    "notes": "Full round strong heal (3d5) with +3 RF cost",
+    "xpCost": 1100,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 40
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_steel_body",
+    "name": "Corpo d'Acciaio",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_steel_body",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Grants temporary Unnatural STR +1 and TOU +1",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:soothe_wounds"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 35
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_warp_speed",
+    "name": "Warp Speed",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_warp_speed",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Grants temporary Unnatural WS/BS/AGI +1",
+    "xpCost": 1000,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 40
+      }
+    ]
   }
 ]

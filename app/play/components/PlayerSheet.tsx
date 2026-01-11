@@ -33,6 +33,10 @@ const conditionLabels: Record<ConditionId, string> = {
   bleeding: "Sanguinante",
   fatigue: "Affaticato",
   unconscious: "Incosciente",
+  bound: "Legato",
+  force_shield: "Scudo di Forza",
+  steel_body: "Corpo d'Acciaio",
+  warp_speed: "Warp Speed",
 };
 
 const statLabels: Record<string, string> = {
@@ -256,6 +260,48 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
                 onPress={() => setShowLearnSpells(!showLearnSpells)}
               >
                 <Text style={styles.actionButtonText}>{showLearnSpells ? "Nascondi" : "Impara Incantesimi"}</Text>
+              </TouchableOpacity>
+              {/* Debug: Learn all spells button */}
+              <TouchableOpacity
+                style={[styles.actionButton, { marginTop: 8, backgroundColor: "#ff6b6b" }]}
+                onPress={() => {
+                  if (applySystemEffects) {
+                    // Calculate total XP needed
+                    const totalXpNeeded = allSpells.reduce((sum, spell) => {
+                      const isLearned = learnedSpells.some((s) => s.id === spell.id);
+                      return isLearned ? sum : sum + (spell.xpCost || 0);
+                    }, 0);
+
+                    // Grant XP first (if needed)
+                    const currentXp = save.meta?.xp ?? 0;
+                    const xpToGrant = Math.max(0, totalXpNeeded - currentXp);
+
+                    const effects: Effect[] = [];
+                    if (xpToGrant > 0) {
+                      effects.push({
+                        op: "addCounter",
+                        path: "meta.xp",
+                        value: xpToGrant,
+                      });
+                    }
+
+                    // Learn all spells
+                    allSpells.forEach((spell) => {
+                      const isLearned = learnedSpells.some((s) => s.id === spell.id);
+                      if (!isLearned) {
+                        effects.push({
+                          op: "learnSpell",
+                          actorId: activeActor.id,
+                          spellId: spell.id,
+                        });
+                      }
+                    });
+
+                    applySystemEffects(effects);
+                  }
+                }}
+              >
+                <Text style={styles.actionButtonText}>Impara tutte le magie (debug)</Text>
               </TouchableOpacity>
               {showLearnSpells && (
                 <View style={{ marginTop: 8 }}>

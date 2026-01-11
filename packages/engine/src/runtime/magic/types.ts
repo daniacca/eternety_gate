@@ -49,6 +49,7 @@ export type EffectDefinition = {
   discipline: Discipline;
   castingStat: StatKey; // Stat used for casting check (WIS, INT, RES, etc.)
   baseCN: number; // Base Casting Number
+  kind: "damage" | "heal" | "fatigue" | "blessing" | "malediction"; // Semantic kind of effect
   baseDamageDice?: {
     dice: number; // Number of dice
     sides: number; // Sides per die (e.g. 10 for d10)
@@ -61,7 +62,20 @@ export type EffectDefinition = {
     value?: number;
   }>;
   specialFatigue?: number; // Extra RF always applied on success
-  opposed?: boolean; // For later; MVP can ignore
+  rfOnSuccess?: number; // RF applied on successful cast (in addition to other RF rules)
+  opposed?: boolean; // If true, requires opposed check
+  opposedStat?: StatKey; // Stat for defender's opposed check (defaults to same as castingStat)
+  opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "NORMAL")
+  applyFatigueDice?: {
+    dice: number;
+    sides: number;
+  }; // Roll fatigue dice and apply to target
+  tempModifier?: {
+    scope: "check" | "all";
+    value: number;
+    durationRounds: number;
+  }; // Temporary modifier with duration
+  specialOp?: string; // Special operation (e.g., "combatDisarmAtRange")
   description?: string;
 };
 
@@ -74,4 +88,3 @@ export type SpellTargetSpec = {
   position?: { x: number; y: number }; // For area effects
   direction?: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; // For cone/line
 };
-
