@@ -147,12 +147,12 @@ export function combatKnockdown(
     attacker: {
       actorRef: { mode: "byId", actorId: effect.attackerId },
       key: "STR",
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
     },
     defender: {
       actorRef: { mode: "byId", actorId: effect.defenderId },
       key: "STR",
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
     },
   };
 

@@ -65,7 +65,7 @@ export type EffectDefinition = {
   rfOnSuccess?: number; // RF applied on successful cast (in addition to other RF rules)
   opposed?: boolean; // If true, requires opposed check
   opposedStat?: StatKey; // Stat for defender's opposed check (defaults to same as castingStat)
-  opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "NORMAL")
+  opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "Challenging")
   applyFatigueDice?: {
     dice: number;
     sides: number;

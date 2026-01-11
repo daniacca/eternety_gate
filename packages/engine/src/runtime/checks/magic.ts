@@ -29,7 +29,7 @@ export function performMagicChannelCheck(
 
   // Magic channel behaves like a normal single check
   // Uses key, respects difficulty and tempModifiers
-  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "NORMAL", save, storyPack);
+  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "Challenging", save, storyPack);
 
   // Apply focus bonuses for channeling
   let channelBonus = 0;
@@ -107,7 +107,7 @@ export function performMagicEffectCheck(
   if (!actor) return null;
 
   // Magic effect performs a D100 check using chosenStat
-  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "NORMAL", save, storyPack);
+  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "Challenging", save, storyPack);
 
   // Apply focus bonuses for casting
   let castBonus = 0;

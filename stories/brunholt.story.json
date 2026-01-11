@@ -93,13 +93,19 @@
   "systems": {
     "checks": {
       "difficultyBands": {
-        "VERY_EASY": 60,
-        "EASY": 40,
-        "MODERATE": 20,
-        "NORMAL": 0,
-        "HARD": -20,
-        "VERY_HARD": -40,
-        "NEAR_IMPOSSIBLE": -60
+        "Trivial": 60,
+        "Elementary": 50,
+        "Simple": 40,
+        "Easy": 30,
+        "Routine": 20,
+        "Ordinary": 10,
+        "Challenging": 0,
+        "Difficult": -10,
+        "Hard": -20,
+        "Very Hard": -30,
+        "Arduous": -40,
+        "Punishing": -50,
+        "Hellish": -60
       },
       "criticals": {
         "autoSuccess": [1, 2, 3],
@@ -453,7 +459,7 @@
             {
               "id": "CHK_PER_STILL_AIR",
               "kind": "single",
-              "difficulty": "MODERATE",
+              "difficulty": "Routine",
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -507,11 +513,11 @@
               "kind": "multi",
               "options": [
                 {
-                  "difficulty": "NORMAL",
+                  "difficulty": "Challenging",
                   "key": "CHA"
                 },
                 {
-                  "difficulty": "NORMAL",
+                  "difficulty": "Challenging",
                   "key": "WIL"
                 }
               ],
@@ -654,7 +660,7 @@
             {
               "id": "CHK_PER_GRANARY",
               "kind": "single",
-              "difficulty": "HARD",
+              "difficulty": "Hard",
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -691,7 +697,7 @@
             {
               "id": "CHK_SIGNE",
               "kind": "single",
-              "difficulty": "MODERATE",
+              "difficulty": "Routine",
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -733,7 +739,7 @@
             {
               "id": "CHK_PER_WOODS",
               "kind": "single",
-              "difficulty": "HARD",
+              "difficulty": "Hard",
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -817,7 +823,7 @@
             {
               "id": "CHK_PER_HOUSE",
               "kind": "single",
-              "difficulty": "HARD",
+              "difficulty": "Hard",
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -854,7 +860,7 @@
             {
               "id": "CHK_FOR_FORCE",
               "kind": "single",
-              "difficulty": "VERY_HARD",
+              "difficulty": "Arduous",
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1059,7 +1065,7 @@
             {
               "id": "CHK_SAG_CHILD",
               "kind": "single",
-              "difficulty": "MODERATE",
+              "difficulty": "Routine",
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1126,7 +1132,7 @@
             {
               "id": "CHK_SAG_HARL",
               "kind": "single",
-              "difficulty": "HARD",
+              "difficulty": "Hard",
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1214,7 +1220,7 @@
             {
               "id": "CHK_CAR_EIRIK",
               "kind": "single",
-              "difficulty": "MODERATE",
+              "difficulty": "Routine",
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1658,7 +1664,7 @@
             {
               "label": "Intaglio del destino",
               "kind": "single",
-              "difficulty": "VERY_HARD",
+              "difficulty": "Arduous",
               "onFailure": [
                 {
                   "op": "addCounter",

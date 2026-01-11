@@ -261,7 +261,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -277,7 +277,7 @@ describe("checks", () => {
         id: "test_check",
         kind: "single",
         key: "STR",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       };
 
       const result = performCheck(check, storyPack, save, rng);
@@ -292,7 +292,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -308,7 +308,7 @@ describe("checks", () => {
         id: "test_check",
         kind: "single",
         key: "STR",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       };
 
       const result = performCheck(check, storyPack, save, rng);
@@ -322,7 +322,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0, HARD: -20 },
+            difficultyBands: { Challenging: 0, Hard: -20 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -338,7 +338,7 @@ describe("checks", () => {
         id: "test_check",
         kind: "single",
         key: "STR",
-        difficulty: "HARD",
+        difficulty: "Hard",
       };
 
       const result = performCheck(check, storyPack, save, rng);
@@ -358,7 +358,7 @@ describe("checks", () => {
         kind: "single",
         actorRef: { mode: "byId", actorId: "NONEXISTENT" },
         key: "STR",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       };
 
       const result = performCheck(check, storyPack, save, rng);
@@ -372,7 +372,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -411,7 +411,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -451,7 +451,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -482,7 +482,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -515,7 +515,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -532,7 +532,7 @@ describe("checks", () => {
         id: "magic_channel",
         kind: "magicChannel",
         key: "WIL",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
         targetDoS: 2,
       };
 
@@ -546,7 +546,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -563,7 +563,7 @@ describe("checks", () => {
         id: "magic_channel",
         kind: "magicChannel",
         key: "WIL",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
         targetDoS: 2,
       };
 
@@ -579,7 +579,7 @@ describe("checks", () => {
       const storyPack = makeTestStoryPack({
         systems: {
           checks: {
-            difficultyBands: { NORMAL: 0 },
+            difficultyBands: { Challenging: 0 },
             criticals: {
               autoSuccess: [1, 2, 3],
               autoFail: [98, 99, 100],
@@ -596,7 +596,7 @@ describe("checks", () => {
         id: "magic_effect",
         kind: "magicEffect",
         key: "WIL",
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
         castingNumberDoS: 2,
       };
 

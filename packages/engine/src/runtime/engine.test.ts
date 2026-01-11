@@ -154,9 +154,9 @@ describe("applyChoice", () => {
       systems: {
         checks: {
           difficultyBands: {
-            EASY: 20,
-            NORMAL: 0,
-            HARD: -20,
+            Easy: 30,
+            Challenging: 0,
+            Hard: -20,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -179,7 +179,7 @@ describe("applyChoice", () => {
                   id: "test_check",
                   kind: "single",
                   key: "PER",
-                  difficulty: "NORMAL",
+                  difficulty: "Challenging",
                   onSuccess: [
                     {
                       op: "setFlag",
@@ -223,7 +223,7 @@ describe("applyChoice", () => {
         WS: 50,
         BS: 50,
         INI: 50,
-        PER: 50, // PER = 50, so target = 50 + 0 (NORMAL) = 50
+        PER: 50, // PER = 50, so target = 50 + 0 (Challenging) = 50
       },
       resources: { wounds: 0, rf: 100, peq: 100 },
       skills: {},
@@ -373,9 +373,9 @@ describe("Single check resolution", () => {
       systems: {
         checks: {
           difficultyBands: {
-            EASY: 20,
-            NORMAL: 0,
-            HARD: -20,
+            Easy: 30,
+            Challenging: 0,
+            Hard: -20,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -461,7 +461,7 @@ describe("Single check resolution", () => {
       id: "test_check",
       kind: "single" as const,
       key: "PER" as const,
-      difficulty: "HARD", // -20 modifier
+      difficulty: "Hard", // -20 modifier
     };
 
     // Expected target: 60 (base) + 10 (tempModifier) + (-20) (difficulty) = 50
@@ -489,7 +489,7 @@ describe("Single check resolution", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -577,7 +577,7 @@ describe("Single check resolution", () => {
       id: "test_check",
       kind: "single" as const,
       key: "SKILL:VATES" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
     };
 
     // Expected target: 40 (skill) + 0 (difficulty) = 40
@@ -720,7 +720,7 @@ describe("Sequence check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -747,13 +747,13 @@ describe("Sequence check", () => {
                       id: "step1",
                       kind: "single",
                       key: "PER",
-                      difficulty: "NORMAL",
+                      difficulty: "Challenging",
                     },
                     {
                       id: "step2",
                       kind: "single",
                       key: "INT",
-                      difficulty: "NORMAL",
+                      difficulty: "Challenging",
                     },
                   ],
                 },
@@ -837,7 +837,7 @@ describe("Sequence check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
             IMPOSSIBLE: -200, // Very hard to pass
           },
           criticals: {
@@ -865,7 +865,7 @@ describe("Sequence check", () => {
                       id: "step1",
                       kind: "single",
                       key: "PER",
-                      difficulty: "NORMAL",
+                      difficulty: "Challenging",
                     },
                     {
                       id: "step2",
@@ -953,14 +953,14 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 20 (success with DoS)
-    // Target = INT 60 + NORMAL 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
+    // Target = INT 60 + Challenging 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
     const fakeRng = new FakeRng([20]);
 
     const check = {
       id: "magic_channel",
       kind: "magicChannel" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       targetDoS: 1,
       powerMode: "CONTROLLED" as const,
     };
@@ -981,14 +981,14 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 90 (failure)
-    // Target = INT 50 + NORMAL 0 = 50, roll 90 => fail
+    // Target = INT 50 + Challenging 0 = 50, roll 90 => fail
     const fakeRng = new FakeRng([90]);
 
     const check = {
       id: "magic_channel",
       kind: "magicChannel" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       targetDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1010,7 +1010,7 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 40 (success but insufficient DoS)
-    // Target = INT 50 + NORMAL 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
+    // Target = INT 50 + Challenging 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
     // targetDoS = 3, so 1 < 3 => insufficient
     const fakeRng = new FakeRng([40]);
 
@@ -1018,7 +1018,7 @@ describe("Magic checks", () => {
       id: "magic_channel",
       kind: "magicChannel" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       targetDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1040,7 +1040,7 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 10 (success with high DoS)
-    // Target = INT 50 + NORMAL 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
+    // Target = INT 50 + Challenging 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
     // targetDoS = 3, so 4 >= 3 => success
     const fakeRng = new FakeRng([10]);
 
@@ -1048,7 +1048,7 @@ describe("Magic checks", () => {
       id: "magic_channel",
       kind: "magicChannel" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       targetDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1070,14 +1070,14 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 90 (failure)
-    // Target = INT 50 + NORMAL 0 = 50, roll 90 => fail
+    // Target = INT 50 + Challenging 0 = 50, roll 90 => fail
     const fakeRng = new FakeRng([90]);
 
     const check = {
       id: "magic_effect",
       kind: "magicEffect" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       castingNumberDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1097,7 +1097,7 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 40 (success but insufficient DoS)
-    // Target = INT 50 + NORMAL 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
+    // Target = INT 50 + Challenging 0 = 50, roll 40 => DoS = floor((50-40)/10) = 1
     // castingNumberDoS = 3, so 1 < 3 => insufficient
     const fakeRng = new FakeRng([40]);
 
@@ -1105,7 +1105,7 @@ describe("Magic checks", () => {
       id: "magic_effect",
       kind: "magicEffect" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       castingNumberDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1125,7 +1125,7 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 10 (success with high DoS)
-    // Target = INT 50 + NORMAL 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
+    // Target = INT 50 + Challenging 0 = 50, roll 10 => DoS = floor((50-10)/10) = 4
     // castingNumberDoS = 3, so 4 >= 3 => success, extraDos = 4 - 3 = 1
     const fakeRng = new FakeRng([10]);
 
@@ -1133,7 +1133,7 @@ describe("Magic checks", () => {
       id: "magic_effect",
       kind: "magicEffect" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       castingNumberDoS: 3,
       powerMode: "CONTROLLED" as const,
     };
@@ -1154,14 +1154,14 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 22 (doubles, success)
-    // Target = INT 50 + NORMAL 0 = 50, roll 22 => DoS = floor((50-22)/10) = 2
+    // Target = INT 50 + Challenging 0 = 50, roll 22 => DoS = floor((50-22)/10) = 2
     const fakeRng = new FakeRng([22]);
 
     const check = {
       id: "magic_effect",
       kind: "magicEffect" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       castingNumberDoS: 2,
       powerMode: "CONTROLLED" as const,
     };
@@ -1181,14 +1181,14 @@ describe("Magic checks", () => {
     const save = makeTestSave(storyPack, actor);
 
     // Use FakeRng with deterministic roll: 33 (doubles, success)
-    // Target = INT 50 + NORMAL 0 = 50, roll 33 => DoS = floor((50-33)/10) = 1
+    // Target = INT 50 + Challenging 0 = 50, roll 33 => DoS = floor((50-33)/10) = 1
     const fakeRng = new FakeRng([33]);
 
     const check = {
       id: "magic_effect",
       kind: "magicEffect" as const,
       key: "INT" as const,
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
       castingNumberDoS: 1,
       powerMode: "FORCED" as const,
     };
@@ -1212,7 +1212,7 @@ describe("Combat attack check", () => {
     save.actorsById["NPC_1"] = defender;
 
     // Use FakeRng with deterministic roll: 20 (success)
-    // Target = WS 60 + NORMAL 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
+    // Target = WS 60 + Challenging 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
     const fakeRng = new FakeRng([20]);
 
     const check = {
@@ -1514,7 +1514,7 @@ describe("Combat damage application", () => {
     }
 
     // Use FakeRng with deterministic roll: 20 (success with DoS = 4)
-    // Target = WS 60 + NORMAL 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
+    // Target = WS 60 + Challenging 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
     // Damage = max(1, 1 + 4) = 5
     // HP after = max(0, 10 - 5) = 5
     const fakeRng = new FakeRng([20]);
@@ -1996,7 +1996,7 @@ describe("Opposed check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -2020,11 +2020,11 @@ describe("Opposed check", () => {
                   kind: "opposed",
                   attacker: {
                     key: "STR",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                   defender: {
                     key: "TOU",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                 },
               ],
@@ -2140,11 +2140,11 @@ describe("Opposed check", () => {
       kind: "opposed" as const,
       attacker: {
         key: "STR" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
       defender: {
         key: "TOU" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
     };
 
@@ -2183,7 +2183,7 @@ describe("Opposed check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
             IMPOSSIBLE: -200, // Very hard to pass
           },
           criticals: {
@@ -2214,7 +2214,7 @@ describe("Opposed check", () => {
                   defender: {
                     actorRef: { mode: "byId", actorId: "NPC_1" },
                     key: "TOU",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                 },
               ],
@@ -2339,7 +2339,7 @@ describe("Opposed check", () => {
       defender: {
         actorRef: { mode: "byId" as const, actorId: "NPC_1" },
         key: "TOU" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
     };
 
@@ -2373,8 +2373,8 @@ describe("Opposed check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
-            EASY: 20,
+            Challenging: 0,
+            Easy: 30,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -2399,12 +2399,12 @@ describe("Opposed check", () => {
                   attacker: {
                     actorRef: { mode: "byId", actorId: "PC_1" },
                     key: "STR",
-                    difficulty: "EASY", // Easier for attacker
+                    difficulty: "Easy", // Easier for attacker
                   },
                   defender: {
                     actorRef: { mode: "byId", actorId: "NPC_1" },
                     key: "TOU",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                 },
               ],
@@ -2516,10 +2516,10 @@ describe("Opposed check", () => {
     // Use FakeRng with deterministic rolls: [10, 30]
     // Attacker: STR 60 + EASY 20 = target 80, roll 10 => DoS 7 (but let's verify with actual target)
     // Actually, attacker target = 60 + 20 = 80, roll 10 => DoS = floor((80-10)/10) = 7
-    // Defender: TOU 50 + NORMAL 0 = target 50, roll 30 => DoS = floor((50-30)/10) = 2
-    // Wait, let me recalculate: attacker STR 60, difficulty EASY (+20) => target 80
-    // Roll 10 vs 80 => DoS = floor((80-10)/10) = 7
-    // Defender TOU 50, difficulty NORMAL (0) => target 50
+    // Defender: TOU 50 + Challenging 0 = target 50, roll 30 => DoS = floor((50-30)/10) = 2
+    // Wait, let me recalculate: attacker STR 60, difficulty Easy (+30) => target 90
+    // Roll 10 vs 90 => DoS = floor((90-10)/10) = 8
+    // Defender TOU 50, difficulty Challenging (0) => target 50
     // Roll 30 vs 50 => DoS = floor((50-30)/10) = 2
     // So attacker DoS 7 > defender DoS 2, attacker wins with DoS 5
     const fakeRng = new FakeRng([10, 30]);
@@ -2530,12 +2530,12 @@ describe("Opposed check", () => {
       attacker: {
         actorRef: { mode: "byId" as const, actorId: "PC_1" },
         key: "STR" as const,
-        difficulty: "EASY",
+        difficulty: "Easy",
       },
       defender: {
         actorRef: { mode: "byId" as const, actorId: "NPC_1" },
         key: "TOU" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
     };
 
@@ -2572,7 +2572,7 @@ describe("Opposed check", () => {
       systems: {
         checks: {
           difficultyBands: {
-            NORMAL: 0,
+            Challenging: 0,
           },
           criticals: {
             autoSuccess: [1, 2, 3],
@@ -2597,12 +2597,12 @@ describe("Opposed check", () => {
                   attacker: {
                     actorRef: { mode: "byId", actorId: "PC_1" },
                     key: "STR",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                   defender: {
                     actorRef: { mode: "byId", actorId: "NPC_1" },
                     key: "TOU",
-                    difficulty: "NORMAL",
+                    difficulty: "Challenging",
                   },
                 },
               ],
@@ -2713,7 +2713,7 @@ describe("Opposed check", () => {
     };
 
     // Use FakeRng with deterministic rolls: [20, 20]
-    // Both have target 50 (STR/TOU 50 + NORMAL 0), roll 20 => DoS = floor((50-20)/10) = 3
+    // Both have target 50 (STR/TOU 50 + Challenging 0), roll 20 => DoS = floor((50-20)/10) = 3
     // Actually wait, let me verify: target 50, roll 20 => DoS = floor((50-20)/10) = 3
     // But the example says DoS 4, so let me adjust: target 60, roll 20 => DoS = floor((60-20)/10) = 4
     // So both need target 60. Attacker STR 50 + difficulty? Actually, let's set both to have target 60
@@ -2747,12 +2747,12 @@ describe("Opposed check", () => {
       attacker: {
         actorRef: { mode: "byId" as const, actorId: "PC_1" },
         key: "STR" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
       defender: {
         actorRef: { mode: "byId" as const, actorId: "NPC_1" },
         key: "TOU" as const,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       },
     };
 

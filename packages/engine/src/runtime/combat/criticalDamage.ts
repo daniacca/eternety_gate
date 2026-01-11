@@ -109,7 +109,7 @@ export function applyCriticalDamageTiers(
         kind: "single",
         actorRef: { mode: "byId", actorId: actor.id },
         key: saveKey,
-        difficulty: "NORMAL",
+        difficulty: "Challenging",
       };
       const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
       if (!toughnessResult || !toughnessResult.success) {
@@ -123,7 +123,7 @@ export function applyCriticalDamageTiers(
         kind: "single",
         actorRef: { mode: "byId", actorId: actor.id },
         key: saveKey,
-        difficulty: "HARD",
+        difficulty: "Hard",
       };
       const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
       if (!toughnessResult || !toughnessResult.success) {
@@ -137,7 +137,7 @@ export function applyCriticalDamageTiers(
         kind: "single",
         actorRef: { mode: "byId", actorId: actor.id },
         key: saveKey,
-        difficulty: "VERY_HARD",
+        difficulty: "Arduous",
       };
       const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
       if (!toughnessResult || !toughnessResult.success) {

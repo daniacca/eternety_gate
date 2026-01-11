@@ -179,12 +179,12 @@ export function combatDisarm(
     attacker: {
       actorRef: { mode: "byId", actorId: effect.attackerId },
       key: "WS",
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
     },
     defender: {
       actorRef: { mode: "byId", actorId: effect.defenderId },
       key: "WS",
-      difficulty: "NORMAL",
+      difficulty: "Challenging",
     },
   };
 

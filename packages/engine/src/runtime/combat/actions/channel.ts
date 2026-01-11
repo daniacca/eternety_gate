@@ -91,7 +91,7 @@ export function combatChannel(
     kind: "single",
     actorRef: { mode: "byId", actorId: turnActorId },
     key: "WIL", // MVP: use WIL stat directly
-    difficulty: "NORMAL",
+    difficulty: "Challenging",
   };
 
   // Generate resolutionId

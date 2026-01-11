@@ -146,7 +146,7 @@ describe("criticalDamage", () => {
       });
       const save = makeTestSave(storyPack, actor);
       // Tier 1: no roll, Tier 2: d5 roll, Tier 3-6: no rolls, Tier 7: toughness check (d100)
-      // Use a high roll (90) to fail the toughness check (TOU 30 + NORMAL difficulty = target ~40)
+      // Use a high roll (90) to fail the toughness check (TOU 30 + Challenging difficulty = target ~30)
       const d100ForTier2 = FakeRng.d100ForNextInt(2, 1, 5);
       const d100ForTier6 = FakeRng.d100ForNextInt(3, 1, 5); // Tier 6 stunned duration
       const d100ForToughness = 90; // High roll = failure
@@ -166,7 +166,7 @@ describe("criticalDamage", () => {
       });
       const save = makeTestSave(storyPack, actor);
       // Tier 1: no roll, Tier 2: d5 roll, Tier 3-6: no rolls, Tier 7: toughness check (d100)
-      // Use a low roll (10) to pass the toughness check (TOU 70 + NORMAL = target ~80)
+      // Use a low roll (10) to pass the toughness check (TOU 70 + Challenging = target ~70)
       const d100ForTier2 = FakeRng.d100ForNextInt(2, 1, 5);
       const d100ForTier6 = FakeRng.d100ForNextInt(3, 1, 5); // Tier 6 stunned duration
       const d100ForToughness = 10; // Low roll = success

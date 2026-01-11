@@ -18,14 +18,14 @@ export function performOpposedCheck(
   const attackerBreakdown = computeTargetBreakdown(
     attacker,
     check.attacker.key,
-    check.attacker.difficulty || "NORMAL",
+    check.attacker.difficulty || "Challenging",
     save,
     storyPack
   );
   const defenderBreakdown = computeTargetBreakdown(
     defender,
     check.defender.key,
-    check.defender.difficulty || "NORMAL",
+    check.defender.difficulty || "Challenging",
     save,
     storyPack
   );

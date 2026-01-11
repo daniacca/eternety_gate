@@ -18,20 +18,22 @@ function getEquippedItems(actor: Actor): string[] {
 
 /**
  * Default difficulty bands when storyPack is not available
+ * Based on Table 1-2: Test Difficulties
  */
 const DEFAULT_DIFFICULTY_BANDS: Record<string, number> = {
-  EASY: 30,
-  NORMAL: 0,
-  HARD: -20,
-  VERY_HARD: -40,
-  "+30": 30,
-  "+20": 20,
-  "+10": 10,
-  "-10": -10,
-  "-20": -20,
-  "-30": -30,
-  "-40": -40,
-  "-50": -50,
+  Trivial: 60,
+  Elementary: 50,
+  Simple: 40,
+  Easy: 30,
+  Routine: 20,
+  Ordinary: 10,
+  Challenging: 0,
+  Difficult: -10,
+  Hard: -20,
+  "Very Hard": -30,
+  Arduous: -40,
+  Punishing: -50,
+  Hellish: -60,
 };
 
 /**

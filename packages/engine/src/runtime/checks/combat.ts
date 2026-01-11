@@ -21,7 +21,7 @@ export function computeAttackTarget(
 ): { target: number; tags: string[]; modifier: number } {
   // Determine attack stat (WS for MELEE, BS for RANGED)
   const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
-  const breakdown = computeTargetBreakdown(attacker, attackStatKey, "NORMAL", save, storyPack);
+  const breakdown = computeTargetBreakdown(attacker, attackStatKey, "Challenging", save, storyPack);
 
   // Apply combat modifiers to target
   let combatModifier = 0;
@@ -197,7 +197,7 @@ export function performCombatAttackCheck(
   }
 
   // Get breakdown for base value calculation
-  const breakdown = computeTargetBreakdown(attacker, attackStatKey, "NORMAL", save, storyPack);
+  const breakdown = computeTargetBreakdown(attacker, attackStatKey, "Challenging", save, storyPack);
   const defenderStance = save.runtime.combat?.stancesByActorId?.[defender.id];
   if (defenderStance === "defend") {
     tags.push("combat:defenderStance=defend");
@@ -281,12 +281,12 @@ export function performCombatAttackCheck(
     let dodgeTarget = -Infinity;
 
     if (canParry) {
-      const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "NORMAL", save, storyPack);
+      const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "Challenging", save, storyPack);
       parryTarget = parryBreakdown.target;
     }
 
     if (canDodge) {
-      const dodgeBreakdown = computeTargetBreakdown(defender, dodgeSkillKey, "NORMAL", save, storyPack);
+      const dodgeBreakdown = computeTargetBreakdown(defender, dodgeSkillKey, "Challenging", save, storyPack);
       dodgeTarget = dodgeBreakdown.target;
     }
 
@@ -335,7 +335,7 @@ export function performCombatAttackCheck(
   }
 
   // Roll defense using the chosen skill
-  const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "NORMAL", save, storyPack);
+  const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
   const defenseTarget = defenseBreakdown.target;
 
   const defenseRoll = rng.rollD100();

@@ -220,7 +220,7 @@ export function combatCastSpell(
     kind: "single",
     actorRef: { mode: "byId", actorId: turnActorId },
     key: effectDef.castingStat,
-    difficulty: "NORMAL",
+    difficulty: "Challenging",
   };
 
   // Generate resolutionId
@@ -513,7 +513,7 @@ export function combatCastSpell(
     // Skip this block for combatDisarmAtRange - it handles its own opposed check
     if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && targetActors.length > 0) {
       const opposedStat = effectDef.opposedStat || effectDef.castingStat;
-      const opposedDifficulty = effectDef.opposedDifficulty || "NORMAL";
+      const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
 
       const resistedTargetIds = new Set<ActorId>();
 

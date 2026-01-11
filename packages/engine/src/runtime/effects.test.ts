@@ -571,7 +571,7 @@ describe("effects", () => {
         const storyPack = makeTestStoryPack({
           systems: {
             checks: {
-              difficultyBands: { NORMAL: 0 },
+              difficultyBands: { Challenging: 0 },
               criticals: {
                 autoSuccess: [1, 2, 3],
                 autoFail: [98, 99, 100],
@@ -602,7 +602,7 @@ describe("effects", () => {
         const storyPack = makeTestStoryPack({
           systems: {
             checks: {
-              difficultyBands: { NORMAL: 0 },
+              difficultyBands: { Challenging: 0 },
               criticals: {
                 autoSuccess: [1, 2, 3],
                 autoFail: [98, 99, 100],

@@ -34,7 +34,7 @@ export function processRegeneration(
     kind: "single",
     actorRef: { mode: "byId", actorId },
     key: "TOU",
-    difficulty: "NORMAL",
+    difficulty: "Challenging",
   };
 
   const result = performCheck(toughnessCheck, storyPack, save, rng);

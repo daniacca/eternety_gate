@@ -17,9 +17,19 @@ export function makeTestStoryPack(overrides?: Partial<StoryPack>): StoryPack {
     systems: {
       checks: {
         difficultyBands: {
-          NORMAL: 0,
-          HARD: -20,
-          VERY_HARD: -40,
+          Trivial: 60,
+          Elementary: 50,
+          Simple: 40,
+          Easy: 30,
+          Routine: 20,
+          Ordinary: 10,
+          Challenging: 0,
+          Difficult: -10,
+          Hard: -20,
+          "Very Hard": -30,
+          Arduous: -40,
+          Punishing: -50,
+          Hellish: -60,
         },
         criticals: {
           autoSuccess: [1, 2, 3],
