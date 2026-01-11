@@ -7,7 +7,7 @@ import { rollD100Check } from "./evaluation";
 
 export function performMultiCheck(
   check: MultiCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG
 ): CheckResult {
@@ -34,4 +34,3 @@ export function performMultiCheck(
 
   return rollD100Check(check.id, actor.id, target, storyPack, rng);
 }
-

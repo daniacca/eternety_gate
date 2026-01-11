@@ -41,7 +41,7 @@ export function combatEndTurn(
       combatCycleStartIndex: cycleStart,
     },
   };
-  currentSave = advanceCombatTurn(currentSave);
+  currentSave = advanceCombatTurn(currentSave, storyPack);
 
   // Loop: run NPC turns until it's player's turn again
   let safety = 0;
@@ -51,7 +51,7 @@ export function combatEndTurn(
 
     const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
     currentSave = runNpcTurn(storyPack, currentSave, npcId);
-    currentSave = advanceCombatTurn(currentSave);
+    currentSave = advanceCombatTurn(currentSave, storyPack);
 
     safety++;
     if (safety > 10) break; // safety guard
@@ -59,4 +59,3 @@ export function combatEndTurn(
 
   return { save: currentSave };
 }
-

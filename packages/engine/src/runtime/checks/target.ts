@@ -1,9 +1,4 @@
-import type {
-  StatOrSkillKey,
-  GameSave,
-  Actor,
-  StoryPack,
-} from "../types";
+import type { StatOrSkillKey, GameSave, Actor, StoryPack } from "../types";
 import { getStatOrSkillValue } from "./values";
 import { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
 
@@ -22,11 +17,33 @@ function getEquippedItems(actor: Actor): string[] {
 }
 
 /**
+ * Default difficulty bands when storyPack is not available
+ */
+const DEFAULT_DIFFICULTY_BANDS: Record<string, number> = {
+  EASY: 30,
+  NORMAL: 0,
+  HARD: -20,
+  VERY_HARD: -40,
+  "+30": 30,
+  "+20": 20,
+  "+10": 10,
+  "-10": -10,
+  "-20": -20,
+  "-30": -30,
+  "-40": -40,
+  "-50": -50,
+};
+
+/**
  * Resolves a difficulty string to a modifier number
  */
-export function resolveDifficulty(difficulty: string, storyPack: StoryPack): number {
-  const bands = storyPack.systems.checks.difficultyBands;
-  return bands[difficulty] ?? 0;
+export function resolveDifficulty(difficulty: string, storyPack?: StoryPack): number {
+  if (storyPack) {
+    const bands = storyPack.systems.checks.difficultyBands;
+    return bands[difficulty] ?? 0;
+  }
+  // Use defaults when storyPack is not available
+  return DEFAULT_DIFFICULTY_BANDS[difficulty] ?? 0;
 }
 
 /**
@@ -38,7 +55,7 @@ export function computeTargetBreakdown(
   key: StatOrSkillKey,
   difficulty: string,
   save: GameSave,
-  storyPack: StoryPack
+  storyPack?: StoryPack
 ): {
   baseValue: number;
   tempModsSum: number;
@@ -125,4 +142,3 @@ export function computeTargetBreakdown(
     target,
   };
 }
-

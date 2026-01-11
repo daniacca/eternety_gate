@@ -7,10 +7,7 @@ import { runNpcTurn } from "./npcAi";
  * Processes NPC turns automatically until it's a player's turn
  * This ensures NPCs act immediately when it's their turn
  */
-export function processNpcTurnsUntilPlayerTurn(
-  storyPack: StoryPack,
-  save: GameSave
-): GameSave {
+export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameSave): GameSave {
   const partyIds = new Set(save.party?.actors ?? []);
   let currentSave = save;
   let safety = 0;
@@ -30,9 +27,9 @@ export function processNpcTurnsUntilPlayerTurn(
     // It's an NPC turn - run it
     const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
     currentSave = runNpcTurn(storyPack, currentSave, turnActorId);
-    
+
     // Advance to next turn
-    currentSave = advanceCombatTurn(currentSave);
+    currentSave = advanceCombatTurn(currentSave, storyPack);
 
     safety++;
     if (safety > 20) {

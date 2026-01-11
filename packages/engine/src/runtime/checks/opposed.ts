@@ -6,7 +6,7 @@ import { evaluateRoll } from "./evaluation";
 
 export function performOpposedCheck(
   check: OpposedCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG
 ): CheckResult {
@@ -118,4 +118,3 @@ export function performOpposedCheck(
     tags,
   };
 }
-

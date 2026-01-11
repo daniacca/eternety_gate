@@ -19,9 +19,13 @@ export function getSkillModifierFromRank(rank: number): number {
 /**
  * Gets the base stat value for a skill from the skill catalog
  */
-export function getSkillBaseStat(skillId: string, storyPack: StoryPack): StatKey | null {
+export function getSkillBaseStat(skillId: string, storyPack?: StoryPack): StatKey | null {
+  if (!storyPack) {
+    // When storyPack is not available, we can't determine the base stat
+    // Return null to indicate unknown (will default to 0 in computeTargetBreakdown)
+    return null;
+  }
   const skills = storyPack.skills || [];
   const skill = skills.find((s: any) => s.id === skillId);
   return skill?.baseStat || null;
 }
-

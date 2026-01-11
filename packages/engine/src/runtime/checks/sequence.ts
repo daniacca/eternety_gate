@@ -2,11 +2,11 @@ import type { SequenceCheck, CheckResult, StoryPack, GameSave, Check } from "../
 import { type IRNG } from "../rng";
 
 // Type for check handler function - will be provided by index.ts
-type CheckHandler = (check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG) => CheckResult;
+type CheckHandler = (check: Check, storyPack: StoryPack | undefined, save: GameSave, rng: IRNG) => CheckResult;
 
 export function performSequenceCheck(
   check: SequenceCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
   performCheckHandler: CheckHandler
@@ -65,4 +65,3 @@ export function performSequenceCheck(
     tags,
   };
 }
-

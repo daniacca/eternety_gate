@@ -1,19 +1,5 @@
-import type {
-  Check,
-  SingleCheck,
-  MultiCheck,
-  OpposedCheck,
-  SequenceCheck,
-  MagicChannelCheck,
-  MagicEffectCheck,
-  CombatAttackCheck,
-  CheckResult,
-  StoryPack,
-  GameSave,
-} from "../types";
+import type { Check, CheckResult, StoryPack, GameSave } from "../types";
 import { type IRNG } from "../rng";
-import { resolveActor } from "./resolve";
-import { getStatOrSkillValue } from "./values";
 import { performSingleCheck } from "./single";
 import { performMultiCheck } from "./multi";
 import { performOpposedCheck } from "./opposed";
@@ -21,31 +7,6 @@ import { performSequenceCheck } from "./sequence";
 import { performMagicChannelCheck, performMagicEffectCheck } from "./magic";
 import { performCombatAttackCheck } from "./combat";
 import { appendRuntimeLog } from "../combat/narration";
-
-/**
- * Check handler function type
- */
-type CheckHandler = (check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG) => CheckResult;
-
-/**
- * Registry of check handlers by check kind
- */
-const checkHandlers: Record<Check["kind"], CheckHandler> = {
-  single: (check, storyPack, save, rng) =>
-    performSingleCheck(check as SingleCheck, storyPack, save, rng),
-  multi: (check, storyPack, save, rng) =>
-    performMultiCheck(check as MultiCheck, storyPack, save, rng),
-  opposed: (check, storyPack, save, rng) =>
-    performOpposedCheck(check as OpposedCheck, storyPack, save, rng),
-  sequence: (check, storyPack, save, rng) =>
-    performSequenceCheck(check as SequenceCheck, storyPack, save, rng, performCheck),
-  magicChannel: (check, storyPack, save, rng) =>
-    performMagicChannelCheck(check as MagicChannelCheck, storyPack, save, rng),
-  magicEffect: (check, storyPack, save, rng) =>
-    performMagicEffectCheck(check as MagicEffectCheck, storyPack, save, rng),
-  combatAttack: (check, storyPack, save, rng) =>
-    performCombatAttackCheck(check as CombatAttackCheck, storyPack, save, rng).result,
-};
 
 /**
  * Outcome of a check execution, including the result and updated save state
@@ -59,7 +20,7 @@ export type CheckOutcome = { result: CheckResult; save: GameSave };
  */
 export function performCheckWithSave(
   check: Check,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
   resolutionId?: string
@@ -122,7 +83,7 @@ export function performCheckWithSave(
  * This is a thin wrapper around performCheckWithSave for backward compatibility.
  * For new code that needs the updated save, use performCheckWithSave instead.
  */
-export function performCheck(check: Check, storyPack: StoryPack, save: GameSave, rng: IRNG): CheckResult {
+export function performCheck(check: Check, storyPack: StoryPack | undefined, save: GameSave, rng: IRNG): CheckResult {
   return performCheckWithSave(check, storyPack, save, rng).result;
 }
 
@@ -156,4 +117,3 @@ export { computeTargetBreakdown, resolveDifficulty } from "./target";
 export { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
 export { evaluateRoll, rollD100Check, addPhenomenaTags } from "./evaluation";
 export { computeAttackTarget } from "./combat";
-

@@ -1,11 +1,4 @@
-import type {
-  CombatAttackCheck,
-  CheckResult,
-  StoryPack,
-  GameSave,
-  Actor,
-  StatOrSkillKey,
-} from "../types";
+import type { CombatAttackCheck, CheckResult, StoryPack, GameSave, Actor, StatOrSkillKey } from "../types";
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
@@ -24,7 +17,7 @@ export function computeAttackTarget(
   attacker: Actor,
   defender: Actor,
   save: GameSave,
-  storyPack: StoryPack
+  storyPack?: StoryPack
 ): { target: number; tags: string[]; modifier: number } {
   // Determine attack stat (WS for MELEE, BS for RANGED)
   const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
@@ -166,7 +159,7 @@ export function computeAttackTarget(
 
 export function performCombatAttackCheck(
   check: CombatAttackCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
   resolutionId?: string
@@ -468,4 +461,3 @@ export function performCombatAttackCheck(
     };
   }
 }
-

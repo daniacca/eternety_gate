@@ -295,7 +295,7 @@ export function getCurrentTurnActorId(save: GameSave): ActorId | null {
 /**
  * Advances combat turn, removes KO participants, and ends combat if needed
  */
-export function advanceCombatTurn(save: GameSave): GameSave {
+export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSave {
   const combat = save.runtime.combat;
   if (!combat?.active) return save;
 
@@ -312,7 +312,6 @@ export function advanceCombatTurn(save: GameSave): GameSave {
   if (endCheckResult.shouldEnd) {
     const outcome = endCheckResult.outcome || "victory";
     const winnerId = endCheckResult.winnerId;
-    const winner = winnerId ? save.actorsById[winnerId] : null;
 
     // Determine scene ID where combat ended (use startedBySceneId if available)
     const endedSceneId = combat.startedBySceneId || save.runtime.currentSceneId;
@@ -497,72 +496,6 @@ export function advanceCombatTurn(save: GameSave): GameSave {
           }) || [];
 
         // Check if combat should end based on factions
-      }
-    }
-
-    // Check for bound condition - escape attempt
-    if (hasCondition(currentActor, "bound")) {
-      const boundCondition = currentActor.conditions?.bound;
-      if (boundCondition?.untilTurnCounter !== undefined && boundCondition.untilTurnCounter >= newTurnCounter) {
-        // Bound: set move to 0 and attempt escape
-        newTurnState = {
-          ...newTurnState,
-          moveRemaining: 0,
-        };
-
-        // Create RNG for escape check
-        const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
-
-        // Escape check: STR test -20
-        const escapeCheck: SingleCheck = {
-          id: `combat:bound:escape:${currentTurnActorId}`,
-          kind: "single",
-          actorRef: { mode: "byId", actorId: currentTurnActorId },
-          key: "STR",
-          difficulty: "-20",
-        };
-
-        const { result, save: saveAfterCheck } = performCheckWithSave(
-          escapeCheck,
-          undefined, // storyPack not needed for simple stat check
-          updatedSave,
-          rng,
-          `res:bound:escape:${currentTurnActorId}`
-        );
-
-        updatedSave = {
-          ...saveAfterCheck,
-          runtime: {
-            ...saveAfterCheck.runtime,
-            rngCounter: rng.getCounter(),
-          },
-        };
-
-        if (result.success) {
-          // Escape successful - remove bound condition
-          currentActor = removeConditionFromActor(currentActor, "bound");
-          updatedSave = {
-            ...updatedSave,
-            actorsById: {
-              ...updatedSave.actorsById,
-              [currentTurnActorId]: currentActor,
-            },
-          };
-          const escapeLog = isPlayerActor
-            ? "Riesci a liberarti dai legami!"
-            : `${actorName} riesce a liberarsi dai legami!`;
-          updatedSave = appendCombatLog(updatedSave, escapeLog);
-        } else {
-          // Still bound
-          const boundLog = isPlayerActor
-            ? "Sei legato e non puoi muoverti."
-            : `${actorName} è legato e non può muoversi.`;
-          updatedSave = appendCombatLog(updatedSave, boundLog);
-        }
-      }
-    }
-
-    // Check if combat should end based on factions
         const endCheckResult = shouldCombatEnd(updatedSave, updatedAliveParticipants);
 
         if (endCheckResult.shouldEnd) {
@@ -645,7 +578,69 @@ export function advanceCombatTurn(save: GameSave): GameSave {
 
           // Recursively advance to next turn
           // The recursion depth is bounded by number of participants (each call removes at least one), so it's safe
-          return advanceCombatTurn(updatedSave);
+          return advanceCombatTurn(updatedSave, storyPack);
+        }
+      }
+    }
+
+    // Check for bound condition - escape attempt
+    if (hasCondition(currentActor, "bound")) {
+      const boundCondition = currentActor.conditions?.bound;
+      if (boundCondition?.untilTurnCounter !== undefined && boundCondition.untilTurnCounter >= newTurnCounter) {
+        // Bound: set move to 0 and attempt escape
+        newTurnState = {
+          ...newTurnState,
+          moveRemaining: 0,
+        };
+
+        // Create RNG for escape check
+        const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
+
+        // Escape check: STR test -20
+        const escapeCheck: SingleCheck = {
+          id: `combat:bound:escape:${currentTurnActorId}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: currentTurnActorId },
+          key: "STR",
+          difficulty: "-20",
+        };
+
+        const { result, save: saveAfterCheck } = performCheckWithSave(
+          escapeCheck,
+          storyPack, // Optional storyPack for difficulty bands and criticals
+          updatedSave,
+          rng,
+          `res:bound:escape:${currentTurnActorId}`
+        );
+
+        updatedSave = {
+          ...saveAfterCheck,
+          runtime: {
+            ...saveAfterCheck.runtime,
+            rngCounter: rng.getCounter(),
+          },
+        };
+
+        if (result && result.success) {
+          // Escape successful - remove bound condition
+          currentActor = removeConditionFromActor(currentActor, "bound");
+          updatedSave = {
+            ...updatedSave,
+            actorsById: {
+              ...updatedSave.actorsById,
+              [currentTurnActorId]: currentActor,
+            },
+          };
+          const escapeLog = isPlayerActor
+            ? "Riesci a liberarti dai legami!"
+            : `${actorName} riesce a liberarsi dai legami!`;
+          updatedSave = appendCombatLog(updatedSave, escapeLog);
+        } else {
+          // Still bound
+          const boundLog = isPlayerActor
+            ? "Sei legato e non puoi muoverti."
+            : `${actorName} è legato e non può muoversi.`;
+          updatedSave = appendCombatLog(updatedSave, boundLog);
         }
       }
     }

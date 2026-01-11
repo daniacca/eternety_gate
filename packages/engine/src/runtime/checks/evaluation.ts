@@ -1,16 +1,25 @@
 import type { CheckResult, StoryPack } from "../types";
 
 /**
+ * Default criticals when storyPack is not available
+ */
+const DEFAULT_CRITICALS = {
+  autoSuccess: [1, 2, 3],
+  autoFail: [98, 99, 100],
+  epic: undefined,
+};
+
+/**
  * Rolls a D100 and evaluates success/failure
  */
 export function rollD100Check(
   checkId: string,
   actorId: string,
   target: number,
-  storyPack: StoryPack,
-  rng: { rollD100: () => number }
+  storyPack?: StoryPack,
+  rng?: { rollD100: () => number }
 ): CheckResult {
-  const roll = rng.rollD100();
+  const roll = rng ? rng.rollD100() : 0;
   return evaluateRoll(roll, target, storyPack, checkId, actorId);
 }
 
@@ -20,11 +29,11 @@ export function rollD100Check(
 export function evaluateRoll(
   roll: number,
   target: number,
-  storyPack: StoryPack,
+  storyPack?: StoryPack,
   checkId?: string,
   actorId?: string
 ): CheckResult {
-  const criticals = storyPack.systems.checks.criticals;
+  const criticals = storyPack?.systems?.checks?.criticals || DEFAULT_CRITICALS;
   const autoSuccess = criticals.autoSuccess || [1, 2, 3];
   const autoFail = criticals.autoFail || [98, 99, 100];
   const epic = criticals.epic;
@@ -107,4 +116,3 @@ export function addPhenomenaTags(result: CheckResult, powerMode: "CONTROLLED" | 
     }
   }
 }
-

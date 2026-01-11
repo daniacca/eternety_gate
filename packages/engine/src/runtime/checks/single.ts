@@ -6,7 +6,7 @@ import { rollD100Check } from "./evaluation";
 
 export function performSingleCheck(
   check: SingleCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG
 ): CheckResult {
@@ -27,4 +27,3 @@ export function performSingleCheck(
 
   return result;
 }
-

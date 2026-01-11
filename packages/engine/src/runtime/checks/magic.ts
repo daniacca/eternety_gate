@@ -20,7 +20,7 @@ function getEquippedItems(actor: any): string[] {
 
 export function performMagicChannelCheck(
   check: MagicChannelCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG
 ): CheckResult {
@@ -99,7 +99,7 @@ export function performMagicChannelCheck(
 
 export function performMagicEffectCheck(
   check: MagicEffectCheck,
-  storyPack: StoryPack,
+  storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG
 ): CheckResult {
@@ -170,4 +170,3 @@ export function performMagicEffectCheck(
 
   return result;
 }
-
