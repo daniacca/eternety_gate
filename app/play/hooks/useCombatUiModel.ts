@@ -1,6 +1,14 @@
 import { useMemo } from "react";
-import type { GameSave, Choice } from "@eg/engine";
-import { getCurrentTurnActorId, getActorWeapon, getActorArmor, distanceChebyshev, isActorAlive } from "@eg/engine";
+import type { GameSave, Choice, StoryPack } from "@eg/engine";
+import {
+  getCurrentTurnActorId,
+  getActorWeapon,
+  getActorArmor,
+  distanceChebyshev,
+  isActorAlive,
+  getCharacteristicBonus,
+  loadCharacterCatalogs,
+} from "@eg/engine";
 
 export interface CombatUiModel {
   // Combat state
@@ -57,7 +65,7 @@ export interface CombatUiModel {
   agiBonus: number;
 }
 
-export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): CombatUiModel {
+export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyPack?: StoryPack): CombatUiModel {
   return useMemo(() => {
     const combat = save.runtime.combat;
     const isCombatActive = combat?.active ?? false;
@@ -245,8 +253,24 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
       ? "No valid target"
       : null;
 
-    // Calculate AGI bonus for display (minimum 1, matching initializeTurnState)
-    const agiBonus = pcActor ? Math.max(1, Math.floor((pcActor.stats.AGI ?? 0) / 10)) : 1;
+    // Calculate AGI bonus for display using getCharacteristicBonus to include trait bonuses
+    // Load catalogs from storyPack (if available) for trait-based bonuses
+    const catalogs =
+      storyPack?.skills || storyPack?.talents || storyPack?.traits
+        ? loadCharacterCatalogs({
+            id: storyPack.id,
+            weapons: storyPack.weapons || [],
+            armors: storyPack.armors || [],
+            skills: storyPack.skills || [],
+            talents: storyPack.talents || [],
+            traits: storyPack.traits || [],
+          })
+        : undefined;
+
+    const agiBonus =
+      pcActor && save.party.activeActorId
+        ? Math.max(1, getCharacteristicBonus(save, save.party.activeActorId, "AGI", catalogs))
+        : 1;
 
     return {
       isCombatActive,
@@ -285,5 +309,5 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[]): Comba
       selectedTargetId,
       agiBonus,
     };
-  }, [save, combatChoices]);
+  }, [save, combatChoices, storyPack]);
 }

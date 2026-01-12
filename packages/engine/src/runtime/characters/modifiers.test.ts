@@ -16,8 +16,13 @@ describe("modifiers", () => {
         id: "trait:unnatural_characteristic",
         name: "Caratteristica Innaturale",
         params: {
-          stat: { type: "string", required: true },
-          bonusX: { type: "number", required: true },
+          characteristics: {
+            type: "array",
+            items: {
+              stat: { type: "string", required: true },
+              bonusX: { type: "number", required: true },
+            },
+          },
         },
         grants: [
           {
@@ -47,7 +52,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 1 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 1 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -64,7 +71,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 2 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 2 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -81,7 +90,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 4 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 4 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -98,7 +109,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 3 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 3 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -115,7 +128,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 4 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 4 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -152,8 +167,13 @@ describe("modifiers", () => {
             id: "trait:unnatural_characteristic",
             name: "Caratteristica Innaturale",
             params: {
-              stat: { type: "string", required: true },
-              bonusX: { type: "number", required: true },
+              characteristics: {
+                type: "array",
+                items: {
+                  stat: { type: "string", required: true },
+                  bonusX: { type: "number", required: true },
+                },
+              },
             },
             grants: [
               {
@@ -179,7 +199,9 @@ describe("modifiers", () => {
           "talent:test_bonus": 1,
         },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 3 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 3 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -198,7 +220,9 @@ describe("modifiers", () => {
       const actor = makeTestActor({
         stats: { STR: 50 },
         traits: {
-          "trait:unnatural_characteristic": { stat: "STR", bonusX: 10 },
+          "trait:unnatural_characteristic": {
+            characteristics: [{ stat: "STR", bonusX: 10 }],
+          },
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -209,6 +233,35 @@ describe("modifiers", () => {
 
       expect(bonusAdd).toBe(10);
       expect(testAdd).toBe(50); // floor(10/2)*10 = 5*10 = 50
+    });
+
+    it("should handle multiple characteristics correctly", () => {
+      const catalogs = makeCatalogsWithUnnaturalTrait();
+      const actor = makeTestActor({
+        stats: { STR: 50, TOU: 45 },
+        traits: {
+          "trait:unnatural_characteristic": {
+            characteristics: [
+              { stat: "STR", bonusX: 2 },
+              { stat: "TOU", bonusX: 1 },
+            ],
+          },
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      // Check STR modifiers
+      const strBonusAdd = getModifierTotal(save, catalogs, actor.id, "stat.STR.bonusAdd");
+      const strTestAdd = getModifierTotal(save, catalogs, actor.id, "stat.STR.testAdd");
+
+      // Check TOU modifiers
+      const touBonusAdd = getModifierTotal(save, catalogs, actor.id, "stat.TOU.bonusAdd");
+      const touTestAdd = getModifierTotal(save, catalogs, actor.id, "stat.TOU.testAdd");
+
+      expect(strBonusAdd).toBe(2);
+      expect(strTestAdd).toBe(10); // floor(2/2)*10 = 10
+      expect(touBonusAdd).toBe(1);
+      expect(touTestAdd).toBe(0); // floor(1/2)*10 = 0
     });
   });
 });

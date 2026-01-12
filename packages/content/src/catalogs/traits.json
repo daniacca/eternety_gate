@@ -79,13 +79,18 @@
     "id": "trait:unnatural_characteristic",
     "name": "Caratteristica Innaturale",
     "params": {
-      "stat": {
-        "type": "string",
-        "required": true
-      },
-      "bonusX": {
-        "type": "number",
-        "required": true
+      "characteristics": {
+        "type": "array",
+        "items": {
+          "stat": {
+            "type": "string",
+            "required": true
+          },
+          "bonusX": {
+            "type": "number",
+            "required": true
+          }
+        }
       }
     },
     "grants": [
@@ -136,4 +141,3 @@
     ]
   }
 ]
-

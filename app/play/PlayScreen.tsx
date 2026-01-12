@@ -35,16 +35,16 @@ export function PlayScreen() {
       kind: "PC" as const,
       tags: [],
       stats: {
-        STR: 50,
-        TOU: 50,
-        AGI: 50,
-        INT: 50,
-        WIL: 50,
-        CHA: 50,
-        WS: 50,
-        BS: 50,
-        INI: 50,
-        PER: 50,
+        STR: 53,
+        TOU: 56,
+        AGI: 62,
+        INT: 47,
+        WIL: 71,
+        CHA: 48,
+        WS: 77,
+        BS: 79,
+        INI: 75,
+        PER: 73,
       },
       resources: { wounds: 0, rf: 0, peq: 3 },
       skills: {
@@ -53,20 +53,34 @@ export function PlayScreen() {
         "skill:awareness": 3,
         "skill:stealth": 1,
         "skill:weave_sense": 2,
+        "skill:channeling": 5,
       },
       talents: {
         "talent:quick_draw": 1,
-        "talent:sound_constitution": 2,
+        "talent:sound_constitution": 5,
         "talent:mighty_shot_1": 1,
         "talent:swift_attack": 1,
         "talent:disarm": 1,
         "talent:knockdown": 1,
         "talent:takedown": 1,
+        "talent:arcane_attunement_1": 1,
+        "talent:arcane_attunement_2": 1,
+        "talent:arcane_attunement_3": 1,
+        "talent:weave_favoured": 1,
+        "talent:weave_seal": 1,
       },
       traits: {
         "trait:weaver": true,
         "trait:size": { size: 4 },
-        "trait:unnatural_characteristic": { stat: "STR", bonusX: 2 },
+        "trait:unnatural_characteristic": {
+          characteristics: [
+            { stat: "STR", bonusX: 2 },
+            { stat: "AGI", bonusX: 1 },
+            { stat: "TOU", bonusX: 2 },
+            { stat: "WIL", bonusX: 3 },
+            { stat: "INI", bonusX: 2 },
+          ],
+        },
       },
       spells: {
         "spell:flame_bolt": true,
@@ -200,7 +214,7 @@ export function PlayScreen() {
   );
 
   // Use combat UI model hook
-  const combatModel = useCombatUiModel(save, combatChoices);
+  const combatModel = useCombatUiModel(save, combatChoices, storyPackWithCatalogs);
 
   // Game Area component with layout measurement
   const GameArea = () => {

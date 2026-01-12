@@ -45,31 +45,62 @@ function getModifierTotalBase(
     const trait = getTraitById(catalogs, traitId);
     if (!trait) continue;
 
-    for (const grant of trait.grants) {
-      if (grant.type === "modifier") {
-        let grantKey = grant.key;
-        let grantValue = grant.value;
+    // Special handling for trait:unnatural_characteristic which has an array of characteristics
+    if (traitId === "trait:unnatural_characteristic") {
+      const characteristics = params?.characteristics;
+      if (!Array.isArray(characteristics)) continue;
 
-        // Handle dynamic keys like "stat.<stat>.bonusAdd"
-        if (grantKey.includes("<stat>") && traitId === "trait:unnatural_characteristic") {
-          const stat = params?.stat;
-          if (stat) {
-            grantKey = grantKey.replace("<stat>", stat);
+      // Iterate over each characteristic in the array
+      for (const characteristic of characteristics) {
+        if (!characteristic || typeof characteristic !== "object") continue;
+        const stat = characteristic.stat;
+        const bonusX = characteristic.bonusX;
+
+        if (!stat || typeof bonusX !== "number") continue;
+
+        // Apply grants for this characteristic
+        for (const grant of trait.grants) {
+          if (grant.type === "modifier") {
+            let grantKey = grant.key;
+            let grantValue = grant.value;
+
+            // Handle dynamic keys like "stat.<stat>.bonusAdd"
+            if (grantKey.includes("<stat>")) {
+              grantKey = grantKey.replace("<stat>", stat);
+            }
+
+            // Handle value references (e.g., "bonusX")
+            if (grant.valueRef) {
+              // For unnatural_characteristic, valueRef is "bonusX" which comes from the characteristic object
+              grantValue = typeof bonusX === "number" ? bonusX : grant.value;
+            }
+
+            // Skip computed testAdd for unnatural characteristic when computing base (to avoid recursion)
+            if (skipDerivedRules && grantKey.includes("testAdd")) {
+              continue;
+            }
+
+            if (grantKey === key) {
+              total += grantValue;
+            }
           }
         }
+      }
+    } else {
+      // Standard trait processing for other traits
+      for (const grant of trait.grants) {
+        if (grant.type === "modifier") {
+          let grantKey = grant.key;
+          let grantValue = grant.value;
 
-        // Handle value references (e.g., "armor", "size.toHitMod")
-        if (grant.valueRef) {
-          grantValue = resolveGrantValueRef(catalogs, actorId, save, traitId, grant.valueRef);
-        }
+          // Handle value references (e.g., "armor", "size.toHitMod")
+          if (grant.valueRef) {
+            grantValue = resolveGrantValueRef(catalogs, actorId, save, traitId, grant.valueRef);
+          }
 
-        // Skip computed testAdd for unnatural characteristic when computing base (to avoid recursion)
-        if (skipDerivedRules && grantKey.includes("testAdd") && traitId === "trait:unnatural_characteristic") {
-          continue;
-        }
-
-        if (grantKey === key) {
-          total += grantValue;
+          if (grantKey === key) {
+            total += grantValue;
+          }
         }
       }
     }

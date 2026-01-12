@@ -381,12 +381,23 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
   // Increment turn counter (monotonic) - needed for condition expiration checks
   const newTurnCounter = (combat.turnCounter ?? 0) + 1;
 
+  // Load catalogs from storyPack (if available) for movement calculation with trait bonuses
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+
   // Initialize turn state for new actor and apply condition effects
-  // Note: catalogs not available here, so movement won't include catalog-based AGI bonuses
-  // but will still include base AGI bonus + size modifier
   let currentActor = updatedSave.actorsById[currentTurnActorId];
   let newTurnState = currentActor
-    ? initializeTurnState(currentActor, updatedSave, undefined)
+    ? initializeTurnState(currentActor, updatedSave, catalogs)
     : { moveRemaining: 0, actionAvailable: true };
 
   // Apply condition effects at turn start
