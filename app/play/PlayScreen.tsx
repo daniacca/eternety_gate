@@ -85,10 +85,13 @@ export function PlayScreen() {
       spells: {
         "spell:flame_bolt": true,
         "spell:flame_cone": true,
+        "spell:pyra_explosion": true,
         "spell:soothe_wounds": true,
         "spell:force_push": true,
         "spell:disrupt": true,
         "spell:sense_magic": true,
+        "spell:corpus_steel_body": true,
+        "spell:corpus_warp_speed": true,
       },
       equipment: {
         mainHand: { kind: "weapon" as const, id: "shortbow" }, // Test weapon: ranged

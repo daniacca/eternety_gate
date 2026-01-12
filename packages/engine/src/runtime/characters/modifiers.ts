@@ -134,29 +134,8 @@ function getModifierTotalBase(
       total += stacks; // Each stack = +1 NaturalArmor
     }
 
-    // steel_body: provides Unnatural STR and TOU +1 per stack
-    if (key === "stat.STR.bonusAdd" && actor.conditions.steel_body) {
-      const stacks = actor.conditions.steel_body.stacks ?? 1;
-      total += stacks;
-    }
-    if (key === "stat.TOU.bonusAdd" && actor.conditions.steel_body) {
-      const stacks = actor.conditions.steel_body.stacks ?? 1;
-      total += stacks;
-    }
-
-    // warp_speed: provides Unnatural WS/BS/AGI +1 per stack
-    if (key === "stat.WS.bonusAdd" && actor.conditions.warp_speed) {
-      const stacks = actor.conditions.warp_speed.stacks ?? 1;
-      total += stacks;
-    }
-    if (key === "stat.BS.bonusAdd" && actor.conditions.warp_speed) {
-      const stacks = actor.conditions.warp_speed.stacks ?? 1;
-      total += stacks;
-    }
-    if (key === "stat.AGI.bonusAdd" && actor.conditions.warp_speed) {
-      const stacks = actor.conditions.warp_speed.stacks ?? 1;
-      total += stacks;
-    }
+    // Note: steel_body and warp_speed now add characteristics to trait:unnatural_characteristic
+    // instead of directly modifying bonusAdd here. This allows them to stack with natural traits.
   }
 
   // TODO: Check equipment

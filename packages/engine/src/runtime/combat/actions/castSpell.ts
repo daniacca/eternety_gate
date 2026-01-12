@@ -9,6 +9,12 @@ import { applyFatigue } from "../../characters/fatigue";
 import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../magic/phenomena";
 import { hasLearnedSpell } from "../../magic/learning";
 import { addConditionToActor } from "../../conditions";
+import {
+  addUnnaturalCharacteristics,
+  getSteelBodyCharacteristics,
+  getWarpSpeedCharacteristics,
+  removeUnnaturalCharacteristicsBySource,
+} from "../../characters/traitHelpers";
 import { applyDamageToActor } from "../criticalDamage";
 import { calculateMaxHp } from "../../characters/hp";
 import { hasUnlockedAction } from "../../characters/actions";
@@ -911,14 +917,31 @@ export function combatCastSpell(
           }
 
           const untilTurnCounter = combat.turnCounter + finalDuration;
+          const spellSource = `spell:${spell.id}`;
 
-          const updatedTargetActor = addConditionToActor(
+          // Add condition
+          let updatedTargetActor = addConditionToActor(
             target.actor,
             conditionSpec.conditionId as any,
             finalStacks,
             untilTurnCounter,
-            `spell:${spell.id}`
+            spellSource
           );
+
+          // For steel_body and warp_speed, also add characteristics to the trait
+          // First remove any existing characteristics from this spell source (in case of re-casting)
+          if (conditionSpec.conditionId === "steel_body" || conditionSpec.conditionId === "warp_speed") {
+            updatedTargetActor = removeUnnaturalCharacteristicsBySource(updatedTargetActor, spellSource);
+            
+            // Now add the new characteristics
+            if (conditionSpec.conditionId === "steel_body") {
+              const characteristics = getSteelBodyCharacteristics(finalStacks);
+              updatedTargetActor = addUnnaturalCharacteristics(updatedTargetActor, characteristics, spellSource);
+            } else if (conditionSpec.conditionId === "warp_speed") {
+              const characteristics = getWarpSpeedCharacteristics(finalStacks);
+              updatedTargetActor = addUnnaturalCharacteristics(updatedTargetActor, characteristics, spellSource);
+            }
+          }
 
           updatedSave = {
             ...updatedSave,

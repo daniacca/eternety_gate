@@ -13,6 +13,7 @@ import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuse
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
+import { removeUnnaturalCharacteristicsBySource } from "../characters/traitHelpers";
 import { applyDamageToActor } from "./criticalDamage";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { performCheckWithSave } from "../checks";
@@ -657,16 +658,23 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
     }
 
     // Remove expired conditions (untilTurnCounter < current turnCounter)
-    const conditionsToRemove: string[] = [];
+    const conditionsToRemove: Array<{ conditionId: string; source?: string }> = [];
 
     if (currentActor.conditions) {
       for (const [conditionId, instance] of Object.entries(currentActor.conditions)) {
         if (instance.untilTurnCounter !== undefined && instance.untilTurnCounter < newTurnCounter) {
-          conditionsToRemove.push(conditionId);
+          conditionsToRemove.push({
+            conditionId,
+            source: instance.source,
+          });
         }
       }
 
-      for (const conditionId of conditionsToRemove) {
+      for (const { conditionId, source } of conditionsToRemove) {
+        // For steel_body and warp_speed, remove characteristics from trait before removing condition
+        if ((conditionId === "steel_body" || conditionId === "warp_speed") && source) {
+          currentActor = removeUnnaturalCharacteristicsBySource(currentActor, source);
+        }
         currentActor = removeConditionFromActor(currentActor, conditionId as any);
       }
 

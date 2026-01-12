@@ -223,18 +223,55 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
               {Object.keys(activeActor.traits).length === 0 ? (
                 <Text style={styles.emptyText}>Nessun tratto</Text>
               ) : (
-                Object.entries(activeActor.traits).map(([traitId, params]) => (
-                  <View key={traitId} style={styles.traitRow}>
-                    <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
-                    {params && typeof params === "object" && Object.keys(params).length > 0 && (
-                      <Text style={styles.traitParams}>
-                        {Object.entries(params)
-                          .map(([key, value]) => `${key}: ${value}`)
-                          .join(", ")}
-                      </Text>
-                    )}
-                  </View>
-                ))
+                Object.entries(activeActor.traits).map(([traitId, params]) => {
+                  // Special handling for unnatural_characteristic trait
+                  if (traitId === "trait:unnatural_characteristic" && params && typeof params === "object") {
+                    const characteristics = (params as any).characteristics;
+                    if (Array.isArray(characteristics)) {
+                      return (
+                        <View key={traitId} style={styles.traitRow}>
+                          <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
+                          <View style={styles.traitParamsContainer}>
+                            {characteristics.map((char: any, index: number) => {
+                              if (char && typeof char === "object" && char.stat && typeof char.bonusX === "number") {
+                                const statLabel = statLabels[char.stat] || char.stat;
+                                return (
+                                  <Text key={index} style={styles.traitParams}>
+                                    {statLabel}: +{char.bonusX}
+                                  </Text>
+                                );
+                              }
+                              return null;
+                            })}
+                          </View>
+                        </View>
+                      );
+                    }
+                  }
+
+                  // Default rendering for other traits
+                  return (
+                    <View key={traitId} style={styles.traitRow}>
+                      <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
+                      {params && typeof params === "object" && Object.keys(params).length > 0 && (
+                        <Text style={styles.traitParams}>
+                          {Object.entries(params)
+                            .map(([key, value]) => {
+                              // Handle different value types
+                              if (Array.isArray(value)) {
+                                return `${key}: [${value.length} items]`;
+                              }
+                              if (typeof value === "object" && value !== null) {
+                                return `${key}: {...}`;
+                              }
+                              return `${key}: ${value}`;
+                            })
+                            .join(", ")}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })
               )}
             </View>
 
@@ -710,6 +747,10 @@ const styles = StyleSheet.create({
   traitParams: {
     fontSize: 12,
     color: "#666",
+    marginTop: 2,
+  },
+  traitParamsContainer: {
     marginTop: 4,
+    gap: 2,
   },
 });

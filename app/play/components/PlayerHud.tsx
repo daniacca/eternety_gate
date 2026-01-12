@@ -19,6 +19,10 @@ const conditionLabels: Record<ConditionId, string> = {
   bleeding: "Sanguinante",
   fatigue: "Affaticato",
   unconscious: "Incosciente",
+  bound: "Legato",
+  force_shield: "Scudo di Forza",
+  steel_body: "Corpo d'Acciaio",
+  warp_speed: "Warp Speed",
 };
 
 export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
@@ -87,14 +91,17 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
       {/* Conditions */}
       {conditionEntries.length > 0 && (
         <View style={styles.conditionsContainer}>
-          {conditionEntries.map(([conditionId, instance]) => (
-            <View key={conditionId} style={styles.conditionBadge}>
-              <Text style={styles.conditionText}>
-                {conditionLabels[conditionId]}
-                {instance.stacks && instance.stacks > 1 ? ` (${instance.stacks})` : ""}
-              </Text>
-            </View>
-          ))}
+          {conditionEntries.map(([conditionId, instance]) => {
+            const label = conditionLabels[conditionId] || conditionId;
+            return (
+              <View key={conditionId} style={styles.conditionBadge}>
+                <Text style={styles.conditionText}>
+                  {label}
+                  {instance.stacks && instance.stacks > 1 ? ` (${instance.stacks})` : ""}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       )}
 
