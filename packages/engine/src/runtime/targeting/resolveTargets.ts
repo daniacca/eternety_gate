@@ -1,6 +1,7 @@
 import type { GameSave, ActorId, Position } from "../types";
 import type { TargetSpec, TargetingDefinition, TargetResolution, Point, Direction9 } from "./types";
 import { distanceChebyshev } from "../combat/movement";
+import { getActorFootprint, footprintIntersects } from "../combat/footprint";
 
 /**
  * Converts Direction9 to a normalized direction vector (dx, dy)
@@ -53,7 +54,7 @@ function normalizeDirection(dx: number, dy: number): { dx: number; dy: number } 
 }
 
 /**
- * Gets all actors at a specific position
+ * Gets all actors at a specific position (checks anchor position for backward compatibility)
  */
 function getActorsAtPosition(save: GameSave, pos: Point, combat: NonNullable<GameSave["runtime"]["combat"]>): ActorId[] {
   const actors: ActorId[] = [];
@@ -63,6 +64,26 @@ function getActorsAtPosition(save: GameSave, pos: Point, combat: NonNullable<Gam
       actors.push(actorId);
     }
   }
+  return actors;
+}
+
+/**
+ * Gets all actors whose footprint intersects with any of the given positions
+ */
+function getActorsIntersectingPositions(save: GameSave, positions: Point[], combat: NonNullable<GameSave["runtime"]["combat"]>): ActorId[] {
+  const actors: ActorId[] = [];
+  const seenActors = new Set<ActorId>();
+  
+  for (const actorId of combat.participants) {
+    if (seenActors.has(actorId)) continue;
+    
+    const footprint = getActorFootprint(save, actorId);
+    if (footprintIntersects(footprint, positions)) {
+      actors.push(actorId);
+      seenActors.add(actorId);
+    }
+  }
+  
   return actors;
 }
 
@@ -175,15 +196,27 @@ export function resolveTargets(
         y: casterPos.y + step * dy,
       };
       targetPoints.push(point);
+    }
 
-      // Find actors at this point
-      const actorsAtPos = getActorsAtPosition(save, point, combat);
-      for (const actorId of actorsAtPos) {
-        if (!seenActors.has(actorId)) {
-          seenActors.add(actorId);
-          if (includeCaster || actorId !== casterId) {
-            targetActorIds.push(actorId);
-          }
+    // Dev assertion: ensure targetPoints has correct count (exactly rangeSquares, or <= rangeSquares if out of bounds)
+    if (process.env.NODE_ENV !== "production") {
+      const expectedMax = targeting.rangeSquares;
+      if (targetPoints.length > expectedMax) {
+        console.warn(
+          `[resolveTargets LINE] Expected at most ${expectedMax} points, got ${targetPoints.length}. This may indicate a bug.`
+        );
+      }
+      // Note: We allow <= expectedMax because points may be filtered out if out of bounds
+      // But we should have exactly expectedMax if all points are in bounds
+    }
+
+    // Find actors whose footprints intersect with any affected point
+    const intersectingActors = getActorsIntersectingPositions(save, targetPoints, combat);
+    for (const actorId of intersectingActors) {
+      if (!seenActors.has(actorId)) {
+        seenActors.add(actorId);
+        if (includeCaster || actorId !== casterId) {
+          targetActorIds.push(actorId);
         }
       }
     }
@@ -240,22 +273,23 @@ export function resolveTargets(
         }
       }
 
-      // Add unique points and find actors
+      // Add unique points
       for (const point of pointsAtDistance) {
         // Check if point already added (avoid duplicates)
         const alreadyAdded = targetPoints.some((p) => p.x === point.x && p.y === point.y);
         if (!alreadyAdded) {
           targetPoints.push(point);
         }
+      }
+    }
 
-        const actorsAtPos = getActorsAtPosition(save, point, combat);
-        for (const actorId of actorsAtPos) {
-          if (!seenActors.has(actorId)) {
-            seenActors.add(actorId);
-            if (includeCaster || actorId !== casterId) {
-              targetActorIds.push(actorId);
-            }
-          }
+    // Find actors whose footprints intersect with any affected point
+    const intersectingActors = getActorsIntersectingPositions(save, targetPoints, combat);
+    for (const actorId of intersectingActors) {
+      if (!seenActors.has(actorId)) {
+        seenActors.add(actorId);
+        if (includeCaster || actorId !== casterId) {
+          targetActorIds.push(actorId);
         }
       }
     }
@@ -300,23 +334,33 @@ export function resolveTargets(
       return { targetActorIds: [], targetPoints: [], invalidReason: "center_out_of_range" };
     }
 
-    // Find all actors within radius
-    const targetActorIds: ActorId[] = [];
+    // Generate all points within radius
     const targetPoints: Point[] = [centerPos];
-
-    for (const actorId of combat.participants) {
-      const actorPos = combat.positions[actorId];
-      if (!actorPos) continue;
-
-      const distance = distanceChebyshev(centerPos, actorPos);
-      if (distance <= targeting.radiusSquares) {
-        if (includeCaster || actorId !== casterId) {
-          targetActorIds.push(actorId);
+    for (let dx = -targeting.radiusSquares; dx <= targeting.radiusSquares; dx++) {
+      for (let dy = -targeting.radiusSquares; dy <= targeting.radiusSquares; dy++) {
+        if (dx === 0 && dy === 0) continue; // Already added centerPos
+        const distance = Math.max(Math.abs(dx), Math.abs(dy)); // Chebyshev distance
+        if (distance <= targeting.radiusSquares) {
+          const point: Point = {
+            x: centerPos.x + dx,
+            y: centerPos.y + dy,
+          };
+          // Only add if within grid bounds (optional, but safer)
+          if (point.x >= 0 && point.x < combat.grid.width && point.y >= 0 && point.y < combat.grid.height) {
+            if (!targetPoints.some((p) => p.x === point.x && p.y === point.y)) {
+              targetPoints.push(point);
+            }
+          }
         }
-        // Add point if not already added
-        if (!targetPoints.some((p) => p.x === actorPos.x && p.y === actorPos.y)) {
-          targetPoints.push(actorPos);
-        }
+      }
+    }
+
+    // Find actors whose footprints intersect with any affected point
+    const targetActorIds: ActorId[] = [];
+    const intersectingActors = getActorsIntersectingPositions(save, targetPoints, combat);
+    for (const actorId of intersectingActors) {
+      if (includeCaster || actorId !== casterId) {
+        targetActorIds.push(actorId);
       }
     }
 

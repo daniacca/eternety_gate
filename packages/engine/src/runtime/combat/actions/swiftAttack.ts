@@ -4,7 +4,7 @@ import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
-import { distanceChebyshev } from "../movement";
+import { footprintDistanceBetweenActors } from "../footprint";
 import { getEquippedWeaponId } from "../../characters/inventory";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
@@ -95,7 +95,8 @@ export function combatSwiftAttack(
     return { save };
   }
 
-  const dist = distanceChebyshev(attackerPos, defenderPos);
+  // Use footprint-to-footprint distance
+  const dist = footprintDistanceBetweenActors(save, effect.attackerId, effect.defenderId);
   if (dist > 1) {
     const blockedCheck = {
       checkId: "combat:swiftAttack:blocked",
@@ -363,4 +364,3 @@ export function combatSwiftAttack(
 
   return { save: currentSave };
 }
-

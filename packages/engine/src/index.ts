@@ -32,6 +32,18 @@ export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./ru
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from "./runtime/combat/movement";
 export { isActorAlive } from "./runtime/characters/actors";
+export {
+  getFootprintRadius,
+  getFootprintCells,
+  getActorSize,
+  getActorFootprint,
+  getFootprintBBox,
+  chebyshevDistanceBetweenBBoxes,
+  footprintDistanceBetweenActors,
+  footprintIntersects,
+  canPlaceActorAt,
+  buildOccupancyMap,
+} from "./runtime/combat/footprint";
 
 // Content pack types and utilities
 export type { ContentPack } from "./content/types";

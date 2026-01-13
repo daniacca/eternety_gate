@@ -3,7 +3,7 @@ import { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
-import { distanceChebyshev } from "../movement";
+import { footprintDistanceBetweenActors } from "../footprint";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
 
@@ -92,7 +92,8 @@ export function combatKnockdown(
     return { save };
   }
 
-  const dist = distanceChebyshev(attackerPos, defenderPos);
+  // Use footprint-to-footprint distance
+  const dist = footprintDistanceBetweenActors(save, effect.attackerId, effect.defenderId);
   if (dist > 1) {
     const blockedCheck = {
       checkId: "combat:knockdown:blocked",
@@ -199,4 +200,3 @@ export function combatKnockdown(
 
   return { save: currentSave, emittedEffects: emittedEffects.length > 0 ? emittedEffects : undefined };
 }
-

@@ -6,6 +6,7 @@ import { performCheck } from "../checks";
 import { getCurrentScene } from "../selectors";
 import { distanceChebyshev } from "../combat/movement";
 import { validateAndApplyRangedModifiers } from "../combat/validation";
+import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { resolveActor } from "../checks";
 import { applyCombatDamageIfHit } from "../combat/damage";
 import { getCurrentTurnActorId } from "../combat/combat";
@@ -176,7 +177,8 @@ export const handleGenericChoice: ChoiceHandler = (
             continue;
           }
 
-          const dist = distanceChebyshev(attPos, defPos);
+          // Use footprint-to-footprint distance
+          const dist = footprintDistanceBetweenActors(currentSave, attackerId, defenderId);
 
           // Range rules
           if (combatCheck.attacker.mode === "MELEE") {

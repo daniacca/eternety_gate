@@ -4,8 +4,8 @@ import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendAttackNarration, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
-import { distanceChebyshev } from "../movement";
 import { validateAndApplyRangedModifiers } from "../validation";
+import { footprintDistanceBetweenActors } from "../footprint";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 
 /**
@@ -123,7 +123,8 @@ export function combatRequestAttack(
     };
   }
 
-  const dist = distanceChebyshev(attackerPos, defenderPos);
+  // Use footprint-to-footprint distance instead of anchor-to-anchor
+  const dist = footprintDistanceBetweenActors(save, effect.attackerId, effect.defenderId);
 
   // Range validation
   if (effect.mode === "MELEE") {

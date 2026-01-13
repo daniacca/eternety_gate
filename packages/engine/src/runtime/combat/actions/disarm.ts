@@ -3,7 +3,7 @@ import { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
-import { distanceChebyshev } from "../movement";
+import { footprintDistanceBetweenActors } from "../footprint";
 import { posKey } from "../../items";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
@@ -93,7 +93,8 @@ export function combatDisarm(
     return { save };
   }
 
-  const dist = distanceChebyshev(attackerPos, defenderPos);
+  // Use footprint-to-footprint distance
+  const dist = footprintDistanceBetweenActors(save, effect.attackerId, effect.defenderId);
   if (dist > 1) {
     const blockedCheck = {
       checkId: "combat:disarm:blocked",
@@ -267,4 +268,3 @@ export function combatDisarm(
 
   return { save: currentSave };
 }
-

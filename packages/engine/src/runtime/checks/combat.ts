@@ -5,7 +5,7 @@ import { computeTargetBreakdown } from "./target";
 import { evaluateRoll } from "./evaluation";
 import { computeCombatModifiersFromConditions } from "../conditions";
 import { getEquippedWeaponId } from "../characters/inventory";
-import { distanceChebyshev } from "../combat/movement";
+import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendRuntimeLog } from "../combat/narration";
 
 /**
@@ -207,21 +207,18 @@ export function performCombatAttackCheck(
   if (check.attacker.mode === "RANGED") {
     const combat = save.runtime.combat;
     if (combat?.active) {
-      const attackerPos = combat.positions[attacker.id];
-      const defenderPos = combat.positions[defender.id];
-      if (attackerPos && defenderPos) {
-        const dist = distanceChebyshev(attackerPos, defenderPos);
-        tags.push(`combat:distance=${dist}`);
+      // Use footprint-to-footprint distance for ranged attacks
+      const dist = footprintDistanceBetweenActors(save, attacker.id, defender.id);
+      tags.push(`combat:distance=${dist}`);
 
-        // Add weapon range if available
-        const weaponId =
-          check.attacker.weaponId ??
-          (attacker.equipment?.mainHand?.kind === "weapon" ? attacker.equipment.mainHand.id : null);
-        if (weaponId && weaponId !== "unarmed" && save.weaponsById?.[weaponId]?.range) {
-          const weaponRange = save.weaponsById[weaponId].range!;
-          tags.push(`combat:weaponRange:short=${weaponRange.short}`);
-          tags.push(`combat:weaponRange:long=${weaponRange.long}`);
-        }
+      // Add weapon range if available
+      const weaponId =
+        check.attacker.weaponId ??
+        (attacker.equipment?.mainHand?.kind === "weapon" ? attacker.equipment.mainHand.id : null);
+      if (weaponId && weaponId !== "unarmed" && save.weaponsById?.[weaponId]?.range) {
+        const weaponRange = save.weaponsById[weaponId].range!;
+        tags.push(`combat:weaponRange:short=${weaponRange.short}`);
+        tags.push(`combat:weaponRange:long=${weaponRange.long}`);
       }
     }
   }

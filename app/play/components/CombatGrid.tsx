@@ -6,6 +6,9 @@ import {
   getCurrentHp,
   loadCharacterCatalogs,
   isActorAlive,
+  getActorFootprint,
+  getActorSize,
+  getFootprintRadius,
 } from "@eg/engine";
 import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
 import sigilContent from "@eg/content/sigil.content.json";
@@ -131,8 +134,45 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
             ? Math.max(0, Math.min(100, (criticalDamage / criticalMax) * 100))
             : 0;
 
+          // Get actor size and footprint
+          const actorSize = actor ? getActorSize(actor) : 4;
+          const radius = getFootprintRadius(actorSize);
+          const footprint = actor ? getActorFootprint(save, actorId) : [];
+          
+          // Adjust token size based on actor size (scale factor)
+          // Size 1-5: normal size (1x), Size 6-8: 1.5x, Size 9-10: 2x
+          const tokenSizeMultiplier = radius === 0 ? 1 : radius === 1 ? 1.5 : 2;
+          const baseTokenSize = 30; // Base token size
+          const tokenSize = baseTokenSize * tokenSizeMultiplier;
+
           return (
             <View key={actorId}>
+              {/* Footprint overlay (for radius 1 or 2) */}
+              {radius > 0 && !isDead && footprint.map((cell, idx) => {
+                const cellX = (cell.x / grid.width) * gridSize;
+                const cellY = (cell.y / grid.height) * gridSize;
+                const isCenter = cell.x === pos.x && cell.y === pos.y;
+                
+                return (
+                  <View
+                    key={`footprint-${actorId}-${idx}`}
+                    style={[
+                      {
+                        position: "absolute",
+                        left: cellX,
+                        top: cellY,
+                        width: cellWidth,
+                        height: cellHeight,
+                        borderWidth: 1,
+                        borderColor: isPC ? "rgba(0, 122, 255, 0.3)" : "rgba(220, 53, 69, 0.3)",
+                        backgroundColor: isPC ? "rgba(0, 122, 255, 0.1)" : "rgba(220, 53, 69, 0.1)",
+                        zIndex: 0,
+                      },
+                    ]}
+                  />
+                );
+              })}
+
               {/* HP Bar (above token, only for NPCs, only if alive) */}
               {!isPC && !isDead && (
                 <View
@@ -170,12 +210,17 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
                   {
                     left: tokenX,
                     top: tokenY,
+                    width: tokenSize,
+                    height: tokenSize,
+                    borderRadius: tokenSize / 2,
                     backgroundColor: isDead ? "#666666" : isPC ? "#007AFF" : "#DC3545",
                     opacity: isDead ? 0.5 : 1,
+                    zIndex: 10,
+                    transform: [{ translateX: -tokenSize / 2 }, { translateY: -tokenSize / 2 }],
                   },
                 ]}
               >
-                <Text style={styles.tokenText} numberOfLines={1}>
+                <Text style={[styles.tokenText, { fontSize: Math.max(8, tokenSize * 0.35) }]} numberOfLines={1}>
                   {actorId}
                 </Text>
               </View>

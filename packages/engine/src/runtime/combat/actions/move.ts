@@ -1,6 +1,7 @@
 import type { Effect, GameSave } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
+import { canPlaceActorAt } from "../footprint";
 
 /**
  * Moves actor in combat grid
@@ -37,6 +38,32 @@ export function combatMove(
   const turnActorId = getCurrentTurnActorId(save);
   if (!turnActorId) {
     // Not player's turn
+    const blockedCheck = {
+      checkId: "combat:move:blocked",
+      actorId: save.party.activeActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
+  // Check if the current turn actor is a PC (optional check for player-only actions)
+  const turnActor = save.actorsById[turnActorId];
+  if (!turnActor || turnActor.kind !== "PC") {
+    // Not a player character's turn
     const blockedCheck = {
       checkId: "combat:move:blocked",
       actorId: save.party.activeActorId,
@@ -106,16 +133,8 @@ export function combatMove(
     y: Math.max(0, Math.min(combat.grid.height - 1, currentPos.y + delta.y)),
   };
 
-  // Check if target position is occupied by another LIVING actor (dead actors don't block movement)
-  const occupiedBy = Object.entries(combat.positions).find(([actorId, pos]) => {
-    if (actorId === turnActorId) return false; // Don't check self
-    if (pos.x !== newPos.x || pos.y !== newPos.y) return false; // Not at target position
-    const actor = save.actorsById[actorId];
-    // Only block if actor is alive (dead actors don't block)
-    return actor && actor.resources.isDead !== true;
-  });
-
-  if (occupiedBy) {
+  // Validate footprint placement (checks bounds and overlap with other actors)
+  if (!canPlaceActorAt(save, turnActorId, newPos)) {
     const blockedCheck = {
       checkId: "combat:move:blocked",
       actorId: turnActorId,
@@ -128,7 +147,6 @@ export function combatMove(
       tags: [
         "combat:blocked=positionOccupied",
         `combat:pos=${newPos.x},${newPos.y}`,
-        `combat:occupiedBy=${occupiedBy[0]}`,
       ],
     };
     return {
