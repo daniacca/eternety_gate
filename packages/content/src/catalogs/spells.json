@@ -108,6 +108,24 @@
     ]
   },
   {
+    "id": "spell:regenerate_minor",
+    "name": "Rigenerazione Minore",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:soothe_wounds",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Ripristina una piccola quantità di HP",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:pyra_explosion",
     "name": "Esplosione di Fuoco",
     "discipline": "PYRA",

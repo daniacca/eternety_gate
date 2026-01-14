@@ -41,6 +41,7 @@ export {
   chebyshevDistanceBetweenBBoxes,
   footprintDistanceBetweenActors,
   footprintIntersects,
+  isFootprintWalkable,
   canPlaceActorAt,
   buildOccupancyMap,
 } from "./runtime/combat/footprint";
@@ -52,7 +53,7 @@ export { loadCharacterCatalogs, loadTerrainCatalogs, getSkillById, getTalentById
 export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId, GridDefinition, TileDefinition, TerrainCatalogs } from "./content/catalogs";
 
 // Terrain helpers
-export { getGrid, getCellTerrain, isFootprintWalkable } from "./runtime/combat/terrain";
+export { getGrid, getCellTerrain } from "./runtime/combat/terrain";
 
 // Character framework
 export { getXp, addXp, spendXp, buyTalent } from "./runtime/characters/xp";

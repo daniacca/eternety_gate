@@ -2,11 +2,15 @@ import type { StoryPack, GameSave, ActorId, Effect } from "../types";
 import { RNG } from "../rng";
 import { distanceChebyshev } from "./movement";
 import { getActorWeapon } from "./equipment";
-import { applyEffects } from "../effects";
 import { hasCondition } from "../conditions";
 import { isActorAlive } from "../characters/actors";
 import type { ContentPack } from "../../content/types";
 import { canPlaceActorAt } from "./footprint";
+import { combatMove } from "./actions/move";
+import { combatRequestAttack } from "./actions/requestAttack";
+import { combatStandUp } from "./actions/standUp";
+import { applyAddCondition, applyRemoveCondition } from "../effects/actorConditions";
+import { finalizeCombatIfEnded } from "./combat";
 
 /**
  * Runs an NPC turn (auto-attack or move)
@@ -32,7 +36,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
       op: "combatStandUp",
       actorId: npcId,
     };
-    return applyEffects([standUpEffect], storyPack, save, rng, contentPack);
+    return applyNpcEffects([standUpEffect], storyPack, save, rng, contentPack);
   }
 
   // Target is always the active party member (must be alive)
@@ -196,5 +200,58 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
 
   // Apply effects (they will be processed via queue)
   // Note: contentPack is required for terrain/walkable checks in movement.
-  return applyEffects(effects, storyPack, save, rng, contentPack);
+  return applyNpcEffects(effects, storyPack, save, rng, contentPack);
+}
+
+/**
+ * NPC turns need to apply effects, but importing the generic `applyEffects` creates a require-cycle:
+ * npcAi -> effects/index -> combat/actions/* -> npcAi.
+ *
+ * So we use a minimal local applier that supports the subset of effects NPC AI emits
+ * plus the emitted effects from those combat actions (currently add/remove condition).
+ */
+function applyNpcEffects(
+  effects: Effect[],
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: RNG,
+  contentPack?: ContentPack
+): GameSave {
+  const queue: Effect[] = [...effects];
+  let currentSave = save;
+
+  while (queue.length > 0) {
+    const effect = queue.shift()!;
+
+    let result: { save: GameSave; emittedEffects?: Effect[] } = { save: currentSave };
+
+    switch (effect.op) {
+      case "combatMove":
+        result = combatMove(effect as Extract<Effect, { op: "combatMove" }>, currentSave, contentPack);
+        break;
+      case "combatRequestAttack":
+        result = combatRequestAttack(effect as Extract<Effect, { op: "combatRequestAttack" }>, storyPack, currentSave, rng);
+        break;
+      case "combatStandUp":
+        result = combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, currentSave);
+        break;
+      case "addCondition":
+        result = { save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave) };
+        break;
+      case "removeCondition":
+        result = { save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, currentSave) };
+        break;
+      default:
+        // Unknown (for NPC turn flow): ignore.
+        result = { save: currentSave };
+        break;
+    }
+
+    currentSave = result.save;
+    if (result.emittedEffects && result.emittedEffects.length > 0) {
+      queue.push(...result.emittedEffects);
+    }
+  }
+
+  return finalizeCombatIfEnded(currentSave);
 }

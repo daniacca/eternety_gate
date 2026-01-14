@@ -1,6 +1,5 @@
 import type { GameSave, Position } from "../types";
 import { posKey } from "../items/posKey";
-import { getFootprintCells, getActorSize, getFootprintRadius } from "./footprint";
 import { loadTerrainCatalogs } from "../../content/loadCatalogs";
 import type { ContentPack } from "../../content/types";
 
@@ -82,34 +81,4 @@ export function getCellTerrain(
     cover: cellOverride?.cover ?? gridDef.defaults.cover,
     tileId: cellOverride?.tileId ?? gridDef.defaults.tileId,
   };
-}
-
-/**
- * Checks if an actor's footprint can be placed at the given center position
- * Returns false if ANY footprint cell is not walkable
- */
-export function isFootprintWalkable(
-  save: GameSave,
-  actorId: string,
-  centerPos: Position,
-  contentPack?: ContentPack
-): boolean {
-  const actor = save.actorsById[actorId];
-  if (!actor) {
-    return false;
-  }
-
-  const size = getActorSize(actor);
-  const radius = getFootprintRadius(size);
-  const footprint = getFootprintCells(centerPos, radius);
-
-  // Check all cells in footprint are walkable
-  for (const cell of footprint) {
-    const terrain = getCellTerrain(save, cell, contentPack);
-    if (!terrain.walkable) {
-      return false;
-    }
-  }
-
-  return true;
 }

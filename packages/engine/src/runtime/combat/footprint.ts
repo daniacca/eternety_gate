@@ -1,6 +1,6 @@
 import type { GameSave, ActorId, Position, Grid } from "../types";
 import { posKey } from "../items/posKey";
-import { isFootprintWalkable } from "./terrain";
+import { getCellTerrain } from "./terrain";
 import type { ContentPack } from "../../content/types";
 
 /**
@@ -183,6 +183,39 @@ export function buildOccupancyMap(save: GameSave): Map<string, ActorId> {
  */
 function isPositionInBounds(pos: Position, grid: Grid): boolean {
   return pos.x >= 0 && pos.x < grid.width && pos.y >= 0 && pos.y < grid.height;
+}
+
+/**
+ * Checks if an actor's footprint can be placed at the given center position
+ * Returns false if ANY footprint cell is not walkable
+ *
+ * NOTE: This lives in `footprint.ts` (not `terrain.ts`) to avoid a require-cycle:
+ * terrain -> footprint and footprint -> terrain.
+ */
+export function isFootprintWalkable(
+  save: GameSave,
+  actorId: ActorId,
+  centerPos: Position,
+  contentPack?: ContentPack
+): boolean {
+  const actor = save.actorsById[actorId];
+  if (!actor) {
+    return false;
+  }
+
+  const size = getActorSize(actor);
+  const radius = getFootprintRadius(size);
+  const footprint = getFootprintCells(centerPos, radius);
+
+  // Check all cells in footprint are walkable
+  for (const cell of footprint) {
+    const terrain = getCellTerrain(save, cell, contentPack);
+    if (!terrain.walkable) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

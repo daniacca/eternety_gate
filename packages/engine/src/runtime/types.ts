@@ -595,6 +595,7 @@ export type RuntimeLogEntry =
       message: string;
       turnCounter?: number;
       resolutionId?: string;
+      tags?: string[];
     };
 
 export type Grid = { width: number; height: number };

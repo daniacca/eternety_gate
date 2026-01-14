@@ -1,1 +1,1 @@
-export { PlayScreen as default } from "./play/PlayScreen";
+export { PlayScreen as default } from "../src/play/PlayScreen";

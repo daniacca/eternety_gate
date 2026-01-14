@@ -465,6 +465,36 @@ export function combatCastSpell(
           if (randomPos) {
             const randomizedSelection: TargetSelection = { kind: "single", targetPos: randomPos };
             targetPreview = computeTargetPreview(updatedSave, turnActorId, spellTargetSpec, randomizedSelection);
+
+            // Phenomena: explicit log so players understand the retarget happened.
+            // NOTE: keep deterministic - do not add any extra RNG calls here.
+            const phenomenonMessage = "La Trama sfugge al controllo: il bersaglio cambia!";
+            updatedSave = appendCombatLog(updatedSave, phenomenonMessage);
+
+            const tags: string[] = [
+              "magic:phenomena=targetRandomization",
+              `magic:spell=${spell.id}`,
+              `magic:caster=${turnActorId}`,
+              `magic:randomTarget=${randomTargetId}`,
+              `magic:randomPos=${randomPos.x},${randomPos.y}`,
+            ];
+
+            // If resolvable (and not too spammy), include affected actor ids for debugging.
+            const affected = targetPreview.affectedActorIds ?? [];
+            for (const id of affected.slice(0, 5)) {
+              tags.push(`magic:affectedActor=${id}`);
+            }
+            if (affected.length > 5) {
+              tags.push(`magic:affectedActorsMore=${affected.length - 5}`);
+            }
+
+            updatedSave = appendRuntimeLog(updatedSave, {
+              kind: "system",
+              message: phenomenonMessage,
+              turnCounter: combat.turnCounter,
+              resolutionId,
+              tags,
+            });
           }
         }
       }
