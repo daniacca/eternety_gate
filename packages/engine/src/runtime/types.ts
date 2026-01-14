@@ -1,3 +1,5 @@
+import type { TargetSelection } from "./combat/targeting/types";
+
 // Runtime Types for Eternity Gate Engine
 // Copied from schemas/schemas.types.ts
 
@@ -174,11 +176,7 @@ export type Effect =
       op: "combatCastSpell";
       actorId: ActorId;
       spellId: string;
-      targetSpec:
-        | { kind: "self" }
-        | { kind: "actor"; actorId: ActorId }
-        | { kind: "point"; x: number; y: number }
-        | { kind: "direction"; dir: 1 | 2 | 3 | 4 | 6 | 7 | 8 | 9 };
+      targetSelection: TargetSelection;
     }
   | {
       op: "learnSpell";

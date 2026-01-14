@@ -69,9 +69,27 @@ export { getMagicPower } from "./runtime/magic/pm";
 export { canLearnSpell, learnSpell, getLearnedSpells, hasLearnedSpell } from "./runtime/magic/learning";
 export { getAllSpells, getSpellById, getEffectById } from "./runtime/magic/catalogs";
 
-// Targeting types
-export type { TargetSpec, TargetingDefinition, TargetResolution, Direction9, Point } from "./runtime/targeting/types";
+// Targeting types (legacy + new combat targeting)
+export type {
+  TargetSpec as LegacyTargetSpec,
+  TargetingDefinition,
+  TargetResolution,
+  Direction9,
+  Point,
+} from "./runtime/targeting/types";
 export { getActorsInRange } from "./runtime/targeting/getActorsInRange";
+export type { TargetSpec, TargetSelection, TargetPreview, Direction8 } from "./runtime/combat/targeting/types";
+export {
+  buildSpellTargetSpec,
+  computeTargetPreview,
+  getActorAnchorPos,
+  getActorsIntersectingCells,
+  getCellsInConeSimple,
+  getCellsInLine,
+  getCellsInRadius,
+  getCellsInTouch,
+  isWithinRange,
+} from "./runtime/combat/targeting/computeTargeting";
 
 // Types
 export type * from "./runtime/types";

@@ -11,6 +11,15 @@ import {
   type StoryPack,
   type ContentPack,
   type Effect,
+  buildSpellTargetSpec,
+  computeTargetPreview,
+  getSpellById,
+  getEffectById,
+  type TargetSpec,
+  type TargetSelection,
+  type TargetPreview,
+  type Direction8,
+  type Position,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
 import sigilContent from "@eg/content/sigil.content.json";
@@ -171,8 +180,17 @@ export function PlayScreen() {
     []
   );
 
+  type SpellTargetingState = {
+    spellId: string;
+    spellName: string;
+    targetSpec: TargetSpec;
+    selection: Partial<TargetSelection>;
+    preview: TargetPreview;
+  };
+
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
+  const [spellTargeting, setSpellTargeting] = useState<SpellTargetingState | null>(null);
   const { width, height } = useWindowDimensions();
 
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
@@ -193,9 +211,111 @@ export function PlayScreen() {
     setSave(newSave);
   };
 
+  const buildInitialSelection = (spec: TargetSpec): Partial<TargetSelection> => {
+    switch (spec.shape.kind) {
+      case "self":
+        return { kind: "self" };
+      case "touch":
+        return { kind: "touch", direction: "N" };
+      case "line":
+        return { kind: "line", direction: "N" };
+      case "cone":
+        return { kind: "cone", direction: "N" };
+      case "single":
+        return { kind: "single" };
+      case "radius":
+        return { kind: "radius" };
+      default:
+        return {};
+    }
+  };
+
+  const startSpellTargeting = (spellId: string) => {
+    const spell = getSpellById(spellId);
+    const effectDef = spell ? getEffectById(spell.effectId) : null;
+    if (!spell || !effectDef) return;
+    const cnBase = effectDef.baseCN ?? spell.baseCN;
+    const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
+    const selection = buildInitialSelection(targetSpec);
+    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    setSpellTargeting({
+      spellId,
+      spellName: spell.name,
+      targetSpec,
+      selection,
+      preview,
+    });
+  };
+
+  const handleTargetDirection = (dir: Direction8) => {
+    setSpellTargeting((current) => {
+      if (!current) return current;
+      const kind = current.targetSpec.shape.kind;
+      if (kind === "touch") {
+        const selection: TargetSelection = { kind: "touch", direction: dir };
+        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        return { ...current, selection, preview };
+      }
+      if (kind === "line") {
+        const selection: TargetSelection = { kind: "line", direction: dir };
+        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        return { ...current, selection, preview };
+      }
+      if (kind === "cone") {
+        const selection: TargetSelection = { kind: "cone", direction: dir };
+        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        return { ...current, selection, preview };
+      }
+      return current;
+    });
+  };
+
+  const handleCellTarget = (pos: Position) => {
+    setSpellTargeting((current) => {
+      if (!current) return current;
+      const kind = current.targetSpec.shape.kind;
+      if (kind === "single") {
+        const selection: TargetSelection = { kind: "single", targetPos: pos };
+        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        return { ...current, selection, preview };
+      }
+      if (kind === "radius") {
+        const selection: TargetSelection = { kind: "radius", centerPos: pos };
+        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        return { ...current, selection, preview };
+      }
+      return current;
+    });
+  };
+
+  const confirmSpellTargeting = () => {
+    if (!spellTargeting || !spellTargeting.preview.valid) return;
+    applySystemEffects([
+      {
+        op: "combatCastSpell",
+        actorId: save.party.activeActorId,
+        spellId: spellTargeting.spellId,
+        targetSelection: spellTargeting.selection as TargetSelection,
+      },
+    ]);
+    setSpellTargeting(null);
+  };
+
+  const cancelSpellTargeting = () => setSpellTargeting(null);
+
   const lastCheck = save.runtime.lastPlayerCheck || save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
+  const targetingInfo = spellTargeting
+    ? {
+        spellName: spellTargeting.spellName,
+        previewValid: spellTargeting.preview.valid,
+        reason: spellTargeting.preview.reason,
+        requiresDirection: spellTargeting.targetSpec.requiresDirection,
+        direction:
+          "direction" in spellTargeting.selection ? (spellTargeting.selection as any).direction : undefined,
+      }
+    : undefined;
 
   // Filter out combat-related choices from generic choices list - ALWAYS exclude combat choices
   const nonCombatChoices = choices.filter(
@@ -238,6 +358,8 @@ export function PlayScreen() {
             combat={combat}
             save={save}
             styles={styles}
+            targetingPreview={spellTargeting?.preview}
+            onCellPress={spellTargeting ? handleCellTarget : undefined}
           />
         ) : (
           <View style={styles.gameArea}>
@@ -301,6 +423,11 @@ export function PlayScreen() {
           storyPack={storyPackWithCatalogs}
           width={width}
           styles={styles}
+          onSpellTargetSelect={startSpellTargeting}
+          targetingInfo={targetingInfo}
+          onTargetDirection={handleTargetDirection}
+          onTargetConfirm={confirmSpellTargeting}
+          onTargetCancel={cancelSpellTargeting}
         />
 
         {/* Game Over Panel */}
@@ -876,7 +1003,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   movePadContainer: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
+    alignItems: "center",
   },
   movePadTitle: {
     fontSize: 14,
@@ -992,7 +1120,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 16,
     marginBottom: 16,
-    gap: 8,
+    gap: 12,
   },
   mainRowNarrow: {
     flexDirection: "column",
@@ -1004,12 +1132,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   attacksBlock: {
-    flex: 2,
+    flex: 1,
     marginTop: 0,
     marginBottom: 0,
     marginHorizontal: 0,
   },
   stanceBlock: {
+    flex: 1,
+    marginTop: 0,
+    marginBottom: 0,
+    marginHorizontal: 0,
+  },
+  magicBlock: {
     flex: 1,
     marginTop: 0,
     marginBottom: 0,

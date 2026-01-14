@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import {
   getCurrentTurnActorId,
   type GameSave,
+  type TargetPreview,
+  type Position,
   calculateMaxHp,
   getCurrentHp,
   loadCharacterCatalogs,
@@ -28,9 +30,19 @@ interface CombatGridProps {
   combat: GameSave["runtime"]["combat"];
   save: GameSave;
   styles: any;
+  targetingPreview?: TargetPreview | null;
+  onCellPress?: (pos: Position) => void;
 }
 
-export function CombatGrid({ containerWidth, containerHeight, combat, save, styles }: CombatGridProps) {
+export function CombatGrid({
+  containerWidth,
+  containerHeight,
+  combat,
+  save,
+  styles,
+  targetingPreview,
+  onCellPress,
+}: CombatGridProps) {
   if (!combat?.active) {
     return (
       <View style={styles.gameArea}>
@@ -42,6 +54,8 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
 
   const { grid, positions, round } = combat;
   const currentTurnActorId = getCurrentTurnActorId(save);
+  const selectableCells = targetingPreview?.selectableCells ?? [];
+  const affectedCells = targetingPreview?.affectedCells ?? [];
 
   // Viewport size inside the right pane (leave some breathing room)
   const padding = 16;
@@ -353,6 +367,62 @@ export function CombatGrid({ containerWidth, containerHeight, combat, save, styl
                 </View>
               );
             })
+          )}
+
+        {/* Targeting overlays */}
+        {targetingPreview &&
+          selectableCells.map((cell, idx) => (
+            <View
+              key={`selectable-${idx}`}
+              style={{
+                position: "absolute",
+                left: cell.x * tileSize,
+                top: cell.y * tileSize,
+                width: cellWidth,
+                height: cellHeight,
+                backgroundColor: "rgba(34, 197, 94, 0.35)",
+                borderWidth: 1,
+                borderColor: "rgba(34, 197, 94, 0.55)",
+                zIndex: 5,
+              }}
+              pointerEvents="none"
+            />
+          ))}
+        {targetingPreview &&
+          affectedCells.map((cell, idx) => (
+            <View
+              key={`affected-${idx}`}
+              style={{
+                position: "absolute",
+                left: cell.x * tileSize,
+                top: cell.y * tileSize,
+                width: cellWidth,
+                height: cellHeight,
+                backgroundColor: "rgba(239, 68, 68, 0.4)",
+                borderWidth: 1,
+                borderColor: "rgba(239, 68, 68, 0.7)",
+                zIndex: 6,
+              }}
+              pointerEvents="none"
+            />
+          ))}
+
+        {onCellPress &&
+          Array.from({ length: grid.height }).map((_, row) =>
+            Array.from({ length: grid.width }).map((_, col) => (
+              <Pressable
+                key={`cell-press-${col}-${row}`}
+                style={{
+                  position: "absolute",
+                  left: col * tileSize,
+                  top: row * tileSize,
+                  width: cellWidth,
+                  height: cellHeight,
+                  zIndex: 15,
+                }}
+                onPress={() => onCellPress({ x: col, y: row })}
+              />
+            ))
           )}
 
         {/* Tokens (all actors, including dead ones) */}

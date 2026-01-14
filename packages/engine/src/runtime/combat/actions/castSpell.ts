@@ -20,12 +20,10 @@ import { calculateMaxHp } from "../../characters/hp";
 import { hasUnlockedAction } from "../../characters/actions";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
-import { resolveTargets } from "../../targeting/resolveTargets";
-import { buildTargetingDefinition } from "../../targeting/spellTargeting";
-import { convertLegacyTargetSpec } from "../../targeting/convertTargetSpec";
+import { buildSpellTargetSpec, computeTargetPreview } from "../targeting/computeTargeting";
 import { scaleDamage, scaleCondition, scaleHeal } from "../../magic/scaling";
 import { getActorsInRange } from "../../targeting/getActorsInRange";
-import type { TargetSpec } from "../../targeting/types";
+import type { TargetSpec, TargetSelection, TargetPreview } from "../targeting/types";
 import { posKey } from "../../items";
 import type { ItemRef } from "../../types";
 
@@ -83,6 +81,8 @@ export function combatCastSpell(
   if (!actor) {
     return { save };
   }
+
+  const cnBase = effectDef.baseCN ?? spell.baseCN;
 
   // Load catalogs early for checks
   const catalogs: CharacterCatalogs | undefined =
@@ -207,6 +207,22 @@ export function combatCastSpell(
     }
   }
 
+  const targetSelection: TargetSelection = effect.targetSelection;
+  const spellTargetSpec: TargetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
+  let targetPreview: TargetPreview = computeTargetPreview(save, turnActorId, spellTargetSpec, targetSelection);
+
+  if (!targetPreview.valid) {
+    const invalidMessage = targetPreview.reason
+      ? `Targeting non valido: ${targetPreview.reason}`
+      : "Targeting non valido";
+    const loggedSave = appendRuntimeLog(save, {
+      kind: "system",
+      message: invalidMessage,
+      turnCounter: combat.turnCounter,
+    });
+    return { save: loggedSave };
+  }
+
   // Check channeling bonus
   // Channeling persists until the actor does a non-channeling, non-casting action
   // OR until they cast a spell (then it's consumed)
@@ -277,7 +293,6 @@ export function combatCastSpell(
 
   // Calculate CN and effective DoS
   // Use effectDef.baseCN (which is the CN for the effect) or fallback to spell.baseCN
-  const cnBase = effectDef.baseCN ?? spell.baseCN;
   const castDoS = result.dos;
   const effectiveDoS = castDoS + channelDoS;
   const success = effectiveDoS >= cnBase;
@@ -434,75 +449,43 @@ export function combatCastSpell(
 
   // Apply spell effects if successful
   if (success) {
-    // Convert targetSpec to new format (handle legacy format)
-    let targetSpec: TargetSpec;
-    if ("kind" in effect.targetSpec) {
-      targetSpec = effect.targetSpec as TargetSpec;
-    } else {
-      // Legacy format - convert it
-      targetSpec = convertLegacyTargetSpec(effect.targetSpec as any);
-    }
+    targetPreview = computeTargetPreview(updatedSave, turnActorId, spellTargetSpec, targetSelection);
 
-    // Build targeting definition (with overcast for range scaling)
-    const targetingDef = buildTargetingDefinition(spell, effectDef, cnBase, overcast);
-
-    // Handle random target phenomena
-    if (phenomenaResult?.kind === "targetRandomization") {
-      // Get rangeSquares from targeting definition
-      let rangeSquares = 0;
-      if (targetingDef.shape === "single" || targetingDef.shape === "line" || targetingDef.shape === "cone") {
-        rangeSquares = targetingDef.rangeSquares;
-      } else if (targetingDef.shape === "radius") {
-        rangeSquares = targetingDef.rangeSquares;
-      } else {
-        // Self targeting - no randomization needed
-        rangeSquares = 0;
-      }
-
+    if (phenomenaResult?.kind === "targetRandomization" && spellTargetSpec.shape.kind === "single") {
+      const rangeSquares = spellTargetSpec.shape.range;
       if (rangeSquares > 0) {
-        // Get original target actor ID if applicable (to exclude it)
-        const originalTargetId = targetSpec.kind === "actor" ? targetSpec.actorId : undefined;
-
-        // Get all valid actors in range
         const candidates = getActorsInRange(updatedSave, turnActorId, rangeSquares, {
           includeCaster: false,
           allowFriendlyFire: true,
-          excludeActorId: originalTargetId, // Optional: avoid picking original target
         });
-
         if (candidates.length > 0) {
-          // Pick random from candidates
           const randomIndex = rng.nextInt(0, candidates.length - 1);
           const randomTargetId = candidates[randomIndex];
-          // Update targetSpec to point to random target
-          targetSpec = { kind: "actor", actorId: randomTargetId };
+          const randomPos = updatedSave.runtime.combat?.positions[randomTargetId];
+          if (randomPos) {
+            const randomizedSelection: TargetSelection = { kind: "single", targetPos: randomPos };
+            targetPreview = computeTargetPreview(updatedSave, turnActorId, spellTargetSpec, randomizedSelection);
+          }
         }
-        // If no candidates, keep original targetSpec (fallback)
       }
     }
 
-    // Resolve targets using new system
-    const targetResolution = resolveTargets(updatedSave, turnActorId, targetSpec, targetingDef, {
-      allowFriendlyFire: true, // MVP: allow friendly fire for spells
-      includeCaster: spell.targetShape === "self",
-    });
-
-    if (targetResolution.invalidReason) {
-      // Invalid targeting - log and return
+    if (!targetPreview.valid) {
       updatedSave = appendRuntimeLog(updatedSave, {
         kind: "system",
-        message: `Targeting failed: ${targetResolution.invalidReason}`,
+        message: `Targeting failed: ${targetPreview.reason || "invalid"}`,
         turnCounter: combat.turnCounter,
         resolutionId,
       });
       return { save: updatedSave };
     }
 
-    // Get target actors
-    const targetActors = targetResolution.targetActorIds.map((id) => ({
-      actorId: id,
-      actor: updatedSave.actorsById[id]!,
-    }));
+    const targetActors = targetPreview.affectedActorIds
+      .map((id) => ({
+        actorId: id,
+        actor: updatedSave.actorsById[id],
+      }))
+      .filter((t): t is { actorId: ActorId; actor: NonNullable<typeof updatedSave.actorsById[string]> } => !!t.actor);
 
     // Log target resolution
     if (targetActors.length > 0) {

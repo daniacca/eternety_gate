@@ -36,6 +36,10 @@ export function buildTargetingDefinition(
     return { shape: "self" };
   }
 
+  if (shape === "touch") {
+    return { shape: "single", rangeSquares: 1 };
+  }
+
   // Calculate rangeSquares
   let rangeSquares: number;
   if (spell.rangeSquares !== undefined) {

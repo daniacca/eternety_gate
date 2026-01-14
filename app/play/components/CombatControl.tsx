@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import type { GameSave, Choice, Effect, StoryPack } from "@eg/engine";
+import type { GameSave, Choice, Effect, StoryPack, Direction8 } from "@eg/engine";
 import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
 import { useMemo, useState } from "react";
@@ -14,6 +14,17 @@ interface CombatControlProps {
   storyPack?: StoryPack;
   width: number;
   styles: any;
+  onSpellTargetSelect: (spellId: string) => void;
+  targetingInfo?: {
+    spellName: string;
+    previewValid: boolean;
+    reason?: string;
+    requiresDirection?: boolean;
+    direction?: Direction8;
+  };
+  onTargetDirection?: (dir: Direction8) => void;
+  onTargetConfirm?: () => void;
+  onTargetCancel?: () => void;
 }
 
 export function CombatControl({
@@ -25,6 +36,11 @@ export function CombatControl({
   storyPack,
   width,
   styles,
+  onSpellTargetSelect,
+  targetingInfo,
+  onTargetDirection,
+  onTargetConfirm,
+  onTargetCancel,
 }: CombatControlProps) {
   const [spellPickerVisible, setSpellPickerVisible] = useState(false);
 
@@ -75,6 +91,17 @@ export function CombatControl({
       { dir: "se", label: "SE" },
     ],
   ];
+
+  const moveDirToDirection8: Record<string, Direction8> = {
+    n: "N",
+    ne: "NE",
+    e: "E",
+    se: "SE",
+    s: "S",
+    sw: "SW",
+    w: "W",
+    nw: "NW",
+  };
 
   // Determine if we should use row layout (wide screen)
   const useRowLayout = width >= 900;
@@ -459,7 +486,7 @@ export function CombatControl({
           </View>
 
           {/* Magic Block */}
-          <View style={[styles.combatBlock, styles.stanceBlock]}>
+          <View style={[styles.combatBlock, styles.magicBlock]}>
             <Text style={styles.combatBlockTitle}>Magic</Text>
             <View style={styles.stanceActions}>
               <Pressable
@@ -503,6 +530,92 @@ export function CombatControl({
                 <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
               )}
             </View>
+            {targetingInfo && (
+              <View
+                style={{
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 8,
+                  backgroundColor: "#eef2ff",
+                  gap: 8,
+                }}
+              >
+                <Text style={{ fontWeight: "700", color: "#111827" }}>
+                  Targeting: {targetingInfo.spellName}
+                </Text>
+                <Text
+                  style={{
+                    color: targetingInfo.previewValid ? "#16a34a" : "#dc2626",
+                    fontSize: 12,
+                  }}
+                >
+                  {targetingInfo.previewValid ? "Pronto a confermare" : targetingInfo.reason || "Seleziona bersaglio"}
+                </Text>
+                {targetingInfo.requiresDirection && (
+                  <View style={{ alignItems: "center", gap: 4 }}>
+                    <Text style={{ fontSize: 12, color: "#374151" }}>Direzione</Text>
+                    <View style={{ gap: 4 }}>
+                      {moveGrid.map((row, rowIdx) => (
+                        <View key={`tgt-row-${rowIdx}`} style={{ flexDirection: "row", gap: 4, justifyContent: "center" }}>
+                          {row.map((move, colIdx) => {
+                            if (!move) {
+                              return <View key={`tgt-empty-${rowIdx}-${colIdx}`} style={{ width: 40, height: 40 }} />;
+                            }
+                            const dir = moveDirToDirection8[move.dir];
+                            const isSelected = targetingInfo.direction === dir;
+                            return (
+                              <Pressable
+                                key={move.dir}
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 6,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: isSelected ? "#4a90e2" : "#f0f0f0",
+                                  borderWidth: 1,
+                                  borderColor: isSelected ? "#2563eb" : "#d1d5db",
+                                }}
+                                onPress={() => onTargetDirection && onTargetDirection(dir)}
+                              >
+                                <Text style={{ color: isSelected ? "#fff" : "#111827", fontWeight: "700" }}>{move.label}</Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 6,
+                      backgroundColor: "#e5e7eb",
+                      alignItems: "center",
+                    }}
+                    onPress={onTargetCancel}
+                  >
+                    <Text style={{ fontWeight: "700", color: "#111827" }}>Annulla</Text>
+                  </Pressable>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 6,
+                      backgroundColor: targetingInfo.previewValid ? "#4a90e2" : "#9ca3af",
+                      alignItems: "center",
+                    }}
+                    disabled={!targetingInfo.previewValid}
+                    onPress={onTargetConfirm}
+                  >
+                    <Text style={{ fontWeight: "700", color: "#fff" }}>Conferma</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -521,19 +634,11 @@ export function CombatControl({
         visible={spellPickerVisible}
         save={save}
         actorId={save.party.activeActorId}
-        selectedTargetId={model.selectedTargetId || null}
         actionAvailable={model.actionAvailable}
-        moveRemaining={model.moveRemaining}
         onClose={() => setSpellPickerVisible(false)}
-        onSelectSpell={(spellId, targetSpec) => {
-          applySystemEffects([
-            {
-              op: "combatCastSpell",
-              actorId: save.party.activeActorId,
-              spellId,
-              targetSpec,
-            },
-          ]);
+        onSelectSpell={(spellId) => {
+          onSpellTargetSelect(spellId);
+          setSpellPickerVisible(false);
         }}
       />
     </View>

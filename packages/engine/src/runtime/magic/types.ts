@@ -14,7 +14,7 @@ export type SpellCastTime = "free" | "standard" | "fullRound";
 /**
  * Target shape for spell effects
  */
-export type TargetShape = "self" | "single" | "line" | "cone" | "radius";
+export type TargetShape = "self" | "touch" | "single" | "line" | "cone" | "radius";
 
 /**
  * Range mode for spells
