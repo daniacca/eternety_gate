@@ -1,4 +1,4 @@
-import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import type { GameSave, Effect, ItemRef, StatKey } from "@eg/engine";
 import {
   getActorWeapon,
@@ -54,6 +54,8 @@ const statLabels: Record<string, string> = {
 
 export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 420;
   const activeActor = save.actorsById[save.party.activeActorId];
   if (!activeActor) return null;
 
@@ -147,16 +149,18 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
             {/* Stats */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Statistiche</Text>
-              <View style={styles.statsGrid}>
+              <View style={[styles.statsGrid, isNarrow && styles.statsGridNarrow]}>
                 {Object.entries(activeActor.stats).map(([key, value]) => {
                   const bonus = getCharacteristicBonus(save, activeActor.id, key as StatKey, catalogs);
+                  const baseBonus = Math.floor((value as number) / 10);
+                  const isBoosted = bonus > baseBonus;
                   return (
-                    <View key={key} style={styles.statRow}>
+                    <View key={key} style={[styles.statRow, isNarrow && styles.statRowNarrow]}>
                       <Text style={styles.statLabel}>{statLabels[key] || key}:</Text>
                       <View style={styles.statValueContainer}>
                         <Text style={styles.statValue}>{value}</Text>
-                        <Text style={styles.statBonus}>
-                          (Bonus: {bonus >= 0 ? "+" : ""}
+                        <Text style={[styles.statBonus, isBoosted && styles.statBonusBoosted]}>
+                          ({bonus >= 0 ? "+" : ""}
                           {bonus})
                         </Text>
                       </View>
@@ -584,10 +588,17 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 12,
   },
+  statsGridNarrow: {
+    flexDirection: "column",
+    gap: 10,
+  },
   statRow: {
     flexDirection: "row",
     width: "48%",
     justifyContent: "space-between",
+  },
+  statRowNarrow: {
+    width: "100%",
   },
   statLabel: {
     fontSize: 14,
@@ -607,6 +618,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     fontStyle: "italic",
+  },
+  statBonusBoosted: {
+    color: "#16a34a",
+    fontWeight: "700",
+    fontStyle: "normal",
   },
   resourceRow: {
     flexDirection: "row",

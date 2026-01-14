@@ -509,20 +509,14 @@ export function PlayScreen() {
           </ScrollView>
         </View>
       ) : (
-        // Portrait/Narrow: map on top, then bottom split into 2 columns
+        // Portrait/Narrow: single full-width column (map on top, then story + combat panels stacked)
         <>
           <View style={styles.topPane}>
             <GameArea />
           </View>
           <ScrollView style={styles.bottomScroll} contentContainerStyle={styles.bottomScrollContent}>
-            <View style={styles.bottomColumns}>
-              <View style={styles.bottomColumn}>
-                <StoryContent />
-              </View>
-              <View style={styles.bottomColumn}>
-                <CombatPanels />
-              </View>
-            </View>
+            <StoryContent />
+            <CombatPanels />
           </ScrollView>
         </>
       )}
@@ -550,11 +544,12 @@ const createStyles = ({
   isPhone: boolean;
 }) => {
   const topPaneHeight = isNarrow ? Math.round(Math.max(220, Math.min(420, height * 0.42))) : 280;
-  const contentPadding = isPhone ? 12 : 20;
-  const titleFontSize = isPhone ? 20 : 24;
-  const textFontSize = isPhone ? 14 : 16;
-  const textLineHeight = isPhone ? 20 : 24;
-  const actionPadding = isPhone ? 12 : 16;
+  // On phones we want readability first.
+  const contentPadding = isPhone ? 16 : 20;
+  const titleFontSize = isPhone ? 24 : 24;
+  const textFontSize = isPhone ? 17 : 16;
+  const textLineHeight = isPhone ? 26 : 24;
+  const actionPadding = isPhone ? 16 : 16;
   const sidePanelHeight = isPhone ? 170 : 200;
   const movePadCellSize = isPhone ? 42 : 48;
 
@@ -584,14 +579,6 @@ const createStyles = ({
     leftPaneScroll: { flex: 1, width: "50%" },
     bottomScroll: { flex: 1 },
     bottomScrollContent: { flexGrow: 1 },
-    bottomColumns: {
-      flex: 1,
-      flexDirection: "row",
-    },
-    bottomColumn: {
-      flex: 1,
-      minWidth: 0,
-    },
     gameAreaContainer: {
       flex: 1,
       width: "100%",
@@ -754,7 +741,7 @@ const createStyles = ({
       paddingTop: 16,
     },
     choicesTitle: {
-      fontSize: 18,
+      fontSize: isPhone ? 20 : 18,
       fontWeight: "600",
       marginBottom: 12,
       color: "#000",
@@ -767,7 +754,7 @@ const createStyles = ({
     },
     choiceText: {
       color: "#FFFFFF",
-      fontSize: isPhone ? 14 : 16,
+      fontSize: isPhone ? 18 : 16,
       fontWeight: "500",
     },
     checkInfo: {

@@ -43,6 +43,7 @@ export function CombatControl({
   onTargetCancel,
 }: CombatControlProps) {
   const [spellPickerVisible, setSpellPickerVisible] = useState(false);
+  const [activeSection, setActiveSection] = useState<"movement" | "attacks" | "stance" | "magic">("movement");
 
   if (!model || !model.isCombatActive) return null;
 
@@ -109,6 +110,23 @@ export function CombatControl({
   const useNarrowLayout = width < 600;
   const isPhone = width < 420;
 
+  const SectionHeader = ({ id, title }: { id: "movement" | "attacks" | "stance" | "magic"; title: string }) => (
+    <Pressable
+      style={{
+        marginTop: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        backgroundColor: activeSection === id ? "#e8f2ff" : "#f3f4f6",
+        borderWidth: 1,
+        borderColor: activeSection === id ? "#4a90e2" : "#e5e7eb",
+      }}
+      onPress={() => setActiveSection(id)}
+    >
+      <Text style={{ fontWeight: "800", color: "#111827", fontSize: isPhone ? 16 : 14 }}>{title}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={styles.combatControl}>
       {/* Header */}
@@ -128,507 +146,534 @@ export function CombatControl({
         )}
       </View>
 
-      {/* A) Movement, Attacks, and Stance Blocks - All on Same Row */}
+      {/* A) Movement, Attacks, and Stance Blocks */}
       {model.isPlayerTurn && (
         <View style={[styles.mainRow, useNarrowLayout && styles.mainRowNarrow]}>
           {/* Movement Block */}
-          <View style={[styles.combatBlock, styles.movementBlock]}>
-            <Text style={styles.combatBlockTitle}>Movement</Text>
-            <View style={styles.movePadContainer}>
-              <View style={styles.movePadGrid}>
-                {moveGrid.map((row, rowIndex) => (
-                  <View key={rowIndex} style={styles.movePadRow}>
-                    {row.map((move, colIndex) => {
-                      if (move === null) {
-                        return <View key={`center-${rowIndex}-${colIndex}`} style={styles.movePadCell} />;
-                      }
-                      const moveChoice = combatChoices.find((c) => c.id === `combat_move_${move.dir}`);
+          <View style={[styles.combatBlock, styles.movementBlock, isPhone && { padding: 10 }]}>
+            {isPhone ? (
+              <SectionHeader id="movement" title="Movement" />
+            ) : (
+              <Text style={styles.combatBlockTitle}>Movement</Text>
+            )}
+            {(!isPhone || activeSection === "movement") && (
+              <View style={styles.movePadContainer}>
+                <View style={styles.movePadGrid}>
+                  {moveGrid.map((row, rowIndex) => (
+                    <View key={rowIndex} style={styles.movePadRow}>
+                      {row.map((move, colIndex) => {
+                        if (move === null) {
+                          return <View key={`center-${rowIndex}-${colIndex}`} style={styles.movePadCell} />;
+                        }
+                        const moveChoice = combatChoices.find((c) => c.id === `combat_move_${move.dir}`);
 
-                      return (
-                        <View key={move.dir} style={styles.movePadCell}>
-                          <Pressable
-                            style={[styles.movePadButton, !model.canMove && styles.movePadButtonDisabled]}
-                            onPress={() => model.canMove && moveChoice && handleChoice(moveChoice.id)}
-                            disabled={!model.canMove}
-                          >
-                            <Text
-                              style={[styles.movePadButtonText, !model.canMove && styles.movePadButtonTextDisabled]}
+                        return (
+                          <View key={move.dir} style={styles.movePadCell}>
+                            <Pressable
+                              style={[styles.movePadButton, !model.canMove && styles.movePadButtonDisabled]}
+                              onPress={() => model.canMove && moveChoice && handleChoice(moveChoice.id)}
+                              disabled={!model.canMove}
                             >
-                              {move.label}
-                            </Text>
-                          </Pressable>
-                          {!model.canMove && model.moveDisabledReason && (
-                            <Text style={styles.movePadReason}>{model.moveDisabledReason}</Text>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                ))}
-              </View>
-              {/* Movement Actions */}
-              <View style={styles.movementActions}>
-                <Pressable
-                  style={[styles.movementActionButton, model.moveRemaining <= 0 && styles.attackButtonDisabled]}
-                  onPress={() => {
-                    if (model.moveRemaining > 0) {
-                      const hasProne = model.pcActor?.conditions?.prone;
-                      if (hasProne) {
-                        applySystemEffects([{ op: "combatStandUp", actorId: save.party.activeActorId }]);
-                      } else {
-                        applySystemEffects([{ op: "combatGetProne", actorId: save.party.activeActorId }]);
+                              <Text
+                                style={[styles.movePadButtonText, !model.canMove && styles.movePadButtonTextDisabled]}
+                              >
+                                {move.label}
+                              </Text>
+                            </Pressable>
+                            {!model.canMove && model.moveDisabledReason && (
+                              <Text style={styles.movePadReason}>{model.moveDisabledReason}</Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+                {/* Movement Actions */}
+                <View style={styles.movementActions}>
+                  <Pressable
+                    style={[styles.movementActionButton, model.moveRemaining <= 0 && styles.attackButtonDisabled]}
+                    onPress={() => {
+                      if (model.moveRemaining > 0) {
+                        const hasProne = model.pcActor?.conditions?.prone;
+                        if (hasProne) {
+                          applySystemEffects([{ op: "combatStandUp", actorId: save.party.activeActorId }]);
+                        } else {
+                          applySystemEffects([{ op: "combatGetProne", actorId: save.party.activeActorId }]);
+                        }
                       }
-                    }
-                  }}
-                  disabled={model.moveRemaining <= 0}
-                >
-                  <Text
-                    style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                    }}
+                    disabled={model.moveRemaining <= 0}
                   >
-                    {model.pcActor?.conditions?.prone ? "Stand Up" : "Get Prone"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.movementActionButton, model.moveRemaining <= 0 && styles.attackButtonDisabled]}
-                  onPress={() => {
-                    if (model.moveRemaining > 0) {
-                      applySystemEffects([{ op: "combatPickup", actorId: save.party.activeActorId }]);
-                    }
-                  }}
-                  disabled={model.moveRemaining <= 0}
-                >
-                  <Text
-                    style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                    <Text
+                      style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                    >
+                      {model.pcActor?.conditions?.prone ? "Stand Up" : "Get Prone"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.movementActionButton, model.moveRemaining <= 0 && styles.attackButtonDisabled]}
+                    onPress={() => {
+                      if (model.moveRemaining > 0) {
+                        applySystemEffects([{ op: "combatPickup", actorId: save.party.activeActorId }]);
+                      }
+                    }}
+                    disabled={model.moveRemaining <= 0}
                   >
-                    Pickup
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[styles.movementActionText, model.moveRemaining <= 0 && styles.attackButtonTextDisabled]}
+                    >
+                      Pickup
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
+            )}
           </View>
           {/* Attacks Block - Contains Melee and Ranged sections */}
-          <View style={[styles.combatBlock, styles.attacksBlock]}>
-            <Text style={styles.combatBlockTitle}>Attacks</Text>
-
-            {/* Melee Attacks Section */}
-            <View style={styles.attackSection}>
-              <Text style={styles.attackSectionTitle}>Melee Attacks</Text>
-              {model.meleeChoice && (
-                <View style={styles.attackButtonItem}>
-                  <Pressable
-                    style={[
-                      styles.attackButton,
-                      (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
-                    ]}
-                    onPress={() => {
-                      if (!model.meleeDisabled && model.selectedTargetId) {
-                        applySystemEffects([
-                          {
-                            op: "combatRequestAttack",
-                            attackerId: save.party.activeActorId,
-                            defenderId: model.selectedTargetId,
-                            mode: "MELEE",
-                          },
-                        ]);
-                      }
-                    }}
-                    disabled={model.meleeDisabled || !model.selectedTargetId}
-                  >
-                    <Text
-                      style={[
-                        styles.attackButtonText,
-                        (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
-                      ]}
+          <View style={[styles.combatBlock, styles.attacksBlock, isPhone && { padding: 10 }]}>
+            {isPhone ? (
+              <SectionHeader id="attacks" title="Attacks" />
+            ) : (
+              <Text style={styles.combatBlockTitle}>Attacks</Text>
+            )}
+            {(!isPhone || activeSection === "attacks") && (
+              <>
+                {/* Melee Attacks Section */}
+                <View style={styles.attackSection}>
+                  <Text style={styles.attackSectionTitle}>Melee Attacks</Text>
+                  {model.meleeChoice && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (!model.meleeDisabled && model.selectedTargetId) {
+                            applySystemEffects([
+                              {
+                                op: "combatRequestAttack",
+                                attackerId: save.party.activeActorId,
+                                defenderId: model.selectedTargetId,
+                                mode: "MELEE",
+                              },
+                            ]);
+                          }
+                        }}
+                        disabled={model.meleeDisabled || !model.selectedTargetId}
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (model.meleeDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Melee Attack
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  <View style={styles.attackButtonItem}>
+                    <Pressable
+                      style={[styles.attackButton, model.allOutDisabled && styles.attackButtonDisabled]}
+                      onPress={() => {
+                        if (!model.allOutDisabled && model.selectedTargetId) {
+                          applySystemEffects([{ op: "combatAllOut", targetId: model.selectedTargetId }]);
+                        }
+                      }}
+                      disabled={model.allOutDisabled}
                     >
-                      Melee Attack
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-              <View style={styles.attackButtonItem}>
-                <Pressable
-                  style={[styles.attackButton, model.allOutDisabled && styles.attackButtonDisabled]}
-                  onPress={() => {
-                    if (!model.allOutDisabled && model.selectedTargetId) {
-                      applySystemEffects([{ op: "combatAllOut", targetId: model.selectedTargetId }]);
-                    }
-                  }}
-                  disabled={model.allOutDisabled}
-                >
-                  <Text style={[styles.attackButtonText, model.allOutDisabled && styles.attackButtonTextDisabled]}>
-                    All-Out Attack
-                  </Text>
-                </Pressable>
-              </View>
-              {hasKnockdownUnlock && (
-                <View style={styles.attackButtonItem}>
-                  <Pressable
-                    style={[
-                      styles.attackButton,
-                      (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
-                        styles.attackButtonDisabled,
-                    ]}
-                    onPress={() => {
-                      if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
-                        applySystemEffects([
-                          {
-                            op: "combatKnockdown",
-                            attackerId: save.party.activeActorId,
-                            defenderId: model.selectedTargetId,
-                          },
-                        ]);
-                      }
-                    }}
-                    disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
-                  >
-                    <Text
-                      style={[
-                        styles.attackButtonText,
-                        (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
-                          styles.attackButtonTextDisabled,
-                      ]}
-                    >
-                      Knockdown
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-              {hasSwiftAttackUnlock && (
-                <View style={styles.attackButtonItem}>
-                  <Pressable
-                    style={[
-                      styles.attackButton,
-                      (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
-                        styles.attackButtonDisabled,
-                    ]}
-                    onPress={() => {
-                      if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
-                        applySystemEffects([
-                          {
-                            op: "combatSwiftAttack",
-                            attackerId: save.party.activeActorId,
-                            defenderId: model.selectedTargetId,
-                          },
-                        ]);
-                      }
-                    }}
-                    disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
-                  >
-                    <Text
-                      style={[
-                        styles.attackButtonText,
-                        (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
-                          styles.attackButtonTextDisabled,
-                      ]}
-                    >
-                      Swift Attack
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-              {hasDisarmUnlock && (
-                <View style={styles.attackButtonItem}>
-                  <Pressable
-                    style={[
-                      styles.attackButton,
-                      (!model.actionAvailable ||
-                        !model.canMelee ||
-                        !model.selectedTargetId ||
-                        !model.npcWeapon?.weapon) &&
-                        styles.attackButtonDisabled,
-                    ]}
-                    onPress={() => {
-                      if (
-                        model.actionAvailable &&
-                        model.canMelee &&
-                        model.selectedTargetId &&
-                        model.npcWeapon?.weapon
-                      ) {
-                        applySystemEffects([
-                          {
-                            op: "combatDisarm",
-                            attackerId: save.party.activeActorId,
-                            defenderId: model.selectedTargetId,
-                          },
-                        ]);
-                      }
-                    }}
-                    disabled={
-                      !model.actionAvailable || !model.canMelee || !model.selectedTargetId || !model.npcWeapon?.weapon
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.attackButtonText,
-                        (!model.actionAvailable ||
+                      <Text style={[styles.attackButtonText, model.allOutDisabled && styles.attackButtonTextDisabled]}>
+                        All-Out Attack
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {hasKnockdownUnlock && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                            styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                            applySystemEffects([
+                              {
+                                op: "combatKnockdown",
+                                attackerId: save.party.activeActorId,
+                                defenderId: model.selectedTargetId,
+                              },
+                            ]);
+                          }
+                        }}
+                        disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                              styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Knockdown
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  {hasSwiftAttackUnlock && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                            styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                            applySystemEffects([
+                              {
+                                op: "combatSwiftAttack",
+                                attackerId: save.party.activeActorId,
+                                defenderId: model.selectedTargetId,
+                              },
+                            ]);
+                          }
+                        }}
+                        disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                              styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Swift Attack
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  {hasDisarmUnlock && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          (!model.actionAvailable ||
+                            !model.canMelee ||
+                            !model.selectedTargetId ||
+                            !model.npcWeapon?.weapon) &&
+                            styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (
+                            model.actionAvailable &&
+                            model.canMelee &&
+                            model.selectedTargetId &&
+                            model.npcWeapon?.weapon
+                          ) {
+                            applySystemEffects([
+                              {
+                                op: "combatDisarm",
+                                attackerId: save.party.activeActorId,
+                                defenderId: model.selectedTargetId,
+                              },
+                            ]);
+                          }
+                        }}
+                        disabled={
+                          !model.actionAvailable ||
                           !model.canMelee ||
                           !model.selectedTargetId ||
-                          !model.npcWeapon?.weapon) &&
-                          styles.attackButtonTextDisabled,
-                      ]}
-                    >
-                      Disarm
-                    </Text>
-                  </Pressable>
+                          !model.npcWeapon?.weapon
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (!model.actionAvailable ||
+                              !model.canMelee ||
+                              !model.selectedTargetId ||
+                              !model.npcWeapon?.weapon) &&
+                              styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Disarm
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
 
-            {/* Ranged Attacks Section */}
-            {(model.rangedLongChoice || model.rangedCalledChoice) && (
-              <View style={styles.attackSection}>
-                <Text style={styles.attackSectionTitle}>Ranged Attacks</Text>
-                {model.rangedLongChoice && (
-                  <View style={styles.attackButtonItem}>
-                    <Pressable
-                      style={[
-                        styles.attackButton,
-                        (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
-                      ]}
-                      onPress={() => {
-                        if (!model.rangedDisabled && model.selectedTargetId) {
-                          applySystemEffects([
-                            {
-                              op: "combatRequestAttack",
-                              attackerId: save.party.activeActorId,
-                              defenderId: model.selectedTargetId,
-                              mode: "RANGED",
-                            },
-                          ]);
-                        }
-                      }}
-                      disabled={model.rangedDisabled || !model.selectedTargetId}
-                    >
-                      <Text
-                        style={[
-                          styles.attackButtonText,
-                          (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
-                        ]}
-                      >
-                        Ranged Attack
-                      </Text>
-                    </Pressable>
-                    {model.rangedDisabled && model.rangedDisabledReason && (
-                      <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
+                {/* Ranged Attacks Section */}
+                {(model.rangedLongChoice || model.rangedCalledChoice) && (
+                  <View style={styles.attackSection}>
+                    <Text style={styles.attackSectionTitle}>Ranged Attacks</Text>
+                    {model.rangedLongChoice && (
+                      <View style={styles.attackButtonItem}>
+                        <Pressable
+                          style={[
+                            styles.attackButton,
+                            (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                          ]}
+                          onPress={() => {
+                            if (!model.rangedDisabled && model.selectedTargetId) {
+                              applySystemEffects([
+                                {
+                                  op: "combatRequestAttack",
+                                  attackerId: save.party.activeActorId,
+                                  defenderId: model.selectedTargetId,
+                                  mode: "RANGED",
+                                },
+                              ]);
+                            }
+                          }}
+                          disabled={model.rangedDisabled || !model.selectedTargetId}
+                        >
+                          <Text
+                            style={[
+                              styles.attackButtonText,
+                              (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                            ]}
+                          >
+                            Ranged Attack
+                          </Text>
+                        </Pressable>
+                        {model.rangedDisabled && model.rangedDisabledReason && (
+                          <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
+                        )}
+                      </View>
+                    )}
+                    {model.rangedCalledChoice && (
+                      <View style={styles.attackButtonItem}>
+                        <Pressable
+                          style={[
+                            styles.attackButton,
+                            (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                          ]}
+                          onPress={() => {
+                            if (!model.rangedCalledDisabled && model.selectedTargetId) {
+                              applySystemEffects([
+                                {
+                                  op: "combatRequestAttack",
+                                  attackerId: save.party.activeActorId,
+                                  defenderId: model.selectedTargetId,
+                                  mode: "RANGED",
+                                  modifiers: { calledShot: true },
+                                },
+                              ]);
+                            }
+                          }}
+                          disabled={model.rangedCalledDisabled || !model.selectedTargetId}
+                        >
+                          <Text
+                            style={[
+                              styles.attackButtonText,
+                              (model.rangedCalledDisabled || !model.selectedTargetId) &&
+                                styles.attackButtonTextDisabled,
+                            ]}
+                          >
+                            Called Shot
+                          </Text>
+                        </Pressable>
+                        {model.rangedCalledDisabled && model.rangedCalledDisabledReason && (
+                          <Text style={styles.attackButtonReason}>{model.rangedCalledDisabledReason}</Text>
+                        )}
+                      </View>
                     )}
                   </View>
                 )}
-                {model.rangedCalledChoice && (
-                  <View style={styles.attackButtonItem}>
-                    <Pressable
-                      style={[
-                        styles.attackButton,
-                        (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
-                      ]}
-                      onPress={() => {
-                        if (!model.rangedCalledDisabled && model.selectedTargetId) {
-                          applySystemEffects([
-                            {
-                              op: "combatRequestAttack",
-                              attackerId: save.party.activeActorId,
-                              defenderId: model.selectedTargetId,
-                              mode: "RANGED",
-                              modifiers: { calledShot: true },
-                            },
-                          ]);
-                        }
-                      }}
-                      disabled={model.rangedCalledDisabled || !model.selectedTargetId}
-                    >
-                      <Text
-                        style={[
-                          styles.attackButtonText,
-                          (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
-                        ]}
-                      >
-                        Called Shot
-                      </Text>
-                    </Pressable>
-                    {model.rangedCalledDisabled && model.rangedCalledDisabledReason && (
-                      <Text style={styles.attackButtonReason}>{model.rangedCalledDisabledReason}</Text>
-                    )}
-                  </View>
-                )}
-              </View>
+              </>
             )}
           </View>
 
           {/* Stance Block */}
-          <View style={[styles.combatBlock, styles.stanceBlock]}>
-            <Text style={styles.combatBlockTitle}>Stance</Text>
-            <View style={styles.stanceActions}>
-              <Pressable
-                style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
-                onPress={() => {
-                  if (model.actionAvailable) {
-                    applySystemEffects([{ op: "combatDefend" }]);
-                  }
-                }}
-                disabled={!model.actionAvailable}
-              >
-                <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
-                  Defend
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
-                onPress={() => {
-                  if (model.actionAvailable) {
-                    applySystemEffects([{ op: "combatAim" }]);
-                  }
-                }}
-                disabled={!model.actionAvailable}
-              >
-                <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
-                  Aim
-                </Text>
-              </Pressable>
-            </View>
+          <View style={[styles.combatBlock, styles.stanceBlock, isPhone && { padding: 10 }]}>
+            {isPhone ? (
+              <SectionHeader id="stance" title="Stance" />
+            ) : (
+              <Text style={styles.combatBlockTitle}>Stance</Text>
+            )}
+            {(!isPhone || activeSection === "stance") && (
+              <View style={styles.stanceActions}>
+                <Pressable
+                  style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
+                  onPress={() => {
+                    if (model.actionAvailable) {
+                      applySystemEffects([{ op: "combatDefend" }]);
+                    }
+                  }}
+                  disabled={!model.actionAvailable}
+                >
+                  <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
+                    Defend
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
+                  onPress={() => {
+                    if (model.actionAvailable) {
+                      applySystemEffects([{ op: "combatAim" }]);
+                    }
+                  }}
+                  disabled={!model.actionAvailable}
+                >
+                  <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
+                    Aim
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           {/* Magic Block */}
-          <View style={[styles.combatBlock, styles.magicBlock]}>
-            <Text style={styles.combatBlockTitle}>Magic</Text>
-            <View style={styles.stanceActions}>
-              <Pressable
-                style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
-                onPress={() => {
-                  if (model.actionAvailable) {
-                    applySystemEffects([{ op: "combatChannel", actorId: save.party.activeActorId }]);
-                  }
-                }}
-                disabled={!model.actionAvailable}
-              >
-                <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
-                  Channel
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.stanceButton,
-                  (!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable) && styles.attackButtonDisabled,
-                ]}
-                onPress={() => {
-                  if (hasMagicUnlock && hasLearnedSpells) {
-                    setSpellPickerVisible(true);
-                  }
-                }}
-                disabled={!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable}
-              >
-                <Text
-                  style={[
-                    styles.attackButtonText,
-                    (!hasMagicUnlock || !hasLearnedSpells) && styles.attackButtonTextDisabled,
-                  ]}
-                >
-                  Cast Spell
-                </Text>
-              </Pressable>
-              {!hasMagicUnlock && (
-                <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede tratto magico</Text>
-              )}
-              {hasMagicUnlock && !hasLearnedSpells && (
-                <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
-              )}
-            </View>
-            {targetingInfo && (
-              <View
-                style={{
-                  marginTop: 10,
-                  padding: 10,
-                  borderRadius: 8,
-                  backgroundColor: "#eef2ff",
-                  gap: 8,
-                }}
-              >
-                <Text style={{ fontWeight: "700", color: "#111827" }}>
-                  Targeting: {targetingInfo.spellName}
-                </Text>
-                <Text
-                  style={{
-                    color: targetingInfo.previewValid ? "#16a34a" : "#dc2626",
-                    fontSize: 12,
-                  }}
-                >
-                  {targetingInfo.previewValid ? "Pronto a confermare" : targetingInfo.reason || "Seleziona bersaglio"}
-                </Text>
-                {targetingInfo.requiresDirection && (
-                  <View style={{ alignItems: "center", gap: 4 }}>
-                    <Text style={{ fontSize: 12, color: "#374151" }}>Direzione</Text>
-                    <View style={{ gap: 4 }}>
-                      {moveGrid.map((row, rowIdx) => (
-                        <View
-                          key={`tgt-row-${rowIdx}`}
-                          style={{ flexDirection: "row", gap: isPhone ? 3 : 4, justifyContent: "center" }}
-                        >
-                          {row.map((move, colIdx) => {
-                            if (!move) {
-                              const s = isPhone ? 32 : 40;
-                              return <View key={`tgt-empty-${rowIdx}-${colIdx}`} style={{ width: s, height: s }} />;
-                            }
-                            const dir = moveDirToDirection8[move.dir];
-                            const isSelected = targetingInfo.direction === dir;
-                            const s = isPhone ? 36 : 44;
-                            return (
-                              <Pressable
-                                key={move.dir}
-                                style={{
-                                  width: s,
-                                  height: s,
-                                  borderRadius: 6,
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  backgroundColor: isSelected ? "#4a90e2" : "#f0f0f0",
-                                  borderWidth: 1,
-                                  borderColor: isSelected ? "#2563eb" : "#d1d5db",
-                                }}
-                                onPress={() => onTargetDirection && onTargetDirection(dir)}
-                              >
-                                <Text
-                                  style={{
-                                    color: isSelected ? "#fff" : "#111827",
-                                    fontWeight: "700",
-                                    fontSize: isPhone ? 11 : 14,
-                                  }}
-                                >
-                                  {move.label}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
+          <View style={[styles.combatBlock, styles.magicBlock, isPhone && { padding: 10 }]}>
+            {isPhone ? <SectionHeader id="magic" title="Magic" /> : <Text style={styles.combatBlockTitle}>Magic</Text>}
+            {(!isPhone || activeSection === "magic") && (
+              <>
+                <View style={styles.stanceActions}>
+                  <Pressable
+                    style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
+                    onPress={() => {
+                      if (model.actionAvailable) {
+                        applySystemEffects([{ op: "combatChannel", actorId: save.party.activeActorId }]);
+                      }
+                    }}
+                    disabled={!model.actionAvailable}
+                  >
+                    <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
+                      Channel
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.stanceButton,
+                      (!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable) && styles.attackButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      if (hasMagicUnlock && hasLearnedSpells) {
+                        setSpellPickerVisible(true);
+                      }
+                    }}
+                    disabled={!hasMagicUnlock || !hasLearnedSpells || !model.actionAvailable}
+                  >
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!hasMagicUnlock || !hasLearnedSpells) && styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Cast Spell
+                    </Text>
+                  </Pressable>
+                  {!hasMagicUnlock && (
+                    <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede tratto magico</Text>
+                  )}
+                  {hasMagicUnlock && !hasLearnedSpells && (
+                    <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
+                  )}
+                </View>
+                {targetingInfo && (
+                  <View
+                    style={{
+                      marginTop: 10,
+                      padding: 10,
+                      borderRadius: 8,
+                      backgroundColor: "#eef2ff",
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700", color: "#111827" }}>Targeting: {targetingInfo.spellName}</Text>
+                    <Text
+                      style={{
+                        color: targetingInfo.previewValid ? "#16a34a" : "#dc2626",
+                        fontSize: 12,
+                      }}
+                    >
+                      {targetingInfo.previewValid
+                        ? "Pronto a confermare"
+                        : targetingInfo.reason || "Seleziona bersaglio"}
+                    </Text>
+                    {targetingInfo.requiresDirection && (
+                      <View style={{ alignItems: "center", gap: 4 }}>
+                        <Text style={{ fontSize: 12, color: "#374151" }}>Direzione</Text>
+                        <View style={{ gap: 4 }}>
+                          {moveGrid.map((row, rowIdx) => (
+                            <View
+                              key={`tgt-row-${rowIdx}`}
+                              style={{ flexDirection: "row", gap: isPhone ? 3 : 4, justifyContent: "center" }}
+                            >
+                              {row.map((move, colIdx) => {
+                                if (!move) {
+                                  const s = isPhone ? 32 : 40;
+                                  return <View key={`tgt-empty-${rowIdx}-${colIdx}`} style={{ width: s, height: s }} />;
+                                }
+                                const dir = moveDirToDirection8[move.dir];
+                                const isSelected = targetingInfo.direction === dir;
+                                const s = isPhone ? 36 : 44;
+                                return (
+                                  <Pressable
+                                    key={move.dir}
+                                    style={{
+                                      width: s,
+                                      height: s,
+                                      borderRadius: 6,
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      backgroundColor: isSelected ? "#4a90e2" : "#f0f0f0",
+                                      borderWidth: 1,
+                                      borderColor: isSelected ? "#2563eb" : "#d1d5db",
+                                    }}
+                                    onPress={() => onTargetDirection && onTargetDirection(dir)}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: isSelected ? "#fff" : "#111827",
+                                        fontWeight: "700",
+                                        fontSize: isPhone ? 11 : 14,
+                                      }}
+                                    >
+                                      {move.label}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          ))}
                         </View>
-                      ))}
+                      </View>
+                    )}
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <Pressable
+                        style={{
+                          flex: 1,
+                          padding: 10,
+                          borderRadius: 6,
+                          backgroundColor: "#e5e7eb",
+                          alignItems: "center",
+                        }}
+                        onPress={onTargetCancel}
+                      >
+                        <Text style={{ fontWeight: "700", color: "#111827" }}>Annulla</Text>
+                      </Pressable>
+                      <Pressable
+                        style={{
+                          flex: 1,
+                          padding: 10,
+                          borderRadius: 6,
+                          backgroundColor: targetingInfo.previewValid ? "#4a90e2" : "#9ca3af",
+                          alignItems: "center",
+                        }}
+                        disabled={!targetingInfo.previewValid}
+                        onPress={onTargetConfirm}
+                      >
+                        <Text style={{ fontWeight: "700", color: "#fff" }}>Conferma</Text>
+                      </Pressable>
                     </View>
                   </View>
                 )}
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Pressable
-                    style={{
-                      flex: 1,
-                      padding: 10,
-                      borderRadius: 6,
-                      backgroundColor: "#e5e7eb",
-                      alignItems: "center",
-                    }}
-                    onPress={onTargetCancel}
-                  >
-                    <Text style={{ fontWeight: "700", color: "#111827" }}>Annulla</Text>
-                  </Pressable>
-                  <Pressable
-                    style={{
-                      flex: 1,
-                      padding: 10,
-                      borderRadius: 6,
-                      backgroundColor: targetingInfo.previewValid ? "#4a90e2" : "#9ca3af",
-                      alignItems: "center",
-                    }}
-                    disabled={!targetingInfo.previewValid}
-                    onPress={onTargetConfirm}
-                  >
-                    <Text style={{ fontWeight: "700", color: "#fff" }}>Conferma</Text>
-                  </Pressable>
-                </View>
-              </View>
+              </>
             )}
           </View>
         </View>

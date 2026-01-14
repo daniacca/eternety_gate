@@ -1,6 +1,7 @@
 import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getCharacteristicBonus } from "../characters/bonuses";
+import { getModifierTotal } from "../characters/modifiers";
 
 /**
  * Calculates Power Magic (PM) for an actor
@@ -22,10 +23,10 @@ export function getMagicPower(
   // MVP: PM = WIS bonus
   const wisBonus = getCharacteristicBonus(save, actorId, "WIL", catalogs);
   
-  // Future extension points:
-  // - Add talent bonuses (e.g., "talent:magical_aptitude")
-  // - Add focus bonuses from equipped items
-  
-  return wisBonus;
+  // Add explicit PM modifiers (talents/traits/conditions/equipment).
+  // Example: arcane_attunement_1/2/3 each grants +1 magic.pm
+  const pmMod = catalogs ? getModifierTotal(save, catalogs, actorId, "magic.pm") : 0;
+
+  return wisBonus + pmMod;
 }
 
