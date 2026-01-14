@@ -1,0 +1,68 @@
+{
+  "grids": [
+    {
+      "id": "arena_01",
+      "width": 10,
+      "height": 10,
+      "defaults": {
+        "walkable": true,
+        "cover": "none",
+        "tileId": "gymFloor"
+      },
+      "cells": {
+        "0,0": { "walkable": false, "tileId": "gymWall" },
+        "0,1": { "walkable": false, "tileId": "gymWall" },
+        "0,2": { "walkable": false, "tileId": "gymWall" },
+        "0,3": { "walkable": false, "tileId": "gymWall" },
+        "0,4": { "walkable": false, "tileId": "gymWall" },
+        "0,5": { "walkable": false, "tileId": "gymWall" },
+        "0,6": { "walkable": false, "tileId": "gymWall" },
+        "0,7": { "walkable": false, "tileId": "gymWall" },
+        "0,8": { "walkable": false, "tileId": "gymWall" },
+        "0,9": { "walkable": false, "tileId": "gymWall" },
+
+        "1,0": { "walkable": false, "tileId": "gymWall" },
+        "2,0": { "walkable": false, "tileId": "gymWall" },
+        "3,0": { "walkable": false, "tileId": "gymWall" },
+        "4,0": { "walkable": false, "tileId": "gymWall" },
+        "5,0": { "walkable": false, "tileId": "gymWall" },
+        "6,0": { "walkable": false, "tileId": "gymWall" },
+        "7,0": { "walkable": false, "tileId": "gymWall" },
+        "8,0": { "walkable": false, "tileId": "gymWall" },
+        "9,0": { "walkable": false, "tileId": "gymWall" },
+
+        "9,1": { "walkable": false, "tileId": "gymWall" },
+        "9,2": { "walkable": false, "tileId": "gymWall" },
+        "9,3": { "walkable": false, "tileId": "gymWall" },
+        "9,4": { "walkable": false, "tileId": "gymWall" },
+        "9,5": { "walkable": false, "tileId": "gymWall" },
+        "9,6": { "walkable": false, "tileId": "gymWall" },
+        "9,7": { "walkable": false, "tileId": "gymWall" },
+        "9,8": { "walkable": false, "tileId": "gymWall" },
+        "9,9": { "walkable": false, "tileId": "gymWall" },
+
+        "1,9": { "walkable": false, "tileId": "gymWall" },
+        "2,9": { "walkable": false, "tileId": "gymWall" },
+        "3,9": { "walkable": false, "tileId": "gymWall" },
+        "4,9": { "walkable": false, "tileId": "gymWall" },
+        "5,9": { "walkable": false, "tileId": "gymWall" },
+        "6,9": { "walkable": false, "tileId": "gymWall" },
+        "7,9": { "walkable": false, "tileId": "gymWall" },
+        "8,9": { "walkable": false, "tileId": "gymWall" },
+
+        "4,1": { "walkable": false, "tileId": "gymMarker" },
+        "5,1": { "walkable": false, "tileId": "gymMarker" },
+
+        "4,4": { "tileId": "gymMat" },
+        "5,4": { "tileId": "gymMat" },
+        "4,5": { "tileId": "gymMat" },
+        "5,5": { "tileId": "gymMat" },
+
+        "3,3": { "walkable": false, "cover": "heavy", "tileId": "gymRing" },
+        "6,3": { "walkable": false, "cover": "heavy", "tileId": "gymRing" },
+        "3,6": { "walkable": false, "cover": "heavy", "tileId": "gymRing" },
+        "6,6": { "walkable": false, "cover": "heavy", "tileId": "gymRing" }
+      }
+    }
+  ]
+}

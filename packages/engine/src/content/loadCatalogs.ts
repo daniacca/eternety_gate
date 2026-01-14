@@ -1,5 +1,5 @@
 import type { ContentPack } from "./types";
-import type { Skill, Talent, Trait, CharacterCatalogs } from "./catalogs";
+import type { Skill, Talent, Trait, CharacterCatalogs, TerrainCatalogs, GridDefinition, TileDefinition } from "./catalogs";
 
 /**
  * Loads character catalogs from a content pack
@@ -9,6 +9,28 @@ export function loadCharacterCatalogs(contentPack: ContentPack): CharacterCatalo
     skills: contentPack.skills || [],
     talents: contentPack.talents || [],
     traits: contentPack.traits || [],
+  };
+}
+
+/**
+ * Loads terrain catalogs from a content pack
+ */
+export function loadTerrainCatalogs(contentPack: ContentPack): TerrainCatalogs {
+  const gridsById: Record<string, GridDefinition> = {};
+  if (contentPack.grids) {
+    for (const grid of contentPack.grids) {
+      gridsById[grid.id] = grid;
+    }
+  }
+
+  const tilesById: Record<string, TileDefinition> = {};
+  if (contentPack.tiles) {
+    Object.assign(tilesById, contentPack.tiles);
+  }
+
+  return {
+    gridsById,
+    tilesById,
   };
 }
 

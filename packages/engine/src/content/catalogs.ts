@@ -49,3 +49,28 @@ export type CharacterCatalogs = {
   traits: Trait[];
 };
 
+export type GridDefinition = {
+  id: string;
+  width: number;
+  height: number;
+  defaults: {
+    walkable: boolean;
+    cover: "none" | "light" | "heavy";
+    tileId: string;
+  };
+  cells?: Record<string, {
+    walkable?: boolean;
+    cover?: "none" | "light" | "heavy";
+    tileId?: string;
+  }>;
+};
+
+export type TileDefinition = {
+  image?: string; // Single image (legacy support)
+  images?: string[]; // Multiple variants for deterministic variation
+};
+
+export type TerrainCatalogs = {
+  gridsById: Record<string, GridDefinition>;
+  tilesById: Record<string, TileDefinition>;
+};

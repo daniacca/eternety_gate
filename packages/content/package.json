@@ -9,6 +9,8 @@
     "./src/catalogs/effects.json": "./src/catalogs/effects.json",
     "./src/catalogs/skills.json": "./src/catalogs/skills.json",
     "./src/catalogs/talents.json": "./src/catalogs/talents.json",
-    "./src/catalogs/traits.json": "./src/catalogs/traits.json"
+    "./src/catalogs/traits.json": "./src/catalogs/traits.json",
+    "./src/catalogs/grids.json": "./src/catalogs/grids.json",
+    "./src/catalogs/tiles.json": "./src/catalogs/tiles.json"
   }
 }

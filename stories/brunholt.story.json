@@ -1839,7 +1839,7 @@
                   "placements": [
                     { "actorId": "PC_1", "x": 2, "y": 5 },
                     { "actorId": "NPC_DUMMY", "x": 6, "y": 4 },
-                    { "actorId": "NPC_DUMMY_2", "x": 6, "y": 6 }
+                    { "actorId": "NPC_DUMMY_2", "x": 6, "y": 5 }
                   ]
                 }
               ]

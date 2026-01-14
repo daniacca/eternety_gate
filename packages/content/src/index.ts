@@ -4,6 +4,8 @@ import talentsCatalog from "./catalogs/talents.json";
 import traitsCatalog from "./catalogs/traits.json";
 import spellsCatalog from "./catalogs/spells.json";
 import effectsCatalog from "./catalogs/effects.json";
+import gridsCatalog from "./catalogs/grids.json";
+import tilesCatalog from "./catalogs/tiles.json";
 import type { ContentPack } from "@eg/engine";
 
 export const sigilContentPack: ContentPack = {
@@ -13,8 +15,10 @@ export const sigilContentPack: ContentPack = {
   traits: traitsCatalog,
   spells: spellsCatalog,
   effects: effectsCatalog,
+  grids: gridsCatalog.grids,
+  tiles: tilesCatalog.tiles,
 };
 
 // Export individual catalogs
-export { spellsCatalog, effectsCatalog, skillsCatalog, talentsCatalog, traitsCatalog };
+export { spellsCatalog, effectsCatalog, skillsCatalog, talentsCatalog, traitsCatalog, gridsCatalog, tilesCatalog };
 

@@ -5,8 +5,9 @@ import { appendCombatLog, appendAttackNarration, nextRuntimeSeq } from "../narra
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
 import { validateAndApplyRangedModifiers } from "../validation";
-import { footprintDistanceBetweenActors } from "../footprint";
+import { footprintDistanceBetweenActors, getActorSize, getFootprintRadius } from "../footprint";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
+import { getCellTerrain } from "../terrain";
 
 /**
  * Centralized attack resolution: the only place that resolves attacks end-to-end
@@ -162,6 +163,25 @@ export function combatRequestAttack(
   // Build CombatAttackCheck
   // Include mode and special modifiers in checkId for better identification
   const checkIdSuffix = effect.modifiers?.hitBonus === 20 ? ":allOut" : "";
+
+  // Apply cover penalty for ranged attacks
+  let coverModifier: "NONE" | "LIGHT" | "HEAVY" = "NONE";
+  if (effect.mode === "RANGED") {
+    // Cover only applies to actors with 1x1 footprint (radius 0)
+    // Larger actors (3x3 or 5x5 footprint) cannot benefit from cover due to their size
+    const defenderActor = save.actorsById[effect.defenderId];
+    const defenderSize = getActorSize(defenderActor);
+    const defenderFootprintRadius = getFootprintRadius(defenderSize);
+    if (defenderFootprintRadius === 0) {
+      const terrain = getCellTerrain(save, defenderPos);
+      if (terrain.cover === "light") {
+        coverModifier = "LIGHT";
+      } else if (terrain.cover === "heavy") {
+        coverModifier = "HEAVY";
+      }
+    }
+  }
+
   const check: CombatAttackCheck = {
     id: `combat:requestAttack:${effect.mode.toLowerCase()}:${effect.attackerId}:${effect.defenderId}${checkIdSuffix}`,
     kind: "combatAttack",
@@ -178,7 +198,10 @@ export function combatRequestAttack(
       allowDodge: true,
       strategy: "autoBest",
     },
-    modifiers: effect.modifiers,
+    modifiers: {
+      ...effect.modifiers,
+      cover: coverModifier,
+    },
   };
 
   // For ranged attacks, validate modifiers

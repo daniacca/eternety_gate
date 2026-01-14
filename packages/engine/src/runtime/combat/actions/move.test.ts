@@ -160,11 +160,13 @@ describe("combatMove", () => {
       },
     };
 
-    const effect: Effect = { op: "combatMove", dir: "N" };
+    // Simulate a player-originated move while it's NPC's turn.
+    // Movement should be blocked because the effect actor doesn't match the turn actor.
+    const effect: Effect = { op: "combatMove", dir: "N", actorId: "PC_1" as any };
     const result = combatMove(effect as Extract<Effect, { op: "combatMove" }>, npcTurnSave);
 
-    // When it's not player's turn, getCurrentTurnActorId returns NPC_1, but activeActorId is PC_1
-    // So turnActorId exists but doesn't match activeActorId, which causes the block
+    // When it's not player's turn, getCurrentTurnActorId returns NPC_1.
+    // Since effect.actorId is PC_1, combatMove must block it.
     expect(result.save.runtime.lastCheck?.success).toBe(false);
     // The tag format might be different - check if it contains blocked
     expect(result.save.runtime.lastCheck?.tags?.some((tag) => tag.includes("blocked"))).toBe(true);

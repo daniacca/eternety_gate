@@ -1,5 +1,7 @@
 import type { Effect, GameSave, StoryPack } from "../types";
 import { IRNG } from "../rng";
+import type { ContentPack } from "../../content/types";
+import { finalizeCombatIfEnded } from "../combat/combat";
 import {
   combatStart,
   combatMove,
@@ -37,7 +39,8 @@ type EffectHandler = (
   effect: Effect,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ) => { save: GameSave; emittedEffects?: Effect[] };
 
 /**
@@ -67,9 +70,10 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   fireWorldEvents: (_effect, storyPack, save, rng) => applyFireWorldEvents(storyPack, save, rng),
   combatStart: (effect, storyPack, save, _rng) =>
     combatStart(effect as Extract<Effect, { op: "combatStart" }>, storyPack, save),
-  combatMove: (effect, _storyPack, save, _rng) => combatMove(effect as Extract<Effect, { op: "combatMove" }>, save),
-  combatEndTurn: (effect, storyPack, save, rng) =>
-    combatEndTurn(effect as Extract<Effect, { op: "combatEndTurn" }>, storyPack, save, rng),
+  combatMove: (effect, _storyPack, save, _rng, contentPack) =>
+    combatMove(effect as Extract<Effect, { op: "combatMove" }>, save, contentPack),
+  combatEndTurn: (effect, storyPack, save, rng, contentPack) =>
+    combatEndTurn(effect as Extract<Effect, { op: "combatEndTurn" }>, storyPack, save, rng, contentPack),
   combatDefend: (effect, _storyPack, save, _rng) =>
     combatDefend(effect as Extract<Effect, { op: "combatDefend" }>, save),
   combatAim: (effect, _storyPack, save, _rng) => combatAim(effect as Extract<Effect, { op: "combatAim" }>, save),
@@ -116,11 +120,12 @@ export function applyEffect(
   effect: Effect,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const handler = effectHandlers[effect.op];
   if (handler) {
-    return handler(effect, storyPack, save, rng);
+    return handler(effect, storyPack, save, rng, contentPack);
   }
   return { save };
 }
@@ -129,7 +134,13 @@ export function applyEffect(
  * Applies multiple effects in sequence using a deterministic queue
  * Effects can emit other effects which are processed in order
  */
-export function applyEffects(effects: Effect[], storyPack: StoryPack, save: GameSave, rng: IRNG): GameSave {
+export function applyEffects(
+  effects: Effect[],
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG,
+  contentPack?: ContentPack
+): GameSave {
   // Queue of effects to process
   const queue: Effect[] = [...effects];
   let currentSave = save;
@@ -137,7 +148,7 @@ export function applyEffects(effects: Effect[], storyPack: StoryPack, save: Game
   // Process queue deterministically
   while (queue.length > 0) {
     const effect = queue.shift()!;
-    const result = applyEffect(effect, storyPack, currentSave, rng);
+    const result = applyEffect(effect, storyPack, currentSave, rng, contentPack);
     currentSave = result.save;
 
     // Add emitted effects to queue (processed in order)
@@ -146,5 +157,6 @@ export function applyEffects(effects: Effect[], storyPack: StoryPack, save: Game
     }
   }
 
-  return currentSave;
+  // Ensure combat end state is applied consistently regardless of which effect caused deaths.
+  return finalizeCombatIfEnded(currentSave);
 }

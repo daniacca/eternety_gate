@@ -1,5 +1,6 @@
 import type { Choice, StoryPack, GameSave } from "../types";
 import type { IRNG } from "../rng";
+import type { ContentPack } from "../../content/types";
 
 /**
  * Choice handler function type
@@ -9,7 +10,8 @@ export type ChoiceHandler = (
   choiceId: string,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ) => GameSave;
 
 /**

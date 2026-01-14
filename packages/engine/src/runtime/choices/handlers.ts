@@ -4,6 +4,7 @@ import type { ChoiceKind, ChoiceHandler } from "./types";
 import { handleGenericChoice } from "./generic";
 import { handleCheckChoice } from "./check";
 import { handleCombatChoice } from "./combat";
+import type { ContentPack } from "../../content/types";
 
 /**
  * Determines the kind of a choice based on its content
@@ -42,13 +43,14 @@ export function handleChoice(
   choiceId: ChoiceId,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ): GameSave {
   const kind = getChoiceKind(choice);
   const handler = choiceHandlers[kind];
   if (handler) {
-    return handler(choice, choiceId, storyPack, save, rng);
+    return handler(choice, choiceId, storyPack, save, rng, contentPack);
   }
   // Fallback to generic if handler not found
-  return handleGenericChoice(choice, choiceId, storyPack, save, rng);
+  return handleGenericChoice(choice, choiceId, storyPack, save, rng, contentPack);
 }

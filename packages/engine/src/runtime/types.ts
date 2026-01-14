@@ -90,7 +90,7 @@ export type Effect =
       grid?: Grid;
       placements: Array<{ actorId: ActorId; x: number; y: number }>;
     }
-  | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" }
+  | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; actorId?: ActorId }
   | { op: "combatEndTurn" }
   | { op: "combatDefend" }
   | { op: "combatAim" }
@@ -610,6 +610,7 @@ export type CombatState = {
   startedBySceneId?: SceneId;
 
   grid: Grid;
+  gridId?: string; // ID of the grid definition from catalogs (defaults to "arena_01")
   positions: Record<ActorId, Position>;
 
   // economy semplificata "per-turn"

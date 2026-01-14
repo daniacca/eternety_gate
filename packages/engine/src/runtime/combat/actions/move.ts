@@ -2,13 +2,16 @@ import type { Effect, GameSave } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { canPlaceActorAt } from "../footprint";
+import { getCellTerrain } from "../terrain";
+import type { ContentPack } from "../../../content/types";
 
 /**
  * Moves actor in combat grid
  */
 export function combatMove(
   effect: Extract<Effect, { op: "combatMove" }>,
-  save: GameSave
+  save: GameSave,
+  contentPack?: ContentPack
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -60,20 +63,19 @@ export function combatMove(
     };
   }
 
-  // Check if the current turn actor is a PC (optional check for player-only actions)
-  const turnActor = save.actorsById[turnActorId];
-  if (!turnActor || turnActor.kind !== "PC") {
-    // Not a player character's turn
+  // Allow both PC and NPC movement, but only for the current turn actor.
+  const actorId = effect.actorId ?? turnActorId;
+  if (actorId !== turnActorId) {
     const blockedCheck = {
       checkId: "combat:move:blocked",
-      actorId: save.party.activeActorId,
+      actorId: actorId,
       roll: 0,
       target: 0,
       success: false,
       dos: 0,
       dof: 0,
       critical: "none" as const,
-      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
+      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId}`],
     };
     return {
       save: {
@@ -84,6 +86,11 @@ export function combatMove(
         },
       },
     };
+  }
+
+  const actor = save.actorsById[actorId];
+  if (!actor || actor.resources.isDead === true) {
+    return { save };
   }
 
   if (combat.turn.moveRemaining <= 0) {
@@ -127,17 +134,21 @@ export function combatMove(
     return { save };
   }
 
-  const currentPos = combat.positions[turnActorId] || { x: 0, y: 0 };
+  const currentPos = combat.positions[actorId] || { x: 0, y: 0 };
   const newPos = {
     x: Math.max(0, Math.min(combat.grid.width - 1, currentPos.x + delta.x)),
     y: Math.max(0, Math.min(combat.grid.height - 1, currentPos.y + delta.y)),
   };
 
-  // Validate footprint placement (checks bounds and overlap with other actors)
-  if (!canPlaceActorAt(save, turnActorId, newPos)) {
+  // Validate footprint placement (checks bounds, walkability, and overlap with other actors)
+  if (!canPlaceActorAt(save, actorId, newPos, contentPack)) {
+    // Check if it's a walkability issue for better error reporting
+    const terrain = contentPack ? getCellTerrain(save, newPos, contentPack) : null;
+    const isWalkabilityIssue = terrain && !terrain.walkable;
+
     const blockedCheck = {
       checkId: "combat:move:blocked",
-      actorId: turnActorId,
+      actorId: actorId,
       roll: 0,
       target: 0,
       success: false,
@@ -145,7 +156,7 @@ export function combatMove(
       dof: 0,
       critical: "none" as const,
       tags: [
-        "combat:blocked=positionOccupied",
+        isWalkabilityIssue ? "combat:blocked=notWalkable" : "combat:blocked=positionOccupied",
         `combat:pos=${newPos.x},${newPos.y}`,
       ],
     };
@@ -162,7 +173,7 @@ export function combatMove(
 
   const updatedPositions = {
     ...combat.positions,
-    [turnActorId]: newPos,
+    [actorId]: newPos,
   };
 
   const updatedCombat = {
@@ -173,12 +184,12 @@ export function combatMove(
       moveRemaining: Math.max(0, combat.turn.moveRemaining - 1),
     },
     // Reset channeling when actor moves
-    channeling: combat.channeling?.actorId === turnActorId ? undefined : combat.channeling,
+    channeling: combat.channeling?.actorId === actorId ? undefined : combat.channeling,
   };
 
   const moveCheck = {
     checkId: "combat:move",
-    actorId: turnActorId,
+    actorId: actorId,
     roll: 0,
     target: 0,
     success: true,
@@ -187,12 +198,11 @@ export function combatMove(
     critical: "none" as const,
     tags: [
       `combat:move=${effect.dir}`,
-      `combat:pos:${turnActorId}=${newPos.x},${newPos.y}`,
+      `combat:pos:${actorId}=${newPos.x},${newPos.y}`,
       "combat:kind=action", // Mark as action, not a check
     ],
   };
 
-  const actor = save.actorsById[turnActorId];
   const dirLabels: Record<string, string> = {
     N: "nord",
     NE: "nord-est",
@@ -205,7 +215,7 @@ export function combatMove(
   };
   const dirLabel = dirLabels[effect.dir] || effect.dir;
   const logEntry =
-    actor?.kind === "PC" ? `Ti muovi verso ${dirLabel}.` : `${actor?.name || turnActorId} avanza verso di te.`;
+    actor?.kind === "PC" ? `Ti muovi verso ${dirLabel}.` : `${actor?.name || actorId} avanza verso di te.`;
 
   let updatedSave: GameSave = {
     ...save,

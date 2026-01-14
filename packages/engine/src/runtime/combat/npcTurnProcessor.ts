@@ -2,12 +2,13 @@ import type { StoryPack, GameSave, ActorId } from "../types";
 import { RNG } from "../rng";
 import { getCurrentTurnActorId, advanceCombatTurn } from "./combat";
 import { runNpcTurn } from "./npcAi";
+import type { ContentPack } from "../../content/types";
 
 /**
  * Processes NPC turns automatically until it's a player's turn
  * This ensures NPCs act immediately when it's their turn
  */
-export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameSave): GameSave {
+export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameSave, contentPack?: ContentPack): GameSave {
   const partyIds = new Set(save.party?.actors ?? []);
   let currentSave = save;
   let safety = 0;
@@ -26,7 +27,7 @@ export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameS
 
     // It's an NPC turn - run it
     const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
-    currentSave = runNpcTurn(storyPack, currentSave, turnActorId);
+    currentSave = runNpcTurn(storyPack, currentSave, turnActorId, contentPack);
 
     // Advance to next turn
     currentSave = advanceCombatTurn(currentSave, storyPack);

@@ -10,6 +10,7 @@ import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { resolveActor } from "../checks";
 import { applyCombatDamageIfHit } from "../combat/damage";
 import { getCurrentTurnActorId } from "../combat/combat";
+import type { ContentPack } from "../../content/types";
 
 /**
  * Updates magic state based on check result
@@ -62,7 +63,8 @@ export const handleGenericChoice: ChoiceHandler = (
   choiceId: string,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ): GameSave => {
   const { scene } = getCurrentScene(storyPack, save);
   let currentSave = { ...save };
@@ -266,16 +268,16 @@ export const handleGenericChoice: ChoiceHandler = (
             currentSave = damageResult.save;
           }
           if (result.success && combatCheck.onSuccess) {
-            currentSave = applyEffects(combatCheck.onSuccess, storyPack, currentSave, rng);
+            currentSave = applyEffects(combatCheck.onSuccess, storyPack, currentSave, rng, contentPack);
           } else if (!result.success && combatCheck.onFailure) {
-            currentSave = applyEffects(combatCheck.onFailure, storyPack, currentSave, rng);
+            currentSave = applyEffects(combatCheck.onFailure, storyPack, currentSave, rng, contentPack);
           }
         } else {
           // Standard check effects
           if (result.success && check.onSuccess) {
-            currentSave = applyEffects(check.onSuccess, storyPack, currentSave, rng);
+            currentSave = applyEffects(check.onSuccess, storyPack, currentSave, rng, contentPack);
           } else if (!result.success && check.onFailure) {
-            currentSave = applyEffects(check.onFailure, storyPack, currentSave, rng);
+            currentSave = applyEffects(check.onFailure, storyPack, currentSave, rng, contentPack);
           }
         }
       }
@@ -286,14 +288,14 @@ export const handleGenericChoice: ChoiceHandler = (
   const visitedScenesBefore = [...currentSave.runtime.history.visitedScenes];
 
   // Apply choice effects (may include goto)
-  currentSave = applyEffects(choice.effects, storyPack, currentSave, rng);
+  currentSave = applyEffects(choice.effects, storyPack, currentSave, rng, contentPack);
 
   // Apply scene onEnter effects for the new scene if this is first visit
   const newSceneId = currentSave.runtime.currentSceneId;
   if (!visitedScenesBefore.includes(newSceneId)) {
     const newScene = storyPack.scenes.find((s) => s.id === newSceneId);
     if (newScene && newScene.onEnter) {
-      currentSave = applyEffects(newScene.onEnter, storyPack, currentSave, rng);
+      currentSave = applyEffects(newScene.onEnter, storyPack, currentSave, rng, contentPack);
     }
   }
 

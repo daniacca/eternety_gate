@@ -3,6 +3,7 @@ import { IRNG, RNG } from "../../rng";
 import { getCurrentTurnActorId, advanceCombatTurn } from "../combat";
 import { appendCombatLog } from "../narration";
 import { runNpcTurn } from "../npcAi";
+import type { ContentPack } from "../../../content/types";
 
 /**
  * Ends the current turn and advances to next actor, running NPC turns until player's turn
@@ -11,7 +12,8 @@ export function combatEndTurn(
   effect: Extract<Effect, { op: "combatEndTurn" }>,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  contentPack?: ContentPack
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -50,7 +52,7 @@ export function combatEndTurn(
     if (!npcId) break;
 
     const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
-    currentSave = runNpcTurn(storyPack, currentSave, npcId);
+    currentSave = runNpcTurn(storyPack, currentSave, npcId, contentPack);
     currentSave = advanceCombatTurn(currentSave, storyPack);
 
     safety++;

@@ -137,7 +137,7 @@ export function listAvailableChoices(storyPack: StoryPack, save: GameSave): Choi
 /**
  * Applies a choice and returns the updated save
  */
-export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: ChoiceId): GameSave {
+export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: ChoiceId, contentPack?: ContentPack): GameSave {
   const { scene } = getCurrentScene(storyPack, save);
 
   const choice = scene.choices.find((c) => c.id === choiceId);
@@ -184,5 +184,5 @@ export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: Choi
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
 
   // Route to appropriate handler based on choice kind
-  return handleChoice(choice, choiceId, storyPack, save, rng);
+  return handleChoice(choice, choiceId, storyPack, save, rng, contentPack);
 }

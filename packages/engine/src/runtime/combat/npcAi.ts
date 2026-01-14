@@ -5,12 +5,14 @@ import { getActorWeapon } from "./equipment";
 import { applyEffects } from "../effects";
 import { hasCondition } from "../conditions";
 import { isActorAlive } from "../characters/actors";
+import type { ContentPack } from "../../content/types";
+import { canPlaceActorAt } from "./footprint";
 
 /**
  * Runs an NPC turn (auto-attack or move)
  * Returns effects that are then applied via applyEffects
  */
-export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId): GameSave {
+export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId, contentPack?: ContentPack): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
   const combat = save.runtime.combat;
 
@@ -30,7 +32,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
       op: "combatStandUp",
       actorId: npcId,
     };
-    return applyEffects([standUpEffect], storyPack, save, rng);
+    return applyEffects([standUpEffect], storyPack, save, rng, contentPack);
   }
 
   // Target is always the active party member (must be alive)
@@ -102,104 +104,97 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId)
     const moveRemaining = combat.turn.moveRemaining ?? 0;
 
     if (moveRemaining > 0) {
-      // Calculate how many squares we can move
-      // Move toward target, stopping at melee range (dist = 1)
-      // So we can move up to (dist - 1) squares, but not more than movement remaining
+      // Move toward target, stopping at melee range (dist = 1).
+      // Use simple BFS pathfinding so we route around non-walkable terrain and obstacles.
       const movesToMake = Math.min(moveRemaining, Math.max(0, dist - 1));
 
-      // Helper function to check if a position is blocked by a living actor
-      const isPositionBlocked = (x: number, y: number): boolean => {
-        // Check bounds
-        if (x < 0 || x >= combat.grid.width || y < 0 || y >= combat.grid.height) return true;
-        // Check if occupied by living actor
-        return Object.entries(combat.positions).some(([actorId, pos]) => {
-          if (actorId === npcId) return false; // Don't check self
-          if (pos.x !== x || pos.y !== y) return false;
-          const actor = save.actorsById[actorId];
-          return actor && actor.resources.isDead !== true; // Only block if alive
-        });
+      type Pos = { x: number; y: number };
+      const keyOf = (p: Pos) => `${p.x},${p.y}`;
+      const inBounds = (p: Pos) => p.x >= 0 && p.x < combat.grid.width && p.y >= 0 && p.y < combat.grid.height;
+
+      const DIRS: Array<{ dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; dx: number; dy: number }> = [
+        { dir: "N", dx: 0, dy: -1 },
+        { dir: "NE", dx: 1, dy: -1 },
+        { dir: "E", dx: 1, dy: 0 },
+        { dir: "SE", dx: 1, dy: 1 },
+        { dir: "S", dx: 0, dy: 1 },
+        { dir: "SW", dx: -1, dy: 1 },
+        { dir: "W", dx: -1, dy: 0 },
+        { dir: "NW", dx: -1, dy: -1 },
+      ];
+
+      const neighbors = (p: Pos): Array<{ pos: Pos; dir: (typeof DIRS)[number]["dir"] }> =>
+        DIRS.map((d) => ({ dir: d.dir, pos: { x: p.x + d.dx, y: p.y + d.dy } })).filter((n) => inBounds(n.pos));
+
+      // Candidate melee positions: any walkable, unoccupied cell adjacent (Chebyshev 1) to target.
+      const buildGoals = (): Set<string> => {
+        const goals = new Set<string>();
+        for (const n of neighbors(targetPos as any)) {
+          const p = n.pos;
+          if (!inBounds(p)) continue;
+          if (distanceChebyshev(p as any, targetPos as any) !== 1) continue;
+          if (!canPlaceActorAt(save, npcId, p as any, contentPack)) continue;
+          goals.add(keyOf(p));
+        }
+        return goals;
       };
 
-      // Helper function to get direction from delta
-      const getDirection = (moveX: number, moveY: number): "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" => {
-        if (moveX === 0 && moveY === -1) return "N";
-        else if (moveX === 1 && moveY === -1) return "NE";
-        else if (moveX === 1 && moveY === 0) return "E";
-        else if (moveX === 1 && moveY === 1) return "SE";
-        else if (moveX === 0 && moveY === 1) return "S";
-        else if (moveX === -1 && moveY === 1) return "SW";
-        else if (moveX === -1 && moveY === 0) return "W";
-        else if (moveX === -1 && moveY === -1) return "NW";
-        return "N"; // fallback
-      };
+      const goals = buildGoals();
+      let current: Pos = { x: npcPos.x, y: npcPos.y };
 
-      // Calculate primary direction toward target
-      const dx = targetPos.x - npcPos.x;
-      const dy = targetPos.y - npcPos.y;
-      const moveX = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
-      const moveY = dy !== 0 ? (dy > 0 ? 1 : -1) : 0;
+      const findNextStep = (start: Pos): { next: Pos; dir: (typeof DIRS)[number]["dir"] } | null => {
+        if (goals.size === 0) return null;
 
-      // Try to move toward target, with fallback to perpendicular directions if blocked
-      let currentX = npcPos.x;
-      let currentY = npcPos.y;
+        const startKey = keyOf(start);
+        const q: Pos[] = [start];
+        const prev = new Map<string, { from: string; viaDir: (typeof DIRS)[number]["dir"] }>();
+        const seen = new Set<string>([startKey]);
 
-      for (let i = 0; i < movesToMake; i++) {
-        let nextX = currentX + moveX;
-        let nextY = currentY + moveY;
-        let dir = getDirection(moveX, moveY);
+        while (q.length > 0) {
+          const cur = q.shift()!;
+          const curKey = keyOf(cur);
 
-        // If primary direction is blocked, try perpendicular directions
-        if (isPositionBlocked(nextX, nextY)) {
-          // Try perpendicular directions (prioritize directions that get closer to target)
-          const alternatives: Array<{ x: number; y: number }> = [];
-
-          // Add perpendicular directions
-          if (moveX !== 0 && moveY !== 0) {
-            // Diagonal movement blocked - try cardinal directions
-            alternatives.push({ x: currentX + moveX, y: currentY }); // Same X, no Y change
-            alternatives.push({ x: currentX, y: currentY + moveY }); // Same Y, no X change
-          } else if (moveX !== 0) {
-            // Horizontal movement blocked - try vertical
-            alternatives.push({ x: currentX, y: currentY + 1 });
-            alternatives.push({ x: currentX, y: currentY - 1 });
-          } else if (moveY !== 0) {
-            // Vertical movement blocked - try horizontal
-            alternatives.push({ x: currentX + 1, y: currentY });
-            alternatives.push({ x: currentX - 1, y: currentY });
-          }
-
-          // Find first unblocked alternative
-          let foundAlternative = false;
-          for (const alt of alternatives) {
-            if (!isPositionBlocked(alt.x, alt.y)) {
-              nextX = alt.x;
-              nextY = alt.y;
-              dir = getDirection(nextX - currentX, nextY - currentY);
-              foundAlternative = true;
-              break;
+          if (goals.has(curKey) && curKey !== startKey) {
+            // Reconstruct: walk back until we reach the immediate neighbor of start.
+            let stepKey = curKey;
+            let stepDir: (typeof DIRS)[number]["dir"] | null = null;
+            while (true) {
+              const p = prev.get(stepKey);
+              if (!p) break;
+              if (p.from === startKey) {
+                stepDir = p.viaDir;
+                break;
+              }
+              stepKey = p.from;
             }
+            if (!stepDir) return null;
+            const [sx, sy] = stepKey.split(",").map((v) => parseInt(v, 10));
+            return { next: { x: sx, y: sy }, dir: stepDir };
           }
 
-          // If all directions blocked, stop moving
-          if (!foundAlternative) {
-            break;
+          for (const n of neighbors(cur)) {
+            const nk = keyOf(n.pos);
+            if (seen.has(nk)) continue;
+            // Skip cells we can't occupy (walkable=false, out-of-bounds, or occupied by living actor footprint)
+            if (!canPlaceActorAt(save, npcId, n.pos as any, contentPack)) continue;
+            seen.add(nk);
+            prev.set(nk, { from: curKey, viaDir: n.dir });
+            q.push(n.pos);
           }
         }
+        return null;
+      };
 
-        // Emit move effect
-        const moveEffect: Effect = {
-          op: "combatMove",
-          dir,
-        };
-        effects.push(moveEffect);
-
-        // Update current position for next iteration
-        currentX = nextX;
-        currentY = nextY;
+      for (let i = 0; i < movesToMake; i++) {
+        const step = findNextStep(current);
+        if (!step) break;
+        effects.push({ op: "combatMove", dir: step.dir });
+        current = step.next;
       }
     }
   }
 
   // Apply effects (they will be processed via queue)
-  return applyEffects(effects, storyPack, save, rng);
+  // Note: contentPack is required for terrain/walkable checks in movement.
+  return applyEffects(effects, storyPack, save, rng, contentPack);
 }

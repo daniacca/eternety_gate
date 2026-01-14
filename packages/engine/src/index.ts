@@ -48,8 +48,11 @@ export {
 // Content pack types and utilities
 export type { ContentPack } from "./content/types";
 export { mergeWeapons, mergeArmors } from "./content/merge";
-export { loadCharacterCatalogs, getSkillById, getTalentById, getTraitById } from "./content/loadCatalogs";
-export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId } from "./content/catalogs";
+export { loadCharacterCatalogs, loadTerrainCatalogs, getSkillById, getTalentById, getTraitById } from "./content/loadCatalogs";
+export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId, GridDefinition, TileDefinition, TerrainCatalogs } from "./content/catalogs";
+
+// Terrain helpers
+export { getGrid, getCellTerrain, isFootprintWalkable } from "./runtime/combat/terrain";
 
 // Character framework
 export { getXp, addXp, spendXp, buyTalent } from "./runtime/characters/xp";

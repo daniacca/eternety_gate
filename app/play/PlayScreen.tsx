@@ -17,6 +17,7 @@ import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
+import { sigilContentPack } from "@eg/content/src";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
 import { CombatNarration } from "./components/CombatNarration";
@@ -182,13 +183,13 @@ export function PlayScreen() {
   const isNarrow = width < 700 || height > width;
 
   const handleChoice = (choiceId: string) => {
-    const newSave = applyChoice(storyPackWithCatalogs, save, choiceId);
+    const newSave = applyChoice(storyPackWithCatalogs, save, choiceId, sigilContentPack);
     setSave(newSave);
   };
 
   const applySystemEffects = (effects: Effect[]) => {
     const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
-    const newSave = applyEffects(effects, storyPackWithCatalogs, save, rng);
+    const newSave = applyEffects(effects, storyPackWithCatalogs, save, rng, sigilContentPack);
     setSave(newSave);
   };
 

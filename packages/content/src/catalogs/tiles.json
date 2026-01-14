@@ -1,0 +1,61 @@
+{
+  "tiles": {
+    "gymFloor": {
+      "image": "tiles_simple/tile_dirt_106.png"
+    },
+    "gymWall": {
+      "image": "tiles_simple/tile_stone_dark_117.png"
+    },
+    "gymMat": {
+      "image": "tiles_simple/tile_stone_light_346.png"
+    },
+    "gymRing": {
+      "image": "tiles_simple/tile_stone_119.png"
+    },
+    "gymMarker": {
+      "image": "tiles_simple/tile_magic_187.png"
+    },
+    "plains": {
+      "image": "tiles_simple/tile_grass_14.png"
+    },
+    "wall": {
+      "image": "tiles_simple/tile_stone_dark_117.png"
+    },
+    "forestBroadleaf": {
+      "image": "tiles_simple/tile_moss_131.png"
+    },
+    "mountain": {
+      "image": "tiles_simple/tile_stone_dark_117.png"
+    },
+    "grass": {
+      "image": "tiles_simple/tile_grass_14.png"
+    },
+    "forest": {
+      "image": "tiles_simple/tile_moss_131.png"
+    },
+    "rock": {
+      "image": "tiles_simple/tile_stone_119.png"
+    },
+    "water": {
+      "image": "tiles_simple/tile_water_101.png"
+    },
+    "floor": {
+      "image": "tiles_simple/tile_dirt_106.png"
+    },
+    "dirt": {
+      "image": "tiles_simple/tile_dirt_106.png"
+    },
+    "hills": {
+      "image": "tiles_simple/tile_stone_119.png"
+    },
+    "desert": {
+      "image": "tiles_simple/tile_sand_102.png"
+    },
+    "snow": {
+      "image": "tiles_simple/tile_snow_100.png"
+    },
+    "marsh": {
+      "image": "tiles_simple/tile_water_101.png"
+    }
+  }
+}

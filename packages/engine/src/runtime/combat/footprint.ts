@@ -1,5 +1,7 @@
 import type { GameSave, ActorId, Position, Grid } from "../types";
 import { posKey } from "../items/posKey";
+import { isFootprintWalkable } from "./terrain";
+import type { ContentPack } from "../../content/types";
 
 /**
  * Gets the footprint radius for a given size
@@ -187,12 +189,14 @@ function isPositionInBounds(pos: Position, grid: Grid): boolean {
  * Checks if an actor can be placed at the given center position
  * Returns true if:
  * - All footprint cells are within grid bounds
+ * - All footprint cells are walkable
  * - No overlap with other actors' footprints (excluding the actor itself)
  */
 export function canPlaceActorAt(
   save: GameSave,
   actorId: ActorId,
-  newCenterPos: Position
+  newCenterPos: Position,
+  contentPack?: ContentPack
 ): boolean {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -209,6 +213,11 @@ export function canPlaceActorAt(
     if (!isPositionInBounds(cell, combat.grid)) {
       return false;
     }
+  }
+  
+  // Check all cells are walkable
+  if (!isFootprintWalkable(save, actorId, newCenterPos, contentPack)) {
+    return false;
   }
   
   // Build occupancy map excluding this actor

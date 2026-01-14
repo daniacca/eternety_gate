@@ -61,6 +61,71 @@ function shouldCombatEnd(
 }
 
 /**
+ * Ensures combat end state is applied consistently.
+ *
+ * Why: different kill sources (spells, effects, conditions) may update isDead
+ * without going through the attack action handlers that currently stamp
+ * `combat:state=end` and `combatEndedSceneId`.
+ *
+ * This helper can be called after any batch of effects to make sure victory/defeat
+ * UI triggers reliably.
+ */
+export function finalizeCombatIfEnded(save: GameSave): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) return save;
+
+  const aliveParticipants = combat.participants.filter((id) => {
+    const actor = save.actorsById[id];
+    return isActorAlive(actor);
+  });
+
+  const end = shouldCombatEnd(save, aliveParticipants);
+  if (!end.shouldEnd) return save;
+
+  const outcome = end.outcome || "victory";
+  const winnerId = end.winnerId;
+  const endedSceneId = combat.startedBySceneId || save.runtime.currentSceneId;
+
+  const last = save.runtime.lastCheck;
+  const endCheck: CheckResult = last
+    ? {
+        ...last,
+        tags: [
+          ...last.tags,
+          "combat:state=end",
+          `combat:outcome=${outcome}`,
+          ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+        ],
+      }
+    : {
+        checkId: "combat:end",
+        actorId: save.party.activeActorId,
+        roll: 0,
+        target: 0,
+        success: true,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:state=end", `combat:outcome=${outcome}`, ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
+      };
+
+  const logEntry =
+    outcome === "victory" ? "Tutti i nemici presenti nell'area sono stati sconfitti." : "Il party è stato annientato. Game over.";
+
+  const updatedSave: GameSave = {
+    ...save,
+    runtime: {
+      ...save.runtime,
+      combat: undefined,
+      lastCheck: endCheck,
+      combatEndedSceneId: endedSceneId,
+    },
+  };
+
+  return appendCombatLog(updatedSave, logEntry);
+}
+
+/**
  * Calculates initial movement for an actor based on AGI bonus, size, and conditions
  * This is used to determine the starting movement value for a turn
  *
@@ -108,7 +173,8 @@ export function startCombat(
   participantIds: ActorId[],
   startedBySceneId?: SceneId,
   grid?: Grid,
-  placements?: Array<{ actorId: ActorId; x: number; y: number }>
+  placements?: Array<{ actorId: ActorId; x: number; y: number }>,
+  gridId?: string
 ): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
 
@@ -220,6 +286,7 @@ export function startCombat(
     round: 1,
     startedBySceneId: sceneIdForCombat,
     grid: combatGrid,
+    gridId: gridId || "arena_01",
     positions,
     turn: initialTurnState,
     stancesByActorId: {},
