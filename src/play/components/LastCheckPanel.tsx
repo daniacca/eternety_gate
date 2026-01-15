@@ -102,12 +102,23 @@ export function LastCheckPanel({ check, save, styles: parentStyles }: LastCheckP
               ) : (
                 <View style={styles.content}>
                   <Text style={styles.damageLabel}>Final Damage: {relatedDamage.finalDamage}</Text>
-                  <Text style={styles.damageDetail}>
-                    Raw: {relatedDamage.rawDamage} - Soak: {relatedDamage.soak}
-                  </Text>
-                  {relatedDamage.formula && (
-                    <Text style={styles.damageFormula}>Formula: {relatedDamage.formula}</Text>
-                  )}
+                  {relatedDamage.formula && (() => {
+                    // Parse formula: "1d10 + 8 (Mighty Shot) | 17 (Raw) - 4 (TOU) - 0 (Soak)"
+                    const parts = relatedDamage.formula.split(" | ");
+                    const rawFormula = parts[0] || "";
+                    const reductionFormula = parts[1] || "";
+                    
+                    return (
+                      <>
+                        {rawFormula && (
+                          <Text style={styles.damageFormula}>Raw: {rawFormula}</Text>
+                        )}
+                        {reductionFormula && (
+                          <Text style={styles.damageFormula}>Formula: {reductionFormula}</Text>
+                        )}
+                      </>
+                    );
+                  })()}
                   {relatedDamage.rolls && relatedDamage.rolls.length > 0 && (
                     <Text style={styles.damageRolls}>
                       Rolls: {relatedDamage.rolls.join(", ")}

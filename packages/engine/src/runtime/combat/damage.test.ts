@@ -138,8 +138,8 @@ describe("damage", () => {
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
       expect(damageResult.didApplyDamage).toBe(true);
-      expect(damageResult.finalDamage).toBe(9); // 9 raw - 0 soak
-      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(9); // 9 wounds taken
+      expect(damageResult.finalDamage).toBe(4); // 9 raw - 0 soak - 5 TOU bonus
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(4); // 4 wounds taken
       expect(damageResult.targetKo).toBe(false);
     });
 
@@ -197,9 +197,10 @@ describe("damage", () => {
 
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
-      expect(damageResult.didApplyDamage).toBe(true);
-      expect(damageResult.finalDamage).toBe(3); // 9 raw - 6 (double soak) = 3
-      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(3); // 3 wounds taken
+      // Raw: 9, double soak: 6, TOU bonus: 5, final: 9 - 6 - 5 = -2 => 0
+      expect(damageResult.didApplyDamage).toBe(false); // No damage penetrates
+      expect(damageResult.finalDamage).toBe(0); // 9 raw - 6 (double soak) - 5 (TOU) = 0
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(0); // No wounds taken
     });
 
     it("should apply Righteous Fury on critical success", () => {
@@ -276,8 +277,8 @@ describe("damage", () => {
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
       expect(damageResult.didApplyDamage).toBe(true);
-      expect(damageResult.finalDamage).toBe(15); // Best of 2 rolls: 15
-      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(15); // 15 wounds taken
+      expect(damageResult.finalDamage).toBe(10); // Best of 2 rolls: 15 raw - 0 soak - 5 TOU bonus = 10
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(10); // 10 wounds taken
       // Check for Righteous Fury tag
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:righteousFury=1");
@@ -298,6 +299,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
+        stats: { TOU: 0 }, // TOU 0 to avoid reduction
         resources: { wounds: 100, rf: 100, peq: 100 }, // Already at 0 HP (assuming maxHp=100)
       });
       const save = makeTestSave(storyPack, attacker);
@@ -444,8 +446,8 @@ describe("damage", () => {
 
       expect(damageResult.didApplyDamage).toBe(true);
       // Weapon penetration: 1, armor soak: 5, effective soak: 5 - 1 = 4
-      expect(damageResult.finalDamage).toBe(11); // 15 raw - 4 effective soak
-      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(61); // Assuming maxHp=100, 50 wounds + 11 = 61 wounds
+      expect(damageResult.finalDamage).toBe(6); // 15 raw - 4 effective soak - 5 TOU bonus
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(56); // Assuming maxHp=100, 50 wounds + 6 = 56 wounds
     });
 
     it("should reduce damage to 0 when armor soak exceeds raw damage", () => {
@@ -533,7 +535,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 90, rf: 100, peq: 100 }, // Assuming maxHp=100
+        resources: { wounds: 95, rf: 100, peq: 100 }, // Assuming maxHp=100, 5 damage will KO
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -557,16 +559,10 @@ describe("damage", () => {
           },
         },
       };
-      // Roll 5 on d5: 5 + 5 (SB) = 10 raw damage (unarmed uses d5)
-      // When HP reaches 0, critical damage = 10, which triggers tiers 1-10
-      // Tier 2 needs d5 roll, tier 6 needs d5 roll, tiers 7-9 need toughness checks (d100)
+      // Roll 5 on d5: 5 + 5 (SB) = 10 raw damage, - 5 TOU bonus = 5 final damage (unarmed uses d5)
+      // When HP reaches exactly 0 (95 + 5 = 100), no excess damage so no critical tiers
       const d100For5 = FakeRng.d100ForNextInt(5, 1, 5);
-      const d100ForTier2D5 = FakeRng.d100ForNextInt(3, 1, 5); // Tier 2 fatigue roll
-      const d100ForTier6D5 = FakeRng.d100ForNextInt(2, 1, 5); // Tier 6 stunned rounds
-      const d100ForTier7 = 50; // Tier 7 toughness check (pass)
-      const d100ForTier8 = 50; // Tier 8 toughness check (pass)
-      const d100ForTier9 = 50; // Tier 9 toughness check (pass)
-      const rng = new FakeRng([d100For5, d100ForTier2D5, d100ForTier6D5, d100ForTier7, d100ForTier8, d100ForTier9]);
+      const rng = new FakeRng([d100For5]);
 
       const check: CombatAttackCheck = {
         id: "test_check",
@@ -692,11 +688,11 @@ describe("damage", () => {
       expect(lastCheck?.tags).toContain("combat:damage:raw=13"); // 6 + 2 + 5 (STR bonus)
       // Weapon penetration: 1, armor soak: 3, effective soak: 3 - 1 = 2
       expect(lastCheck?.tags).toContain("combat:soak=2");
-      expect(lastCheck?.tags).toContain("combat:damage:final=11"); // 13 - 2
+      expect(lastCheck?.tags).toContain("combat:damage:final=6"); // 13 - 2 - 5 TOU bonus
       expect(lastCheck?.tags).toContain("combat:weapon=sword");
       expect(lastCheck?.tags).toContain("combat:armor=leather");
       expect(lastCheck?.tags).toContain("combat:defHpBefore=100");
-      expect(lastCheck?.tags).toContain("combat:defHpAfter=89"); // 100 - 11
+      expect(lastCheck?.tags).toContain("combat:defHpAfter=94"); // 100 - 6
     });
 
     it("should use weaponId from check if provided", () => {
@@ -785,7 +781,7 @@ describe("damage", () => {
 
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
-      expect(damageResult.finalDamage).toBe(13); // Using axe damage (5 + 3 + 5 STR bonus)
+      expect(damageResult.finalDamage).toBe(8); // Using axe damage (5 + 3 + 5 STR bonus - 5 TOU bonus = 8)
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:weapon=axe");
     });
@@ -868,8 +864,8 @@ describe("damage", () => {
 
       const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
 
-      // Improvised damage: 3 (roll) + 5 (STR bonus) = 8
-      expect(damageResult.finalDamage).toBe(8);
+      // Improvised damage: 3 (roll) + 5 (STR bonus) - 5 (TOU bonus) = 3
+      expect(damageResult.finalDamage).toBe(3);
       const lastCheck = damageResult.save.runtime.lastCheck;
       expect(lastCheck?.tags).toContain("combat:weapon=improvised");
       expect(lastCheck?.tags).toContain("combat:fallbackWeapon=improvised");

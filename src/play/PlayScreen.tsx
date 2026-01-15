@@ -26,6 +26,8 @@ import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
+import gridsCatalog from "@eg/content/src/catalogs/grids.json";
+import tilesCatalog from "@eg/content/src/catalogs/tiles.json";
 import { sigilContentPack } from "@eg/content/src";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
@@ -158,6 +160,8 @@ export function PlayScreen() {
       skills: skillsCatalog as any,
       talents: talentsCatalog as any,
       traits: traitsCatalog as any,
+      grids: gridsCatalog.grids as any,
+      tiles: tilesCatalog.tiles as any,
     };
 
     return createNewGame(
@@ -177,6 +181,8 @@ export function PlayScreen() {
       skills: skillsCatalog as any,
       talents: talentsCatalog as any,
       traits: traitsCatalog as any,
+      grids: gridsCatalog.grids as any,
+      tiles: tilesCatalog.tiles as any,
     }),
     []
   );
@@ -215,7 +221,18 @@ export function PlayScreen() {
 
   const applySystemEffects = (effects: Effect[]) => {
     const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
-    const newSave = applyEffects(effects, storyPackWithCatalogs, save, rng, sigilContentPack);
+    let newSave = applyEffects(effects, storyPackWithCatalogs, save, rng, sigilContentPack);
+
+    // Ensure RNG counter is always saved back to the game state
+    // This prevents RNG values from being reused
+    newSave = {
+      ...newSave,
+      runtime: {
+        ...newSave.runtime,
+        rngCounter: rng.getCounter(),
+      },
+    };
+
     setSave(newSave);
   };
 

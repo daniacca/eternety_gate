@@ -16,7 +16,8 @@ export function combatStart(
     effect.participantIds,
     save.runtime.currentSceneId,
     effect.grid,
-    effect.placements
+    effect.placements,
+    effect.gridId
   );
 
   // If combat started with an NPC turn, process NPC turns until it's a player turn

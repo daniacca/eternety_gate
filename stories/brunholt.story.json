@@ -1835,7 +1835,7 @@
                 {
                   "op": "combatStart",
                   "participantIds": ["PC_1", "NPC_DUMMY", "NPC_DUMMY_2"],
-                  "grid": { "width": 15, "height": 15 },
+                  "gridId": "arena_01",
                   "placements": [
                     { "actorId": "PC_1", "x": 2, "y": 7 },
                     { "actorId": "NPC_DUMMY", "x": 9, "y": 6 },
@@ -1848,94 +1848,6 @@
         }
       ],
       "choices": [
-        {
-          "id": "combat_melee",
-          "label": "Attacco in mischia",
-          "checks": [
-            {
-              "id": "atk_melee",
-              "kind": "combatAttack",
-              "attacker": { "actorRef": { "mode": "active" }, "mode": "MELEE", "weaponId": null },
-              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": true, "allowDodge": true, "strategy": "autoBest" }
-            }
-          ],
-          "effects": []
-        },
-        {
-          "id": "combat_ranged_long_heavy",
-          "label": "Tiro a distanza",
-          "checks": [
-            {
-              "id": "atk_ranged_long_heavy",
-              "kind": "combatAttack",
-              "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
-              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": false, "allowDodge": false, "strategy": "autoBest" }
-            }
-          ],
-          "effects": []
-        },
-        {
-          "id": "combat_ranged_called_shot",
-          "label": "Tiro mirato (called shot)",
-          "checks": [
-            {
-              "id": "atk_ranged_called_shot",
-              "kind": "combatAttack",
-              "attacker": { "actorRef": { "mode": "active" }, "mode": "RANGED", "weaponId": null },
-              "defender": { "actorRef": { "mode": "byId", "actorId": "NPC_DUMMY" } },
-              "defense": { "allowParry": false, "allowDodge": true, "strategy": "preferDodge" },
-              "modifiers": { "calledShot": true }
-            }
-          ],
-          "effects": []
-        },
-        {
-          "id": "combat_move_n",
-          "label": "[Move] N",
-          "effects": [{ "op": "combatMove", "dir": "N" }]
-        },
-        {
-          "id": "combat_move_ne",
-          "label": "[Move] NE",
-          "effects": [{ "op": "combatMove", "dir": "NE" }]
-        },
-        {
-          "id": "combat_move_e",
-          "label": "[Move] E",
-          "effects": [{ "op": "combatMove", "dir": "E" }]
-        },
-        {
-          "id": "combat_move_se",
-          "label": "[Move] SE",
-          "effects": [{ "op": "combatMove", "dir": "SE" }]
-        },
-        {
-          "id": "combat_move_s",
-          "label": "[Move] S",
-          "effects": [{ "op": "combatMove", "dir": "S" }]
-        },
-        {
-          "id": "combat_move_sw",
-          "label": "[Move] SW",
-          "effects": [{ "op": "combatMove", "dir": "SW" }]
-        },
-        {
-          "id": "combat_move_w",
-          "label": "[Move] W",
-          "effects": [{ "op": "combatMove", "dir": "W" }]
-        },
-        {
-          "id": "combat_move_nw",
-          "label": "[Move] NW",
-          "effects": [{ "op": "combatMove", "dir": "NW" }]
-        },
-        {
-          "id": "combat_end_turn",
-          "label": "[Debug] Fine turno",
-          "effects": [{ "op": "combatEndTurn" }]
-        },
         {
           "id": "back_to_hub",
           "label": "Torna indietro",

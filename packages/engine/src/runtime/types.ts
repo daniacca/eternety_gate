@@ -50,7 +50,16 @@ export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 /* Conditions                         */
 /* ---------------------------------- */
 
-export type ConditionId = "prone" | "stunned" | "bleeding" | "fatigue" | "unconscious" | "bound" | "force_shield" | "steel_body" | "warp_speed";
+export type ConditionId =
+  | "prone"
+  | "stunned"
+  | "bleeding"
+  | "fatigue"
+  | "unconscious"
+  | "bound"
+  | "force_shield"
+  | "steel_body"
+  | "warp_speed";
 
 export type ConditionInstance = {
   stacks?: number;
@@ -90,6 +99,7 @@ export type Effect =
       op: "combatStart";
       participantIds: ActorId[];
       grid?: Grid;
+      gridId?: string;
       placements: Array<{ actorId: ActorId; x: number; y: number }>;
     }
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; actorId?: ActorId }
@@ -373,6 +383,8 @@ export type StoryPack = {
   skills?: any[];
   talents?: any[];
   traits?: any[];
+  grids?: any[];
+  tiles?: any;
 
   scenes: Scene[];
 };
@@ -580,6 +592,7 @@ export type RuntimeLogEntry =
       rolls?: number[];
       rawDamage: number;
       soak: number;
+      touBonus?: number;
       finalDamage: number;
       turnCounter?: number;
       resolutionId?: string;

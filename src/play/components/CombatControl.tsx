@@ -165,13 +165,22 @@ export function CombatControl({
                         if (move === null) {
                           return <View key={`center-${rowIndex}-${colIndex}`} style={styles.movePadCell} />;
                         }
-                        const moveChoice = combatChoices.find((c) => c.id === `combat_move_${move.dir}`);
 
                         return (
                           <View key={move.dir} style={styles.movePadCell}>
                             <Pressable
                               style={[styles.movePadButton, !model.canMove && styles.movePadButtonDisabled]}
-                              onPress={() => model.canMove && moveChoice && handleChoice(moveChoice.id)}
+                              onPress={() => {
+                                if (model.canMove) {
+                                  applySystemEffects([
+                                    {
+                                      op: "combatMove",
+                                      dir: move.dir.toUpperCase() as "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW",
+                                      actorId: save.party.activeActorId,
+                                    },
+                                  ]);
+                                }
+                              }}
                               disabled={!model.canMove}
                             >
                               <Text
@@ -407,83 +416,42 @@ export function CombatControl({
                 </View>
 
                 {/* Ranged Attacks Section */}
-                {(model.rangedLongChoice || model.rangedCalledChoice) && (
-                  <View style={styles.attackSection}>
-                    <Text style={styles.attackSectionTitle}>Ranged Attacks</Text>
-                    {model.rangedLongChoice && (
-                      <View style={styles.attackButtonItem}>
-                        <Pressable
-                          style={[
-                            styles.attackButton,
-                            (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
-                          ]}
-                          onPress={() => {
-                            if (!model.rangedDisabled && model.selectedTargetId) {
-                              applySystemEffects([
-                                {
-                                  op: "combatRequestAttack",
-                                  attackerId: save.party.activeActorId,
-                                  defenderId: model.selectedTargetId,
-                                  mode: "RANGED",
-                                },
-                              ]);
-                            }
-                          }}
-                          disabled={model.rangedDisabled || !model.selectedTargetId}
-                        >
-                          <Text
-                            style={[
-                              styles.attackButtonText,
-                              (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
-                            ]}
-                          >
-                            Ranged Attack
-                          </Text>
-                        </Pressable>
-                        {model.rangedDisabled && model.rangedDisabledReason && (
-                          <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
-                        )}
-                      </View>
-                    )}
-                    {model.rangedCalledChoice && (
-                      <View style={styles.attackButtonItem}>
-                        <Pressable
-                          style={[
-                            styles.attackButton,
-                            (model.rangedCalledDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
-                          ]}
-                          onPress={() => {
-                            if (!model.rangedCalledDisabled && model.selectedTargetId) {
-                              applySystemEffects([
-                                {
-                                  op: "combatRequestAttack",
-                                  attackerId: save.party.activeActorId,
-                                  defenderId: model.selectedTargetId,
-                                  mode: "RANGED",
-                                  modifiers: { calledShot: true },
-                                },
-                              ]);
-                            }
-                          }}
-                          disabled={model.rangedCalledDisabled || !model.selectedTargetId}
-                        >
-                          <Text
-                            style={[
-                              styles.attackButtonText,
-                              (model.rangedCalledDisabled || !model.selectedTargetId) &&
-                                styles.attackButtonTextDisabled,
-                            ]}
-                          >
-                            Called Shot
-                          </Text>
-                        </Pressable>
-                        {model.rangedCalledDisabled && model.rangedCalledDisabledReason && (
-                          <Text style={styles.attackButtonReason}>{model.rangedCalledDisabledReason}</Text>
-                        )}
-                      </View>
+                <View style={styles.attackSection}>
+                  <Text style={styles.attackSectionTitle}>Ranged Attacks</Text>
+                  <View style={styles.attackButtonItem}>
+                    <Pressable
+                      style={[
+                        styles.attackButton,
+                        (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                      ]}
+                      onPress={() => {
+                        if (!model.rangedDisabled && model.selectedTargetId) {
+                          applySystemEffects([
+                            {
+                              op: "combatRequestAttack",
+                              attackerId: save.party.activeActorId,
+                              defenderId: model.selectedTargetId,
+                              mode: "RANGED",
+                            },
+                          ]);
+                        }
+                      }}
+                      disabled={model.rangedDisabled || !model.selectedTargetId}
+                    >
+                      <Text
+                        style={[
+                          styles.attackButtonText,
+                          (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                        ]}
+                      >
+                        Ranged Attack
+                      </Text>
+                    </Pressable>
+                    {model.rangedDisabled && model.rangedDisabledReason && (
+                      <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
                     )}
                   </View>
-                )}
+                </View>
               </>
             )}
           </View>
@@ -682,7 +650,12 @@ export function CombatControl({
       {/* D) End Turn */}
       {model.isPlayerTurn && (
         <View style={styles.endTurnContainer}>
-          <Pressable style={styles.endTurnButton} onPress={() => handleChoice("combat_end_turn")}>
+          <Pressable
+            style={styles.endTurnButton}
+            onPress={() => {
+              applySystemEffects([{ op: "combatEndTurn" }]);
+            }}
+          >
             <Text style={styles.endTurnButtonText}>End Turn</Text>
           </Pressable>
         </View>

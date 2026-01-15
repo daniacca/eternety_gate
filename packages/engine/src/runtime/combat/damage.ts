@@ -102,7 +102,13 @@ export function applyCombatDamageIfHit(
     rawDamage = bestRoll;
     weaponName = "Arma di fortuna";
     calculatedWeaponId = "improvised";
-    damageFormula = `1d5 + ${strBonus} (STR bonus)`;
+
+    // Build formula
+    const formulaParts: string[] = ["1d5"];
+    if (strBonus > 0) {
+      formulaParts.push(`${strBonus} (STR)`);
+    }
+    damageFormula = formulaParts.join(" + ");
   } else {
     const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs);
     rawDamage = result.rawDamage;
@@ -124,25 +130,36 @@ export function applyCombatDamageIfHit(
       };
       const diceNotation = tierToDice[weapon.damage.tier];
 
+      // Build formula components
+      const formulaParts: string[] = [diceNotation];
+
+      // Add weapon damage bonus only if > 0
+      if (weapon.damage.add > 0) {
+        formulaParts.push(`${weapon.damage.add} (weapon)`);
+      }
+
       if (mode === "MELEE") {
         const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
-        damageFormula = `${diceNotation} + ${weapon.damage.add}${strBonus > 0 ? ` + ${strBonus} (STR)` : ""}`;
+        if (strBonus > 0) {
+          formulaParts.push(`${strBonus} (STR)`);
+        }
       } else if (mode === "RANGED") {
         // Get Mighty Shot bonus for formula display
         const mightyShotBonus = catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
-        damageFormula = `${diceNotation} + ${weapon.damage.add}${
-          mightyShotBonus > 0 ? ` + ${mightyShotBonus} (Mighty Shot)` : ""
-        }`;
-      } else {
-        damageFormula = `${diceNotation} + ${weapon.damage.add}`;
+        if (mightyShotBonus > 0) {
+          formulaParts.push(`${mightyShotBonus} (Mighty Shot)`);
+        }
       }
-      // Note: Individual rolls not captured here (would require modifying calculateWeaponDamage)
-      // For now, we log the final rawDamage which is the best of rollsCount rolls
+
+      damageFormula = formulaParts.join(" + ");
     } else {
       // Unarmed
       const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
-      damageFormula = `1d5 + ${strBonus} (STR bonus)`;
-      // Note: Individual rolls not captured here
+      const formulaParts: string[] = ["1d5"];
+      if (strBonus > 0) {
+        formulaParts.push(`${strBonus} (STR)`);
+      }
+      damageFormula = formulaParts.join(" + ");
     }
   }
 
@@ -167,8 +184,18 @@ export function applyCombatDamageIfHit(
     effectiveSoak = Math.max(0, soak - weaponForPenetration.penetration);
   }
 
-  // Calculate final damage after soak
-  const finalDamage = Math.max(0, rawDamage - effectiveSoak);
+  // Get defender TOU bonus (always reduces damage)
+  const touBonus = getCharacteristicBonus(save, defender.id, "TOU", catalogs);
+
+  // Calculate final damage after soak and TOU bonus
+  // Formula: (raw damage - armor soak - TOU bonus - other reductions)
+  const finalDamage = Math.max(0, rawDamage - effectiveSoak - touBonus);
+
+  // Build reduction formula for display
+  const reductionFormula = `${rawDamage} (Raw) - ${touBonus} (TOU) - ${effectiveSoak} (Soak)`;
+
+  // Combine raw damage formula with reduction formula
+  const fullFormula = `${damageFormula} | ${reductionFormula}`;
 
   // Apply damage using centralized function
   const damageResult = applyDamageToActor(defender, finalDamage, save, rng, storyPack, catalogs);
@@ -244,16 +271,28 @@ export function applyCombatDamageIfHit(
   }
 
   if (finalDamage === 0) {
+    // Build reduction breakdown for logging
+    const reductionParts = [];
+    if (effectiveSoak > 0) reductionParts.push(`Armatura: ${effectiveSoak}`);
+    if (touBonus > 0) reductionParts.push(`RES: ${touBonus}`);
+    const reductionText = reductionParts.length > 0 ? reductionParts.join(", ") : "riduzione";
+
     updatedSave = appendCombatLog(
       updatedSave,
       `${
         attacker.kind === "PC" ? "Colpisci" : attacker.name + " colpisce"
-      } ${defenderName} con ${weaponNameForLog} ma l'armatura assorbe tutto il colpo (${rawDamage} - ${effectiveSoak}).`
+      } ${defenderName} con ${weaponNameForLog} ma la difesa assorbe tutto il colpo (${rawDamage} - ${reductionText}).`
     );
   } else {
+    // Build reduction breakdown for logging
+    const reductionParts = [];
+    if (effectiveSoak > 0) reductionParts.push(`${effectiveSoak}`);
+    if (touBonus > 0) reductionParts.push(`${touBonus}`);
+    const reductionText = reductionParts.join(" + ");
+
     let damageMsg = `${
       attacker.kind === "PC" ? "Colpisci" : attacker.name + " colpisce"
-    } ${defenderName} con ${weaponNameForLog} e infligge ${finalDamage} danni (${rawDamage} - ${effectiveSoak}).`;
+    } ${defenderName} con ${weaponNameForLog} e infligge ${finalDamage} danni (${rawDamage} - ${reductionText}).`;
     if (isCriticalSuccess) {
       damageMsg += ` Furia Giusta! (miglior risultato di ${rollsCount} tiri).`;
     }
@@ -298,10 +337,11 @@ export function applyCombatDamageIfHit(
       attackerId: attacker.id,
       defenderId: defender.id,
       weaponId: calculatedWeaponId !== "unarmed" ? calculatedWeaponId : undefined,
-      formula: damageFormula,
+      formula: fullFormula,
       rolls: damageRolls.length > 0 ? damageRolls : undefined,
       rawDamage,
       soak: effectiveSoak,
+      touBonus,
       finalDamage,
       turnCounter,
       resolutionId,

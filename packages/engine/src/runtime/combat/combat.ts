@@ -10,7 +10,7 @@ import {
   addConditionToActor,
 } from "../conditions";
 import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuses";
-import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import { loadCharacterCatalogs, loadTerrainCatalogs } from "../../content/loadCatalogs";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
 import { removeUnnaturalCharacteristicsBySource } from "../characters/traitHelpers";
@@ -236,8 +236,22 @@ export function startCombat(
   const orderedIds = initiatives.map((entry) => entry.id);
   const currentTurnActorId = orderedIds[0];
 
-  // Initialize grid (default 10x10 if not provided)
-  const combatGrid: Grid = grid || { width: 10, height: 10 };
+  // Initialize grid: load from catalog if gridId provided, use explicit grid, or default to 10x10
+  let combatGrid: Grid;
+  if (gridId && storyPack) {
+    // Try to load grid from catalog
+    const terrainCatalogs = loadTerrainCatalogs(storyPack);
+    const gridDef = terrainCatalogs.gridsById[gridId];
+    if (gridDef) {
+      combatGrid = { width: gridDef.width, height: gridDef.height };
+    } else {
+      // Fallback if gridId not found
+      combatGrid = grid || { width: 10, height: 10 };
+    }
+  } else {
+    // Use explicit grid or default
+    combatGrid = grid || { width: 10, height: 10 };
+  }
 
   // Initialize positions from placements
   const positions: Record<ActorId, Position> = {};

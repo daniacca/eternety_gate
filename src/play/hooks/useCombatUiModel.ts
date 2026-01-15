@@ -42,9 +42,9 @@ export interface CombatUiModel {
   allOutDisabledReason: string | null;
 
   // Attack choices
-  meleeChoice: Choice | null | undefined;
-  rangedLongChoice: Choice | null | undefined;
-  rangedCalledChoice: Choice | null | undefined;
+  meleeChoice: boolean;
+  rangedLongChoice: boolean;
+  rangedCalledChoice: boolean;
 
   // Selected target (for All-Out Attack)
   selectedTargetId: string | null;
@@ -165,11 +165,10 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
       canRangedReason = "Out of range";
     }
 
-    // Get attack choices
-    const meleeChoice =
-      combatChoices.find((c) => c.id === "combat_melee") || combatChoices.find((c) => c.id.startsWith("combat_melee_"));
-    const rangedLongChoice = combatChoices.find((c) => c.id === "combat_ranged_long_heavy");
-    const rangedCalledChoice = combatChoices.find((c) => c.id === "combat_ranged_called_shot");
+    // Attack choices based on capabilities (not story pack)
+    const meleeChoiceAvailable = canMelee;
+    const rangedLongChoiceAvailable = hasRangedWeapon && canRanged;
+    const rangedCalledChoiceAvailable = hasRangedWeapon && canRanged; // Called Shot is just a ranged attack for now
 
     // Move pad state
     const canMove = isPlayerTurn && moveRemaining > 0;
@@ -292,9 +291,9 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
       canMelee,
       canRanged,
       canRangedReason,
-      meleeChoice,
-      rangedLongChoice,
-      rangedCalledChoice,
+      meleeChoice: meleeChoiceAvailable,
+      rangedLongChoice: rangedLongChoiceAvailable,
+      rangedCalledChoice: rangedCalledChoiceAvailable,
       canMove,
       moveDisabledReason,
       meleeDisabled,
