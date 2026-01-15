@@ -23,6 +23,7 @@ import {
   combatCastSpell,
 } from "../combat/actions";
 import { handleLearnSpell } from "./learnSpell";
+import { handleNarrativeSpell } from "./narrativeSpell";
 import { applySetFlag, applyAddCounter } from "./state";
 import { applyAddItem, applyRemoveItem } from "./items";
 import { applyGoto } from "./navigation";
@@ -110,6 +111,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   removeCondition: (effect, _storyPack, save, _rng) => ({
     save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, save),
   }),
+  narrativeSpell: (effect, storyPack, save, rng) =>
+    handleNarrativeSpell(effect as Extract<Effect, { op: "narrativeSpell" }>, storyPack, save, rng),
 };
 
 /**

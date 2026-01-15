@@ -87,7 +87,15 @@
         "type": "hasTrait",
         "traitId": "trait:weaver"
       }
-    ]
+    ],
+    "usage": { "combat": true, "narrative": true },
+    "narrative": {
+      "target": "scene",
+      "requiresCheck": true,
+      "minDoSToSucceed": 0,
+      "onSuccess": [{ "op": "setFlag", "key": "magic_sensed", "value": true }],
+      "onFailure": []
+    }
   },
   {
     "id": "spell:soothe_wounds",
@@ -105,7 +113,17 @@
         "type": "hasTrait",
         "traitId": "trait:weaver"
       }
-    ]
+    ],
+    "usage": { "combat": true, "narrative": true },
+    "narrative": {
+      "target": "singleActor",
+      "requiresCheck": true,
+      "minDoSToSucceed": 0,
+      "onSuccess": [
+        { "op": "modifyResource", "actorId": "active", "resource": "wounds", "delta": -3, "scaleBy": "dos", "max": -10 }
+      ],
+      "onFailure": [{ "op": "modifyResource", "actorId": "active", "resource": "rf", "delta": 1 }]
+    }
   },
   {
     "id": "spell:regenerate_minor",
@@ -427,5 +445,86 @@
         "value": 40
       }
     ]
+  },
+  {
+    "id": "spell:kinesis_unlock",
+    "name": "Sblocco Telecineti",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_force_push",
+    "baseCN": 1,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "notes": "Manipola teleticamente i meccanismi di una serratura",
+    "xpCost": 400,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ],
+    "usage": { "combat": false, "narrative": true },
+    "narrative": {
+      "target": "none",
+      "requiresCheck": true,
+      "minDoSToSucceed": 1,
+      "onSuccess": [{ "op": "setFlag", "key": "lock_opened", "value": true }],
+      "onFailure": [{ "op": "incFlag", "key": "failed_unlock_attempts", "by": 1 }]
+    }
+  },
+  {
+    "id": "spell:mentis_read_surface",
+    "name": "Lettura Superficiale",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_disrupt",
+    "baseCN": 1,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "notes": "Legge i pensieri superficiali di un bersaglio",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_disrupt"
+      }
+    ],
+    "usage": { "combat": false, "narrative": true },
+    "narrative": {
+      "target": "singleActor",
+      "requiresCheck": true,
+      "minDoSToSucceed": 0,
+      "onSuccess": [
+        { "op": "setFlag", "key": "mind_read", "value": true },
+        { "op": "incFlag", "key": "insight_level", "by": "@dos" }
+      ],
+      "onFailure": [{ "op": "setFlag", "key": "mind_read_detected", "value": true }]
+    }
+  },
+  {
+    "id": "spell:pyra_ignite",
+    "name": "Accensione",
+    "discipline": "PYRA",
+    "castTime": "free",
+    "effectId": "effect:pyra_flame_control_touch",
+    "baseCN": 1,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "notes": "Accende una fiamma su materiale infiammabile",
+    "xpCost": 200,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ],
+    "usage": { "combat": true, "narrative": true },
+    "narrative": {
+      "target": "none",
+      "requiresCheck": true,
+      "minDoSToSucceed": 0,
+      "onSuccess": [{ "op": "setFlag", "key": "fire_lit", "value": true }],
+      "onFailure": []
+    }
   }
 ]

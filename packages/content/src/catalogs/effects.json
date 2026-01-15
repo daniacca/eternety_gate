@@ -62,7 +62,13 @@
     "castingStat": "PER",
     "baseCN": 1,
     "kind": "blessing",
-    "description": "Rileva la presenza di magia nell'area"
+    "description": "Rileva la presenza di magia nell'area",
+    "narrativeDefaults": {
+      "onSuccess": [
+        { "op": "setFlag", "key": "magic_detected", "value": true }
+      ],
+      "onFailure": []
+    }
   },
   {
     "id": "effect:soothe_wounds",

@@ -192,6 +192,12 @@ export type Effect =
       op: "learnSpell";
       actorId: ActorId;
       spellId: string;
+    }
+  | {
+      op: "narrativeSpell";
+      spellId: string;
+      casterId?: ActorId; // Default = party.activeActorId
+      targetActorId?: ActorId; // For singleActor targets
     };
 
 /* ---------- ActorRef ---------- */

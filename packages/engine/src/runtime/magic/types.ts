@@ -88,3 +88,121 @@ export type SpellTargetSpec = {
   position?: { x: number; y: number }; // For area effects
   direction?: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; // For cone/line
 };
+
+/* ---------------------------------- */
+/* Narrative Magic Types              */
+/* ---------------------------------- */
+
+/**
+ * Narrative operation types - deterministic, safe operations for narrative spell effects
+ */
+export type NarrativeOp =
+  | { op: "setFlag"; key: string; value: boolean }
+  | { op: "incFlag"; key: string; by: number | "@dos"; scaleBy?: "dos"; max?: number }
+  | {
+      op: "addCondition";
+      actorId: string | "active";
+      condition: string;
+      stacks?: number | "@dos";
+      durationTurns?: number;
+    }
+  | { op: "removeCondition"; actorId: string | "active"; condition: string }
+  | {
+      op: "modifyResource";
+      actorId: string | "active";
+      resource: "rf" | "wounds" | "criticalDamage";
+      delta: number | "@dos";
+      scaleBy?: "dos";
+      max?: number;
+    }
+  | { op: "grantXP"; actorId: string | "active"; amount: number | "@dos"; scaleBy?: "dos"; max?: number }
+  | { op: "addItem"; actorId: string | "active"; itemId: string; qty?: number }
+  | { op: "removeItem"; actorId: string | "active"; itemId: string; qty?: number };
+
+/**
+ * Narrative target types for non-combat spell usage
+ */
+export type NarrativeTarget = "self" | "singleActor" | "scene" | "none";
+
+/**
+ * Narrative spell configuration - optional extension to SpellDefinition
+ */
+export type NarrativeSpellConfig = {
+  target: NarrativeTarget;
+  requiresCheck?: boolean; // Default true
+  minDoSToSucceed?: number; // Default 0 (any success)
+  onSuccess?: NarrativeOp[];
+  onFailure?: NarrativeOp[];
+};
+
+/**
+ * Usage flags for spell - determines where a spell can be used
+ */
+export type SpellUsage = {
+  combat?: boolean; // Default true
+  narrative?: boolean; // Default false
+};
+
+/**
+ * Extended spell definition with narrative support
+ */
+export type SpellDefinitionExtended = SpellDefinition & {
+  usage?: SpellUsage;
+  narrative?: NarrativeSpellConfig;
+};
+
+/**
+ * Effect definition with narrative defaults
+ */
+export type EffectDefinitionExtended = EffectDefinition & {
+  narrativeDefaults?: {
+    onSuccess?: NarrativeOp[];
+    onFailure?: NarrativeOp[];
+  };
+};
+
+/**
+ * Request for casting a spell in narrative context
+ */
+export type NarrativeSpellRequest = {
+  spellId: string;
+  casterId?: string; // Default = party.activeActorId
+  targetActorId?: string; // For singleActor target
+  context?: {
+    sceneId?: string;
+    choiceId?: string;
+  };
+};
+
+/**
+ * Phenomena result for narrative casting
+ */
+export type NarrativePhenomenaResult = {
+  triggered: boolean;
+  severity: "none" | "minor" | "major";
+  roll?: number;
+  effectDescription?: string;
+};
+
+/**
+ * Result of a narrative spell cast
+ */
+export type NarrativeSpellResult = {
+  ok: boolean; // Cast performed (spell exists, learnable, usage allowed)
+  success: boolean; // Check result (true if passed)
+  check?: {
+    checkId: string;
+    actorId: string;
+    roll: number;
+    target: number;
+    success: boolean;
+    dos: number;
+    dof: number;
+    critical: "none" | "autoSuccess" | "autoFail" | "epicSuccess" | "epicFail";
+    tags: string[];
+  } | null;
+  phenomena?: NarrativePhenomenaResult;
+  appliedOps: NarrativeOp[];
+  logs: string[]; // Narrative-friendly lines
+  tags: string[]; // For debugging
+};

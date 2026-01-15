@@ -4,12 +4,18 @@ import type { ChoiceKind, ChoiceHandler } from "./types";
 import { handleGenericChoice } from "./generic";
 import { handleCheckChoice } from "./check";
 import { handleCombatChoice } from "./combat";
+import { handleMagicChoice, isMagicChoice } from "./magic";
 import type { ContentPack } from "../../content/types";
 
 /**
  * Determines the kind of a choice based on its content
  */
 function getChoiceKind(choice: Choice): ChoiceKind {
+  // Check if choice is a magic choice (has spellId property)
+  if (isMagicChoice(choice)) {
+    return "magic";
+  }
+
   // Check if choice has any combatAttack checks
   const hasCombatAttack = choice.checks?.some((check) => check.kind === "combatAttack");
   if (hasCombatAttack) {
@@ -33,6 +39,7 @@ export const choiceHandlers: Record<ChoiceKind, ChoiceHandler> = {
   generic: handleGenericChoice,
   check: handleCheckChoice,
   combat: handleCombatChoice,
+  magic: handleMagicChoice,
 };
 
 /**
