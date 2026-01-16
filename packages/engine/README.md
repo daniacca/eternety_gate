@@ -181,17 +181,17 @@ Performs a check and returns the result.
 
 ### Character System Functions
 
-#### `getXp(save): number`
-Gets current XP from save.
+#### `getActorXp(save, actorId): number`
+Gets current XP for a specific actor (from `actor.resources.xp`).
 
-#### `addXp(save, amount): GameSave`
-Adds XP to save.
+#### `grantActorXp(save, actorId, amount): GameSave`
+Grants XP to a specific actor (stored in `actor.resources.xp`).
 
-#### `spendXp(save, amount): GameSave`
-Spends XP from save (throws if insufficient).
+#### `spendActorXp(save, actorId, amount): { save: GameSave; error?: string }`
+Spends XP from a specific actor (from `actor.resources.xp`). Returns error if insufficient.
 
-#### `buyTalent(save, catalogs, actorId, talentId, rank): GameSave`
-Purchases a talent rank for an actor.
+#### `buyTalent(save, catalogs, actorId, talentId): { save: GameSave; error?: string }`
+Purchases a talent for an actor, spending XP from actor.resources.xp.
 
 #### `evaluatePrerequisites(prerequisites, actor, catalogs): boolean`
 Evaluates if actor meets prerequisites.
