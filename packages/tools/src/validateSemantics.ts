@@ -74,7 +74,7 @@ export function validateStoryPackSemantics(storyPack: StoryPack): ValidationIssu
     }
 
     // Check choices
-    for (const choice of scene.choices) {
+    for (const choice of scene.choices || []) {
       // Check choice checks
       if (choice.checks) {
         for (const check of choice.checks) {

@@ -27,6 +27,9 @@ interface CombatControlProps {
   onTargetCancel?: () => void;
 }
 
+// Called Shot zone type
+type CalledShotZone = "head" | "arms" | "body" | "legs";
+
 export function CombatControl({
   model,
   save,
@@ -44,6 +47,8 @@ export function CombatControl({
 }: CombatControlProps) {
   const [spellPickerVisible, setSpellPickerVisible] = useState(false);
   const [activeSection, setActiveSection] = useState<"movement" | "attacks" | "stance" | "magic">("movement");
+  const [calledShotPickerVisible, setCalledShotPickerVisible] = useState(false);
+  const [pendingCalledShotMode, setPendingCalledShotMode] = useState<"MELEE" | "RANGED" | null>(null);
 
   if (!model || !model.isCombatActive) return null;
 
@@ -73,6 +78,9 @@ export function CombatControl({
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:swiftAttack")
     : false;
   const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:cast") : false;
+  const hasCalledShotUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:calledShot")
+    : false;
 
   // Get learned spells
   const learnedSpells = catalogs ? getLearnedSpells(save, save.party.activeActorId, catalogs) : [];
@@ -413,6 +421,37 @@ export function CombatControl({
                       </Pressable>
                     </View>
                   )}
+                  {/* Called Shot (Melee) - only shows if talent is unlocked */}
+                  {hasCalledShotUnlock && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          styles.calledShotButton,
+                          (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                            styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
+                            setPendingCalledShotMode("MELEE");
+                            setCalledShotPickerVisible(true);
+                          }
+                        }}
+                        disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (!model.actionAvailable || !model.canMelee || !model.selectedTargetId) &&
+                              styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Called Shot (Melee)
+                        </Text>
+                      </Pressable>
+                      <Text style={styles.calledShotHint}>Target specific body part</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Ranged Attacks Section */}
@@ -451,6 +490,35 @@ export function CombatControl({
                       <Text style={styles.attackButtonReason}>{model.rangedDisabledReason}</Text>
                     )}
                   </View>
+                  {/* Called Shot - only shows if talent is unlocked */}
+                  {hasCalledShotUnlock && (
+                    <View style={styles.attackButtonItem}>
+                      <Pressable
+                        style={[
+                          styles.attackButton,
+                          styles.calledShotButton,
+                          (!model.actionAvailable || !model.selectedTargetId) && styles.attackButtonDisabled,
+                        ]}
+                        onPress={() => {
+                          if (model.actionAvailable && model.selectedTargetId) {
+                            setPendingCalledShotMode("RANGED");
+                            setCalledShotPickerVisible(true);
+                          }
+                        }}
+                        disabled={!model.actionAvailable || !model.selectedTargetId}
+                      >
+                        <Text
+                          style={[
+                            styles.attackButtonText,
+                            (!model.actionAvailable || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                          ]}
+                        >
+                          Called Shot (Ranged)
+                        </Text>
+                      </Pressable>
+                      <Text style={styles.calledShotHint}>Target specific body part</Text>
+                    </View>
+                  )}
                 </View>
               </>
             )}
@@ -673,6 +741,68 @@ export function CombatControl({
           setSpellPickerVisible(false);
         }}
       />
+
+      {/* Called Shot Zone Picker Modal */}
+      {calledShotPickerVisible && (
+        <View style={styles.calledShotModal}>
+          <View style={styles.calledShotModalContent}>
+            <Text style={styles.calledShotModalTitle}>Called Shot - Select Target Zone</Text>
+            <Text style={styles.calledShotModalSubtitle}>
+              {pendingCalledShotMode === "MELEE" ? "Melee Attack" : "Ranged Attack"}
+            </Text>
+
+            <View style={styles.calledShotZones}>
+              {(["head", "arms", "body", "legs"] as CalledShotZone[]).map((zone) => {
+                const zoneInfo: Record<CalledShotZone, { label: string; penalty: string; effect: string }> = {
+                  head: { label: "Head", penalty: "-30", effect: "Double damage" },
+                  arms: { label: "Arms", penalty: "-20", effect: "Disarm" },
+                  body: { label: "Body", penalty: "-20", effect: "Standard" },
+                  legs: { label: "Legs", penalty: "-20", effect: "Prone + Halved Move" },
+                };
+                const info = zoneInfo[zone];
+                return (
+                  <Pressable
+                    key={zone}
+                    style={styles.calledShotZoneButton}
+                    onPress={() => {
+                      if (model.selectedTargetId && pendingCalledShotMode) {
+                        applySystemEffects([
+                          {
+                            op: "combatRequestAttack",
+                            attackerId: save.party.activeActorId,
+                            defenderId: model.selectedTargetId,
+                            mode: pendingCalledShotMode,
+                            modifiers: {
+                              calledShot: true,
+                              calledShotZone: zone,
+                            },
+                          },
+                        ]);
+                      }
+                      setCalledShotPickerVisible(false);
+                      setPendingCalledShotMode(null);
+                    }}
+                  >
+                    <Text style={styles.calledShotZoneLabel}>{info.label}</Text>
+                    <Text style={styles.calledShotZonePenalty}>{info.penalty} to hit</Text>
+                    <Text style={styles.calledShotZoneEffect}>{info.effect}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Pressable
+              style={styles.calledShotCancelButton}
+              onPress={() => {
+                setCalledShotPickerVisible(false);
+                setPendingCalledShotMode(null);
+              }}
+            >
+              <Text style={styles.calledShotCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

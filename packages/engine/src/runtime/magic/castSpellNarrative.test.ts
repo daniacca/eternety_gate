@@ -197,12 +197,13 @@ describe("applyNarrativeOps", () => {
 
   it("should apply grantXP operation", () => {
     const save = createTestSave();
-    save.meta = { xp: 100 };
+    save.actorsById.pc_test.resources.xp = 100;
     const ops: NarrativeOp[] = [{ op: "grantXP", actorId: "active", amount: 50 }];
 
     const { save: newSave } = applyNarrativeOps(save, ops, { dos: 0 });
 
-    expect(newSave.meta?.xp).toBe(150);
+    // XP is per-actor now
+    expect(newSave.actorsById.pc_test.resources.xp).toBe(150);
   });
 
   it("should apply addCondition operation", () => {

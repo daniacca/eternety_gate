@@ -1,12 +1,13 @@
 import type { GameSave, ActorId, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { evaluatePrerequisites } from "../characters/prerequisites";
-import { spendXp } from "../characters/xp";
+import { spendActorXp } from "../characters/xp";
 import { getSpellById } from "./catalogs";
 import type { SpellDefinition } from "./types";
 
 /**
  * Checks if an actor can learn a spell
+ * XP is checked from actor.resources.xp (per-actor XP)
  */
 export function canLearnSpell(
   save: GameSave,
@@ -29,10 +30,10 @@ export function canLearnSpell(
     return { canLearn: false, reason: "Spell already learned" };
   }
 
-  // Check XP
-  const currentXp = save.meta?.xp ?? 0;
-  if (currentXp < spell.xpCost) {
-    return { canLearn: false, reason: `Insufficient XP (need ${spell.xpCost}, have ${currentXp})` };
+  // Check XP (per-actor XP from actor.resources.xp)
+  const actorXp = actor.resources.xp ?? 0;
+  if (actorXp < spell.xpCost) {
+    return { canLearn: false, reason: `Insufficient XP (need ${spell.xpCost}, have ${actorXp})` };
   }
 
   // Check prerequisites
@@ -48,7 +49,7 @@ export function canLearnSpell(
 
 /**
  * Learns a spell for an actor
- * Validates prerequisites, spends XP, and adds spell to actor.spells
+ * Validates prerequisites, spends XP from actor, and adds spell to actor.spells
  */
 export function learnSpell(
   save: GameSave,
@@ -66,14 +67,14 @@ export function learnSpell(
     return { save, error: "Spell not found" };
   }
 
-  // Spend XP
-  const spendResult = spendXp(save, spell.xpCost);
+  // Spend XP from actor (not global)
+  const spendResult = spendActorXp(save, actorId, spell.xpCost);
   if (spendResult.error) {
     return spendResult;
   }
 
   // Update actor with learned spell
-  const actor = save.actorsById[actorId];
+  const actor = spendResult.save.actorsById[actorId];
   const updatedActor: Actor = {
     ...actor,
     spells: {
@@ -116,4 +117,3 @@ export function getLearnedSpells(
 export function hasLearnedSpell(actor: Actor, spellId: string): boolean {
   return actor.spells?.[spellId] === true;
 }
-

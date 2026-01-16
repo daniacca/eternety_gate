@@ -11,6 +11,7 @@ import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 interface PlayerHudProps {
   save: GameSave;
   onOpenSheet: () => void;
+  onOpenTalentShop?: () => void;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -23,9 +24,10 @@ const conditionLabels: Record<ConditionId, string> = {
   force_shield: "Scudo di Forza",
   steel_body: "Corpo d'Acciaio",
   warp_speed: "Warp Speed",
+  halvedMovement: "Movimento Dimezzato",
 };
 
-export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
+export function PlayerHud({ save, onOpenSheet, onOpenTalentShop }: PlayerHudProps) {
   const { width } = useWindowDimensions();
   const isNarrow = width < 420;
 
@@ -54,7 +56,7 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
   const conditions = activeActor.conditions || {};
   const conditionEntries = Object.entries(conditions) as Array<[ConditionId, { stacks?: number }]>;
 
-  const xp = save.meta?.xp ?? 0;
+  const xp = activeActor.resources.xp ?? 0;
 
   return (
     <View style={[styles.container, isNarrow && styles.containerNarrow]}>
@@ -123,6 +125,13 @@ export function PlayerHud({ save, onOpenSheet }: PlayerHudProps) {
           <Text style={styles.statusCompactText}>Status: {conditionEntries.length}</Text>
         </View>
       ) : null}
+
+      {/* Talents button (debug) */}
+      {onOpenTalentShop && (
+        <TouchableOpacity style={styles.talentsButton} onPress={onOpenTalentShop}>
+          <Text style={styles.talentsButtonText}>Talents</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Open sheet button */}
       <TouchableOpacity style={styles.sheetButton} onPress={onOpenSheet}>
@@ -242,6 +251,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#333",
     fontWeight: "500",
+  },
+  talentsButton: {
+    backgroundColor: "#9333ea",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  talentsButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   sheetButton: {
     backgroundColor: "#4a90e2",

@@ -1,74 +1,92 @@
 import { describe, it, expect } from "vitest";
-import { getXp, addXp, spendXp, buyTalent } from "./xp";
+import { getActorXp, grantActorXp, spendActorXp, buyTalent } from "./xp";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
-import type { CharacterCatalogs, Talent } from "../../content/catalogs";
+import type { CharacterCatalogs } from "../../content/catalogs";
 
 describe("xp", () => {
   const storyPack = makeTestStoryPack();
 
-  describe("getXp", () => {
+  describe("getActorXp", () => {
     it("should return 0 when XP is undefined", () => {
       const actor = makeTestActor({ id: "PC_1" });
       const save = makeTestSave(storyPack, actor);
-      expect(getXp(save)).toBe(0);
+      expect(getActorXp(save, "PC_1")).toBe(0);
     });
 
-    it("should return XP value from meta", () => {
+    it("should return XP value from actor resources", () => {
       const actor = makeTestActor({ id: "PC_1" });
       const save = makeTestSave(storyPack, actor);
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 1000,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 1000,
+            },
+          },
         },
       };
-      expect(getXp(saveWithXp)).toBe(1000);
+      expect(getActorXp(saveWithXp, "PC_1")).toBe(1000);
     });
   });
 
-  describe("addXp", () => {
+  describe("grantActorXp", () => {
     it("should add XP to existing amount", () => {
       const actor = makeTestActor({ id: "PC_1" });
       const save = makeTestSave(storyPack, actor);
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 500,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 500,
+            },
+          },
         },
       };
 
-      const updated = addXp(saveWithXp, 300);
-      expect(getXp(updated)).toBe(800);
+      const updated = grantActorXp(saveWithXp, "PC_1", 300);
+      expect(getActorXp(updated, "PC_1")).toBe(800);
     });
 
     it("should add XP when starting from 0", () => {
       const actor = makeTestActor({ id: "PC_1" });
       const save = makeTestSave(storyPack, actor);
 
-      const updated = addXp(save, 1000);
-      expect(getXp(updated)).toBe(1000);
+      const updated = grantActorXp(save, "PC_1", 1000);
+      expect(getActorXp(updated, "PC_1")).toBe(1000);
     });
   });
 
-  describe("spendXp", () => {
+  describe("spendActorXp", () => {
     it("should spend XP when sufficient", () => {
       const actor = makeTestActor({ id: "PC_1" });
       const save = makeTestSave(storyPack, actor);
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 1000,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 1000,
+            },
+          },
         },
       };
 
-      const result = spendXp(saveWithXp, 500);
+      const result = spendActorXp(saveWithXp, "PC_1", 500);
       expect(result.error).toBeUndefined();
-      expect(getXp(result.save)).toBe(500);
+      expect(getActorXp(result.save, "PC_1")).toBe(500);
     });
 
     it("should return error when insufficient XP", () => {
@@ -76,18 +94,24 @@ describe("xp", () => {
       const save = makeTestSave(storyPack, actor);
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 300,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 300,
+            },
+          },
         },
       };
 
-      const result = spendXp(saveWithXp, 500);
+      const result = spendActorXp(saveWithXp, "PC_1", 500);
       expect(result.error).toBeDefined();
       expect(result.error).toContain("Insufficient XP");
       expect(result.error).toContain("Required: 500");
       expect(result.error).toContain("Available: 300");
-      expect(getXp(result.save)).toBe(300); // Unchanged
+      expect(getActorXp(result.save, "PC_1")).toBe(300); // Unchanged
     });
   });
 
@@ -167,11 +191,18 @@ describe("xp", () => {
         traits: [],
       };
 
+      // Give actor enough XP (per-actor XP in actor.resources.xp)
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 1000,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 1000,
+            },
+          },
         },
       };
 
@@ -185,11 +216,18 @@ describe("xp", () => {
       const save = makeTestSave(storyPack, actor);
       const catalogs = createCatalogsWithTalent();
 
+      // Per-actor XP in actor.resources.xp
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 300, // Less than 500
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 300, // Less than 500
+            },
+          },
         },
       };
 
@@ -203,17 +241,24 @@ describe("xp", () => {
       const save = makeTestSave(storyPack, actor);
       const catalogs = createCatalogsWithTalent();
 
+      // Per-actor XP in actor.resources.xp
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 1000,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 1000,
+            },
+          },
         },
       };
 
       const result = buyTalent(saveWithXp, catalogs, "PC_1", "talent:test");
       expect(result.error).toBeUndefined();
-      expect(getXp(result.save)).toBe(500); // XP spent
+      expect(getActorXp(result.save, "PC_1")).toBe(500); // XP spent
       expect(result.save.actorsById["PC_1"].talents["talent:test"]).toBe(1);
     });
 
@@ -227,11 +272,18 @@ describe("xp", () => {
       const save = makeTestSave(storyPack, actor);
       const catalogs = createCatalogsWithTalent();
 
+      // Per-actor XP in actor.resources.xp
       const saveWithXp = {
         ...save,
-        meta: {
-          ...save.meta,
-          xp: 1000,
+        actorsById: {
+          ...save.actorsById,
+          PC_1: {
+            ...save.actorsById.PC_1,
+            resources: {
+              ...save.actorsById.PC_1.resources,
+              xp: 1000,
+            },
+          },
         },
       };
 

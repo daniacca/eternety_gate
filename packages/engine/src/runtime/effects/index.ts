@@ -24,6 +24,7 @@ import {
 } from "../combat/actions";
 import { handleLearnSpell } from "./learnSpell";
 import { handleNarrativeSpell } from "./narrativeSpell";
+import { handleAcquireTalent, handleGrantXp, handleGrantFatePoint } from "./acquireTalent";
 import { applySetFlag, applyAddCounter } from "./state";
 import { applyAddItem, applyRemoveItem } from "./items";
 import { applyGoto } from "./navigation";
@@ -113,6 +114,11 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   }),
   narrativeSpell: (effect, storyPack, save, rng) =>
     handleNarrativeSpell(effect as Extract<Effect, { op: "narrativeSpell" }>, storyPack, save, rng),
+  acquireTalent: (effect, storyPack, save, _rng) =>
+    handleAcquireTalent(effect as Extract<Effect, { op: "acquireTalent" }>, storyPack, save),
+  grantXp: (effect, _storyPack, save, _rng) => handleGrantXp(effect as Extract<Effect, { op: "grantXp" }>, save),
+  grantFatePoint: (effect, _storyPack, save, _rng) =>
+    handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, save),
 };
 
 /**

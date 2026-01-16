@@ -174,3 +174,50 @@ export function getActorTalentsWithParams(actor: Actor): Array<{ talentId: strin
   }
   return result;
 }
+
+/**
+ * Checks if an actor can acquire a talent
+ * Returns success/failure with detailed reason
+ * XP is checked from actor.resources.xp (per-actor XP)
+ */
+export function canAcquireTalent(
+  save: GameSave,
+  catalogs: CharacterCatalogs,
+  actor: Actor,
+  talent: Talent,
+  chosenParams?: TalentParams
+): { canAcquire: boolean; reason?: string } {
+  // Check current rank vs max rank
+  const currentRank = actor.talents[talent.id] ?? 0;
+  const maxRank = talent.maxRank ?? 1;
+  
+  if (currentRank >= maxRank) {
+    return { canAcquire: false, reason: "Already at max rank" };
+  }
+
+  // Check XP (per-actor XP from actor.resources.xp)
+  const actorXp = actor.resources.xp ?? 0;
+  if (actorXp < talent.xpCost) {
+    return { canAcquire: false, reason: `Need ${talent.xpCost} XP (have ${actorXp})` };
+  }
+
+  // Check prerequisites
+  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites);
+  if (!prereqResult.valid) {
+    return { canAcquire: false, reason: prereqResult.reason };
+  }
+
+  // Check uniqueness key (for repeatable talents with choices)
+  if (talent.uniquenessKey && chosenParams) {
+    const paramKey = talent.chosenParam?.paramKey || "";
+    const chosenValue = chosenParams[paramKey];
+    if (typeof chosenValue === "string") {
+      const alreadyHas = hasAcquiredTalentWithUniquenessKey(actor, talent.uniquenessKey, chosenValue);
+      if (alreadyHas) {
+        return { canAcquire: false, reason: `Already acquired with ${chosenValue}` };
+      }
+    }
+  }
+
+  return { canAcquire: true };
+}

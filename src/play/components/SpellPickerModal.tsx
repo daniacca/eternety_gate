@@ -1,6 +1,6 @@
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import type { GameSave, ActorId } from "@eg/engine";
-import { getLearnedSpells, getAllSpells, canLearnSpell, learnSpell, loadCharacterCatalogs } from "@eg/engine";
+import { getLearnedSpells, getAllSpells, canLearnSpell, loadCharacterCatalogs } from "@eg/engine";
 import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
@@ -34,12 +34,13 @@ export function SpellPickerModal({
     traits: traitsCatalog as any,
   } as any);
 
+  const actor = save.actorsById[actorId];
   const learnedSpells = getLearnedSpells(save, actorId, catalogs);
   const allSpells = getAllSpells();
-  const currentXp = save.meta?.xp ?? 0;
+  const currentXp = actor?.resources.xp ?? 0;
   const combat = save.runtime.combat;
   const freeSpellUsedThisTurn = combat?.freeSpellUsedThisTurn?.[actorId] ?? false;
-  
+
   // Helper to get cast time label
   const getCastTimeLabel = (castTime: string): string => {
     if (castTime === "free") return "Gratuito";
@@ -47,7 +48,7 @@ export function SpellPickerModal({
     if (castTime === "fullRound") return "Round Completo";
     return castTime;
   };
-  
+
   // Helper to check if spell can be cast
   const canCastSpell = (spell: any): { canCast: boolean; reason?: string } => {
     if (spell.castTime === "free") {
@@ -83,18 +84,25 @@ export function SpellPickerModal({
 
           {showLearnSpells ? (
             <ScrollView style={{ maxHeight: 400 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 8, marginTop: 8 }}>Tutti gli Incantesimi</Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 8, marginTop: 8 }}>
+                Tutti gli Incantesimi
+              </Text>
               {allSpells.map((spell) => {
                 const isLearned = learnedSpells.some((s) => s.id === spell.id);
                 const canLearn = canLearnSpell(save, catalogs, actorId, spell.id);
                 const xpCost = spell.xpCost || 0;
 
                 return (
-                  <View key={spell.id} style={{ marginBottom: 12, padding: 8, borderWidth: 1, borderColor: "#ddd", borderRadius: 4 }}>
+                  <View
+                    key={spell.id}
+                    style={{ marginBottom: 12, padding: 8, borderWidth: 1, borderColor: "#ddd", borderRadius: 4 }}
+                  >
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "600" }}>{spell.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#666" }}>{spell.discipline} - CN: {spell.baseCN}</Text>
+                        <Text style={{ fontSize: 12, color: "#666" }}>
+                          {spell.discipline} - CN: {spell.baseCN}
+                        </Text>
                         <Text style={{ fontSize: 11, color: "#888" }}>{spell.notes}</Text>
                         {isLearned ? (
                           <Text style={{ fontSize: 11, color: "#4a90e2", marginTop: 4 }}>✓ Imparato</Text>
@@ -137,7 +145,7 @@ export function SpellPickerModal({
                 learnedSpells.map((spell) => {
                   const castCheck = canCastSpell(spell);
                   const castTimeLabel = getCastTimeLabel(spell.castTime);
-                  
+
                   return (
                     <Pressable
                       key={spell.id}
@@ -166,7 +174,9 @@ export function SpellPickerModal({
                       {!castCheck.canCast && castCheck.reason && (
                         <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>{castCheck.reason}</Text>
                       )}
-                      {(spell.targetShape === "cone" || spell.targetShape === "line" || spell.targetShape === "radius") &&
+                      {(spell.targetShape === "cone" ||
+                        spell.targetShape === "line" ||
+                        spell.targetShape === "radius") &&
                         castCheck.canCast && (
                           <Text style={{ fontSize: 10, color: "#4a90e2", marginTop: 4 }}>Richiede targeting</Text>
                         )}
@@ -194,4 +204,3 @@ export function SpellPickerModal({
     </Modal>
   );
 }
-

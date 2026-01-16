@@ -36,6 +36,7 @@ import { LastCheckPanel } from "./components/LastCheckPanel";
 import { ChoiceList } from "./components/ChoiceList";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
+import { TalentShop } from "./components/TalentShop";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
 
 export function PlayScreen() {
@@ -140,7 +141,7 @@ export function PlayScreen() {
         INI: 30,
         PER: 30,
       },
-      resources: { wounds: 0, rf: 0, peq: 0 },
+      resources: { wounds: 0, rf: 0 },
       skills: {},
       talents: {},
       traits: { "trait:size": { size: 4 } },
@@ -197,6 +198,7 @@ export function PlayScreen() {
 
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
+  const [talentShopVisible, setTalentShopVisible] = useState(false);
   const [spellTargeting, setSpellTargeting] = useState<SpellTargetingState | null>(null);
   const { width, height } = useWindowDimensions();
 
@@ -512,7 +514,11 @@ export function PlayScreen() {
   return (
     <View style={styles.container}>
       {/* Player HUD - always visible */}
-      <PlayerHud save={save} onOpenSheet={() => setPlayerSheetVisible(true)} />
+      <PlayerHud
+        save={save}
+        onOpenSheet={() => setPlayerSheetVisible(true)}
+        onOpenTalentShop={() => setTalentShopVisible(true)}
+      />
 
       {isWide ? (
         // Wide/Landscape: 2 columns, map LEFT and UI RIGHT
@@ -543,6 +549,15 @@ export function PlayScreen() {
         visible={playerSheetVisible}
         save={save}
         onClose={() => setPlayerSheetVisible(false)}
+        applySystemEffects={applySystemEffects}
+      />
+
+      {/* Talent Shop Modal */}
+      <TalentShop
+        visible={talentShopVisible}
+        save={save}
+        actor={save.actorsById[save.party.activeActorId]}
+        onClose={() => setTalentShopVisible(false)}
         applySystemEffects={applySystemEffects}
       />
     </View>
@@ -1269,6 +1284,84 @@ const createStyles = ({
     specialActionButtonText: {
       color: "#FFFFFF",
       fontSize: 14,
+      fontWeight: "600",
+    },
+    // Called Shot styles
+    calledShotButton: {
+      backgroundColor: "#dc2626",
+    },
+    calledShotHint: {
+      fontSize: 10,
+      color: "#888",
+      marginTop: 2,
+      fontStyle: "italic",
+    },
+    calledShotModal: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    },
+    calledShotModalContent: {
+      backgroundColor: "#1a1a2e",
+      borderRadius: 12,
+      padding: 20,
+      width: "90%",
+      maxWidth: 400,
+    },
+    calledShotModalTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#f0f0ff",
+      textAlign: "center",
+      marginBottom: 4,
+    },
+    calledShotModalSubtitle: {
+      fontSize: 13,
+      color: "#a0a0c0",
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    calledShotZones: {
+      gap: 10,
+    },
+    calledShotZoneButton: {
+      backgroundColor: "#2d2d44",
+      borderRadius: 10,
+      padding: 14,
+      borderWidth: 2,
+      borderColor: "#4a4a6a",
+    },
+    calledShotZoneLabel: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#f0f0ff",
+    },
+    calledShotZonePenalty: {
+      fontSize: 12,
+      color: "#f87171",
+      marginTop: 2,
+    },
+    calledShotZoneEffect: {
+      fontSize: 11,
+      color: "#a0a0c0",
+      marginTop: 2,
+      fontStyle: "italic",
+    },
+    calledShotCancelButton: {
+      marginTop: 16,
+      padding: 12,
+      backgroundColor: "#3f3f5e",
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    calledShotCancelText: {
+      color: "#f0f0ff",
       fontWeight: "600",
     },
     gameOverPanel: {

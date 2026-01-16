@@ -12,6 +12,7 @@ import {
   canLearnSpell,
   getLearnedSpells,
   getMagicPower,
+  getActorTalentsWithParams,
 } from "@eg/engine";
 import { useState } from "react";
 import type { ConditionId } from "@eg/engine";
@@ -19,6 +20,7 @@ import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
+import { TalentShop } from "./TalentShop";
 
 interface PlayerSheetProps {
   visible: boolean;
@@ -37,6 +39,7 @@ const conditionLabels: Record<ConditionId, string> = {
   force_shield: "Scudo di Forza",
   steel_body: "Corpo d'Acciaio",
   warp_speed: "Warp Speed",
+  halvedMovement: "Movimento Dimezzato",
 };
 
 const statLabels: Record<string, string> = {
@@ -54,6 +57,7 @@ const statLabels: Record<string, string> = {
 
 export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
+  const [showTalentShop, setShowTalentShop] = useState(false);
   const { width } = useWindowDimensions();
   const isNarrow = width < 420;
   const activeActor = save.actorsById[save.party.activeActorId];
@@ -74,11 +78,7 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
   const pm = getMagicPower(save, activeActor.id, catalogs);
   const learnedSpells = getLearnedSpells(save, activeActor.id, catalogs);
   const allSpells = getAllSpells();
-  const currentXp = save.meta?.xp ?? 0;
-
-  // Get equipment (using backward compatibility helpers)
-  const weapon = getActorWeapon(save, activeActor);
-  const armor = getActorArmor(save, activeActor);
+  const currentXp = activeActor.resources.xp ?? 0;
 
   // Get equipment slots from new structure
   const mainHand = activeActor.equipment?.mainHand;
@@ -187,8 +187,43 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
               </View>
               <View style={styles.resourceRow}>
                 <Text style={styles.resourceLabel}>XP:</Text>
-                <Text style={styles.resourceValue}>{save.meta?.xp ?? 0}</Text>
+                <Text style={styles.resourceValue}>{activeActor.resources.xp ?? 0}</Text>
               </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>Fate Points:</Text>
+                <Text style={[styles.resourceValue, styles.fatePointsValue]}>
+                  {activeActor.resources.fatePoints ?? 0}
+                </Text>
+              </View>
+
+              {/* Dev Controls */}
+              {__DEV__ && (
+                <View style={styles.devControls}>
+                  <Text style={styles.devLabel}>Dev Controls</Text>
+                  <View style={styles.devButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.devButton}
+                      onPress={() => {
+                        if (applySystemEffects) {
+                          applySystemEffects([{ op: "grantXp", actorId: activeActor.id, amount: 1000 }]);
+                        }
+                      }}
+                    >
+                      <Text style={styles.devButtonText}>+1000 XP</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.devButton}
+                      onPress={() => {
+                        if (applySystemEffects) {
+                          applySystemEffects([{ op: "grantFatePoint", actorId: activeActor.id, amount: 1 }]);
+                        }
+                      }}
+                    >
+                      <Text style={styles.devButtonText}>+1 Fate</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Skills */}
@@ -208,16 +243,33 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
 
             {/* Talents */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Talenti</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Talenti</Text>
+                <TouchableOpacity style={styles.shopButton} onPress={() => setShowTalentShop(true)}>
+                  <Text style={styles.shopButtonText}>Acquista Talenti</Text>
+                </TouchableOpacity>
+              </View>
               {Object.keys(activeActor.talents).length === 0 ? (
                 <Text style={styles.emptyText}>Nessun talento</Text>
               ) : (
-                Object.entries(activeActor.talents).map(([talentId, rank]) => (
-                  <View key={talentId} style={styles.talentRow}>
-                    <Text style={styles.talentName}>{talentId.replace("talent:", "")}</Text>
-                    <Text style={styles.talentRank}>Rango {rank}</Text>
-                  </View>
-                ))
+                getActorTalentsWithParams(activeActor).map(({ talentId, rank, params }) => {
+                  const talentDef = (talentsCatalog as any[]).find((t) => t.id === talentId);
+                  const talentName = talentDef?.name || talentId.replace("talent:", "");
+                  const paramsText =
+                    params && Object.keys(params).length > 0 ? ` (${Object.values(params).join(", ")})` : "";
+                  return (
+                    <View key={talentId} style={styles.talentRow}>
+                      <View style={styles.talentInfo}>
+                        <Text style={styles.talentName}>
+                          {talentName}
+                          {paramsText}
+                        </Text>
+                        <Text style={styles.talentIdText}>{talentId.replace("talent:", "")}</Text>
+                      </View>
+                      <Text style={styles.talentRank}>Rango {rank}</Text>
+                    </View>
+                  );
+                })
               )}
             </View>
 
@@ -313,16 +365,16 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
                       return isLearned ? sum : sum + (spell.xpCost || 0);
                     }, 0);
 
-                    // Grant XP first (if needed)
-                    const currentXp = save.meta?.xp ?? 0;
-                    const xpToGrant = Math.max(0, totalXpNeeded - currentXp);
+                    // Grant XP first (if needed) - per actor
+                    const actorXp = activeActor.resources.xp ?? 0;
+                    const xpToGrant = Math.max(0, totalXpNeeded - actorXp);
 
                     const effects: Effect[] = [];
                     if (xpToGrant > 0) {
                       effects.push({
-                        op: "addCounter",
-                        path: "meta.xp",
-                        value: xpToGrant,
+                        op: "grantXp",
+                        actorId: activeActor.id,
+                        amount: xpToGrant,
                       });
                     }
 
@@ -526,6 +578,15 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
           </ScrollView>
         </View>
       </View>
+
+      {/* Talent Shop Modal */}
+      <TalentShop
+        visible={showTalentShop}
+        save={save}
+        actor={activeActor}
+        onClose={() => setShowTalentShop(false)}
+        applySystemEffects={applySystemEffects!}
+      />
     </Modal>
   );
 }
@@ -769,5 +830,66 @@ const styles = StyleSheet.create({
   traitParamsContainer: {
     marginTop: 4,
     gap: 2,
+  },
+  // New styles for enhanced features
+  fatePointsValue: {
+    color: "#f59e0b",
+    fontWeight: "700",
+  },
+  devControls: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#fef2f2",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+  },
+  devLabel: {
+    fontSize: 11,
+    color: "#dc2626",
+    fontWeight: "600",
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  devButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  devButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "#ef4444",
+    borderRadius: 6,
+  },
+  devButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  shopButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#8b5cf6",
+    borderRadius: 6,
+  },
+  shopButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  talentInfo: {
+    flex: 1,
+  },
+  talentIdText: {
+    fontSize: 10,
+    color: "#888",
+    fontStyle: "italic",
+    marginTop: 2,
   },
 });

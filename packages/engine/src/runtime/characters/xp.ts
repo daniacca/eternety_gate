@@ -1,48 +1,82 @@
-import type { GameSave, ActorId } from "../types";
+import type { GameSave, ActorId, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById } from "../../content/loadCatalogs";
 import { evaluatePrerequisites } from "./prerequisites";
 import { applyGrants } from "./grants";
 
 /**
- * Gets current XP from save
+ * Gets current XP for a specific actor
+ * XP is stored per-actor in actor.resources.xp
  */
-export function getXp(save: GameSave): number {
-  return save.meta?.xp ?? 0;
+export function getActorXp(save: GameSave, actorId: ActorId): number {
+  const actor = save.actorsById[actorId];
+  return actor?.resources.xp ?? 0;
 }
 
 /**
- * Adds XP to save
+ * Grants XP to a specific actor
+ * XP is stored per-actor in actor.resources.xp
  */
-export function addXp(save: GameSave, amount: number): GameSave {
-  const currentXp = getXp(save);
+export function grantActorXp(save: GameSave, actorId: ActorId, amount: number): GameSave {
+  const actor = save.actorsById[actorId];
+  if (!actor) {
+    console.warn(`[grantActorXp] Actor not found: ${actorId}`);
+    return save;
+  }
+
+  const currentXp = actor.resources.xp ?? 0;
+  const newXp = currentXp + amount;
+
+  const updatedActor: Actor = {
+    ...actor,
+    resources: {
+      ...actor.resources,
+      xp: newXp,
+    },
+  };
+
   return {
     ...save,
-    meta: {
-      ...save.meta,
-      xp: currentXp + amount,
+    actorsById: {
+      ...save.actorsById,
+      [actorId]: updatedActor,
     },
   };
 }
 
 /**
- * Spends XP from save
- * Throws error if insufficient XP
+ * Spends XP from a specific actor
+ * XP is stored per-actor in actor.resources.xp
+ * Returns error if insufficient XP
  */
-export function spendXp(save: GameSave, amount: number): { save: GameSave; error?: string } {
-  const currentXp = getXp(save);
+export function spendActorXp(save: GameSave, actorId: ActorId, amount: number): { save: GameSave; error?: string } {
+  const actor = save.actorsById[actorId];
+  if (!actor) {
+    return { save, error: `Actor ${actorId} not found` };
+  }
+
+  const currentXp = actor.resources.xp ?? 0;
   if (currentXp < amount) {
     return {
       save,
       error: `Insufficient XP. Required: ${amount}, Available: ${currentXp}`,
     };
   }
+
+  const updatedActor: Actor = {
+    ...actor,
+    resources: {
+      ...actor.resources,
+      xp: currentXp - amount,
+    },
+  };
+
   return {
     save: {
       ...save,
-      meta: {
-        ...save.meta,
-        xp: currentXp - amount,
+      actorsById: {
+        ...save.actorsById,
+        [actorId]: updatedActor,
       },
     },
   };
@@ -50,7 +84,8 @@ export function spendXp(save: GameSave, amount: number): { save: GameSave; error
 
 /**
  * Buys a talent for an actor
- * Validates prerequisites, rank cap, spends XP, and applies grants
+ * Validates prerequisites, rank cap, spends XP from actor, and applies grants
+ * XP is stored per-actor in actor.resources.xp
  */
 export function buyTalent(
   save: GameSave,
@@ -81,8 +116,8 @@ export function buyTalent(
     return { save, error: prereqResult.reason || "Prerequisites not met" };
   }
 
-  // Spend XP
-  const spendResult = spendXp(save, talent.xpCost);
+  // Spend XP from actor
+  const spendResult = spendActorXp(save, actorId, talent.xpCost);
   if (spendResult.error) {
     return spendResult;
   }
@@ -90,9 +125,9 @@ export function buyTalent(
   // Update actor with new talent rank
   const newRank = currentRank + 1;
   const updatedActor = {
-    ...actor,
+    ...spendResult.save.actorsById[actorId],
     talents: {
-      ...actor.talents,
+      ...spendResult.save.actorsById[actorId].talents,
       [talentId]: newRank,
     },
   };
@@ -113,4 +148,3 @@ export function buyTalent(
 
   return { save: updatedSave };
 }
-

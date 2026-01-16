@@ -221,15 +221,25 @@ export function applyNarrativeOps(
 
       case "grantXP": {
         const amount = resolveScaledValue(op.amount, dos, op.scaleBy, op.max);
-        const currentXP = currentSave.meta?.xp ?? 0;
-        currentSave = {
-          ...currentSave,
-          meta: {
-            ...currentSave.meta,
-            xp: currentXP + amount,
-          },
-        };
-        emittedLogs.push(`Guadagnati ${amount} XP`);
+        const targetActorId = resolveActorId(op.actorId, currentSave);
+        const targetActor = currentSave.actorsById[targetActorId];
+        if (targetActor) {
+          const currentXP = targetActor.resources.xp ?? 0;
+          currentSave = {
+            ...currentSave,
+            actorsById: {
+              ...currentSave.actorsById,
+              [targetActorId]: {
+                ...targetActor,
+                resources: {
+                  ...targetActor.resources,
+                  xp: currentXP + amount,
+                },
+              },
+            },
+          };
+          emittedLogs.push(`${targetActor.name} guadagna ${amount} XP`);
+        }
         break;
       }
 

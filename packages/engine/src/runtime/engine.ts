@@ -39,7 +39,7 @@ function makeDefaultActor(id: string, name?: string): Actor {
       INI: 0,
       PER: 0,
     },
-    resources: { wounds: 0, rf: 0, peq: 0 },
+    resources: { wounds: 0, rf: 0 },
     skills: {},
     talents: {},
     traits: {},
@@ -137,7 +137,12 @@ export function listAvailableChoices(storyPack: StoryPack, save: GameSave): Choi
 /**
  * Applies a choice and returns the updated save
  */
-export function applyChoice(storyPack: StoryPack, save: GameSave, choiceId: ChoiceId, contentPack?: ContentPack): GameSave {
+export function applyChoice(
+  storyPack: StoryPack,
+  save: GameSave,
+  choiceId: ChoiceId,
+  contentPack?: ContentPack
+): GameSave {
   const { scene } = getCurrentScene(storyPack, save);
 
   const choice = scene.choices.find((c) => c.id === choiceId);

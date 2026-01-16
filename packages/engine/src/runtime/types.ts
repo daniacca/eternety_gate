@@ -1,7 +1,8 @@
 import type { TargetSelection } from "./combat/targeting/types";
 
 // Runtime Types for Eternity Gate Engine
-// Copied from schemas/schemas.types.ts
+// This is the single source of truth for all engine types.
+// JSON schemas in /schemas/ folder should mirror these types for validation.
 
 /* ---------------------------------- */
 /* ID Aliases                         */
@@ -193,6 +194,22 @@ export type Effect =
       op: "learnSpell";
       actorId: ActorId;
       spellId: string;
+    }
+  | {
+      op: "acquireTalent";
+      actorId: ActorId;
+      talentId: string;
+      chosenParams?: Record<string, string>; // e.g., { chosenType: "magic" } for Resistance
+    }
+  | {
+      op: "grantXp";
+      actorId: ActorId; // XP is per-actor, not global
+      amount: number;
+    }
+  | {
+      op: "grantFatePoint";
+      actorId: ActorId;
+      amount: number;
     }
   | {
       op: "narrativeSpell";
@@ -493,11 +510,11 @@ export type Actor = {
   resources: {
     wounds: number; // Damage taken (wounds), current HP = maxHp - wounds
     rf: number; // Fatigue (current RF)
-    peq: number;
     fatePoints?: number; // Fate Points for special abilities like Die Hard
     criticalDamage?: number;
     criticalTierApplied?: number;
     isDead?: boolean;
+    xp?: number; // Experience points for this actor (default 0)
   };
 
   /**
