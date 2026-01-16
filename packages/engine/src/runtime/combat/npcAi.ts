@@ -233,7 +233,7 @@ function applyNpcEffects(
         result = combatRequestAttack(effect as Extract<Effect, { op: "combatRequestAttack" }>, storyPack, currentSave, rng);
         break;
       case "combatStandUp":
-        result = combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, currentSave);
+        result = combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, currentSave, storyPack);
         break;
       case "addCondition":
         result = { save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave) };

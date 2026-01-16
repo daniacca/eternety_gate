@@ -138,7 +138,13 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
   const sizeModifier = getSizeMovementModifier(actor);
   const modifiers = computeCombatModifiersFromConditions(actor);
   const moveDelta = modifiers.moveDelta ?? 0;
-  const baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
+  let baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
+  
+  // Called Shot to legs: halve movement
+  if (hasCondition(actor, "halvedMovement")) {
+    baseMove = Math.max(1, Math.floor(baseMove / 2));
+  }
+  
   return Math.max(1, baseMove); // Minimum 1 movement
 }
 

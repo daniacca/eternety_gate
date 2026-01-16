@@ -2,217 +2,284 @@
   {
     "id": "talent:arcane_attunement_1",
     "name": "Sintonia Arcana I",
+    "description": "Increases magical power by 1.",
     "tier": 1,
     "xpCost": 500,
-    "prerequisites": [],
-    "grants": [
-      {
-        "type": "modifier",
-        "key": "magic.pm",
-        "op": "add",
-        "value": 1
-      }
-    ],
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "modifier", "key": "magic.pm", "op": "add", "value": 1 }],
     "maxRank": 1
   },
   {
     "id": "talent:arcane_attunement_2",
     "name": "Sintonia Arcana II",
+    "description": "Increases magical power by 1.",
     "tier": 2,
     "xpCost": 1000,
-    "prerequisites": [
-      {
-        "type": "hasTalent",
-        "talentId": "talent:arcane_attunement_1"
-      }
-    ],
-    "grants": [
-      {
-        "type": "modifier",
-        "key": "magic.pm",
-        "op": "add",
-        "value": 1
-      }
-    ],
+    "prerequisites": [{ "type": "hasTalent", "talentId": "talent:arcane_attunement_1" }],
+    "grants": [{ "type": "modifier", "key": "magic.pm", "op": "add", "value": 1 }],
     "maxRank": 1
   },
   {
     "id": "talent:arcane_attunement_3",
     "name": "Sintonia Arcana III",
+    "description": "Increases magical power by 1.",
     "tier": 3,
     "xpCost": 2000,
-    "prerequisites": [
-      {
-        "type": "hasTalent",
-        "talentId": "talent:arcane_attunement_2"
-      }
-    ],
-    "grants": [
-      {
-        "type": "modifier",
-        "key": "magic.pm",
-        "op": "add",
-        "value": 1
-      }
-    ],
+    "prerequisites": [{ "type": "hasTalent", "talentId": "talent:arcane_attunement_2" }],
+    "grants": [{ "type": "modifier", "key": "magic.pm", "op": "add", "value": 1 }],
     "maxRank": 1
   },
   {
     "id": "talent:weave_favoured",
     "name": "Favorito della Trama",
+    "description": "Unlocks the ability to mitigate phenomena.",
     "tier": 3,
     "xpCost": 2000,
-    "prerequisites": [],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "magic:mitigatePhenomena"
-      }
-    ],
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "unlockAction", "actionId": "magic:mitigatePhenomena" }],
     "maxRank": 1
   },
   {
     "id": "talent:weave_seal",
     "name": "Sigillo della Trama",
+    "description": "Unlocks the ability to ignore phenomena once.",
     "tier": 3,
     "xpCost": 2000,
-    "prerequisites": [],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "magic:ignorePhenomenaOnce"
-      }
-    ],
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "unlockAction", "actionId": "magic:ignorePhenomenaOnce" }],
     "maxRank": 1
   },
   {
     "id": "talent:quick_draw",
     "name": "Estrazione Rapida",
+    "description": "Allows drawing a weapon as a free action.",
     "tier": 1,
     "xpCost": 500,
     "prerequisites": [],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "combat:quickDraw"
-      }
-    ],
+    "grants": [{ "type": "unlockAction", "actionId": "combat:quickDraw" }],
     "maxRank": 1
   },
   {
     "id": "talent:takedown",
     "name": "Atterramento",
+    "description": "Unlocks the knockdown combat action.",
     "tier": 1,
     "xpCost": 500,
     "prerequisites": [],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "combat:knockdown"
-      }
-    ],
+    "grants": [{ "type": "unlockAction", "actionId": "combat:knockdown" }],
     "maxRank": 1
   },
   {
     "id": "talent:swift_attack",
     "name": "Attacco Rapido",
+    "description": "Full round action: make multiple attacks based on DoS.",
     "tier": 2,
     "xpCost": 1000,
-    "prerequisites": [
-      {
-        "type": "statAtLeast",
-        "stat": "WS",
-        "value": 40
-      }
-    ],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "combat:swiftAttack"
-      }
-    ],
+    "prerequisites": [{ "type": "statAtLeast", "stat": "WS", "value": 40 }],
+    "grants": [{ "type": "unlockAction", "actionId": "combat:swiftAttack" }],
     "maxRank": 1
   },
   {
     "id": "talent:disarm",
     "name": "Disarmare",
+    "description": "Unlocks the disarm combat action.",
     "tier": 2,
     "xpCost": 1000,
-    "prerequisites": [
-      {
-        "type": "statAtLeast",
-        "stat": "WS",
-        "value": 40
-      }
-    ],
-    "grants": [
-      {
-        "type": "unlockAction",
-        "actionId": "combat:disarm"
-      }
-    ],
+    "prerequisites": [{ "type": "statAtLeast", "stat": "WS", "value": 40 }],
+    "grants": [{ "type": "unlockAction", "actionId": "combat:disarm" }],
     "maxRank": 1
   },
   {
     "id": "talent:sound_constitution",
     "name": "Costituzione Solida",
+    "description": "Increases maximum HP by 2 per rank.",
     "tier": 1,
     "xpCost": 500,
     "prerequisites": [],
-    "grants": [
-      {
-        "type": "hpMaxFlat",
-        "value": 2
-      }
-    ],
+    "grants": [{ "type": "hpMaxFlat", "value": 2 }],
     "maxRank": 5
   },
   {
     "id": "talent:mighty_shot_1",
     "name": "Colpo Potente I",
+    "description": "Adds BS Bonus to ranged damage.",
     "tier": 1,
     "xpCost": 500,
-    "prerequisites": [
-      {
-        "type": "statAtLeast",
-        "stat": "BS",
-        "value": 30
-      }
-    ],
-    "grants": [
-      {
-        "type": "modifier",
-        "key": "combat.rangedDamageFlatFromBSBonusRank",
-        "op": "add",
-        "value": 1
-      }
-    ],
+    "prerequisites": [{ "type": "statAtLeast", "stat": "BS", "value": 30 }],
+    "grants": [{ "type": "modifier", "key": "combat.rangedDamageFlatFromBSBonusRank", "op": "add", "value": 1 }],
     "maxRank": 1
   },
   {
     "id": "talent:mighty_shot_2",
     "name": "Colpo Potente II",
+    "description": "Adds additional BS Bonus to ranged damage.",
     "tier": 2,
     "xpCost": 1000,
     "prerequisites": [
-      {
-        "type": "hasTalent",
-        "talentId": "talent:mighty_shot_1"
-      },
-      {
-        "type": "statAtLeast",
-        "stat": "BS",
-        "value": 40
-      }
+      { "type": "hasTalent", "talentId": "talent:mighty_shot_1" },
+      { "type": "statAtLeast", "stat": "BS", "value": 40 }
     ],
-    "grants": [
-      {
-        "type": "modifier",
-        "key": "combat.rangedDamageFlatFromBSBonusRank",
-        "op": "add",
-        "value": 1
-      }
-    ],
+    "grants": [{ "type": "modifier", "key": "combat.rangedDamageFlatFromBSBonusRank", "op": "add", "value": 1 }],
     "maxRank": 1
+  },
+  {
+    "id": "talent:relentless",
+    "name": "Inarrestabile",
+    "description": "Ignore the first fatigue penalty threshold (-10 to all tests).",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [{ "type": "modifier", "key": "combat.fatiguePenaltyReduction", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:leap_up",
+    "name": "Scatto",
+    "description": "Stand Up is a Free Action and does not consume movement.",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [{ "type": "statAtLeast", "stat": "AGI", "value": 40 }],
+    "grants": [{ "type": "modifier", "key": "combat.leapUp", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:die_hard",
+    "name": "Duro a Morire",
+    "description": "When damage would reduce you to 0 HP or below, spend 1 Fate Point to completely ignore that damage.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [],
+    "grants": [{ "type": "hook", "hookId": "dieHard" }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:resistance",
+    "name": "Resistenza",
+    "description": "+10 to tests to resist a chosen type (poison, magic, disease, or fear).",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [{ "type": "modifier", "key": "combat.resistance.<chosenType>", "op": "add", "value": 10 }],
+    "maxRank": 1,
+    "chosenParam": {
+      "paramKey": "chosenType",
+      "options": ["poison", "magic", "disease", "fear"],
+      "label": "Resistance Type"
+    },
+    "uniquenessKey": "resistance:<chosenType>"
+  },
+
+  {
+    "id": "talent:deathdealer",
+    "name": "Mietitore",
+    "description": "Add Perception Bonus to damage on every successful hit (melee and ranged).",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [
+      { "type": "statAtLeast", "stat": "WS", "value": 45 },
+      { "type": "statAtLeast", "stat": "BS", "value": 45 },
+      { "type": "statAtLeast", "stat": "PER", "value": 40 }
+    ],
+    "grants": [{ "type": "modifier", "key": "combat.deathdealerDamageBonus", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+
+  {
+    "id": "talent:shield_mastery",
+    "name": "Maestria dello Scudo",
+    "description": "Rank 1: +10 Parry. Rank 2: +20 Parry. Requires a shield equipped.",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [{ "type": "modifier", "key": "combat.shieldMasteryParryBonus", "op": "add", "value": 10 }],
+    "maxRank": 2
+  },
+  {
+    "id": "talent:combat_master",
+    "name": "Maestro di Combattimento",
+    "description": "In melee, attackers suffer -20 to hit this actor.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [],
+    "grants": [{ "type": "modifier", "key": "combat.meleeToBeHitPenalty", "op": "add", "value": -20 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:crushing_blow",
+    "name": "Colpo Devastante",
+    "description": "Add half Weapon Skill Bonus (rounded up) to melee damage.",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [{ "type": "statAtLeast", "stat": "WS", "value": 40 }],
+    "grants": [{ "type": "modifier", "key": "combat.crushingBlowDamageBonus", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+
+  {
+    "id": "talent:marksman",
+    "name": "Tiratore Scelto",
+    "description": "Ignore distance penalties for ranged attacks.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [{ "type": "statAtLeast", "stat": "BS", "value": 35 }],
+    "grants": [{ "type": "modifier", "key": "combat.marksmanIgnoreDistance", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:deadeye",
+    "name": "Occhio Mortale",
+    "description": "Ignore light cover; treat heavy cover as light cover.",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [{ "type": "statAtLeast", "stat": "BS", "value": 45 }],
+    "grants": [{ "type": "modifier", "key": "combat.deadeyeIgnoreCover", "op": "add", "value": 1 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:called_shot",
+    "name": "Colpo Mirato",
+    "description": "Unlocks Called Shot: Head (-30, double damage), Arms (-20, Disarm), Legs (-20, Prone + halved movement).",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [],
+    "grants": [{ "type": "unlockAction", "actionId": "combat:calledShot" }],
+    "maxRank": 1
+  },
+
+  {
+    "id": "talent:deny_the_witch",
+    "name": "Rifiuto della Strega",
+    "description": "When a spell affects you, attempt a Will test to negate effects on yourself only. Non-casters suffer -10 penalty. Does NOT cancel the spell.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [],
+    "grants": [{ "type": "hook", "hookId": "denyTheWitch" }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:channelling_focus",
+    "name": "Focus di Canalizzazione",
+    "description": "+10 to Channeling checks.",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "modifier", "key": "magic.channelBonus", "op": "add", "value": 10 }],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:casting_specialization",
+    "name": "Specializzazione Magica",
+    "description": "+10 to cast checks for spells of a chosen discipline.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "modifier", "key": "magic.castBonus.<chosenDiscipline>", "op": "add", "value": 10 }],
+    "maxRank": 1,
+    "chosenParam": {
+      "paramKey": "chosenDiscipline",
+      "options": ["PYRA", "KINESIS", "MENTIS", "VATES", "CORPUS"],
+      "label": "Magic School"
+    },
+    "uniquenessKey": "castingSpec:<chosenDiscipline>"
   }
 ]

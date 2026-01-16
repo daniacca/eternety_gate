@@ -115,8 +115,14 @@ export function removeConditionFromActor(actor: Actor, condition: ConditionId): 
 /**
  * Computes combat modifiers from conditions
  * Returns modifiers that affect to-hit, movement, and defensive actions
+ * 
+ * @param actor - The actor to compute modifiers for
+ * @param fatiguePenaltyReduction - Optional number of fatigue tiers to ignore (from Relentless talent)
  */
-export function computeCombatModifiersFromConditions(actor: Actor): {
+export function computeCombatModifiersFromConditions(
+  actor: Actor,
+  fatiguePenaltyReduction: number = 0
+): {
   toHitBonus?: number;
   toHitPenalty?: number;
   moveDelta?: number;
@@ -129,11 +135,15 @@ export function computeCombatModifiersFromConditions(actor: Actor): {
   let allowDodge = true;
 
   // Fatigue: -10 per stack to to-hit (capped at -30), -1 move per stack
+  // Relentless talent: reduce penalty tier by fatiguePenaltyReduction (ignore first N -10 thresholds)
   if (hasCondition(actor, "fatigue")) {
     const fatigueStacks = getStacks(actor, "fatigue");
-    const fatiguePenalty = Math.min(fatigueStacks * 10, 30);
+    // Apply Relentless talent reduction (reduces effective stacks for penalty calculation)
+    const effectiveFatigueStacks = Math.max(0, fatigueStacks - fatiguePenaltyReduction);
+    
+    const fatiguePenalty = Math.min(effectiveFatigueStacks * 10, 30);
     toHitPenalty += fatiguePenalty;
-    moveDelta -= fatigueStacks;
+    moveDelta -= fatigueStacks; // Movement penalty is NOT reduced by Relentless
   }
 
   // Prone: -1 move

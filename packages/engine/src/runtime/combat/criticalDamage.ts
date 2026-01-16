@@ -1,8 +1,9 @@
-import type { GameSave, Actor, Effect, SingleCheck, StoryPack, StatKey } from "../types";
+import type { GameSave, Actor, Effect, SingleCheck, StoryPack, StatKey, RuntimeLogEntry } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { performCheck } from "../checks";
 import { calculateMaxHp } from "../characters/hp";
+import { hasTalentHook } from "../characters/talentModifiers";
 
 /**
  * Applies critical damage tier effects and determines if actor dies.
@@ -171,7 +172,7 @@ export function applyCriticalDamageTiers(
  * @param save - The game save
  * @param rng - Random number generator
  * @param storyPack - Optional story pack (required for toughness checks)
- * @param catalogs - Optional catalogs (for maxHp calculation)
+ * @param catalogs - Optional catalogs (for maxHp calculation and talents)
  * @returns Updated actor and effects
  */
 export function applyDamageToActor(
@@ -185,6 +186,7 @@ export function applyDamageToActor(
   updatedActor: Actor;
   effects: Effect[];
   actorDied: boolean;
+  dieHardUsed?: boolean;
 } {
   if (damage <= 0 || actor.resources.isDead) {
     return {
@@ -194,7 +196,7 @@ export function applyDamageToActor(
     };
   }
 
-  // Calculate max HP
+  // Calculate max HP first to determine if Die Hard should trigger
   const maxHp = catalogs ? calculateMaxHp(save, actor, catalogs) : actor.derived?.hpMax ?? 100;
   const woundsBefore = actor.resources.wounds ?? 0;
   const hpBefore = maxHp - woundsBefore;
@@ -202,6 +204,35 @@ export function applyDamageToActor(
   // Normalize wounds if they exceed maxHp (shouldn't happen, but handle it)
   const normalizedWoundsBefore = Math.min(maxHp, woundsBefore);
   const normalizedHpBefore = maxHp - normalizedWoundsBefore;
+
+  // Calculate what HP would be after this damage
+  const projectedWoundsAfter = Math.min(maxHp, woundsBefore + damage);
+  const projectedHpAfter = maxHp - projectedWoundsAfter;
+
+  // Die Hard talent: spend 1 Fate Point to completely ignore damage
+  // ONLY triggers if damage would reduce HP to <= 0 (including already at 0 HP)
+  if (catalogs && damage > 0 && (projectedHpAfter <= 0 || normalizedHpBefore <= 0)) {
+    const hasDieHard = hasTalentHook(actor, catalogs, "dieHard");
+    const fatePoints = actor.resources.fatePoints ?? 0;
+    
+    if (hasDieHard && fatePoints > 0) {
+      // Spend fate point and negate damage completely
+      const updatedActor: Actor = {
+        ...actor,
+        resources: {
+          ...actor.resources,
+          fatePoints: fatePoints - 1,
+        },
+      };
+      
+      return {
+        updatedActor,
+        effects: [],
+        actorDied: false,
+        dieHardUsed: true,
+      };
+    }
+  }
 
   let criticalDamage = actor.resources.criticalDamage ?? 0;
   let criticalTierApplied = actor.resources.criticalTierApplied ?? 0;

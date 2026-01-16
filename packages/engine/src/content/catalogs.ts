@@ -12,26 +12,44 @@ export type Skill = {
   alternateStats?: StatKey[];
 };
 
+export type ResistanceType = "poison" | "magic" | "disease" | "fear";
+export type MagicDiscipline = "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS";
+
 export type Prerequisite =
   | { type: "statAtLeast"; stat: StatKey; value: number }
   | { type: "hasTalent"; talentId: TalentId }
+  | { type: "hasTalentRank"; talentId: TalentId; minRank: number }
   | { type: "hasTrait"; traitId: TraitId }
-  | { type: "hasSpell"; spellId: string };
+  | { type: "hasSpell"; spellId: string }
+  | { type: "notHasTalentWithParam"; talentId: TalentId; paramKey: string; paramValue: string }
+  | { type: "hasEquippedOffhandShield" };
 
 export type Grant =
   | { type: "modifier"; key: string; op: "add"; value: number; valueRef?: string }
   | { type: "unlockAction"; actionId: string }
   | { type: "skillRank"; skillId: SkillId; value: number }
-  | { type: "hpMaxFlat"; value: number };
+  | { type: "hpMaxFlat"; value: number }
+  | { type: "hook"; hookId: string; params?: Record<string, any> };
+
+export type TalentChosenParam = {
+  paramKey: string;
+  options: string[];
+  label?: string;
+};
 
 export type Talent = {
   id: TalentId;
   name: string;
+  description?: string;
   tier: 1 | 2 | 3;
   xpCost: number;
   prerequisites: Prerequisite[];
   grants: Grant[];
   maxRank?: number; // default 1
+  // For talents that require choosing a type (e.g. Resistance, Casting Specialization)
+  chosenParam?: TalentChosenParam;
+  // Unique key to prevent stacking same choices (e.g., "resistance:<type>")
+  uniquenessKey?: string;
 };
 
 export type TraitParams = Record<string, any>;

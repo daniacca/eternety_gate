@@ -15,14 +15,21 @@ export function performSingleCheck(
 
   const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty, save, storyPack);
 
-  const result = rollD100Check(check.id, actor.id, breakdown.target, storyPack, rng);
+  // Apply optional modifier from check (e.g., -10 for non-Weaver Deny the Witch)
+  const checkModifier = check.modifier ?? 0;
+  const finalTarget = breakdown.target + checkModifier;
+
+  const result = rollD100Check(check.id, actor.id, finalTarget, storyPack, rng);
 
   // Add target breakdown tags for debugging
   if (result) {
     result.tags.push(`calc:base=${breakdown.baseValue}`);
     result.tags.push(`calc:diff=${breakdown.difficultyMod}`);
     result.tags.push(`calc:mods=${breakdown.tempModsSum}`);
-    result.tags.push(`calc:target=${breakdown.target}`);
+    if (checkModifier !== 0) {
+      result.tags.push(`calc:checkMod=${checkModifier}`);
+    }
+    result.tags.push(`calc:target=${finalTarget}`);
   }
 
   return result;

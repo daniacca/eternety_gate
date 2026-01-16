@@ -56,6 +56,7 @@ export type ConditionId =
   | "bleeding"
   | "fatigue"
   | "unconscious"
+  | "halvedMovement"
   | "bound"
   | "force_shield"
   | "steel_body"
@@ -216,6 +217,8 @@ export type SingleCheck = {
   actorRef?: ActorRef;
   key: StatOrSkillKey;
   difficulty: string;
+  /** Optional flat modifier to apply to the check target (e.g., -10 for non-Weaver Deny the Witch) */
+  modifier?: number;
   onSuccess?: Effect[];
   onFailure?: Effect[];
 };
@@ -294,6 +297,7 @@ export type CombatAttackCheck = {
     outnumbering?: number; // >=0
     rangeBand?: RangeBand; // ranged only
     calledShot?: boolean;
+    calledShotZone?: "head" | "arms" | "body" | "legs"; // Target body zone for Called Shot
     cover?: Cover; // ranged only
     hitBonus?: number; // bonus/penalty to hit (e.g. +20 for All-Out Attack)
   };
@@ -490,6 +494,7 @@ export type Actor = {
     wounds: number; // Damage taken (wounds), current HP = maxHp - wounds
     rf: number; // Fatigue (current RF)
     peq: number;
+    fatePoints?: number; // Fate Points for special abilities like Die Hard
     criticalDamage?: number;
     criticalTierApplied?: number;
     isDead?: boolean;

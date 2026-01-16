@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, SingleCheck, ActorId, CheckResult } from "../../types";
+import type { Effect, GameSave, StoryPack, SingleCheck, ActorId, CheckResult, StatKey } from "../../types";
 import type { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration";
@@ -26,6 +26,8 @@ import { getActorsInRange } from "../../targeting/getActorsInRange";
 import type { TargetSpec, TargetSelection, TargetPreview } from "../targeting/types";
 import { posKey } from "../../items";
 import type { ItemRef } from "../../types";
+import { hasDenyTheWitch, getBestResistStat, performDenyTheWitchCheck } from "../../magic/denyTheWitch";
+import { getResistanceBonus } from "../../characters/talentModifiers";
 
 /**
  * Cast Spell action: performs spell casting check and applies effects
@@ -531,12 +533,22 @@ export function combatCastSpell(
     // Filter out targets that successfully resist
     // Skip this block for combatDisarmAtRange - it handles its own opposed check
     if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && targetActors.length > 0) {
-      const opposedStat = effectDef.opposedStat || effectDef.castingStat;
+      const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;
       const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
 
       const resistedTargetIds = new Set<ActorId>();
 
       for (const target of targetActors) {
+        // Deny the Witch talent: defender uses max(defenderStat, Will) for resistance
+        const opposedStat = catalogs
+          ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
+          : baseOpposedStat;
+
+        // Magic Resistance talent: +10 to resist magic spells
+        const magicResistanceBonus = catalogs 
+          ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic")
+          : 0;
+
         // Perform opposed check: caster's casting check result vs defender's resistance check
         const defenderCheck: SingleCheck = {
           id: `combat:cast:opposed:${spell.id}:${target.actorId}`,
@@ -544,6 +556,7 @@ export function combatCastSpell(
           actorRef: { mode: "byId", actorId: target.actorId },
           key: opposedStat,
           difficulty: opposedDifficulty,
+          modifier: magicResistanceBonus, // Apply magic resistance bonus
         };
 
         const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
@@ -566,15 +579,21 @@ export function combatCastSpell(
         const attackerDoS = effectiveDoS;
         const defenderDoS = defenderResult.success ? defenderResult.dos : -1; // Failed defender = -1 DoS
 
+        // Check if Deny the Witch was used (defender used WIL instead of default stat)
+        const usedDenyTheWitch = catalogs && opposedStat === "WIL" && baseOpposedStat !== "WIL" && 
+          hasDenyTheWitch(target.actor, catalogs);
+
         if (attackerDoS > defenderDoS) {
           // Attacker wins - target is valid for effect application
           const targetName = target.actor.name || target.actorId;
-          const opposedLog = `${targetName} resiste con ${opposedStat} ma fallisce (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
+          const statLabel = usedDenyTheWitch ? `${opposedStat} (Rifiuto della Strega)` : opposedStat;
+          const opposedLog = `${targetName} resiste con ${statLabel} ma fallisce (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
           updatedSave = appendCombatLog(updatedSave, opposedLog);
         } else {
           // Defender wins - spell fails against this target
           const targetName = target.actor.name || target.actorId;
-          const resistedLog = `${targetName} resiste con successo (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
+          const statLabel = usedDenyTheWitch ? `${opposedStat} (Rifiuto della Strega)` : opposedStat;
+          const resistedLog = `${targetName} resiste con successo usando ${statLabel} (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
           updatedSave = appendCombatLog(updatedSave, resistedLog);
 
           // Mark as resisted
@@ -583,6 +602,52 @@ export function combatCastSpell(
       }
 
       // Filter out resisted targets
+      validTargetActors = targetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    }
+
+    // Deny the Witch check for NON-opposed spells
+    // Targets with Deny the Witch may attempt a Will check to negate effects on themselves
+    // Note: Resistance (Magic) applies to this check because it IS a magic resistance check
+    if (!effectDef.opposed && targetActors.length > 0 && catalogs) {
+      const resistedTargetIds = new Set<ActorId>();
+
+      for (const target of targetActors) {
+        // Only check if target has Deny the Witch talent
+        if (!hasDenyTheWitch(target.actor, catalogs)) {
+          continue;
+        }
+
+        // Resistance (Magic) talent applies to any spell resistance check
+        // This is calculated separately from Deny the Witch - they are independent talents
+        const magicResistanceBonus = getResistanceBonus(updatedSave, catalogs, target.actorId, "magic");
+
+        // Perform Deny the Witch Will check (magic resistance is passed as additional modifier)
+        const denyResult = performDenyTheWitchCheck(
+          target.actor,
+          effectiveDoS,
+          updatedSave,
+          rng,
+          spell.id,
+          catalogs,
+          magicResistanceBonus // Pass magic resistance as additional modifier
+        );
+
+        updatedSave = denyResult.save;
+
+        const targetName = target.actor.name || target.actorId;
+        if (denyResult.success) {
+          // Defender successfully denied the spell effect
+          const denyLog = `${targetName} nega gli effetti dell'incantesimo con Rifiuto della Strega!`;
+          updatedSave = appendCombatLog(updatedSave, denyLog);
+          resistedTargetIds.add(target.actorId);
+        } else if (denyResult.checkResult) {
+          // Defender attempted but failed
+          const failLog = `${targetName} tenta di resistere con Rifiuto della Strega ma fallisce.`;
+          updatedSave = appendCombatLog(updatedSave, failLog);
+        }
+      }
+
+      // Filter out targets who successfully used Deny the Witch
       validTargetActors = targetActors.filter((t) => !resistedTargetIds.has(t.actorId));
     }
 

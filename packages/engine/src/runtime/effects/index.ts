@@ -90,8 +90,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatSwiftAttack(effect as Extract<Effect, { op: "combatSwiftAttack" }>, storyPack, save, rng),
   combatGetProne: (effect, _storyPack, save, _rng) =>
     combatGetProne(effect as Extract<Effect, { op: "combatGetProne" }>, save),
-  combatStandUp: (effect, _storyPack, save, _rng) =>
-    combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, save),
+  combatStandUp: (effect, storyPack, save, _rng) =>
+    combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, save, storyPack),
   combatPickup: (effect, _storyPack, save, _rng) =>
     combatPickup(effect as Extract<Effect, { op: "combatPickup" }>, save),
   combatDrop: (effect, _storyPack, save, _rng) => combatDrop(effect as Extract<Effect, { op: "combatDrop" }>, save),

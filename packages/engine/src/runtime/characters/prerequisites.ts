@@ -1,6 +1,12 @@
 import type { GameSave, Actor } from "../types";
-import type { CharacterCatalogs, Prerequisite } from "../../content/catalogs";
+import type { CharacterCatalogs, Prerequisite, Talent } from "../../content/catalogs";
 import { getCharacteristicValue } from "./bonuses";
+
+/**
+ * Talent params stored on actor for talents with choices (e.g., Resistance: poison)
+ * Stored as actor.talentParams?.[talentId] = { chosenType: "poison" }
+ */
+export type TalentParams = Record<string, string | number | boolean>;
 
 /**
  * Evaluates prerequisites for a talent
@@ -28,6 +34,14 @@ export function evaluatePrerequisites(
           reason: `Requires talent ${prereq.talentId}`,
         };
       }
+    } else if (prereq.type === "hasTalentRank") {
+      const talentRank = actor.talents[prereq.talentId] ?? 0;
+      if (talentRank < prereq.minRank) {
+        return {
+          valid: false,
+          reason: `Requires ${prereq.talentId} at rank ${prereq.minRank}+, but has ${talentRank}`,
+        };
+      }
     } else if (prereq.type === "hasTrait") {
       const hasTrait = actor.traits[prereq.traitId] !== undefined;
       if (!hasTrait) {
@@ -44,9 +58,67 @@ export function evaluatePrerequisites(
           reason: `Requires spell ${prereq.spellId}`,
         };
       }
+    } else if (prereq.type === "notHasTalentWithParam") {
+      // Check if actor already has this talent with the specified param value
+      // Used to prevent taking same Resistance type or Casting Specialization twice
+      const talentParams = (actor as any).talentParams?.[prereq.talentId];
+      if (talentParams && talentParams[prereq.paramKey] === prereq.paramValue) {
+        return {
+          valid: false,
+          reason: `Already has ${prereq.talentId} with ${prereq.paramKey}=${prereq.paramValue}`,
+        };
+      }
+    } else if (prereq.type === "hasEquippedOffhandShield") {
+      // Check if actor has a shield in off-hand
+      const offHand = actor.equipment?.offHand;
+      const hasShield = offHand?.kind === "armor" || (offHand?.id && offHand.id.includes("shield"));
+      if (!hasShield) {
+        return {
+          valid: false,
+          reason: `Requires a shield equipped in off-hand`,
+        };
+      }
     }
   }
   return { valid: true };
+}
+
+/**
+ * Checks if actor has already acquired a talent with given uniqueness key
+ * Used for talents like Resistance (Type) that can only be taken once per type
+ */
+export function hasAcquiredTalentWithUniquenessKey(
+  actor: Actor,
+  uniquenessKey: string,
+  chosenParamValue?: string
+): boolean {
+  // Resolve the uniqueness key with the chosen param
+  const resolvedKey = chosenParamValue 
+    ? uniquenessKey.replace(/<[^>]+>/g, chosenParamValue)
+    : uniquenessKey;
+  
+  // Check talentUniquenessKeys on actor
+  const uniquenessKeys = (actor as any).talentUniquenessKeys as string[] | undefined;
+  return uniquenessKeys?.includes(resolvedKey) ?? false;
+}
+
+/**
+ * Gets the resolved uniqueness key for a talent with chosen params
+ */
+export function resolveTalentUniquenessKey(
+  talent: Talent,
+  chosenParams?: TalentParams
+): string | null {
+  if (!talent.uniquenessKey) return null;
+  
+  let key = talent.uniquenessKey;
+  if (talent.chosenParam && chosenParams) {
+    const paramValue = chosenParams[talent.chosenParam.paramKey];
+    if (typeof paramValue === "string") {
+      key = key.replace(`<${talent.chosenParam.paramKey}>`, paramValue);
+    }
+  }
+  return key;
 }
 
 /**
@@ -65,6 +137,13 @@ export function hasTalentRank(actor: Actor, talentId: string, minRank: number = 
 }
 
 /**
+ * Checks if actor has a specific talent
+ */
+export function hasTalent(actor: Actor, talentId: string): boolean {
+  return hasTalentRank(actor, talentId, 1);
+}
+
+/**
  * Checks if actor has a stat at least at value
  */
 export function statAtLeast(save: GameSave, actor: Actor, statKey: string, value: number): boolean {
@@ -72,3 +151,26 @@ export function statAtLeast(save: GameSave, actor: Actor, statKey: string, value
   return statValue >= value;
 }
 
+/**
+ * Gets all talent params for an actor's talent
+ */
+export function getTalentParams(actor: Actor, talentId: string): TalentParams | undefined {
+  return (actor as any).talentParams?.[talentId];
+}
+
+/**
+ * Gets all acquired talents with their params for an actor
+ */
+export function getActorTalentsWithParams(actor: Actor): Array<{ talentId: string; rank: number; params?: TalentParams }> {
+  const result: Array<{ talentId: string; rank: number; params?: TalentParams }> = [];
+  for (const [talentId, rank] of Object.entries(actor.talents)) {
+    if (rank >= 1) {
+      result.push({
+        talentId,
+        rank,
+        params: getTalentParams(actor, talentId),
+      });
+    }
+  }
+  return result;
+}

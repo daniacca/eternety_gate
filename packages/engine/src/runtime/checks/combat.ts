@@ -1,4 +1,5 @@
 import type { CombatAttackCheck, CheckResult, StoryPack, GameSave, Actor, StatOrSkillKey } from "../types";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
@@ -7,6 +8,14 @@ import { computeCombatModifiersFromConditions } from "../conditions";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendRuntimeLog } from "../combat/narration";
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import {
+  getCombatMasterPenalty,
+  hasMarksmanTalent,
+  hasDeadeyeTalent,
+  getShieldMasteryParryBonus,
+  getFatiguePenaltyReduction,
+} from "../characters/talentModifiers";
 
 /**
  * Centralized function to compute attack target and modifiers
@@ -17,7 +26,8 @@ export function computeAttackTarget(
   attacker: Actor,
   defender: Actor,
   save: GameSave,
-  storyPack?: StoryPack
+  storyPack?: StoryPack,
+  catalogs?: CharacterCatalogs
 ): { target: number; tags: string[]; modifier: number } {
   // Determine attack stat (WS for MELEE, BS for RANGED)
   const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
@@ -38,6 +48,12 @@ export function computeAttackTarget(
     }
   }
 
+  // Check if attacker has Marksman talent (ignore distance penalties for ranged)
+  const attackerHasMarksman = catalogs && hasMarksmanTalent(save, catalogs, attacker.id);
+  
+  // Check if attacker has Deadeye talent (ignore light cover, treat heavy as light)
+  const attackerHasDeadeye = catalogs && hasDeadeyeTalent(save, catalogs, attacker.id);
+
   // Range band modifier (RANGED only)
   // Global rule based on Chebyshev distance:
   // dist >= 9 => EXTREME (-40)
@@ -45,6 +61,7 @@ export function computeAttackTarget(
   // dist 4..5 => NORMAL (+0)
   // dist 2..3 => SHORT (+20)
   // dist 0..1 => POINT_BLANK (+30)
+  // Marksman talent: ignores all distance penalties (but keeps bonuses)
   if (check.attacker.mode === "RANGED" && check.modifiers?.rangeBand) {
     switch (check.modifiers.rangeBand) {
       case "POINT_BLANK":
@@ -59,26 +76,45 @@ export function computeAttackTarget(
         modifierTags.push("combat:mod:rangeBand:NORMAL=+0");
         break;
       case "LONG":
-        combatModifier -= 20;
-        modifierTags.push("combat:mod:rangeBand:LONG=-20");
+        if (attackerHasMarksman) {
+          modifierTags.push("combat:mod:rangeBand:LONG=+0 (Marksman)");
+        } else {
+          combatModifier -= 20;
+          modifierTags.push("combat:mod:rangeBand:LONG=-20");
+        }
         break;
       case "EXTREME":
-        combatModifier -= 40;
-        modifierTags.push("combat:mod:rangeBand:EXTREME=-40");
+        if (attackerHasMarksman) {
+          modifierTags.push("combat:mod:rangeBand:EXTREME=+0 (Marksman)");
+        } else {
+          combatModifier -= 40;
+          modifierTags.push("combat:mod:rangeBand:EXTREME=-40");
+        }
         break;
     }
   }
 
   // Cover modifier (RANGED only)
+  // Deadeye talent: ignore light cover, treat heavy cover as light
   if (check.attacker.mode === "RANGED" && check.modifiers?.cover) {
     switch (check.modifiers.cover) {
       case "LIGHT":
-        combatModifier -= 10;
-        modifierTags.push("combat:mod:cover:LIGHT=-10");
+        if (attackerHasDeadeye) {
+          modifierTags.push("combat:mod:cover:LIGHT=+0 (Deadeye)");
+        } else {
+          combatModifier -= 10;
+          modifierTags.push("combat:mod:cover:LIGHT=-10");
+        }
         break;
       case "HEAVY":
-        combatModifier -= 20;
-        modifierTags.push("combat:mod:cover:HEAVY=-20");
+        if (attackerHasDeadeye) {
+          // Treat heavy as light (-10 instead of -20)
+          combatModifier -= 10;
+          modifierTags.push("combat:mod:cover:HEAVY=-10 (Deadeye)");
+        } else {
+          combatModifier -= 20;
+          modifierTags.push("combat:mod:cover:HEAVY=-20");
+        }
         break;
       case "NONE":
         modifierTags.push("combat:mod:cover:NONE=+0");
@@ -86,10 +122,14 @@ export function computeAttackTarget(
     }
   }
 
-  // Called shot modifier: -10 penalty
+  // Called shot modifier: penalty depends on zone (talent unlocks the action)
+  // Head: -30, Arms/Body/Legs: -20
   if (check.modifiers?.calledShot) {
-    combatModifier -= 10;
-    modifierTags.push("combat:mod:calledShot=-10");
+    const zone = check.modifiers.calledShotZone || "body";
+    const calledShotPenalty = zone === "head" ? -30 : -20;
+    combatModifier += calledShotPenalty;
+    modifierTags.push(`combat:mod:calledShot=${calledShotPenalty}`);
+    modifierTags.push(`combat:mod:calledShotZone=${zone}`);
   }
 
   // Aim stance modifier: +20 bonus for ranged attacks when aim stance is active
@@ -142,10 +182,25 @@ export function computeAttackTarget(
   }
 
   // Apply fatigue penalty from conditions (capped at -30)
-  const conditionModifiers = computeCombatModifiersFromConditions(attacker);
+  // Relentless talent reduces fatigue penalty tiers
+  const fatiguePenaltyReduction = catalogs ? getFatiguePenaltyReduction(save, catalogs, attacker.id) : 0;
+  const conditionModifiers = computeCombatModifiersFromConditions(attacker, fatiguePenaltyReduction);
   if (conditionModifiers.toHitPenalty !== undefined) {
     combatModifier -= conditionModifiers.toHitPenalty;
-    modifierTags.push(`combat:mod:fatigue=-${conditionModifiers.toHitPenalty}`);
+    if (fatiguePenaltyReduction > 0) {
+      modifierTags.push(`combat:mod:fatigue=-${conditionModifiers.toHitPenalty} (Relentless)`);
+    } else {
+      modifierTags.push(`combat:mod:fatigue=-${conditionModifiers.toHitPenalty}`);
+    }
+  }
+
+  // Combat Master: defender talent that gives attackers -20 to hit in melee
+  if (check.attacker.mode === "MELEE" && catalogs) {
+    const combatMasterPenalty = getCombatMasterPenalty(save, catalogs, defender.id);
+    if (combatMasterPenalty !== 0) {
+      combatModifier += combatMasterPenalty; // Already negative from talent
+      modifierTags.push(`combat:mod:combatMaster=${combatMasterPenalty}`);
+    }
   }
 
   const attackTarget = breakdown.target + combatModifier;
@@ -169,12 +224,25 @@ export function performCombatAttackCheck(
   const defender = resolveActor(check.defender.actorRef, save, storyPack);
   if (!attacker || !defender) return { result: null, save };
 
+  // Load catalogs for talent modifiers
+  const catalogs: CharacterCatalogs | undefined =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+
   // Compute attack target using centralized function
   const {
     target: attackTarget,
     tags: modifierTags,
     modifier: combatModifier,
-  } = computeAttackTarget(check, attacker, defender, save, storyPack);
+  } = computeAttackTarget(check, attacker, defender, save, storyPack, catalogs);
 
   // Determine attack stat for tags
   const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
@@ -266,6 +334,9 @@ export function performCombatAttackCheck(
   let defenseType: "parry" | "dodge" | "none" = "none";
   let defenseSkillKey: StatOrSkillKey | null = null;
 
+  // Get Shield Mastery parry bonus (if defender has talent and shield equipped)
+  const shieldMasteryBonus = catalogs ? getShieldMasteryParryBonus(save, catalogs, defender.id) : 0;
+
   if (check.defense.strategy === "preferParry" && canParry) {
     defenseType = "parry";
     defenseSkillKey = parrySkillKey;
@@ -279,7 +350,7 @@ export function performCombatAttackCheck(
 
     if (canParry) {
       const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "Challenging", save, storyPack);
-      parryTarget = parryBreakdown.target;
+      parryTarget = parryBreakdown.target + shieldMasteryBonus;
     }
 
     if (canDodge) {
@@ -333,7 +404,9 @@ export function performCombatAttackCheck(
 
   // Roll defense using the chosen skill
   const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
-  const defenseTarget = defenseBreakdown.target;
+  // Add Shield Mastery bonus to parry target only
+  const parryBonus = defenseType === "parry" ? shieldMasteryBonus : 0;
+  const defenseTarget = defenseBreakdown.target + parryBonus;
 
   const defenseRoll = rng.rollD100();
   const defenseResult = evaluateRoll(defenseRoll, defenseTarget, storyPack, check.id, defender.id);
@@ -363,6 +436,7 @@ export function performCombatAttackCheck(
           `combat:defCalc:base=${defenseBreakdown.baseValue}`,
           `combat:defCalc:mods=${defenseBreakdown.tempModsSum}`,
           `combat:defCalc:target=${defenseTarget}`,
+          ...(parryBonus > 0 ? [`combat:defCalc:shieldMastery=+${parryBonus}`] : []),
         ],
       };
       updatedSave = appendRuntimeLog(updatedSave, {

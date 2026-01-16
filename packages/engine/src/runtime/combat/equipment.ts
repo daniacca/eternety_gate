@@ -3,6 +3,7 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import { getEquippedWeaponId, getEquippedArmorId } from "../characters/inventory";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
+import { getMeleeDamageBonusFromTalents, getRangedDamageBonusFromTalents } from "../characters/talentModifiers";
 
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
@@ -105,6 +106,10 @@ export function calculateWeaponDamage(
   const mightyShotBonus =
     mode === "RANGED" && catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
 
+  // Get talent damage bonuses (Crushing Blow for melee, Deathdealer for both)
+  const meleeTalentBonus = mode === "MELEE" && catalogs ? getMeleeDamageBonusFromTalents(save, catalogs, attacker.id) : 0;
+  const rangedTalentBonus = mode === "RANGED" && catalogs ? getRangedDamageBonusFromTalents(save, catalogs, attacker.id) : 0;
+
   for (let i = 0; i < rollsCount; i++) {
     // Calculate damage based on weapon damage tier
     let dieRoll = 0;
@@ -135,14 +140,16 @@ export function calculateWeaponDamage(
 
     let rollDamage = dieRoll + weapon.damage.add;
 
-    // MELEE: Always apply STR bonus
-    // RANGED: Never apply STR bonus (only weapon base damage + bonuses)
+    // MELEE: Always apply STR bonus + melee talent bonuses (Crushing Blow, Deathdealer)
+    // RANGED: Never apply STR bonus (only weapon base damage + ranged bonuses)
     if (mode === "MELEE") {
       const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
       rollDamage += strBonus;
+      rollDamage += meleeTalentBonus; // Crushing Blow (ceil(WSB/2)) + Deathdealer (PER bonus)
     } else if (mode === "RANGED") {
-      // RANGED: Add Mighty Shot bonus (flat bonus, not per roll)
+      // RANGED: Add Mighty Shot bonus + ranged talent bonus (Deathdealer)
       rollDamage += mightyShotBonus;
+      rollDamage += rangedTalentBonus; // Deathdealer (PER bonus)
     }
     // Note: RANGED mode never adds STR bonus, regardless of weapon.damage.bonus
 

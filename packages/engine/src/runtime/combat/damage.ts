@@ -189,7 +189,13 @@ export function applyCombatDamageIfHit(
 
   // Calculate final damage after soak and TOU bonus
   // Formula: (raw damage - armor soak - TOU bonus - other reductions)
-  const finalDamage = Math.max(0, rawDamage - effectiveSoak - touBonus);
+  let finalDamage = Math.max(0, rawDamage - effectiveSoak - touBonus);
+
+  // Called Shot: Head doubles damage after soak
+  const calledShotZone = check.modifiers?.calledShotZone;
+  if (check.modifiers?.calledShot && calledShotZone === "head" && finalDamage > 0) {
+    finalDamage = finalDamage * 2;
+  }
 
   // Build reduction formula for display
   const reductionFormula = `${rawDamage} (Raw) - ${touBonus} (TOU) - ${effectiveSoak} (Soak)`;
@@ -202,6 +208,48 @@ export function applyCombatDamageIfHit(
   const updatedDefender = damageResult.updatedActor;
   const emittedEffects = damageResult.effects;
   const actorDied = damageResult.actorDied;
+  const dieHardUsed = damageResult.dieHardUsed ?? false;
+
+  // If Die Hard was used, return early with special handling
+  if (dieHardUsed) {
+    const updatedActorsById = {
+      ...save.actorsById,
+      [defender.id]: updatedDefender,
+    };
+
+    let updatedSave: GameSave = {
+      ...save,
+      actorsById: updatedActorsById,
+      runtime: {
+        ...save.runtime,
+        rngCounter: rng.getCounter(),
+      },
+    };
+
+    // Log Die Hard usage - now only triggers when resisting death (HP would go to 0)
+    const defenderName = defender.name || "il bersaglio";
+    const dieHardLog =
+      defender.kind === "PC"
+        ? `Resisti alla morte spendendo un Punto Fato! (Duro a Morire)`
+        : `${defenderName} resiste alla morte spendendo un Punto Fato! (Duro a Morire)`;
+    updatedSave = appendCombatLog(updatedSave, dieHardLog);
+
+    // Log system entry
+    updatedSave = appendRuntimeLog(updatedSave, {
+      kind: "system",
+      message: `Die Hard: ${defender.id} resists death by spending 1 Fate Point to negate ${finalDamage} damage`,
+      turnCounter: save.runtime.combat?.turnCounter ?? 0,
+      resolutionId,
+      tags: ["talent:dieHard", `damage:negated=${finalDamage}`, "dieHard:resistDeath"],
+    });
+
+    return {
+      save: updatedSave,
+      didApplyDamage: false,
+      targetKo: false,
+      finalDamage: 0,
+    };
+  }
 
   // Calculate HP values for logging
   const maxHp = catalogs ? calculateMaxHp(save, updatedDefender, catalogs) : updatedDefender.derived?.hpMax ?? 100;
@@ -328,6 +376,57 @@ export function applyCombatDamageIfHit(
   const targetKo = hpAfter === 0 || actorDied;
   const didApplyDamage = finalDamage > 0;
 
+  // Called Shot effects on successful hit (only if damage > 0)
+  const calledShotEffects: Effect[] = [];
+  if (check.modifiers?.calledShot && didApplyDamage && calledShotZone) {
+    if (calledShotZone === "arms") {
+      // Arms: Apply Disarm effect
+      calledShotEffects.push({
+        op: "combatDisarm",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+      updatedSave = appendCombatLog(
+        updatedSave,
+        attacker.kind === "PC"
+          ? `Il colpo al braccio disarma ${defender.name || "il bersaglio"}!`
+          : `${attacker.name} disarma ${defender.name || "il bersaglio"} con un colpo al braccio!`
+      );
+    } else if (calledShotZone === "legs") {
+      // Legs: Apply Prone + halved movement until end of next turn
+      calledShotEffects.push({
+        op: "addCondition",
+        actorId: defender.id,
+        condition: "prone",
+        source: "calledShot:legs",
+      });
+      calledShotEffects.push({
+        op: "addCondition",
+        actorId: defender.id,
+        condition: "halvedMovement",
+        durationTurns: 2, // Until end of next turn
+        source: "calledShot:legs",
+      });
+      updatedSave = appendCombatLog(
+        updatedSave,
+        attacker.kind === "PC"
+          ? `Il colpo alla gamba fa cadere ${defender.name || "il bersaglio"} a terra con movimento dimezzato!`
+          : `${attacker.name} fa cadere ${defender.name || "il bersaglio"} a terra con movimento dimezzato!`
+      );
+    } else if (calledShotZone === "head" && finalDamage > 0) {
+      // Head: Log damage doubling (already applied above)
+      updatedSave = appendCombatLog(
+        updatedSave,
+        attacker.kind === "PC"
+          ? `Il colpo alla testa infligge danni raddoppiati!`
+          : `${attacker.name} colpisce alla testa con danni raddoppiati!`
+      );
+    }
+  }
+
+  // Combine emitted effects with Called Shot effects
+  const allEffects = [...(emittedEffects || []), ...calledShotEffects];
+
   // Log damage roll if damage was applied
   if (didApplyDamage && finalDamage > 0) {
     const combat = updatedSave.runtime.combat;
@@ -353,7 +452,7 @@ export function applyCombatDamageIfHit(
     didApplyDamage,
     targetKo,
     finalDamage,
-    effects: emittedEffects.length > 0 ? emittedEffects : undefined,
+    effects: allEffects.length > 0 ? allEffects : undefined,
     actorDied,
   };
 }
