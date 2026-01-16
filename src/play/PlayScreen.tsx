@@ -59,7 +59,7 @@ export function PlayScreen() {
         INI: 75,
         PER: 73,
       },
-      resources: { wounds: 0, rf: 0, peq: 3 },
+      resources: { wounds: 0, rf: 0, fatePoints: 3 },
       skills: {
         "skill:dodge": 2,
         "skill:parry": 1,
@@ -143,7 +143,7 @@ export function PlayScreen() {
       },
       resources: { wounds: 0, rf: 0 },
       skills: {},
-      talents: {},
+      talents: { "talent:deny_the_witch": 1 },
       traits: { "trait:size": { size: 4 } },
       equipment: {
         mainHand: { kind: "weapon" as const, id: "club" },

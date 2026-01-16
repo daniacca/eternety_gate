@@ -245,7 +245,6 @@
     "grants": [{ "type": "unlockAction", "actionId": "combat:calledShot" }],
     "maxRank": 1
   },
-
   {
     "id": "talent:deny_the_witch",
     "name": "Rifiuto della Strega",
