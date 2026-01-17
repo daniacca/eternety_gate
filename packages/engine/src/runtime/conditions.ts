@@ -79,6 +79,13 @@ export function addConditionToActor(
   untilTurnCounter?: number,
   source?: string
 ): Actor {
+  if (
+    condition === "bleeding" &&
+    (actor.traits?.["trait:undying"] !== undefined || actor.traits?.["trait:machine"] !== undefined)
+  ) {
+    return actor;
+  }
+
   const existingInstance = actor.conditions?.[condition];
   const newInstance: ConditionInstance = {
     stacks: stacks ?? existingInstance?.stacks ?? 1,

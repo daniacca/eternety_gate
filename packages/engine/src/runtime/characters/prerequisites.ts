@@ -159,6 +159,18 @@ export function getTalentParams(actor: Actor, talentId: string): TalentParams | 
 }
 
 /**
+ * Checks if an actor can acquire a trait (used by character builders)
+ */
+export function canAcquireTrait(actor: Actor, traitId: string): { valid: boolean; reason?: string } {
+  if (traitId === "trait:weaver" && actor.traits?.["trait:untouchable"] !== undefined) {
+    return {
+      valid: false,
+      reason: "Cannot acquire trait:weaver while trait:untouchable is present",
+    };
+  }
+  return { valid: true };
+}
+/**
  * Gets all acquired talents with their params for an actor
  */
 export function getActorTalentsWithParams(actor: Actor): Array<{ talentId: string; rank: number; params?: TalentParams }> {

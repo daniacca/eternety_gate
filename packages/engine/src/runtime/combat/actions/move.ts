@@ -93,6 +93,8 @@ export function combatMove(
     return { save };
   }
 
+  const canFly = actor.traits?.["trait:flyer"] !== undefined;
+
   if (combat.turn.moveRemaining <= 0) {
     // Movement exhausted
     const blockedCheck = {
@@ -141,10 +143,10 @@ export function combatMove(
   };
 
   // Validate footprint placement (checks bounds, walkability, and overlap with other actors)
-  if (!canPlaceActorAt(save, actorId, newPos, contentPack)) {
+  if (!canPlaceActorAt(save, actorId, newPos, contentPack, canFly)) {
     // Check if it's a walkability issue for better error reporting
     const terrain = contentPack ? getCellTerrain(save, newPos, contentPack) : null;
-    const isWalkabilityIssue = terrain && !terrain.walkable;
+    const isWalkabilityIssue = !canFly && terrain && !terrain.walkable;
 
     const blockedCheck = {
       checkId: "combat:move:blocked",

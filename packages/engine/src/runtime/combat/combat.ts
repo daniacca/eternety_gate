@@ -18,6 +18,13 @@ import { applyDamageToActor } from "./criticalDamage";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { performCheckWithSave } from "../checks";
 import type { SingleCheck } from "../types";
+import { getModifierTotal } from "../characters/modifiers";
+import {
+  getCombatDamageTracking,
+  resetCombatDamageTrackingForActor,
+  trackCombatSelfDamage,
+} from "./damageTracking";
+import { getUntouchableAuraImpact } from "./untouchableAura";
 
 /**
  * Checks if combat should end based on faction deaths
@@ -134,10 +141,28 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
  * @param catalogs - Character catalogs (optional, required for catalog-based AGI bonuses)
  */
 export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?: CharacterCatalogs): number {
-  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI", catalogs);
-  const sizeModifier = getSizeMovementModifier(actor);
   const modifiers = computeCombatModifiersFromConditions(actor);
   const moveDelta = modifiers.moveDelta ?? 0;
+
+  const fallbackFlySpeed =
+    typeof actor.traits?.["trait:flyer"] === "object" && typeof actor.traits["trait:flyer"].x === "number"
+      ? actor.traits["trait:flyer"].x
+      : 0;
+  const flySpeed = catalogs ? getModifierTotal(save, catalogs, actor.id, "movement.flySpeed") : fallbackFlySpeed;
+  const canFly = catalogs
+    ? getModifierTotal(save, catalogs, actor.id, "movement.canFly") > 0
+    : fallbackFlySpeed > 0;
+
+  if (canFly && flySpeed > 0) {
+    let baseMove = Math.max(1, flySpeed + moveDelta);
+    if (hasCondition(actor, "halvedMovement")) {
+      baseMove = Math.max(1, Math.floor(baseMove / 2));
+    }
+    return Math.max(1, baseMove);
+  }
+
+  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI", catalogs);
+  const sizeModifier = getSizeMovementModifier(actor);
   let baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
   
   // Called Shot to legs: halve movement
@@ -314,6 +339,8 @@ export function startCombat(
     parryDisabledUntilTurnCounterByActorId: {},
     equippedThisRoundByActorId: {},
     initialHpByActorId,
+    damageTakenSinceLastTurnByActorId: {},
+    damageDealtSinceLastTurnByActorId: {},
   };
 
   // Reset combat log and initialize with start message
@@ -526,6 +553,9 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
       const damageResult = applyDamageToActor(currentActor, damage, updatedSave, rng);
       currentActor = damageResult.updatedActor;
       const emittedEffects = damageResult.effects;
+      if (!damageResult.dieHardUsed && damage > 0) {
+        updatedSave = trackCombatSelfDamage(updatedSave, currentTurnActorId, damage);
+      }
 
       // Update save with new actor state
       updatedSave = {
@@ -742,6 +772,195 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
           updatedSave = appendCombatLog(updatedSave, boundLog);
         }
       }
+    }
+
+    // Spiritual Instability check (after condition ticks)
+    if (currentActor.traits?.["trait:spiritual_instability"] !== undefined) {
+      const tracking = getCombatDamageTracking(updatedSave, currentTurnActorId);
+      const shouldCheckInstability = tracking.taken > 0 && tracking.dealt <= 0;
+
+      if (shouldCheckInstability) {
+        const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
+        const auraImpact = catalogs ? getUntouchableAuraImpact(updatedSave, catalogs, currentTurnActorId) : null;
+        const auraPenalty = auraImpact?.penalty ?? 0;
+
+        const instabilityCheck: SingleCheck = {
+          id: `combat:spiritualInstability:${currentTurnActorId}:${newTurnCounter}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: currentTurnActorId },
+          key: "WIL",
+          difficulty: "Challenging",
+          modifier: auraPenalty !== 0 ? auraPenalty : undefined,
+        };
+
+        const { result, save: saveAfterCheck } = performCheckWithSave(
+          instabilityCheck,
+          storyPack,
+          updatedSave,
+          rng,
+          `res:spiritualInstability:${currentTurnActorId}:${newTurnCounter}`
+        );
+
+        updatedSave = {
+          ...saveAfterCheck,
+          runtime: {
+            ...saveAfterCheck.runtime,
+            rngCounter: rng.getCounter(),
+          },
+        };
+
+        // Reset tracking for the new turn before applying any backlash damage
+        updatedSave = resetCombatDamageTrackingForActor(updatedSave, currentTurnActorId);
+        currentActor = updatedSave.actorsById[currentTurnActorId] || currentActor;
+
+        if (result && !result.success) {
+          const backlashDamage = 1 + result.dof;
+          const damageResult = applyDamageToActor(currentActor, backlashDamage, updatedSave, rng, storyPack, catalogs);
+          currentActor = damageResult.updatedActor;
+
+          updatedSave = {
+            ...updatedSave,
+            actorsById: {
+              ...updatedSave.actorsById,
+              [currentTurnActorId]: currentActor,
+            },
+            runtime: {
+              ...updatedSave.runtime,
+              rngCounter: rng.getCounter(),
+            },
+          };
+
+          if (!damageResult.dieHardUsed && backlashDamage > 0) {
+            updatedSave = trackCombatSelfDamage(updatedSave, currentTurnActorId, backlashDamage);
+          }
+
+          // Apply emitted effects (conditions from critical damage tiers)
+          for (const effect of damageResult.effects) {
+            if (effect.op === "addCondition") {
+              const actorToUpdate = updatedSave.actorsById[effect.actorId];
+              if (actorToUpdate) {
+                const updatedActorWithCondition = addConditionToActor(
+                  actorToUpdate,
+                  effect.condition,
+                  effect.stacks,
+                  effect.durationTurns,
+                  effect.source
+                );
+                updatedSave = {
+                  ...updatedSave,
+                  actorsById: {
+                    ...updatedSave.actorsById,
+                    [effect.actorId]: updatedActorWithCondition,
+                  },
+                };
+              }
+            }
+          }
+
+          const instabilityLog = isPlayerActor
+            ? `La tua instabilita spirituale ti infligge ${backlashDamage} ferite.`
+            : `${actorName} subisce ${backlashDamage} ferite per instabilita spirituale.`;
+          updatedSave = appendCombatLog(updatedSave, instabilityLog);
+
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: `Spiritual Instability: ${currentTurnActorId} suffers ${backlashDamage} damage`,
+            turnCounter: newTurnCounter,
+            tags: [
+              "spirit:instability",
+              `damage=${backlashDamage}`,
+              ...(auraImpact ? [`aura:untouchable=${auraImpact.sourceId}`] : []),
+            ],
+          });
+
+          const updatedActor = updatedSave.actorsById[currentTurnActorId];
+          if (updatedActor && updatedActor.resources.isDead === true) {
+            const deathLog = isPlayerActor ? "Sei morto!" : `${actorName} è morto!`;
+            updatedSave = appendCombatLog(updatedSave, deathLog);
+
+            const updatedAliveParticipants =
+              updatedSave.runtime.combat?.participants.filter((id) => {
+                const actor = updatedSave.actorsById[id];
+                return isActorAlive(actor);
+              }) || [];
+
+            const endCheckResult = shouldCombatEnd(updatedSave, updatedAliveParticipants);
+            if (endCheckResult.shouldEnd) {
+              const outcome = endCheckResult.outcome || "victory";
+              const winnerId = endCheckResult.winnerId;
+              const combatState = updatedSave.runtime.combat;
+              const endedSceneId = combatState?.startedBySceneId || updatedSave.runtime.currentSceneId;
+
+              const endLog =
+                outcome === "victory"
+                  ? "Tutti i nemici presenti nell'area sono stati sconfitti."
+                  : "Il party è stato annientato. Game over.";
+
+              const endCheck: CheckResult = last
+                ? {
+                    ...last,
+                    tags: [
+                      ...last.tags,
+                      "combat:state=end",
+                      `combat:outcome=${outcome}`,
+                      ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+                    ],
+                  }
+                : {
+                    checkId: "combat:end",
+                    actorId: updatedSave.party.activeActorId,
+                    roll: 0,
+                    target: 0,
+                    success: true,
+                    dos: 0,
+                    dof: 0,
+                    critical: "none",
+                    tags: [
+                      "combat:state=end",
+                      `combat:outcome=${outcome}`,
+                      ...(winnerId ? [`combat:winner=${winnerId}`] : []),
+                    ],
+                  };
+
+              updatedSave = appendCombatLog(updatedSave, endLog);
+
+              return {
+                ...updatedSave,
+                runtime: {
+                  ...updatedSave.runtime,
+                  combat: undefined,
+                  lastCheck: endCheck,
+                  combatEndedSceneId: endedSceneId,
+                },
+              };
+            }
+
+            const combatAfterDeath = updatedSave.runtime.combat;
+            if (combatAfterDeath) {
+              const prevAliveIndex = updatedAliveParticipants.indexOf(prevActorId);
+              const pivotIndex = prevAliveIndex >= 0 ? prevAliveIndex : 0;
+
+              updatedSave = {
+                ...updatedSave,
+                runtime: {
+                  ...updatedSave.runtime,
+                  combat: {
+                    ...combatAfterDeath,
+                    participants: updatedAliveParticipants,
+                    currentIndex: pivotIndex,
+                  },
+                },
+              };
+
+              return advanceCombatTurn(updatedSave, storyPack);
+            }
+          }
+        }
+      } else {
+        updatedSave = resetCombatDamageTrackingForActor(updatedSave, currentTurnActorId);
+      }
+    } else {
+      updatedSave = resetCombatDamageTrackingForActor(updatedSave, currentTurnActorId);
     }
 
     // Remove expired conditions (untilTurnCounter < current turnCounter)

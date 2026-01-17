@@ -9,6 +9,8 @@ import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import { hasTrait } from "../characters/prerequisites";
+import { getUntouchableAuraRadius, getUntouchableWilBonus, isUntouchable } from "../characters/untouchable";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -156,6 +158,28 @@ export function computeAttackTarget(
   if (isAttackerUnarmed && isDefenderArmed) {
     combatModifier -= 20;
     modifierTags.push("combat:mod:unarmed=-20");
+  }
+
+  // Untouchable aura penalty to hit (melee by default, extended radius affects all)
+  if (catalogs && isUntouchable(defender)) {
+    const radius = getUntouchableAuraRadius(save, catalogs, defender.id);
+    if (radius > 0) {
+      const dist = footprintDistanceBetweenActors(save, attacker.id, defender.id);
+      const appliesToRanged = radius > 1;
+      if (dist <= radius && (appliesToRanged || check.attacker.mode === "MELEE")) {
+        combatModifier -= 20;
+        modifierTags.push("combat:mod:untouchable=-20");
+
+        if (hasTrait(attacker, "trait:weaver")) {
+          const wilBonus = getUntouchableWilBonus(save, defender.id, catalogs);
+          const extraPenalty = -(5 * wilBonus);
+          if (extraPenalty !== 0) {
+            combatModifier += extraPenalty;
+            modifierTags.push(`combat:mod:untouchable:weaver=${extraPenalty}`);
+          }
+        }
+      }
+    }
   }
 
   // Defend: -20 to hit against defender

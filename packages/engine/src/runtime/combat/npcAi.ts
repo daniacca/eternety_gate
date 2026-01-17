@@ -130,6 +130,8 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
       const neighbors = (p: Pos): Array<{ pos: Pos; dir: (typeof DIRS)[number]["dir"] }> =>
         DIRS.map((d) => ({ dir: d.dir, pos: { x: p.x + d.dx, y: p.y + d.dy } })).filter((n) => inBounds(n.pos));
 
+      const npcCanFly = save.actorsById[npcId]?.traits?.["trait:flyer"] !== undefined;
+
       // Candidate melee positions: any walkable, unoccupied cell adjacent (Chebyshev 1) to target.
       const buildGoals = (): Set<string> => {
         const goals = new Set<string>();
@@ -137,7 +139,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
           const p = n.pos;
           if (!inBounds(p)) continue;
           if (distanceChebyshev(p as any, targetPos as any) !== 1) continue;
-          if (!canPlaceActorAt(save, npcId, p as any, contentPack)) continue;
+          if (!canPlaceActorAt(save, npcId, p as any, contentPack, npcCanFly)) continue;
           goals.add(keyOf(p));
         }
         return goals;
@@ -180,7 +182,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
             const nk = keyOf(n.pos);
             if (seen.has(nk)) continue;
             // Skip cells we can't occupy (walkable=false, out-of-bounds, or occupied by living actor footprint)
-            if (!canPlaceActorAt(save, npcId, n.pos as any, contentPack)) continue;
+            if (!canPlaceActorAt(save, npcId, n.pos as any, contentPack, npcCanFly)) continue;
             seen.add(nk);
             prev.set(nk, { from: curKey, viaDir: n.dir });
             q.push(n.pos);

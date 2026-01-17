@@ -1,6 +1,8 @@
 import type { StatOrSkillKey, GameSave, Actor, StoryPack } from "../types";
 import { getStatOrSkillValue } from "./values";
 import { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import { getModifierTotal } from "../characters/modifiers";
 
 function getEquippedItems(actor: Actor): string[] {
   const items: string[] = [];
@@ -119,6 +121,25 @@ export function computeTargetBreakdown(
 
   const difficultyMod = resolveDifficulty(difficulty, storyPack);
 
+  // Skill modifiers from catalogs (traits/talents) apply to skill checks
+  let catalogSkillMod = 0;
+  if (key.startsWith("SKILL:") && storyPack) {
+    const catalogs = storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+    if (catalogs) {
+      const skillId = key.substring(6);
+      catalogSkillMod = getModifierTotal(save, catalogs, actor.id, `skill.${skillId}.mod` as any);
+    }
+  }
+
   // Calculate temp modifiers sum for debug tags
   let tempModsSum = 0;
   const currentTurnCounter = save.runtime.combat?.turnCounter ?? -1;
@@ -131,9 +152,12 @@ export function computeTargetBreakdown(
       tempModsSum += tempMod.value;
     }
   }
+  if (catalogSkillMod !== 0) {
+    tempModsSum += catalogSkillMod;
+  }
 
   // Use getStatOrSkillValue for final value (includes temp modifiers)
-  const finalValue = getStatOrSkillValue(actor, key, save, storyPack);
+  const finalValue = getStatOrSkillValue(actor, key, save, storyPack) + catalogSkillMod;
   const target = finalValue + difficultyMod;
 
   return {

@@ -678,6 +678,10 @@ export type CombatState = {
   // Initial HP when combat started (for UI display of max HP)
   initialHpByActorId?: Record<ActorId, number>;
 
+  // Damage tracking since last turn start (used for spiritual instability)
+  damageTakenSinceLastTurnByActorId?: Record<ActorId, number>;
+  damageDealtSinceLastTurnByActorId?: Record<ActorId, number>;
+
   // Magic channeling state
   channeling?: {
     actorId: ActorId;

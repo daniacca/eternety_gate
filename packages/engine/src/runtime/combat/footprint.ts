@@ -196,7 +196,8 @@ export function isFootprintWalkable(
   save: GameSave,
   actorId: ActorId,
   centerPos: Position,
-  contentPack?: ContentPack
+  contentPack?: ContentPack,
+  ignoreWalkable: boolean = false
 ): boolean {
   const actor = save.actorsById[actorId];
   if (!actor) {
@@ -210,7 +211,7 @@ export function isFootprintWalkable(
   // Check all cells in footprint are walkable
   for (const cell of footprint) {
     const terrain = getCellTerrain(save, cell, contentPack);
-    if (!terrain.walkable) {
+    if (!ignoreWalkable && !terrain.walkable) {
       return false;
     }
   }
@@ -229,7 +230,8 @@ export function canPlaceActorAt(
   save: GameSave,
   actorId: ActorId,
   newCenterPos: Position,
-  contentPack?: ContentPack
+  contentPack?: ContentPack,
+  ignoreWalkable: boolean = false
 ): boolean {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -249,7 +251,7 @@ export function canPlaceActorAt(
   }
   
   // Check all cells are walkable
-  if (!isFootprintWalkable(save, actorId, newCenterPos, contentPack)) {
+  if (!isFootprintWalkable(save, actorId, newCenterPos, contentPack, ignoreWalkable)) {
     return false;
   }
   

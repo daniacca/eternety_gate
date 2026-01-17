@@ -5,6 +5,8 @@ import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration"
 import { performCheckWithSave } from "../../checks";
 import { getCharacteristicBonus } from "../../characters/bonuses";
 import type { CharacterCatalogs } from "../../../content/catalogs";
+import { getUntouchableAuraImpact } from "../untouchableAura";
+import { hasTrait } from "../../characters/prerequisites";
 
 /**
  * Channeling action: Full Round Action
@@ -81,9 +83,23 @@ export function combatChannel(
         }
       : undefined;
 
+  const actor = save.actorsById[turnActorId];
+  if (!actor) {
+    return { save };
+  }
+
   // MVP: Use WIL bonus for channeling (future: use SKILL:skill:channeling)
   const wilBonus = getCharacteristicBonus(save, turnActorId, "WIL", catalogs);
   const channelingTarget = wilBonus;
+
+  // Untouchable aura penalty applies when a weaver channels within the aura
+  let auraPenalty = 0;
+  if (hasTrait(actor, "trait:weaver") && catalogs) {
+    const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
+    if (impact) {
+      auraPenalty = impact.penalty;
+    }
+  }
 
   // Create channeling check
   const channelingCheck: SingleCheck = {
@@ -92,6 +108,7 @@ export function combatChannel(
     actorRef: { mode: "byId", actorId: turnActorId },
     key: "WIL", // MVP: use WIL stat directly
     difficulty: "Challenging",
+    modifier: auraPenalty !== 0 ? auraPenalty : undefined,
   };
 
   // Generate resolutionId
@@ -142,7 +159,6 @@ export function combatChannel(
   };
 
   // Add narration
-  const actor = save.actorsById[turnActorId];
   if (result.success) {
     const logEntry =
       actor?.kind === "PC"

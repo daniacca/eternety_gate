@@ -41,6 +41,15 @@ export function applyCriticalDamageTiers(
 
   const newTier = Math.min(10, Math.floor(criticalDamage));
 
+  const isUndying = actor.traits?.["trait:undying"] !== undefined || actor.traits?.["trait:machine"] !== undefined;
+  if (isUndying) {
+    return {
+      emittedEffects,
+      actorDied,
+      newTierApplied: newTier,
+    };
+  }
+
   // Apply effects only for tiers (criticalTierApplied+1 .. newTier), in order
   // Note: newTier is capped at 10 for effect application, but we check criticalDamage >= 10 for death
   for (let tier = criticalTierApplied + 1; tier <= newTier; tier++) {

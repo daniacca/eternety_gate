@@ -139,5 +139,130 @@
         "actionId": "trait:regeneration"
       }
     ]
+  },
+  {
+    "id": "trait:magic_resistance",
+    "name": "Resistenza alla Magia",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.resistance",
+        "op": "add",
+        "valueRef": "x"
+      }
+    ]
+  },
+  {
+    "id": "trait:untouchable",
+    "name": "Intoccabile",
+    "grants": []
+  },
+  {
+    "id": "trait:daemonic",
+    "name": "Demoniaco",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "stat.tou.bonusAdd",
+        "op": "add",
+        "valueRef": "x"
+      },
+      {
+        "type": "modifier",
+        "key": "spirit.daemonic",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "trait:spiritual_instability",
+    "name": "Instabilita Spirituale",
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "spirit.instability",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "trait:undying",
+    "name": "Non Morto",
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "body.undying",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "trait:machine",
+    "name": "Macchina",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "body.machine",
+        "op": "add",
+        "value": 1
+      },
+      {
+        "type": "modifier",
+        "key": "body.undying",
+        "op": "add",
+        "value": 1
+      },
+      {
+        "type": "modifier",
+        "key": "combat.machineSoak",
+        "op": "add",
+        "valueRef": "x"
+      }
+    ]
+  },
+  {
+    "id": "trait:flyer",
+    "name": "Volatore",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "movement.canFly",
+        "op": "add",
+        "value": 1
+      },
+      {
+        "type": "modifier",
+        "key": "movement.flySpeed",
+        "op": "add",
+        "valueRef": "x"
+      }
+    ]
   }
 ]

@@ -172,7 +172,10 @@ export function combatRequestAttack(
     const defenderActor = save.actorsById[effect.defenderId];
     const defenderSize = getActorSize(defenderActor);
     const defenderFootprintRadius = getFootprintRadius(defenderSize);
-    if (defenderFootprintRadius === 0) {
+    const defenderIsFlyer = defenderActor?.traits?.["trait:flyer"] !== undefined;
+    if (defenderIsFlyer) {
+      coverModifier = "NONE";
+    } else if (defenderFootprintRadius === 0) {
       const terrain = getCellTerrain(save, defenderPos);
       if (terrain.cover === "light") {
         coverModifier = "LIGHT";

@@ -57,7 +57,16 @@ export { getGrid, getCellTerrain } from "./runtime/combat/terrain";
 
 // Character framework
 export { getActorXp, grantActorXp, spendActorXp, buyTalent } from "./runtime/characters/xp";
-export { evaluatePrerequisites, hasTrait, hasTalentRank, statAtLeast, canAcquireTalent, getActorTalentsWithParams, getTalentParams } from "./runtime/characters/prerequisites";
+export {
+  evaluatePrerequisites,
+  hasTrait,
+  hasTalentRank,
+  statAtLeast,
+  canAcquireTalent,
+  getActorTalentsWithParams,
+  getTalentParams,
+  canAcquireTrait,
+} from "./runtime/characters/prerequisites";
 export { hasUnlockedAction } from "./runtime/characters/actions";
 export { getModifierTotal } from "./runtime/characters/modifiers";
 export { getSkillTarget } from "./runtime/characters/skills";

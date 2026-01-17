@@ -4,6 +4,7 @@ import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 
 describe("combat", () => {
   describe("startCombat", () => {
@@ -511,6 +512,42 @@ describe("combat", () => {
 
       // Should account for condition modifiers
       expect(movement).toBeGreaterThanOrEqual(1);
+    });
+
+    it("should override movement for flyers", () => {
+      const storyPack = makeTestStoryPack({
+        traits: [
+          {
+            id: "trait:flyer",
+            name: "Flyer",
+            params: {
+              x: { type: "number", required: true },
+            },
+            grants: [
+              { type: "modifier", key: "movement.canFly", op: "add", value: 1 },
+              { type: "modifier", key: "movement.flySpeed", op: "add", valueRef: "x" },
+            ],
+          },
+        ],
+      });
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 20 },
+        traits: { "trait:flyer": { x: 6 } },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const catalogs = loadCharacterCatalogs({
+        id: storyPack.id,
+        weapons: [],
+        armors: [],
+        skills: storyPack.skills || [],
+        talents: storyPack.talents || [],
+        traits: storyPack.traits || [],
+      });
+
+      const movement = calculateInitialMovement(actor, save, catalogs);
+
+      expect(movement).toBe(6);
     });
 
     it("should work without catalogs", () => {

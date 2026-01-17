@@ -13,7 +13,7 @@ export function hasDenyTheWitch(
   actor: Actor,
   catalogs: CharacterCatalogs
 ): boolean {
-  return hasTalentHook(actor, catalogs, "denyTheWitch");
+  return hasTalentHook(actor, catalogs, "denyTheWitch") || hasTrait(actor, "trait:untouchable");
 }
 
 /**

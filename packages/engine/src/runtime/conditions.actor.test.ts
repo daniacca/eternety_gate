@@ -71,6 +71,17 @@ describe("actor conditions", () => {
       expect(updated.conditions?.prone).toBeDefined();
       expect(updated.conditions?.fatigue).toEqual({ stacks: 2 });
     });
+
+    it("should ignore bleeding for undying actors", () => {
+      const actor = makeTestActor({
+        traits: {
+          "trait:undying": {},
+        },
+      });
+      const updated = addConditionToActor(actor, "bleeding", 1);
+
+      expect(updated.conditions?.bleeding).toBeUndefined();
+    });
   });
 
   describe("removeConditionFromActor", () => {

@@ -6,6 +6,7 @@ import { performCheckWithSave } from "../../checks";
 import { getSpellById, getEffectById } from "../../magic/catalogs";
 import { getMagicPower } from "../../magic/pm";
 import { applyFatigue } from "../../characters/fatigue";
+import { getCharacteristicBonus } from "../../characters/bonuses";
 import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../magic/phenomena";
 import { hasLearnedSpell } from "../../magic/learning";
 import { addConditionToActor } from "../../conditions";
@@ -28,6 +29,11 @@ import { posKey } from "../../items";
 import type { ItemRef } from "../../types";
 import { hasDenyTheWitch, getBestResistStat, performDenyTheWitchCheck } from "../../magic/denyTheWitch";
 import { getResistanceBonus } from "../../characters/talentModifiers";
+import { getModifierTotal } from "../../characters/modifiers";
+import { getUntouchableDenyBonus } from "../../characters/untouchable";
+import { hasTrait } from "../../characters/prerequisites";
+import { trackCombatDamage } from "../damageTracking";
+import { getUntouchableAuraImpact } from "../untouchableAura";
 
 /**
  * Cast Spell action: performs spell casting check and applies effects
@@ -238,6 +244,15 @@ export function combatCastSpell(
   const castingPenaltyModifier = actor.status.tempModifiers?.find((mod) => mod.id === "phenomena:castingPenalty");
   const hasCastingPenalty = !!castingPenaltyModifier;
 
+  // Untouchable aura penalty applies when a weaver casts within the aura
+  let auraPenalty = 0;
+  if (catalogs && hasTrait(actor, "trait:weaver")) {
+    const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
+    if (impact) {
+      auraPenalty = impact.penalty;
+    }
+  }
+
   // Create casting check
   const castingCheck: SingleCheck = {
     id: `combat:cast:${spell.id}:${turnActorId}`,
@@ -245,6 +260,7 @@ export function combatCastSpell(
     actorRef: { mode: "byId", actorId: turnActorId },
     key: effectDef.castingStat,
     difficulty: "Challenging",
+    modifier: auraPenalty !== 0 ? auraPenalty : undefined,
   };
 
   // Generate resolutionId
@@ -299,6 +315,7 @@ export function combatCastSpell(
   const effectiveDoS = castDoS + channelDoS;
   const success = effectiveDoS >= cnBase;
   const overcast = Math.max(0, effectiveDoS - cnBase);
+  const manifestedPM = cnBase + overcast;
 
   // Calculate PM
   const pm = getMagicPower(saveAfterPenaltyRemoval, turnActorId, catalogs);
@@ -528,17 +545,56 @@ export function combatCastSpell(
 
     // Initialize valid targets (will be filtered by opposed saves if needed)
     let validTargetActors = [...targetActors];
+    const targetOvercastById = new Map<ActorId, number>();
+
+    // Magic Resistance (per target): may fully resist or reduce overcast for that target
+    if (catalogs && targetActors.length > 0) {
+      const resistedByMr = new Set<ActorId>();
+
+      for (const target of targetActors) {
+        const mr = getModifierTotal(updatedSave, catalogs, target.actorId, "magic.resistance");
+        if (mr >= manifestedPM) {
+          resistedByMr.add(target.actorId);
+          const targetName = target.actor.name || target.actorId;
+          const resistedLog = `${targetName} resiste alla magia (RM ${mr} >= PM ${manifestedPM}).`;
+          updatedSave = appendCombatLog(updatedSave, resistedLog);
+
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: `Magic resistance: ${target.actorId} resists ${spell.id} (MR ${mr} >= PM ${manifestedPM})`,
+            turnCounter: combat.turnCounter,
+            resolutionId,
+            tags: [
+              "magic:resisted",
+              `magic:mr=${mr}`,
+              `magic:pm=${manifestedPM}`,
+              `magic:spell=${spell.id}`,
+              `magic:target=${target.actorId}`,
+            ],
+          });
+          continue;
+        }
+
+        const effectiveOvercastForTarget = mr > 0 ? Math.max(0, overcast - mr) : overcast;
+        targetOvercastById.set(target.actorId, effectiveOvercastForTarget);
+      }
+
+      validTargetActors = targetActors.filter((t) => !resistedByMr.has(t.actorId));
+    }
+
+    const getOvercastForTarget = (actorId: ActorId): number =>
+      targetOvercastById.get(actorId) ?? overcast;
 
     // Handle opposed saves FIRST (before any effect application)
     // Filter out targets that successfully resist
     // Skip this block for combatDisarmAtRange - it handles its own opposed check
-    if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && targetActors.length > 0) {
+    if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && validTargetActors.length > 0) {
       const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;
       const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
 
       const resistedTargetIds = new Set<ActorId>();
 
-      for (const target of targetActors) {
+      for (const target of validTargetActors) {
         // Deny the Witch talent: defender uses max(defenderStat, Will) for resistance
         const opposedStat = catalogs
           ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
@@ -548,6 +604,9 @@ export function combatCastSpell(
         const magicResistanceBonus = catalogs 
           ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic")
           : 0;
+        const untouchableDenyBonus = catalogs
+          ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId)
+          : 0;
 
         // Perform opposed check: caster's casting check result vs defender's resistance check
         const defenderCheck: SingleCheck = {
@@ -556,7 +615,7 @@ export function combatCastSpell(
           actorRef: { mode: "byId", actorId: target.actorId },
           key: opposedStat,
           difficulty: opposedDifficulty,
-          modifier: magicResistanceBonus, // Apply magic resistance bonus
+          modifier: magicResistanceBonus + untouchableDenyBonus, // Apply magic resistance + untouchable bonus
         };
 
         const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
@@ -602,16 +661,16 @@ export function combatCastSpell(
       }
 
       // Filter out resisted targets
-      validTargetActors = targetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+      validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
     }
 
     // Deny the Witch check for NON-opposed spells
     // Targets with Deny the Witch may attempt a Will check to negate effects on themselves
     // Note: Resistance (Magic) applies to this check because it IS a magic resistance check
-    if (!effectDef.opposed && targetActors.length > 0 && catalogs) {
+    if (!effectDef.opposed && validTargetActors.length > 0 && catalogs) {
       const resistedTargetIds = new Set<ActorId>();
 
-      for (const target of targetActors) {
+      for (const target of validTargetActors) {
         // Only check if target has Deny the Witch talent
         if (!hasDenyTheWitch(target.actor, catalogs)) {
           continue;
@@ -620,6 +679,7 @@ export function combatCastSpell(
         // Resistance (Magic) talent applies to any spell resistance check
         // This is calculated separately from Deny the Witch - they are independent talents
         const magicResistanceBonus = getResistanceBonus(updatedSave, catalogs, target.actorId, "magic");
+        const untouchableDenyBonus = getUntouchableDenyBonus(updatedSave, catalogs, target.actorId);
 
         // Perform Deny the Witch Will check (magic resistance is passed as additional modifier)
         const denyResult = performDenyTheWitchCheck(
@@ -629,7 +689,7 @@ export function combatCastSpell(
           rng,
           spell.id,
           catalogs,
-          magicResistanceBonus // Pass magic resistance as additional modifier
+          magicResistanceBonus + untouchableDenyBonus // Apply magic resistance + untouchable bonus
         );
 
         updatedSave = denyResult.save;
@@ -648,7 +708,7 @@ export function combatCastSpell(
       }
 
       // Filter out targets who successfully used Deny the Witch
-      validTargetActors = targetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+      validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
     }
 
     // Apply damage/heal if effect has baseDamageDice
@@ -656,23 +716,28 @@ export function combatCastSpell(
     // "blessing" and "malediction" effects should not have baseDamageDice (they use conditions/modifiers)
     // But if they do, we still process damage (e.g., kinesis_force_push has damage + condition)
     if (effectDef.baseDamageDice && effectDef.kind !== "fatigue" && validTargetActors.length > 0) {
-      const scaled = scaleDamage(effectDef.baseDamageDice, effectDef.baseDamageFlat, overcast);
-
-      // Roll damage dice
+      // Roll base damage dice once (overcast scaling is applied per target)
+      const baseDice = effectDef.baseDamageDice;
+      const diceCount = baseDice?.dice ?? 0;
+      const diceSides = baseDice?.sides ?? 10;
       let damageRolls: number[] = [];
-      let totalDamage = scaled.flatPlus;
-      for (let i = 0; i < scaled.diceCount; i++) {
-        const roll = rng.nextInt(1, scaled.diceSides);
+      let diceTotal = 0;
+      for (let i = 0; i < diceCount; i++) {
+        const roll = rng.nextInt(1, diceSides);
         damageRolls.push(roll);
-        totalDamage += roll;
+        diceTotal += roll;
       }
 
       // Apply damage/heal to each target
       for (const target of validTargetActors) {
+        const targetOvercast = getOvercastForTarget(target.actorId);
+        const scaled = scaleDamage(effectDef.baseDamageDice, effectDef.baseDamageFlat, targetOvercast);
+        const totalDamage = diceTotal + scaled.flatPlus;
+
         if (effectDef.kind === "heal") {
           // Healing: reduce wounds instead of applying damage
           const woundsBefore = target.actor.resources.wounds ?? 0;
-          const healedAmount = scaleHeal(totalDamage, overcast);
+          const healedAmount = scaleHeal(totalDamage, targetOvercast);
           const woundsAfter = Math.max(0, woundsBefore - healedAmount);
           const healed = woundsBefore - woundsAfter;
 
@@ -695,7 +760,7 @@ export function combatCastSpell(
           // Log healing
           const formula = `${scaled.diceCount}d${scaled.diceSides}${
             scaled.flatPlus > 0 ? ` + ${scaled.flatPlus}` : ""
-          }${overcast > 0 ? ` (overcast +${overcast * 2})` : ""}`;
+          }${targetOvercast > 0 ? ` (overcast +${targetOvercast * 2})` : ""}`;
           updatedSave = appendRuntimeLog(updatedSave, {
             kind: "damage",
             attackerId: turnActorId,
@@ -712,7 +777,7 @@ export function combatCastSpell(
               `magic:effect=${effectDef.id}`,
               `magic:cn=${cnBase}`,
               `magic:dosTotal=${effectiveDoS}`,
-              `magic:overcast=${overcast}`,
+              `magic:overcast=${targetOvercast}`,
               `magic:kind=${effectDef.kind}`,
             ],
           });
@@ -726,8 +791,15 @@ export function combatCastSpell(
           const healLog = `${targetName} recupera ${healed} HP (HP: ${hpBefore}→${hpAfter})`;
           updatedSave = appendCombatLog(updatedSave, healLog);
         } else {
-          // Damage: apply true damage (bypasses armor for MVP)
-          const damageResult = applyDamageToActor(target.actor, totalDamage, updatedSave, rng, storyPack, catalogs);
+          // Damage: bypasses armor, still applies TOU (daemonic bonus ignored for magical source)
+          const baseTouBonus = getCharacteristicBonus(updatedSave, target.actorId, "TOU", catalogs);
+          const daemonicParams = target.actor.traits?.["trait:daemonic"];
+          const daemonicBonus =
+            typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
+          const effectiveTouBonus = Math.max(0, baseTouBonus - daemonicBonus);
+          const finalDamage = Math.max(0, totalDamage - effectiveTouBonus);
+
+          const damageResult = applyDamageToActor(target.actor, finalDamage, updatedSave, rng, storyPack, catalogs);
           updatedSave = {
             ...updatedSave,
             actorsById: {
@@ -735,11 +807,14 @@ export function combatCastSpell(
               [target.actorId]: damageResult.updatedActor,
             },
           };
+          if (!damageResult.dieHardUsed && finalDamage > 0) {
+            updatedSave = trackCombatDamage(updatedSave, turnActorId, target.actorId, finalDamage);
+          }
 
           // Log damage
           const formula = `${scaled.diceCount}d${scaled.diceSides}${
             scaled.flatPlus > 0 ? ` + ${scaled.flatPlus}` : ""
-          }${overcast > 0 ? ` (overcast +${overcast * 2})` : ""}`;
+          }${targetOvercast > 0 ? ` (overcast +${targetOvercast * 2})` : ""}`;
           updatedSave = appendRuntimeLog(updatedSave, {
             kind: "damage",
             attackerId: turnActorId,
@@ -748,7 +823,8 @@ export function combatCastSpell(
             rolls: damageRolls,
             rawDamage: totalDamage,
             soak: 0,
-            finalDamage: totalDamage,
+            touBonus: effectiveTouBonus,
+            finalDamage,
             turnCounter: combat.turnCounter,
             resolutionId,
             tags: [
@@ -756,7 +832,7 @@ export function combatCastSpell(
               `magic:effect=${effectDef.id}`,
               `magic:cn=${cnBase}`,
               `magic:dosTotal=${effectiveDoS}`,
-              `magic:overcast=${overcast}`,
+              `magic:overcast=${targetOvercast}`,
               `magic:kind=${effectDef.kind}`,
             ],
           });
@@ -770,7 +846,7 @@ export function combatCastSpell(
           const woundsAfter = damageResult.updatedActor.resources.wounds ?? 0;
           const hpBefore = maxHpActual - woundsBefore;
           const hpAfter = maxHpActual - woundsAfter;
-          const damageLog = `${targetName} subisce ${totalDamage} danni (HP: ${hpBefore}→${hpAfter})`;
+          const damageLog = `${targetName} subisce ${finalDamage} danni (HP: ${hpBefore}→${hpAfter})`;
           updatedSave = appendCombatLog(updatedSave, damageLog);
         }
       }
@@ -885,6 +961,7 @@ export function combatCastSpell(
     if (effectDef.kind === "fatigue" && validTargetActors.length > 0) {
       for (const target of validTargetActors) {
         let totalFatigue = 0;
+        const targetOvercast = getOvercastForTarget(target.actorId);
 
         // Use applyFatigueDice if present
         if (effectDef.applyFatigueDice) {
@@ -897,7 +974,7 @@ export function combatCastSpell(
           }
 
           // Scale with overcast
-          totalFatigue += overcast;
+          totalFatigue += targetOvercast;
 
           // Apply fatigue
           updatedSave = applyFatigue(updatedSave, target.actorId, totalFatigue, catalogs);
@@ -905,7 +982,7 @@ export function combatCastSpell(
           const targetName = target.actor.name || target.actorId;
           const fatigueLog = `${targetName} subisce ${totalFatigue} Fatigue (${effectDef.applyFatigueDice.dice}d${
             effectDef.applyFatigueDice.sides
-          }${overcast > 0 ? ` + ${overcast} overcast` : ""})`;
+          }${targetOvercast > 0 ? ` + ${targetOvercast} overcast` : ""})`;
           updatedSave = appendCombatLog(updatedSave, fatigueLog);
 
           // Log fatigue application (tags are in combat log, not runtime log)
@@ -923,7 +1000,8 @@ export function combatCastSpell(
     // Apply temp modifiers with duration (for mentis_sensory_distortion, vates_premonition)
     if (effectDef.tempModifier && validTargetActors.length > 0) {
       for (const target of validTargetActors) {
-        const scaledDuration = effectDef.tempModifier.durationRounds + overcast;
+        const targetOvercast = getOvercastForTarget(target.actorId);
+        const scaledDuration = effectDef.tempModifier.durationRounds + targetOvercast;
         const untilTurnCounter = combat.turnCounter + scaledDuration;
         const modifierId = `spell:${spell.id}:${target.actorId}`;
 
@@ -942,7 +1020,7 @@ export function combatCastSpell(
                 key: null, // Applies to all checks when scope is "all"
                 value:
                   spell.id === "spell:vates_premonition"
-                    ? effectDef.tempModifier.value + overcast * 5
+                    ? effectDef.tempModifier.value + targetOvercast * 5
                     : effectDef.tempModifier.value,
                 expires: untilTurnCounter,
               },
@@ -962,7 +1040,7 @@ export function combatCastSpell(
         // Premonition adds +5 per overcast, other temp modifiers don't scale
         const modifierValue =
           spell.id === "spell:vates_premonition"
-            ? effectDef.tempModifier.value + overcast * 5
+            ? effectDef.tempModifier.value + targetOvercast * 5
             : effectDef.tempModifier.value;
         const modifierLog = `${targetName} ottiene modificatore ${
           modifierValue >= 0 ? "+" : ""
@@ -975,21 +1053,22 @@ export function combatCastSpell(
     if (effectDef.applyConditions && validTargetActors.length > 0) {
       for (const conditionSpec of effectDef.applyConditions) {
         for (const target of validTargetActors) {
+          const targetOvercast = getOvercastForTarget(target.actorId);
           let finalStacks: number;
           let finalDuration: number;
 
           if (conditionSpec.conditionId === "force_shield") {
             // Force Shield: stacks = cnBase + overcast, duration = cnBase + overcast
-            finalStacks = cnBase + overcast;
-            finalDuration = cnBase + overcast;
+            finalStacks = cnBase + targetOvercast;
+            finalDuration = cnBase + targetOvercast;
           } else if (conditionSpec.conditionId === "steel_body" || conditionSpec.conditionId === "warp_speed") {
             // Steel Body / Warp Speed: stacks = 1 + overcast (for scaling bonuses)
-            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
-            finalStacks = 1 + overcast;
+            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, targetOvercast);
+            finalStacks = 1 + targetOvercast;
             finalDuration = scaled.durationTurns;
           } else {
             // Other conditions: use normal scaling
-            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, overcast);
+            const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, targetOvercast);
             finalStacks = scaled.stacks;
             finalDuration = scaled.durationTurns;
           }

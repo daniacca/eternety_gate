@@ -9,6 +9,8 @@ import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 import { calculateMaxHp } from "../characters/hp";
 import { applyDamageToActor } from "./criticalDamage";
+import { getModifierTotal } from "../characters/modifiers";
+import { trackCombatDamage } from "./damageTracking";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -21,7 +23,8 @@ export function applyCombatDamageIfHit(
   rng: IRNG,
   storyPack?: StoryPack,
   resolutionId?: string,
-  catalogs?: CharacterCatalogs
+  catalogs?: CharacterCatalogs,
+  isMagicalSource: boolean = false
 ): {
   save: GameSave;
   didApplyDamage: boolean;
@@ -165,6 +168,7 @@ export function applyCombatDamageIfHit(
 
   // Get defender armor soak
   const { soak, armorId } = getActorArmor(save, defender);
+  const machineSoak = catalogs ? getModifierTotal(save, catalogs, defender.id, "combat.machineSoak") : 0;
 
   // Get weapon for penetration calculation
   const weaponForPenetration =
@@ -183,9 +187,19 @@ export function applyCombatDamageIfHit(
     // Penetration reduces effective soak (but not below 0)
     effectiveSoak = Math.max(0, soak - weaponForPenetration.penetration);
   }
+  if (machineSoak > 0) {
+    effectiveSoak += machineSoak;
+  }
 
   // Get defender TOU bonus (always reduces damage)
-  const touBonus = getCharacteristicBonus(save, defender.id, "TOU", catalogs);
+  let touBonus = getCharacteristicBonus(save, defender.id, "TOU", catalogs);
+  if (isMagicalSource) {
+    const daemonicParams = defender.traits?.["trait:daemonic"];
+    const daemonicBonus = typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
+    if (daemonicBonus > 0) {
+      touBonus = Math.max(0, touBonus - daemonicBonus);
+    }
+  }
 
   // Calculate final damage after soak and TOU bonus
   // Formula: (raw damage - armor soak - TOU bonus - other reductions)
@@ -375,6 +389,9 @@ export function applyCombatDamageIfHit(
 
   const targetKo = hpAfter === 0 || actorDied;
   const didApplyDamage = finalDamage > 0;
+  if (didApplyDamage) {
+    updatedSave = trackCombatDamage(updatedSave, attacker.id, defender.id, finalDamage);
+  }
 
   // Called Shot effects on successful hit (only if damage > 0)
   const calledShotEffects: Effect[] = [];
