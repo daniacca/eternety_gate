@@ -10,7 +10,7 @@ import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
-import { getUntouchableAuraRadius, getUntouchableWilBonus, isUntouchable } from "../characters/untouchable";
+import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -171,7 +171,7 @@ export function computeAttackTarget(
         modifierTags.push("combat:mod:untouchable=-20");
 
         if (hasTrait(attacker, "trait:weaver")) {
-          const wilBonus = getUntouchableWilBonus(save, defender.id, catalogs);
+          const wilBonus = getUntouchableEffectiveWilBonus(save, defender.id, catalogs);
           const extraPenalty = -(5 * wilBonus);
           if (extraPenalty !== 0) {
             combatModifier += extraPenalty;

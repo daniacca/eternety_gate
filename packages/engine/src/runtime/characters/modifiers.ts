@@ -2,7 +2,7 @@ import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById, getTraitById } from "../../content/loadCatalogs";
 import { resolveGrantValueRef } from "./grants";
-import { getCharacteristicBonus } from "./bonuses";
+import { getUntouchableEffectiveWilBonus } from "./untouchable";
 
 export type ModifierKey =
   | `magic.${string}`
@@ -110,12 +110,14 @@ function getModifierTotalBase(
 
   // Derived Untouchable modifiers (based on WIL bonus)
   if (actor.traits["trait:untouchable"] !== undefined) {
-    const wilBonus = getCharacteristicBonus(save, actorId, "WIL", catalogs);
     if (key === "magic.resistance") {
+      const wilBonus = getUntouchableEffectiveWilBonus(save, actorId, catalogs);
       total += wilBonus;
     } else if (key === "skill.charm.mod" || key === "skill.intimidate.mod") {
+      const wilBonus = getUntouchableEffectiveWilBonus(save, actorId, catalogs);
       total += -(5 * wilBonus);
     } else if (key === "aura.untouchable.wilBonus") {
+      const wilBonus = getUntouchableEffectiveWilBonus(save, actorId, catalogs);
       total += wilBonus;
     }
   }

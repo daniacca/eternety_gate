@@ -2,7 +2,7 @@ import type { ActorId, GameSave } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { footprintDistanceBetweenActors } from "./footprint";
 import { isActorAlive } from "../characters/actors";
-import { getUntouchableAuraRadius, getUntouchableWilBonus, isUntouchable } from "../characters/untouchable";
+import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
 
 export type UntouchableAuraImpact = {
   sourceId: ActorId;
@@ -36,7 +36,7 @@ export function getUntouchableAuraImpact(
     const distance = footprintDistanceBetweenActors(save, actorId, otherId);
     if (distance > radius) continue;
 
-    const wilBonus = getUntouchableWilBonus(save, otherId, catalogs);
+    const wilBonus = getUntouchableEffectiveWilBonus(save, otherId, catalogs);
     const penalty = -(5 * wilBonus);
 
     if (!best || penalty < best.penalty) {

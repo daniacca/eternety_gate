@@ -50,6 +50,65 @@
     "maxRank": 1
   },
   {
+    "id": "talent:arcane_abjuration_1",
+    "name": "Abjurazione Arcana I",
+    "description": "Aumenta di 1 il bonus effettivo di Volonta per le meccaniche degli Intoccabili.",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:untouchable" }],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:arcane_abjuration_2",
+    "name": "Abjurazione Arcana II",
+    "description": "Aumenta di 1 il bonus effettivo di Volonta per le meccaniche degli Intoccabili.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      { "type": "hasTrait", "traitId": "trait:untouchable" },
+      { "type": "hasTalent", "talentId": "talent:arcane_abjuration_1" }
+    ],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:arcane_abjuration_3",
+    "name": "Abjurazione Arcana III",
+    "description": "Aumenta di 1 il bonus effettivo di Volonta per le meccaniche degli Intoccabili.",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [
+      { "type": "hasTrait", "traitId": "trait:untouchable" },
+      { "type": "hasTalent", "talentId": "talent:arcane_abjuration_2" }
+    ],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:soulless_aura_1",
+    "name": "Aura Senza Anima I",
+    "description": "Estende l'aura anti-magia oltre il contatto in mischia.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:untouchable" }],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:soulless_aura_2",
+    "name": "Aura Senza Anima II",
+    "description": "Estende ulteriormente l'aura anti-magia.",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [
+      { "type": "hasTrait", "traitId": "trait:untouchable" },
+      { "type": "hasTalent", "talentId": "talent:soulless_aura_1" }
+    ],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
     "id": "talent:quick_draw",
     "name": "Estrazione Rapida",
     "description": "Allows drawing a weapon as a free action.",

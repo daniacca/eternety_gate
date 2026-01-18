@@ -57,6 +57,18 @@ const baseTraits = [
   },
 ];
 
+const soullessAuraTalents = [
+  {
+    id: "talent:soulless_aura_1",
+    name: "Soulless Aura I",
+    tier: 2,
+    xpCost: 1000,
+    prerequisites: [{ type: "hasTrait", traitId: "trait:untouchable" }],
+    grants: [],
+    maxRank: 1,
+  },
+];
+
 describe("combatCastSpell - magic resistance", () => {
   it("should fully resist target when magic resistance >= manifested PM", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits });
@@ -173,5 +185,70 @@ describe("combatCastSpell - magic resistance", () => {
     const runtimeLog = result.save.runtime.runtimeLog ?? [];
     const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
     expect(damageEntry?.tags?.includes("magic:overcast=1")).toBe(true);
+  });
+
+  it("should not overflow when target is inside an untouchable field", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits, talents: soullessAuraTalents as any });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 70, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:flame_bolt": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+    });
+    const untouchable = makeTestActor({
+      id: "NPC_2",
+      kind: "NPC",
+      stats: { WIL: 40 } as any,
+      traits: { "trait:untouchable": {} },
+      talents: { "talent:soulless_aura_1": 1 },
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithActors = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+        [untouchable.id]: untouchable,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithActors, [caster.id, target.id, untouchable.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 5, y: 5 },
+            [untouchable.id]: { x: 1, y: 1 },
+            [target.id]: { x: 3, y: 1 }, // dist=2 from untouchable
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:flame_bolt",
+      targetSelection: { kind: "single", targetPos: { x: 3, y: 1 } },
+    };
+
+    const rng = new FixedRng([42], [5, 5]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const runtimeLog = result.save.runtime.runtimeLog ?? [];
+    expect(runtimeLog.some((entry) => entry.kind === "system" && entry.tags?.includes("magic:resisted"))).toBe(true);
   });
 });

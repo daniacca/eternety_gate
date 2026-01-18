@@ -29,7 +29,7 @@ import { posKey } from "../../items";
 import type { ItemRef } from "../../types";
 import { hasDenyTheWitch, getBestResistStat, performDenyTheWitchCheck } from "../../magic/denyTheWitch";
 import { getResistanceBonus } from "../../characters/talentModifiers";
-import { getModifierTotal } from "../../characters/modifiers";
+import { getMagicResistanceAgainstSpell } from "../../magic/resistance";
 import { getUntouchableDenyBonus } from "../../characters/untouchable";
 import { hasTrait } from "../../characters/prerequisites";
 import { trackCombatDamage } from "../damageTracking";
@@ -552,7 +552,7 @@ export function combatCastSpell(
       const resistedByMr = new Set<ActorId>();
 
       for (const target of targetActors) {
-        const mr = getModifierTotal(updatedSave, catalogs, target.actorId, "magic.resistance");
+        const mr = getMagicResistanceAgainstSpell(updatedSave, target.actorId, turnActorId, catalogs);
         if (mr >= manifestedPM) {
           resistedByMr.add(target.actorId);
           const targetName = target.actor.name || target.actorId;
