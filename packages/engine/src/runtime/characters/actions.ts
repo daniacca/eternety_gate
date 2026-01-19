@@ -41,5 +41,28 @@ export function hasUnlockedAction(
     }
   }
 
+  // Check equipped items
+  const equippedItems = [
+    actor.equipment?.mainHand,
+    actor.equipment?.offHand,
+    actor.equipment?.armor,
+    actor.equipment?.helmet,
+    actor.equipment?.boots,
+    actor.equipment?.cloak,
+    actor.equipment?.necklace,
+    actor.equipment?.ring1,
+    actor.equipment?.ring2,
+  ];
+  for (const itemRef of equippedItems) {
+    if (!itemRef || (itemRef.kind !== "item" && itemRef.kind !== "misc")) continue;
+    const item = save.itemsById?.[itemRef.id];
+    if (!item?.grants) continue;
+    for (const grant of item.grants) {
+      if (grant.type === "unlockAction" && grant.actionId === actionId) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }

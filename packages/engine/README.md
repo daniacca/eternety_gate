@@ -77,8 +77,7 @@ const save = createNewGame(
   12345, // RNG seed
   party,
   actorsById,
-  {}, // item catalog
-  { id: "default", weapons: [], armors: [] } // content pack
+  { id: "default", items: [], weapons: [], armors: [] } // content pack
 );
 
 // List available choices
@@ -136,7 +135,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation
 
 ### Core Functions
 
-#### `createNewGame(storyPack, seed, party, actorsById, itemCatalogById, contentPack?)`
+#### `createNewGame(storyPack, seed, party, actorsById, contentPack?)`
 Creates a new game save from a story pack.
 
 #### `listAvailableChoices(storyPack, save): Choice[]`

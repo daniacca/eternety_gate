@@ -16,7 +16,7 @@ import {
 } from "@eg/engine";
 import { useState } from "react";
 import type { ConditionId } from "@eg/engine";
-import sigilContent from "@eg/content/sigil.content.json";
+import { sigilContentPack } from "@eg/content/src";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
@@ -64,12 +64,7 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
   if (!activeActor) return null;
 
   // Load catalogs for bonus calculation
-  const catalogs = loadCharacterCatalogs({
-    ...sigilContent,
-    skills: skillsCatalog as any,
-    talents: talentsCatalog as any,
-    traits: traitsCatalog as any,
-  } as any);
+  const catalogs = loadCharacterCatalogs(sigilContentPack as any);
 
   const hpMax = calculateMaxHp(save, activeActor, catalogs);
   const hp = getCurrentHp(save, activeActor, catalogs);

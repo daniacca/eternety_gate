@@ -1,13 +1,45 @@
 import type { Effect, GameSave, ItemRef, ItemRefKind } from "../types";
-import { getActorInventory } from "../characters/inventory";
+import { getActorInventory, getItemRefQty, removeInventoryItemQty } from "../characters/inventory";
 
 /**
  * Converts ItemKind to ItemRefKind
  */
-function itemKindToItemRefKind(itemKind: string): ItemRefKind {
-  if (itemKind === "weapon") return "weapon";
-  if (itemKind === "armor") return "armor";
-  return "misc";
+function itemTypeToItemRefKind(): ItemRefKind {
+  return "item";
+}
+
+function addItemToInventory(
+  inventory: ItemRef[],
+  itemId: string,
+  kind: ItemRefKind,
+  qty: number,
+  maxStack: number
+): ItemRef[] {
+  if (qty <= 0) return inventory;
+
+  if (maxStack <= 1) {
+    const additions = Array.from({ length: qty }, () => ({ kind, id: itemId } as ItemRef));
+    return [...inventory, ...additions];
+  }
+
+  let remaining = qty;
+  const updated = inventory.map((entry) => {
+    if (entry.id !== itemId || remaining <= 0) return entry;
+    const currentQty = getItemRefQty(entry);
+    const space = maxStack - currentQty;
+    if (space <= 0) return entry;
+    const add = Math.min(space, remaining);
+    remaining -= add;
+    return { ...entry, qty: currentQty + add };
+  });
+
+  while (remaining > 0) {
+    const stackQty = Math.min(maxStack, remaining);
+    remaining -= stackQty;
+    updated.push({ kind, id: itemId, qty: stackQty });
+  }
+
+  return updated;
 }
 
 export function applyAddItem(effect: Extract<Effect, { op: "addItem" }>, save: GameSave): GameSave {
@@ -17,21 +49,22 @@ export function applyAddItem(effect: Extract<Effect, { op: "addItem" }>, save: G
   }
 
   // Look up item in catalog to determine its kind
-  const item = save.itemCatalogById[effect.itemId];
+  const item = save.itemsById[effect.itemId];
   if (!item) {
     return save; // Item not found in catalog, ignore
   }
 
-  // Convert ItemKind to ItemRefKind
-  const itemRefKind = itemKindToItemRefKind(item.kind);
-  const itemRef: ItemRef = {
-    kind: itemRefKind,
-    id: effect.itemId,
-  };
-
   // Add to actor inventory
+  const qty = effect.qty ?? 1;
+  const itemRefKind = itemTypeToItemRefKind();
   const currentInventory = getActorInventory(actor);
-  const updatedInventory = [...currentInventory, itemRef];
+  const updatedInventory = addItemToInventory(
+    currentInventory,
+    effect.itemId,
+    itemRefKind,
+    qty,
+    item.maxStack ?? 1
+  );
 
   const updatedActor = {
     ...actor,
@@ -55,7 +88,11 @@ export function applyRemoveItem(effect: Extract<Effect, { op: "removeItem" }>, s
 
   // Remove item from actor inventory
   const currentInventory = getActorInventory(actor);
-  const updatedInventory = currentInventory.filter((itemRef) => itemRef.id !== effect.itemId);
+  const qty = effect.qty;
+  const updatedInventory =
+    qty === undefined
+      ? currentInventory.filter((itemRef) => itemRef.id !== effect.itemId)
+      : removeInventoryItemQty(currentInventory, effect.itemId, qty).updatedInventory;
 
   const updatedActor = {
     ...actor,

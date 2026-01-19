@@ -8,6 +8,12 @@ import { validateAndApplyRangedModifiers } from "../validation";
 import { footprintDistanceBetweenActors, getActorSize, getFootprintRadius } from "../footprint";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { getCellTerrain } from "../terrain";
+import {
+  getActorInventory,
+  getEquippedWeaponId,
+  getInventoryItemQty,
+  removeInventoryItemQty,
+} from "../../characters/inventory";
 
 /**
  * Centralized attack resolution: the only place that resolves attacks end-to-end
@@ -160,6 +166,59 @@ export function combatRequestAttack(
     // Note: validateAndApplyRangedModifiers expects a CombatAttackCheck, we'll build it below
   }
 
+  // Mutable save for further updates (ammo, action, etc.)
+  let currentSave: GameSave = save;
+
+  // Consume ammo for ranged attacks if required
+  if (effect.mode === "RANGED") {
+    const attacker = currentSave.actorsById[effect.attackerId];
+    if (!attacker) {
+      return { save: currentSave };
+    }
+    const weaponId = effect.weaponId ?? getEquippedWeaponId(attacker);
+    const weapon = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
+
+    if (weapon?.ammo) {
+      const inventory = getActorInventory(attacker);
+      const availableAmmo = getInventoryItemQty(inventory, weapon.ammo.itemId);
+      if (availableAmmo < weapon.ammo.consumedPerAttack) {
+        const blockedCheck = {
+          checkId: "combat:attack:blocked",
+          actorId: effect.attackerId,
+          roll: 0,
+          target: 0,
+          success: false,
+          dos: 0,
+          dof: 0,
+          critical: "none" as const,
+          tags: ["combat:blocked=noAmmo"],
+        };
+        const saveWithLog = appendCombatLog(currentSave, "No ammo.");
+        return {
+          save: {
+            ...saveWithLog,
+            runtime: {
+              ...saveWithLog.runtime,
+              lastCheck: blockedCheck,
+            },
+          },
+        };
+      }
+
+      const { updatedInventory } = removeInventoryItemQty(inventory, weapon.ammo.itemId, weapon.ammo.consumedPerAttack);
+      currentSave = {
+        ...currentSave,
+        actorsById: {
+          ...currentSave.actorsById,
+          [attacker.id]: {
+            ...attacker,
+            inventory: updatedInventory,
+          },
+        },
+      };
+    }
+  }
+
   // Build CombatAttackCheck
   // Include mode and special modifiers in checkId for better identification
   const checkIdSuffix = effect.modifiers?.hitBonus === 20 ? ":allOut" : "";
@@ -236,10 +295,10 @@ export function combatRequestAttack(
     channeling: combat.channeling?.actorId === effect.attackerId ? undefined : combat.channeling,
   };
 
-  let currentSave: GameSave = {
-    ...save,
+  currentSave = {
+    ...currentSave,
     runtime: {
-      ...save.runtime,
+      ...currentSave.runtime,
       combat: combatWithActionConsumed,
     },
   };
@@ -300,6 +359,7 @@ export function combatRequestAttack(
     storyPack?.skills || storyPack?.talents || storyPack?.traits
       ? loadCharacterCatalogs({
           id: storyPack.id,
+          items: storyPack.items || [],
           weapons: storyPack.weapons || [],
           armors: storyPack.armors || [],
           skills: storyPack.skills || [],

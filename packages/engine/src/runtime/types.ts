@@ -90,8 +90,8 @@ export type Condition =
 export type Effect =
   | { op: "setFlag"; path: string; value: boolean }
   | { op: "addCounter"; path: string; value: number }
-  | { op: "addItem"; actorId: ActorId; itemId: ItemId }
-  | { op: "removeItem"; actorId: ActorId; itemId: ItemId }
+  | { op: "addItem"; actorId: ActorId; itemId: ItemId; qty?: number }
+  | { op: "removeItem"; actorId: ActorId; itemId: ItemId; qty?: number }
   | { op: "goto"; sceneId: SceneId }
   | { op: "conditionalEffects"; cases: Array<{ when: Condition; then: Effect[] }> }
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
@@ -165,20 +165,20 @@ export type Effect =
       op: "combatDrop";
       actorId: ActorId;
       itemRef?: ItemRef; // If not provided, drops equipped mainHand
-      fromSlot?: "mainHand" | "offHand" | "armor" | "inventory";
+      fromSlot?: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring1" | "ring2" | "inventory";
       inventoryIndex?: number; // If dropping from inventory
     }
   | {
       op: "combatEquipItem";
       actorId: ActorId;
       itemRef: ItemRef;
-      slot: "mainHand" | "offHand" | "armor";
+      slot: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring1" | "ring2";
       inventoryIndex?: number; // Index in inventory if equipping from inventory
     }
   | {
       op: "combatUnequipItem";
       actorId: ActorId;
-      slot: "mainHand" | "offHand" | "armor";
+      slot: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring1" | "ring2";
     }
   | {
       op: "combatChannel";
@@ -405,6 +405,7 @@ export type StoryPack = {
   effectsCatalog?: any;
 
   // Story-local content (weapons/armors override or extend global content pack)
+  items?: ItemDefinition[];
   weapons?: Weapon[];
   armors?: Armor[];
   skills?: any[];
@@ -440,12 +441,21 @@ export type Weapon = {
     long: number; // e.g. 8
   };
   tags?: string[]; // e.g. ["vengeful"] for Righteous Fury, ["vengeful:3"] for best-of-3 rolls
+  weight?: number;
+  handedness?: "oneHand" | "twoHand";
+  ammo?: {
+    itemId: ItemId;
+    consumedPerAttack: number;
+  };
+  qualities?: string[];
 };
 
 export type Armor = {
   id: ArmorId;
   name: string;
   soak: number; // flat damage reduction
+  agiMax?: number;
+  weight: number;
   tags?: string[];
 };
 
@@ -454,37 +464,30 @@ export type Equipment = {
   armorId?: ArmorId | null;
 };
 
-export type DamageTier = "Half" | "Single" | "Double" | "Triple" | "Fourfold" | "Fivefold";
-export type ItemKind = "weapon" | "armor" | "accessory" | "consumable" | "quest";
+export type ItemGrant =
+  | { type: "modifier"; key: string; op: "add"; value: number; valueRef?: string }
+  | { type: "unlockAction"; actionId: string };
+
+export type ItemDefinition = {
+  id: ItemId;
+  name: string;
+  type: "wearable" | "consumable";
+  slot?: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring";
+  weight: number;
+  maxStack?: number;
+  tags?: string[];
+  grants?: ItemGrant[];
+  shield?: {
+    parryBonus?: number;
+  };
+  use?: {
+    actionId: string;
+  };
+};
 
 // ItemRef uses a simplified ItemKind for inventory/equipment references
-export type ItemRefKind = "weapon" | "armor" | "misc";
-export type ItemRef = { kind: ItemRefKind; id: string };
-
-/**
- * ItemMod:
- * - focus provides step-based (+10) bonuses to magic channeling/casting checks.
- *   (No PM exists in the system.)
- */
-export type ItemMod =
-  | { type: "focus"; channelBonus?: 10 | 20; castBonus?: 10 | 20 }
-  | { type: "bonusStat"; stat: StatKey; value: number }
-  | { type: "bonusSkill"; skill: string; value: number }
-  | { type: "special"; id: string; value?: number };
-
-export type Item = {
-  id: ItemId;
-  kind: ItemKind;
-  name: string;
-  tags: string[];
-  mods: ItemMod[];
-
-  // weapons
-  damageTier?: DamageTier;
-
-  // armor
-  armorValue?: number;
-};
+export type ItemRefKind = "weapon" | "armor" | "item" | "misc";
+export type ItemRef = { kind: ItemRefKind; id: string; qty?: number };
 
 export type Actor = {
   id: ActorId;
@@ -544,6 +547,12 @@ export type Actor = {
     mainHand?: ItemRef | null;
     offHand?: ItemRef | null;
     armor?: ItemRef | null;
+    helmet?: ItemRef | null;
+    boots?: ItemRef | null;
+    cloak?: ItemRef | null;
+    necklace?: ItemRef | null;
+    ring1?: ItemRef | null;
+    ring2?: ItemRef | null;
   };
 
   // Inventory (slice 6.4+)
@@ -769,7 +778,7 @@ export type GameSave = {
    * - items in inventory
    * - (future) pending rewards / quest-required items
    */
-  itemCatalogById: Record<ItemId, Item>;
+  itemsById: Record<ItemId, ItemDefinition>;
 
   /**
    * Weapons and armor catalogs for equipped items

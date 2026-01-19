@@ -11,6 +11,7 @@ import { appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
+import { getEquippedWeapon, getShieldParryBonus, hasShieldEquipped } from "../combat/equipment";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -348,7 +349,14 @@ export function performCombatAttackCheck(
   const combat = save.runtime.combat;
   const turnCounter = combat?.turnCounter ?? 0;
   const disabledUntil = combat?.parryDisabledUntilTurnCounterByActorId?.[defender.id] ?? -1;
-  const canParry = turnCounter >= disabledUntil && check.defense.allowParry;
+  const defenderWeapon = getEquippedWeapon(save, defender.id);
+  const hasMeleeWeapon = defenderWeapon?.kind === "MELEE";
+  const hasShield = hasShieldEquipped(save, defender.id);
+  const hasNaturalWeapons = defender.tags?.includes("natural_weapon") || defender.traits?.["trait:natural_weapons"] !== undefined;
+  const canParry =
+    turnCounter >= disabledUntil &&
+    check.defense.allowParry &&
+    (hasMeleeWeapon || hasShield || hasNaturalWeapons);
   const canDodge = check.defense.allowDodge;
 
   // Use skill keys for defense
@@ -360,6 +368,7 @@ export function performCombatAttackCheck(
 
   // Get Shield Mastery parry bonus (if defender has talent and shield equipped)
   const shieldMasteryBonus = catalogs ? getShieldMasteryParryBonus(save, catalogs, defender.id) : 0;
+  const shieldParryBonus = hasShield ? getShieldParryBonus(save, defender.id) : 0;
 
   if (check.defense.strategy === "preferParry" && canParry) {
     defenseType = "parry";
@@ -374,7 +383,7 @@ export function performCombatAttackCheck(
 
     if (canParry) {
       const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "Challenging", save, storyPack);
-      parryTarget = parryBreakdown.target + shieldMasteryBonus;
+      parryTarget = parryBreakdown.target + shieldMasteryBonus + shieldParryBonus;
     }
 
     if (canDodge) {
@@ -429,7 +438,7 @@ export function performCombatAttackCheck(
   // Roll defense using the chosen skill
   const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
   // Add Shield Mastery bonus to parry target only
-  const parryBonus = defenseType === "parry" ? shieldMasteryBonus : 0;
+  const parryBonus = defenseType === "parry" ? shieldMasteryBonus + shieldParryBonus : 0;
   const defenseTarget = defenseBreakdown.target + parryBonus;
 
   const defenseRoll = rng.rollD100();

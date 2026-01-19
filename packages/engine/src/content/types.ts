@@ -1,4 +1,4 @@
-import type { Weapon, Armor } from "../runtime/types";
+import type { Weapon, Armor, ItemDefinition } from "../runtime/types";
 import type { Skill, Talent, Trait, GridDefinition, TileDefinition } from "./catalogs";
 
 /**
@@ -6,6 +6,7 @@ import type { Skill, Talent, Trait, GridDefinition, TileDefinition } from "./cat
  */
 export type ContentPack = {
   id: string;
+  items?: ItemDefinition[];
   weapons?: Weapon[];
   armors?: Armor[];
   skills?: Skill[];

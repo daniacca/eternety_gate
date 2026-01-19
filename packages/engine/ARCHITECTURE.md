@@ -464,6 +464,7 @@ const choiceHandlers: Record<ChoiceKind, ChoiceHandler> = {
 ```
 createNewGame()
   ├─> bootstrapActorsFromCast() - Load NPCs from story pack
+  ├─> mergeItems() - Merge global + story items
   ├─> mergeWeapons() - Merge global + story weapons
   ├─> mergeArmors() - Merge global + story armors
   └─> Create GameSave with initial state
@@ -656,7 +657,7 @@ type GameSave = {
   };
   party: Party;
   actorsById: Record<ActorId, Actor>;
-  itemCatalogById: Record<ItemId, Item>;
+  itemsById: Record<ItemId, ItemDefinition>;
   weaponsById: Record<WeaponId, Weapon>;
   armorsById: Record<ArmorId, Armor>;
   runtime: GameRuntime;

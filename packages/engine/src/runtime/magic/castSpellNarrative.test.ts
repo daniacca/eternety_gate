@@ -41,7 +41,7 @@ function createTestSave(overrides: Partial<GameSave> = {}): GameSave {
     state: { flags: {}, counters: {} },
     party: { actors: ["pc_test" as ActorId], activeActorId: "pc_test" as ActorId },
     actorsById: { pc_test: actor },
-    itemCatalogById: {},
+    itemsById: {},
     weaponsById: {},
     armorsById: {},
     runtime: {

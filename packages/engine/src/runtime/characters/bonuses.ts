@@ -53,7 +53,7 @@ export function getBonusModifiers(
 
   // TODO: Extend this to check:
   // - actor.conditions for condition-based modifiers
-  // - actor.equipment for item bonuses (via itemCatalogById)
+  // - actor.equipment for item bonuses (via itemsById)
   // - actor.status.tempModifiers for temporary modifiers
   // - active combat effects/buffs
 

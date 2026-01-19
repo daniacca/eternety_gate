@@ -1,3 +1,3 @@
 export { posKey } from "./posKey";
-export { isWeaponItemRef, isArmorItemRef } from "./itemRef";
+export { isWeaponItemRef, isArmorItemRef, isCatalogItemRef } from "./itemRef";
 

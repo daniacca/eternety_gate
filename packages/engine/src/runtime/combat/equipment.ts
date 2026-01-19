@@ -1,9 +1,109 @@
-import type { GameSave, Actor, Weapon, Armor, WeaponId, ArmorId } from "../types";
+import type {
+  GameSave,
+  Actor,
+  Weapon,
+  Armor,
+  WeaponId,
+  ArmorId,
+  ItemDefinition,
+  ItemId,
+} from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getEquippedWeaponId, getEquippedArmorId } from "../characters/inventory";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 import { getMeleeDamageBonusFromTalents, getRangedDamageBonusFromTalents } from "../characters/talentModifiers";
+
+export type EquipmentCatalogs = {
+  itemsById: Record<ItemId, ItemDefinition>;
+  weaponsById: Record<WeaponId, Weapon>;
+  armorsById: Record<ArmorId, Armor>;
+};
+
+function resolveEquipmentCatalogs(save: GameSave, catalogs?: EquipmentCatalogs): EquipmentCatalogs {
+  return (
+    catalogs ?? {
+      itemsById: save.itemsById || {},
+      weaponsById: save.weaponsById || {},
+      armorsById: save.armorsById || {},
+    }
+  );
+}
+
+/**
+ * Resolves equipped weapon definition for an actor
+ */
+export function getEquippedWeapon(
+  save: GameSave,
+  actorId: string,
+  catalogs?: EquipmentCatalogs
+): Weapon | null {
+  const actor = save.actorsById[actorId];
+  if (!actor) return null;
+  const weaponId = getEquippedWeaponId(actor);
+  if (!weaponId) return null;
+  const resolved = resolveEquipmentCatalogs(save, catalogs);
+  return resolved.weaponsById[weaponId] ?? null;
+}
+
+/**
+ * Resolves equipped armor definition for an actor
+ */
+export function getEquippedArmor(
+  save: GameSave,
+  actorId: string,
+  catalogs?: EquipmentCatalogs
+): Armor | null {
+  const actor = save.actorsById[actorId];
+  if (!actor) return null;
+  const armorId = getEquippedArmorId(actor);
+  if (!armorId) return null;
+  const resolved = resolveEquipmentCatalogs(save, catalogs);
+  return resolved.armorsById[armorId] ?? null;
+}
+
+/**
+ * Checks if a shield is equipped in off-hand
+ */
+export function hasShieldEquipped(save: GameSave, actorId: string, catalogs?: EquipmentCatalogs): boolean {
+  const actor = save.actorsById[actorId];
+  if (!actor) return false;
+  const offHand = actor.equipment?.offHand;
+  if (!offHand) return false;
+  if (offHand.kind !== "item" && offHand.kind !== "misc") {
+    return false;
+  }
+  const resolved = resolveEquipmentCatalogs(save, catalogs);
+  const item = resolved.itemsById[offHand.id];
+  if (!item) return false;
+  return Boolean(item.shield || item.tags?.includes("shield"));
+}
+
+/**
+ * Gets the equipped shield item (off-hand), if any
+ */
+export function getEquippedShield(
+  save: GameSave,
+  actorId: string,
+  catalogs?: EquipmentCatalogs
+): ItemDefinition | null {
+  const actor = save.actorsById[actorId];
+  if (!actor) return null;
+  const offHand = actor.equipment?.offHand;
+  if (!offHand || (offHand.kind !== "item" && offHand.kind !== "misc")) return null;
+  const resolved = resolveEquipmentCatalogs(save, catalogs);
+  const item = resolved.itemsById[offHand.id];
+  if (!item || (!item.shield && !item.tags?.includes("shield"))) return null;
+  return item;
+}
+
+/**
+ * Gets shield parry bonus from equipped shield (if any)
+ */
+export function getShieldParryBonus(save: GameSave, actorId: string, catalogs?: EquipmentCatalogs): number {
+  const shield = getEquippedShield(save, actorId, catalogs);
+  return shield?.shield?.parryBonus ?? 0;
+}
 
 /**
  * Gets the equipped weapon for an actor, or returns unarmed weapon data
@@ -17,8 +117,9 @@ export function getActorWeapon(
   name: string;
 } {
   const weaponId = getEquippedWeaponId(actor);
+  const weapon = weaponId ? save.weaponsById?.[weaponId] : null;
 
-  if (!weaponId || !save.weaponsById?.[weaponId]) {
+  if (!weaponId || !weapon) {
     // Unarmed: MELEE with 1d10 + SB
     return {
       weapon: null,
@@ -28,9 +129,9 @@ export function getActorWeapon(
   }
 
   return {
-    weapon: save.weaponsById[weaponId],
+    weapon,
     weaponId,
-    name: save.weaponsById[weaponId].name,
+    name: weapon.name,
   };
 }
 
@@ -47,8 +148,9 @@ export function getActorArmor(
   soak: number;
 } {
   const armorId = getEquippedArmorId(actor);
+  const armor = armorId ? save.armorsById?.[armorId] : null;
 
-  if (!armorId || !save.armorsById?.[armorId]) {
+  if (!armorId || !armor) {
     return {
       armor: null,
       armorId: "none",
@@ -58,10 +160,10 @@ export function getActorArmor(
   }
 
   return {
-    armor: save.armorsById[armorId],
+    armor,
     armorId,
-    name: save.armorsById[armorId].name,
-    soak: save.armorsById[armorId].soak,
+    name: armor.name,
+    soak: armor.soak,
   };
 }
 

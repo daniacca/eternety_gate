@@ -3,20 +3,8 @@ import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
 import { rollD100Check, addPhenomenaTags } from "./evaluation";
-
-function getEquippedItems(actor: any): string[] {
-  const items: string[] = [];
-  if (actor.equipment?.mainHand) {
-    items.push(actor.equipment.mainHand.id);
-  }
-  if (actor.equipment?.offHand) {
-    items.push(actor.equipment.offHand.id);
-  }
-  if (actor.equipment?.armor) {
-    items.push(actor.equipment.armor.id);
-  }
-  return items;
-}
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import { getModifierTotal } from "../characters/modifiers";
 
 export function performMagicChannelCheck(
   check: MagicChannelCheck,
@@ -31,20 +19,20 @@ export function performMagicChannelCheck(
   // Uses key, respects difficulty and tempModifiers
   const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "Challenging", save, storyPack);
 
-  // Apply focus bonuses for channeling
-  let channelBonus = 0;
-  const items = getEquippedItems(actor);
-
-  for (const itemId of items) {
-    const item = save.itemCatalogById[itemId];
-    if (!item) continue;
-
-    for (const mod of item.mods) {
-      if (mod.type === "focus" && mod.channelBonus) {
-        channelBonus += mod.channelBonus;
-      }
-    }
-  }
+  // Apply channel bonuses from catalogs/items
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+  const channelBonus = catalogs ? getModifierTotal(save, catalogs, actor.id, "magic.channelBonus") : 0;
 
   const target = breakdown.target + channelBonus;
   const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);
@@ -109,20 +97,20 @@ export function performMagicEffectCheck(
   // Magic effect performs a D100 check using chosenStat
   const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty || "Challenging", save, storyPack);
 
-  // Apply focus bonuses for casting
-  let castBonus = 0;
-  const items = getEquippedItems(actor);
-
-  for (const itemId of items) {
-    const item = save.itemCatalogById[itemId];
-    if (!item) continue;
-
-    for (const mod of item.mods) {
-      if (mod.type === "focus" && mod.castBonus) {
-        castBonus += mod.castBonus;
-      }
-    }
-  }
+  // Apply cast bonuses from catalogs/items
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+  const castBonus = catalogs ? getModifierTotal(save, catalogs, actor.id, "magic.castBonus") : 0;
 
   const target = breakdown.target + castBonus;
   const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);

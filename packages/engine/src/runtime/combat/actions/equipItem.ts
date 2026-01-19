@@ -1,5 +1,5 @@
 import type { Effect, GameSave, ItemRef } from "../../types";
-import { getActorInventory } from "../../characters/inventory";
+import { getActorInventory, getItemRefQty } from "../../characters/inventory";
 import { getCurrentTurnActorId, calculateInitialMovement } from "../combat";
 
 /**
@@ -55,18 +55,42 @@ export function combatEquipItem(
   let itemRef: ItemRef | null = null;
   let updatedInventory = [...inventory];
 
+  function normalizeItemRefForEquip(ref: ItemRef): ItemRef {
+    const { qty, ...rest } = ref;
+    return rest;
+  }
+
+  function tryRemoveFromInventoryByIndex(index: number): { ref: ItemRef; updated: ItemRef[] } | null {
+    if (index < 0 || index >= inventory.length) return null;
+    const entry = inventory[index];
+    const qty = getItemRefQty(entry);
+    if (qty > 1) {
+      const updated = [...inventory];
+      updated[index] = { ...entry, qty: qty - 1 };
+      return { ref: { ...entry, qty: 1 }, updated };
+    }
+    return { ref: entry, updated: inventory.filter((_, idx) => idx !== index) };
+  }
+
+  function tryRemoveFromInventoryByRef(ref: ItemRef): { ref: ItemRef; updated: ItemRef[] } | null {
+    const index = inventory.findIndex((item) => item.kind === ref.kind && item.id === ref.id);
+    if (index === -1) return null;
+    return tryRemoveFromInventoryByIndex(index);
+  }
+
   // Find item in inventory
   if (effect.inventoryIndex !== undefined) {
-    if (effect.inventoryIndex >= 0 && effect.inventoryIndex < inventory.length) {
-      itemRef = inventory[effect.inventoryIndex];
-      updatedInventory = inventory.filter((_, idx) => idx !== effect.inventoryIndex);
+    const result = tryRemoveFromInventoryByIndex(effect.inventoryIndex);
+    if (result) {
+      itemRef = result.ref;
+      updatedInventory = result.updated;
     }
   } else {
     // Find by itemRef
-    const index = inventory.findIndex((item) => item.kind === effect.itemRef.kind && item.id === effect.itemRef.id);
-    if (index !== -1) {
-      itemRef = inventory[index];
-      updatedInventory = inventory.filter((_, idx) => idx !== index);
+    const result = tryRemoveFromInventoryByRef(effect.itemRef);
+    if (result) {
+      itemRef = result.ref;
+      updatedInventory = result.updated;
     }
   }
 
@@ -76,11 +100,35 @@ export function combatEquipItem(
   }
 
   // Validate slot compatibility
-  if (effect.slot === "mainHand" && itemRef.kind !== "weapon") {
-    return { save }; // Can only equip weapons to mainHand
+  const normalizedRef = normalizeItemRefForEquip(itemRef);
+  const itemKind = normalizedRef.kind;
+  const itemDef = itemKind === "item" || itemKind === "misc" ? save.itemsById?.[normalizedRef.id] : null;
+
+  if (effect.slot === "mainHand") {
+    const canEquipMainHand =
+      itemKind === "weapon" || (itemDef && itemDef.type === "wearable" && itemDef.slot === "mainHand");
+    if (!canEquipMainHand) {
+      return { save };
+    }
   }
-  if (effect.slot === "armor" && itemRef.kind !== "armor") {
-    return { save }; // Can only equip armor to armor slot
+  if (effect.slot === "offHand") {
+    const canEquipOffHand = itemDef && itemDef.type === "wearable" && itemDef.slot === "offHand";
+    if (!canEquipOffHand) {
+      return { save };
+    }
+  }
+  if (effect.slot === "armor" && itemKind !== "armor") {
+    return { save };
+  }
+  if (["helmet", "boots", "cloak", "necklace"].includes(effect.slot)) {
+    if (!itemDef || itemDef.type !== "wearable" || itemDef.slot !== effect.slot) {
+      return { save };
+    }
+  }
+  if (effect.slot === "ring1" || effect.slot === "ring2") {
+    if (!itemDef || itemDef.type !== "wearable" || itemDef.slot !== "ring") {
+      return { save };
+    }
   }
 
   // Get currently equipped item (for swap)
@@ -92,7 +140,7 @@ export function combatEquipItem(
     inventory: updatedInventory,
     equipment: {
       ...actor.equipment,
-      [effect.slot]: itemRef,
+      [effect.slot]: normalizedRef,
     },
   };
 

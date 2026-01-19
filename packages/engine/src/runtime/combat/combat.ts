@@ -9,7 +9,8 @@ import {
   removeConditionFromActor,
   addConditionToActor,
 } from "../conditions";
-import { getInitiativeBonus, getCharacteristicBonus } from "../characters/bonuses";
+import { getInitiativeBonus, getCharacteristicBonusBase } from "../characters/bonuses";
+import { applyArmorAgiCap } from "../characters/effectiveStats";
 import { loadCharacterCatalogs, loadTerrainCatalogs } from "../../content/loadCatalogs";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
@@ -161,7 +162,9 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
     return Math.max(1, baseMove);
   }
 
-  const agiBonus = getCharacteristicBonus(save, actor.id, "AGI", catalogs);
+  const agiStatMod = catalogs ? getModifierTotal(save, catalogs, actor.id, "stat.AGI.testAdd") : 0;
+  const cappedAgi = applyArmorAgiCap(save, actor.id, actor.stats.AGI + agiStatMod);
+  const agiBonus = getCharacteristicBonusBase(cappedAgi);
   const sizeModifier = getSizeMovementModifier(actor);
   let baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
   

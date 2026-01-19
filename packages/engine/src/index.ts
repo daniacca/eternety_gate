@@ -23,10 +23,17 @@ export { performCheck, performCheckWithSave, resolveActor, getStatOrSkillValue }
 export { RNG, rollD100 } from "./runtime/rng";
 
 // Equipment helpers
-export { getActorWeapon, getActorArmor, calculateWeaponDamage } from "./runtime/combat/equipment";
+export {
+  getActorWeapon,
+  getActorArmor,
+  calculateWeaponDamage,
+  getEquippedWeapon,
+  getEquippedArmor,
+  hasShieldEquipped,
+} from "./runtime/combat/equipment";
 
 // Inventory helpers
-export { posKey, isWeaponItemRef, isArmorItemRef } from "./runtime/items";
+export { posKey, isWeaponItemRef, isArmorItemRef, isCatalogItemRef } from "./runtime/items";
 export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./runtime/characters/inventory";
 
 // Combat movement helpers
@@ -48,8 +55,15 @@ export {
 
 // Content pack types and utilities
 export type { ContentPack } from "./content/types";
-export { mergeWeapons, mergeArmors } from "./content/merge";
-export { loadCharacterCatalogs, loadTerrainCatalogs, getSkillById, getTalentById, getTraitById } from "./content/loadCatalogs";
+export { mergeWeapons, mergeArmors, mergeItems } from "./content/merge";
+export {
+  loadCharacterCatalogs,
+  loadTerrainCatalogs,
+  loadEquipmentCatalogs,
+  getSkillById,
+  getTalentById,
+  getTraitById,
+} from "./content/loadCatalogs";
 export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId, GridDefinition, TileDefinition, TerrainCatalogs } from "./content/catalogs";
 
 // Terrain helpers

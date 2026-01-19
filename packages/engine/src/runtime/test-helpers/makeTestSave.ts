@@ -1,4 +1,4 @@
-import type { StoryPack, Actor, Party, GameSave, ActorId, ItemId, Item } from '../types';
+import type { StoryPack, Actor, Party, GameSave, ActorId } from '../types';
 import { createNewGame } from '../engine';
 
 /**
@@ -19,7 +19,7 @@ export function makeTestSave(
     [actor.id]: actor,
   };
 
-  const save = createNewGame(storyPack, seed, party, actorsById, {}, { id: "test", weapons: [], armors: [] });
+  const save = createNewGame(storyPack, seed, party, actorsById, { id: "test", items: [], weapons: [], armors: [] });
 
   // Override counter if specified
   if (counter !== 0) {

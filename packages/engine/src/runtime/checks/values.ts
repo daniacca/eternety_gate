@@ -1,24 +1,8 @@
-import type {
-  StatOrSkillKey,
-  GameSave,
-  Actor,
-  StoryPack,
-} from "../types";
+import type { StatOrSkillKey, GameSave, Actor, StoryPack } from "../types";
 import { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
-
-function getEquippedItems(actor: Actor): string[] {
-  const items: string[] = [];
-  if (actor.equipment?.mainHand) {
-    items.push(actor.equipment.mainHand.id);
-  }
-  if (actor.equipment?.offHand) {
-    items.push(actor.equipment.offHand.id);
-  }
-  if (actor.equipment?.armor) {
-    items.push(actor.equipment.armor.id);
-  }
-  return items;
-}
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
+import { getModifierTotal } from "../characters/modifiers";
+import { applyArmorAgiCap } from "../characters/effectiveStats";
 
 /**
  * Gets the value of a stat or skill for an actor
@@ -30,22 +14,30 @@ export function getStatOrSkillValue(
   save: GameSave,
   storyPack?: StoryPack
 ): number {
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+
   // Check if it's a stat
   if (key in actor.stats) {
-    let value = actor.stats[key as keyof typeof actor.stats];
+    const statKey = key as keyof typeof actor.stats;
+    let value = actor.stats[statKey];
 
-    // Apply equipment bonuses
-    const items = getEquippedItems(actor);
+    if (catalogs) {
+      value += getModifierTotal(save, catalogs, actor.id, `stat.${statKey}.testAdd` as any);
+    }
 
-    for (const itemId of items) {
-      const item = save.itemCatalogById[itemId];
-      if (!item) continue;
-
-      for (const mod of item.mods) {
-        if (mod.type === "bonusStat" && mod.stat === key) {
-          value += mod.value;
-        }
-      }
+    if (statKey === "AGI") {
+      value = applyArmorAgiCap(save, actor.id, value);
     }
 
     // Apply temp modifiers (check expiration)
@@ -70,11 +62,15 @@ export function getStatOrSkillValue(
 
     // Get base stat for the skill
     let baseStatValue = 0;
-    if (storyPack) {
-      const baseStat = getSkillBaseStat(skillId, storyPack);
-      if (baseStat && baseStat in actor.stats) {
-        baseStatValue = actor.stats[baseStat];
-      }
+    const baseStat = storyPack ? getSkillBaseStat(skillId, storyPack) : null;
+    if (baseStat && baseStat in actor.stats) {
+      baseStatValue = actor.stats[baseStat];
+    }
+    if (catalogs && baseStat) {
+      baseStatValue += getModifierTotal(save, catalogs, actor.id, `stat.${baseStat}.testAdd` as any);
+    }
+    if (baseStat === "AGI") {
+      baseStatValue = applyArmorAgiCap(save, actor.id, baseStatValue);
     }
 
     // Calculate skill modifier from rank
@@ -83,23 +79,8 @@ export function getStatOrSkillValue(
     // Start with base stat + skill modifier
     let value = baseStatValue + skillModifier;
 
-    // Apply equipment bonuses to base stat
-    const items = getEquippedItems(actor);
-    for (const itemId of items) {
-      const item = save.itemCatalogById[itemId];
-      if (!item) continue;
-
-      for (const mod of item.mods) {
-        if (mod.type === "bonusStat") {
-          const baseStat = storyPack ? getSkillBaseStat(skillId, storyPack) : null;
-          if (baseStat && mod.stat === baseStat) {
-            value += mod.value;
-          }
-        }
-        if (mod.type === "bonusSkill" && mod.skill === skillId) {
-          value += mod.value;
-        }
-      }
+    if (catalogs) {
+      value += getModifierTotal(save, catalogs, actor.id, `skill.${skillId}.mod` as any);
     }
 
     // Apply temp modifiers (check expiration)

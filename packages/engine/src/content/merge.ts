@@ -1,4 +1,4 @@
-import type { Weapon, Armor, WeaponId, ArmorId } from "../runtime/types";
+import type { Weapon, Armor, WeaponId, ArmorId, ItemDefinition, ItemId } from "../runtime/types";
 
 /**
  * Helper to index an array by id
@@ -57,3 +57,23 @@ export function mergeArmors(
   return result;
 }
 
+/**
+ * Merges global and story items into a single map
+ * Story items with the same id override global items
+ */
+export function mergeItems(
+  globalItems?: ItemDefinition[],
+  storyItems?: ItemDefinition[]
+): Record<ItemId, ItemDefinition> {
+  const result: Record<ItemId, ItemDefinition> = {};
+
+  if (globalItems && globalItems.length > 0) {
+    Object.assign(result, indexById(globalItems));
+  }
+
+  if (storyItems && storyItems.length > 0) {
+    Object.assign(result, indexById(storyItems));
+  }
+
+  return result;
+}

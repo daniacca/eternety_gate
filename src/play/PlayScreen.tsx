@@ -11,6 +11,7 @@ import {
   type StoryPack,
   type ContentPack,
   type Effect,
+  type ItemRef,
   buildSpellTargetSpec,
   computeTargetPreview,
   getSpellById,
@@ -22,7 +23,6 @@ import {
   type Position,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
-import sigilContent from "@eg/content/sigil.content.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import traitsCatalog from "@eg/content/src/catalogs/traits.json";
@@ -37,6 +37,7 @@ import { ChoiceList } from "./components/ChoiceList";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
+import { EquipmentModal } from "./components/EquipmentModal";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
 
 export function PlayScreen() {
@@ -115,7 +116,16 @@ export function PlayScreen() {
         conditions: [],
         tempModifiers: [],
       },
-      inventory: [{ kind: "weapon" as const, id: "club" }],
+      inventory: [
+        { kind: "weapon" as const, id: "club" },
+        { kind: "item" as const, id: "shield:wooden" },
+        { kind: "item" as const, id: "helmet:leather" },
+        { kind: "item" as const, id: "boots:leather" },
+        { kind: "item" as const, id: "cloak:traveler" },
+        { kind: "item" as const, id: "necklace:iron" },
+        { kind: "item" as const, id: "ring:agility" },
+        { kind: "item" as const, id: "ammo:arrow", qty: 10 },
+      ],
     };
 
     const party = {
@@ -170,8 +180,7 @@ export function PlayScreen() {
       123456, // fixed seed
       party,
       { PC_1: minimalActor, NPC_DUMMY: npcDummy, NPC_DUMMY_2: { ...npcDummy, id: "NPC_DUMMY_2", name: "Dummy 2" } },
-      {}, // empty item catalog for now
-      sigilContent as ContentPack
+      sigilContentPack as ContentPack
     );
   }, []);
 
@@ -195,10 +204,12 @@ export function PlayScreen() {
     selection: Partial<TargetSelection>;
     preview: TargetPreview;
   };
+  type EquipmentSlot = "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring1" | "ring2";
 
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
+  const [equipmentVisible, setEquipmentVisible] = useState(false);
   const [spellTargeting, setSpellTargeting] = useState<SpellTargetingState | null>(null);
   const { width, height } = useWindowDimensions();
 
@@ -236,6 +247,28 @@ export function PlayScreen() {
     };
 
     setSave(newSave);
+  };
+
+  const handleEquipItem = (slot: EquipmentSlot, inventoryIndex: number, itemRef: ItemRef) => {
+    applySystemEffects([
+      {
+        op: "combatEquipItem",
+        actorId: save.party.activeActorId,
+        itemRef,
+        slot,
+        inventoryIndex,
+      },
+    ]);
+  };
+
+  const handleUnequipItem = (slot: EquipmentSlot) => {
+    applySystemEffects([
+      {
+        op: "combatUnequipItem",
+        actorId: save.party.activeActorId,
+        slot,
+      },
+    ]);
   };
 
   const buildInitialSelection = (spec: TargetSpec): Partial<TargetSelection> => {
@@ -518,6 +551,7 @@ export function PlayScreen() {
         save={save}
         onOpenSheet={() => setPlayerSheetVisible(true)}
         onOpenTalentShop={() => setTalentShopVisible(true)}
+        onOpenEquipment={() => setEquipmentVisible(true)}
       />
 
       {isWide ? (
@@ -559,6 +593,16 @@ export function PlayScreen() {
         actor={save.actorsById[save.party.activeActorId]}
         onClose={() => setTalentShopVisible(false)}
         applySystemEffects={applySystemEffects}
+      />
+
+      {/* Equipment Modal (debug) */}
+      <EquipmentModal
+        visible={equipmentVisible}
+        save={save}
+        actorId={save.party.activeActorId}
+        onClose={() => setEquipmentVisible(false)}
+        onEquip={handleEquipItem}
+        onUnequip={handleUnequipItem}
       />
     </View>
   );

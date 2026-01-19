@@ -3,9 +3,7 @@ import { useState, useMemo } from "react";
 import type { GameSave, Effect, Actor, Talent, CharacterCatalogs, TalentId } from "@eg/engine";
 import { canAcquireTalent, getActorTalentsWithParams, loadCharacterCatalogs, getTalentById } from "@eg/engine";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
-import sigilContent from "@eg/content/sigil.content.json";
+import { sigilContentPack } from "@eg/content/src";
 
 interface TalentShopProps {
   visible: boolean;
@@ -43,12 +41,7 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
 
   // Load catalogs
   const catalogs = useMemo(() => {
-    return loadCharacterCatalogs({
-      ...sigilContent,
-      skills: skillsCatalog as any,
-      talents: talentsCatalog as any,
-      traits: traitsCatalog as any,
-    } as any);
+    return loadCharacterCatalogs(sigilContentPack as any);
   }, []);
 
   // Get all talents from catalog grouped by category

@@ -17,10 +17,6 @@ import {
   getGrid,
 } from "@eg/engine";
 import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
-import sigilContent from "@eg/content/sigil.content.json";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
-import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 import { sigilContentPack } from "@eg/content/src";
 import { TILE_IMAGES } from "../terrain/tileImages";
 
@@ -457,12 +453,7 @@ export function CombatGrid({
 
           // Get HP and critical damage for NPCs
           // Load catalogs for HP calculation (fallback to derived if not available)
-          const catalogs = loadCharacterCatalogs({
-            ...sigilContent,
-            skills: skillsCatalog as any,
-            talents: talentsCatalog as any,
-            traits: traitsCatalog as any,
-          } as any);
+          const catalogs = loadCharacterCatalogs(sigilContentPack as any);
           const hpMax = actor ? calculateMaxHp(save, actor, catalogs) : combat.initialHpByActorId?.[actorId] ?? 100;
           const hp = actor ? getCurrentHp(save, actor, catalogs) : 0;
           const criticalDamage = actor?.resources.criticalDamage ?? 0;

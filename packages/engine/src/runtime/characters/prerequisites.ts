@@ -1,6 +1,7 @@
 import type { GameSave, Actor } from "../types";
 import type { CharacterCatalogs, Prerequisite, Talent } from "../../content/catalogs";
 import { getCharacteristicValue } from "./bonuses";
+import { hasShieldEquipped } from "../combat/equipment";
 
 /**
  * Talent params stored on actor for talents with choices (e.g., Resistance: poison)
@@ -69,10 +70,7 @@ export function evaluatePrerequisites(
         };
       }
     } else if (prereq.type === "hasEquippedOffhandShield") {
-      // Check if actor has a shield in off-hand
-      const offHand = actor.equipment?.offHand;
-      const hasShield = offHand?.kind === "armor" || (offHand?.id && offHand.id.includes("shield"));
-      if (!hasShield) {
+      if (!hasShieldEquipped(save, actor.id)) {
         return {
           valid: false,
           reason: `Requires a shield equipped in off-hand`,

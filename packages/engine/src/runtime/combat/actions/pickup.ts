@@ -133,6 +133,8 @@ export function combatPickup(
     itemName = save.weaponsById?.[itemRef.id]?.name || "l'arma";
   } else if (itemRef.kind === "armor") {
     itemName = save.armorsById?.[itemRef.id]?.name || "l'armatura";
+  } else if (itemRef.kind === "item" || itemRef.kind === "misc") {
+    itemName = save.itemsById?.[itemRef.id]?.name || "l'oggetto";
   }
 
   let logEntry: string;

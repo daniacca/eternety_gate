@@ -1,5 +1,9 @@
 import type { Actor, ItemRef, WeaponId, ArmorId } from "../types";
 
+export function getItemRefQty(itemRef: ItemRef): number {
+  return itemRef.qty ?? 1;
+}
+
 /**
  * Gets actor inventory (defaults to empty array)
  */
@@ -27,3 +31,40 @@ export function getEquippedArmorId(actor: Actor): ArmorId | null {
   return null;
 }
 
+/**
+ * Counts total quantity of an itemId in inventory (sums stacks)
+ */
+export function getInventoryItemQty(inventory: ItemRef[], itemId: string): number {
+  return inventory.reduce((total, entry) => (entry.id === itemId ? total + getItemRefQty(entry) : total), 0);
+}
+
+/**
+ * Removes qty of an itemId from inventory (supports stacks)
+ */
+export function removeInventoryItemQty(
+  inventory: ItemRef[],
+  itemId: string,
+  qty: number
+): { updatedInventory: ItemRef[]; removedQty: number } {
+  let remaining = qty;
+  const updated: ItemRef[] = [];
+
+  for (const entry of inventory) {
+    if (entry.id !== itemId || remaining <= 0) {
+      updated.push(entry);
+      continue;
+    }
+
+    const stackQty = getItemRefQty(entry);
+    if (stackQty <= remaining) {
+      remaining -= stackQty;
+      continue;
+    }
+
+    const newQty = stackQty - remaining;
+    remaining = 0;
+    updated.push({ ...entry, qty: newQty });
+  }
+
+  return { updatedInventory: updated, removedQty: qty - remaining };
+}

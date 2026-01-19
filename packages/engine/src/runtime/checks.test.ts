@@ -113,24 +113,25 @@ describe("checks", () => {
       const actor = makeTestActor({
         stats: { STR: 50 } as any,
         equipment: {
-          offHand: { kind: "misc", id: "item1" },
+          offHand: { kind: "item", id: "item1" },
         },
       });
       const save = makeTestSave(storyPack, actor);
       const saveWithItem = {
         ...save,
-        itemCatalogById: {
+        itemsById: {
           item1: {
             id: "item1",
-            kind: "accessory" as const,
             name: "Strength Ring",
-            tags: [],
-            mods: [{ type: "bonusStat" as const, stat: "STR" as const, value: 10 }],
+            type: "wearable" as const,
+            weight: 1,
+            slot: "ring",
+            grants: [{ type: "modifier" as const, key: "stat.STR.testAdd", op: "add", value: 10 }],
           },
         },
       };
 
-      const value = getStatOrSkillValue(actor, "STR", saveWithItem);
+      const value = getStatOrSkillValue(actor, "STR", saveWithItem, storyPack);
 
       expect(value).toBe(60);
     });
@@ -145,19 +146,20 @@ describe("checks", () => {
         stats: { WIL: 50 } as any,
         skills: { VATES: 2 }, // Rank 2 = +10 modifier
         equipment: {
-          offHand: { kind: "misc", id: "item1" },
+          offHand: { kind: "item", id: "item1" },
         },
       });
       const save = makeTestSave(storyPack, actor);
       const saveWithItem = {
         ...save,
-        itemCatalogById: {
+        itemsById: {
           item1: {
             id: "item1",
-            kind: "accessory" as const,
             name: "Skill Ring",
-            tags: [],
-            mods: [{ type: "bonusSkill" as const, skill: "VATES", value: 15 }],
+            type: "wearable" as const,
+            weight: 1,
+            slot: "ring",
+            grants: [{ type: "modifier" as const, key: "skill.VATES.mod", op: "add", value: 15 }],
           },
         },
       };
@@ -166,6 +168,32 @@ describe("checks", () => {
 
       // Rank 2: baseStat (50) + skillModifier (+10) + equipment bonus (+15) = 75
       expect(value).toBe(75);
+    });
+
+    it("should apply armor AGI cap for AGI checks", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        stats: { AGI: 80 } as any,
+        equipment: {
+          armor: { kind: "armor", id: "plate" },
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const saveWithArmor = {
+        ...save,
+        armorsById: {
+          plate: {
+            id: "plate",
+            name: "Plate",
+            soak: 4,
+            agiMax: 50,
+            weight: 10,
+          },
+        },
+      };
+
+      const value = getStatOrSkillValue(actor, "AGI", saveWithArmor, storyPack);
+      expect(value).toBe(50);
     });
 
     it("should apply -20 penalty for untrained skills (rank 0)", () => {

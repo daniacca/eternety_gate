@@ -1,4 +1,38 @@
 import { describe, it, expect } from "vitest";
+import { evaluatePrerequisites } from "./prerequisites";
+import { makeTestActor } from "../test-helpers/makeTestActor";
+import { makeTestSave } from "../test-helpers/makeTestSave";
+import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
+
+describe("talent prerequisites and armor AGI cap", () => {
+  it("uses raw stats (not armor-capped AGI) for prerequisites", () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor({
+      stats: { AGI: 80 } as any,
+      equipment: { armor: { kind: "armor", id: "plate" } },
+    });
+    const save = makeTestSave(storyPack, actor);
+    const saveWithArmor = {
+      ...save,
+      armorsById: {
+        plate: {
+          id: "plate",
+          name: "Plate",
+          soak: 4,
+          agiMax: 50,
+          weight: 10,
+        },
+      },
+    };
+
+    const catalogs = { skills: [], talents: [], traits: [] };
+    const result = evaluatePrerequisites(saveWithArmor, catalogs, actor, [
+      { type: "statAtLeast", stat: "AGI", value: 70 },
+    ]);
+    expect(result.valid).toBe(true);
+  });
+});
+import { describe, it, expect } from "vitest";
 import {
   evaluatePrerequisites,
   hasTrait,

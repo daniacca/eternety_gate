@@ -3,7 +3,7 @@
   "$id": "https://custodi.example/schemas/gamesave.schema.json",
   "title": "GameSave",
   "type": "object",
-  "required": ["saveVersion", "story", "state", "party", "actorsById", "itemCatalogById", "weaponsById", "armorsById", "runtime"],
+  "required": ["saveVersion", "story", "state", "party", "actorsById", "itemsById", "weaponsById", "armorsById", "runtime"],
   "additionalProperties": false,
 
   "properties": {
@@ -50,7 +50,7 @@
       "additionalProperties": { "$ref": "./actor.schema.json" }
     },
 
-    "itemCatalogById": {
+    "itemsById": {
       "type": "object",
       "additionalProperties": { "$ref": "./item.schema.json" }
     },
@@ -144,7 +144,19 @@
           "enum": ["none", "autoSuccess", "autoFail", "epicSuccess", "epicFail"]
         },
 
-        "tags": { "type": "array", "items": { "type": "string" } }
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "weight": { "type": "number" },
+        "handedness": { "type": "string", "enum": ["oneHand", "twoHand"] },
+        "ammo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["itemId", "consumedPerAttack"],
+          "properties": {
+            "itemId": { "type": "string" },
+            "consumedPerAttack": { "type": "number" }
+          }
+        },
+        "qualities": { "type": "array", "items": { "type": "string" } }
       }
     },
 
@@ -188,6 +200,8 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "soak": { "type": "number" },
+        "agiMax": { "type": "number" },
+        "weight": { "type": "number" },
         "tags": { "type": "array", "items": { "type": "string" } }
       }
     },
@@ -262,8 +276,9 @@
               "required": ["kind", "id"],
               "additionalProperties": false,
               "properties": {
-                "kind": { "type": "string", "enum": ["weapon", "armor", "misc"] },
-                "id": { "type": "string" }
+                "kind": { "type": "string", "enum": ["weapon", "armor", "item", "misc"] },
+                "id": { "type": "string" },
+                "qty": { "type": "number" }
               }
             }
           }

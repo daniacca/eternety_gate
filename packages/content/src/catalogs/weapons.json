@@ -1,0 +1,113 @@
+[
+  {
+    "id": "shortbow",
+    "name": "Shortbow",
+    "kind": "RANGED",
+    "damage": {
+      "tier": "single",
+      "add": 0
+    },
+    "damageType": "piercing",
+    "penetration": 2,
+    "range": {
+      "short": 4,
+      "long": 8
+    },
+    "weight": 2,
+    "handedness": "twoHand",
+    "ammo": {
+      "itemId": "ammo:arrow",
+      "consumedPerAttack": 1
+    },
+    "qualities": ["simple"]
+  },
+  {
+    "id": "longbow",
+    "name": "Longbow",
+    "kind": "RANGED",
+    "damage": {
+      "tier": "single",
+      "add": 3
+    },
+    "damageType": "piercing",
+    "penetration": 4,
+    "range": {
+      "short": 6,
+      "long": 12
+    },
+    "weight": 3,
+    "handedness": "twoHand",
+    "ammo": {
+      "itemId": "ammo:arrow",
+      "consumedPerAttack": 1
+    },
+    "qualities": ["accurate"]
+  },
+  {
+    "id": "club",
+    "name": "Club",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "single",
+      "add": 1,
+      "bonus": "SB"
+    },
+    "damageType": "impact",
+    "penetration": 0,
+    "weight": 2,
+    "handedness": "oneHand",
+    "qualities": ["primitive"]
+  },
+  {
+    "id": "longsword",
+    "name": "Longsword",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "single",
+      "add": 2,
+      "bonus": "SB"
+    },
+    "damageType": "rendering",
+    "penetration": 1,
+    "weight": 3,
+    "handedness": "oneHand",
+    "qualities": ["balanced"]
+  },
+  {
+    "id": "dagger",
+    "name": "Dagger",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "half",
+      "add": 0,
+      "bonus": "SB"
+    },
+    "damageType": "piercing",
+    "penetration": 0,
+    "weight": 1,
+    "handedness": "oneHand",
+    "qualities": ["light"]
+  },
+  {
+    "id": "crossbow",
+    "name": "Crossbow",
+    "kind": "RANGED",
+    "damage": {
+      "tier": "single",
+      "add": 2
+    },
+    "damageType": "piercing",
+    "penetration": 3,
+    "range": {
+      "short": 5,
+      "long": 10
+    },
+    "weight": 4,
+    "handedness": "twoHand",
+    "ammo": {
+      "itemId": "ammo:bolt",
+      "consumedPerAttack": 1
+    },
+    "qualities": ["slow"]
+  }
+]

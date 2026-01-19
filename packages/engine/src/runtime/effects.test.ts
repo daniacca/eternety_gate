@@ -6,6 +6,13 @@ import { makeTestActor } from "./test-helpers/makeTestActor";
 import { FakeRng } from "./test-helpers/fakeRng";
 import type { Effect } from "./types";
 
+const makeItem = (id: string, name: string) => ({
+  id,
+  name,
+  type: "wearable" as const,
+  weight: 1,
+});
+
 describe("effects", () => {
   describe("applyEffect", () => {
     describe("setFlag", () => {
@@ -170,15 +177,9 @@ describe("effects", () => {
         // Add item to catalog
         const saveWithCatalog = {
           ...save,
-          itemCatalogById: {
-            ...save.itemCatalogById,
-            item1: {
-              id: "item1",
-              kind: "weapon",
-              name: "Test Weapon",
-              tags: [],
-              mods: [],
-            },
+          itemsById: {
+            ...save.itemsById,
+            item1: makeItem("item1", "Test Item"),
           },
         };
         const rng = new FakeRng([]);
@@ -202,22 +203,10 @@ describe("effects", () => {
         // Add items to catalog
         const saveWithCatalog = {
           ...save,
-          itemCatalogById: {
-            ...save.itemCatalogById,
-            item1: {
-              id: "item1",
-              kind: "weapon",
-              name: "Test Weapon 1",
-              tags: [],
-              mods: [],
-            },
-            item2: {
-              id: "item2",
-              kind: "armor",
-              name: "Test Armor",
-              tags: [],
-              mods: [],
-            },
+          itemsById: {
+            ...save.itemsById,
+            item1: makeItem("item1", "Test Item 1"),
+            item2: makeItem("item2", "Test Item 2"),
           },
         };
         const rng = new FakeRng([]);
@@ -243,28 +232,16 @@ describe("effects", () => {
       it("should preserve existing items", () => {
         const storyPack = makeTestStoryPack();
         const actor = makeTestActor({
-          inventory: [{ kind: "weapon", id: "existingItem" }],
+          inventory: [{ kind: "item", id: "existingItem" }],
         });
         const save = makeTestSave(storyPack, actor);
         // Add items to catalog
         const saveWithCatalog = {
           ...save,
-          itemCatalogById: {
-            ...save.itemCatalogById,
-            existingItem: {
-              id: "existingItem",
-              kind: "weapon",
-              name: "Existing Weapon",
-              tags: [],
-              mods: [],
-            },
-            newItem: {
-              id: "newItem",
-              kind: "armor",
-              name: "New Armor",
-              tags: [],
-              mods: [],
-            },
+          itemsById: {
+            ...save.itemsById,
+            existingItem: makeItem("existingItem", "Existing Item"),
+            newItem: makeItem("newItem", "New Item"),
           },
         };
         const rng = new FakeRng([]);

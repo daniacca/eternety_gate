@@ -3,15 +3,13 @@ import type { GameSave } from "@eg/engine";
 import { getActorWeapon, getActorArmor, calculateMaxHp, getCurrentHp, calculateMaxRf, getMagicPower } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
 import { loadCharacterCatalogs } from "@eg/engine";
-import sigilContent from "@eg/content/sigil.content.json";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
-import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
+import { sigilContentPack } from "@eg/content/src";
 
 interface PlayerHudProps {
   save: GameSave;
   onOpenSheet: () => void;
   onOpenTalentShop?: () => void;
+  onOpenEquipment?: () => void;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -27,7 +25,7 @@ const conditionLabels: Record<ConditionId, string> = {
   halvedMovement: "Movimento Dimezzato",
 };
 
-export function PlayerHud({ save, onOpenSheet, onOpenTalentShop }: PlayerHudProps) {
+export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment }: PlayerHudProps) {
   const { width } = useWindowDimensions();
   const isNarrow = width < 420;
 
@@ -35,12 +33,7 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop }: PlayerHudProp
   if (!activeActor) return null;
 
   // Load catalogs for HP calculation
-  const catalogs = loadCharacterCatalogs({
-    ...sigilContent,
-    skills: skillsCatalog as any,
-    talents: talentsCatalog as any,
-    traits: traitsCatalog as any,
-  } as any);
+  const catalogs = loadCharacterCatalogs(sigilContentPack as any);
 
   const hpMax = calculateMaxHp(save, activeActor, catalogs);
   const hp = getCurrentHp(save, activeActor, catalogs);
@@ -132,6 +125,12 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop }: PlayerHudProp
           <Text style={styles.talentsButtonText}>Talents</Text>
         </TouchableOpacity>
       )}
+
+  {onOpenEquipment && (
+    <TouchableOpacity style={styles.equipmentButton} onPress={onOpenEquipment}>
+      <Text style={styles.equipmentButtonText}>Equipment</Text>
+    </TouchableOpacity>
+  )}
 
       {/* Open sheet button */}
       <TouchableOpacity style={styles.sheetButton} onPress={onOpenSheet}>
@@ -270,6 +269,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   sheetButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  equipmentButton: {
+    backgroundColor: "#475569",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  equipmentButtonText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",

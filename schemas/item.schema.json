@@ -3,31 +3,29 @@
   "$id": "https://custodi.example/schemas/item.schema.json",
   "title": "Item",
   "type": "object",
-  "required": [
-    "id",
-    "kind",
-    "name",
-    "tags",
-    "mods"
-  ],
+  "required": ["id", "name", "type", "weight"],
   "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
       "minLength": 1
     },
-    "kind": {
-      "type": "string",
-      "enum": [
-        "weapon",
-        "armor",
-        "accessory",
-        "consumable",
-        "quest"
-      ]
-    },
     "name": {
       "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["wearable", "consumable"]
+    },
+    "slot": {
+      "type": "string",
+      "enum": ["mainHand", "offHand", "armor", "helmet", "boots", "cloak", "necklace", "ring"]
+    },
+    "weight": {
+      "type": "number"
+    },
+    "maxStack": {
+      "type": "number"
     },
     "tags": {
       "type": "array",
@@ -35,67 +33,39 @@
         "type": "string"
       }
     },
-    "mods": {
+    "grants": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/itemMod"
+        "$ref": "#/$defs/grant"
       }
     },
-    "damageTier": {
-      "type": "string",
-      "enum": [
-        "Half",
-        "Single",
-        "Double",
-        "Triple",
-        "Fourfold",
-        "Fivefold"
-      ]
+    "shield": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parryBonus": { "type": "number" }
+      }
     },
-    "armorValue": {
-      "type": "number"
+    "use": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actionId": { "type": "string" }
+      }
     }
   },
   "$defs": {
-    "itemMod": {
+    "grant": {
       "type": "object",
-      "required": [
-        "type"
-      ],
-      "additionalProperties": true,
+      "required": ["type"],
+      "additionalProperties": false,
       "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "focus",
-            "bonusStat",
-            "bonusSkill",
-            "special"
-          ]
-        },
-        "stat": {
-          "type": "string"
-        },
-        "skill": {
-          "type": "string"
-        },
-        "value": {
-          "type": "number"
-        },
-        "channelBonus": {
-          "type": "integer",
-          "enum": [
-            10,
-            20
-          ]
-        },
-        "castBonus": {
-          "type": "integer",
-          "enum": [
-            10,
-            20
-          ]
-        }
+        "type": { "type": "string", "enum": ["modifier", "unlockAction"] },
+        "key": { "type": "string" },
+        "op": { "type": "string", "enum": ["add"] },
+        "value": { "type": "number" },
+        "valueRef": { "type": "string" },
+        "actionId": { "type": "string" }
       }
     }
   }

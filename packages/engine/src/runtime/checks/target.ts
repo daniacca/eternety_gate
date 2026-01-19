@@ -1,22 +1,5 @@
 import type { StatOrSkillKey, GameSave, Actor, StoryPack } from "../types";
 import { getStatOrSkillValue } from "./values";
-import { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
-import { loadCharacterCatalogs } from "../../content/loadCatalogs";
-import { getModifierTotal } from "../characters/modifiers";
-
-function getEquippedItems(actor: Actor): string[] {
-  const items: string[] = [];
-  if (actor.equipment?.mainHand) {
-    items.push(actor.equipment.mainHand.id);
-  }
-  if (actor.equipment?.offHand) {
-    items.push(actor.equipment.offHand.id);
-  }
-  if (actor.equipment?.armor) {
-    items.push(actor.equipment.armor.id);
-  }
-  return items;
-}
 
 /**
  * Default difficulty bands when storyPack is not available
@@ -67,78 +50,7 @@ export function computeTargetBreakdown(
   finalValue: number;
   target: number;
 } {
-  // Get base value (without temp modifiers for breakdown)
-  let baseValue: number;
-  if (key in actor.stats) {
-    baseValue = actor.stats[key as keyof typeof actor.stats];
-    // Apply equipment bonuses to base
-    const items = getEquippedItems(actor);
-
-    for (const itemId of items) {
-      const item = save.itemCatalogById[itemId];
-      if (!item) continue;
-
-      for (const mod of item.mods) {
-        if (mod.type === "bonusStat" && mod.stat === key) {
-          baseValue += mod.value;
-        }
-      }
-    }
-  } else if (key.startsWith("SKILL:")) {
-    const skillId = key.substring(6);
-    const rank = actor.skills[skillId] || 0;
-
-    // Get base stat for the skill
-    const baseStat = getSkillBaseStat(skillId, storyPack);
-    if (baseStat && baseStat in actor.stats) {
-      baseValue = actor.stats[baseStat];
-    } else {
-      baseValue = 0;
-    }
-
-    // Add skill modifier from rank
-    const skillModifier = getSkillModifierFromRank(rank);
-    baseValue += skillModifier;
-
-    // Apply equipment bonuses to base stat
-    const items = getEquippedItems(actor);
-    for (const itemId of items) {
-      const item = save.itemCatalogById[itemId];
-      if (!item) continue;
-
-      for (const mod of item.mods) {
-        if (mod.type === "bonusStat" && baseStat && mod.stat === baseStat) {
-          baseValue += mod.value;
-        }
-        if (mod.type === "bonusSkill" && mod.skill === skillId) {
-          baseValue += mod.value;
-        }
-      }
-    }
-  } else {
-    baseValue = 0;
-  }
-
   const difficultyMod = resolveDifficulty(difficulty, storyPack);
-
-  // Skill modifiers from catalogs (traits/talents) apply to skill checks
-  let catalogSkillMod = 0;
-  if (key.startsWith("SKILL:") && storyPack) {
-    const catalogs = storyPack?.skills || storyPack?.talents || storyPack?.traits
-      ? loadCharacterCatalogs({
-          id: storyPack.id,
-          weapons: storyPack.weapons || [],
-          armors: storyPack.armors || [],
-          skills: storyPack.skills || [],
-          talents: storyPack.talents || [],
-          traits: storyPack.traits || [],
-        })
-      : undefined;
-    if (catalogs) {
-      const skillId = key.substring(6);
-      catalogSkillMod = getModifierTotal(save, catalogs, actor.id, `skill.${skillId}.mod` as any);
-    }
-  }
 
   // Calculate temp modifiers sum for debug tags
   let tempModsSum = 0;
@@ -152,12 +64,9 @@ export function computeTargetBreakdown(
       tempModsSum += tempMod.value;
     }
   }
-  if (catalogSkillMod !== 0) {
-    tempModsSum += catalogSkillMod;
-  }
-
   // Use getStatOrSkillValue for final value (includes temp modifiers)
-  const finalValue = getStatOrSkillValue(actor, key, save, storyPack) + catalogSkillMod;
+  const finalValue = getStatOrSkillValue(actor, key, save, storyPack);
+  const baseValue = finalValue - tempModsSum;
   const target = finalValue + difficultyMod;
 
   return {

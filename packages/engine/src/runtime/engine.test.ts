@@ -115,9 +115,7 @@ describe("applyChoice", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor },
-      {},
-      { id: "test", weapons: [], armors: [] }
+      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
     );
 
     // Verify initial state
@@ -252,9 +250,7 @@ describe("applyChoice", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor },
-      {},
-      { id: "test", weapons: [], armors: [] }
+      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
     );
 
     // Apply choice - result depends on roll, but effects should be applied
@@ -309,7 +305,7 @@ describe("RNG determinism", () => {
         activeActorId: "PC_1",
       },
       actorsById: {},
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -440,7 +436,7 @@ describe("Single check resolution", () => {
         activeActorId: "PC_1",
       },
       actorsById: { PC_1: actor },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -556,7 +552,7 @@ describe("Single check resolution", () => {
         activeActorId: "PC_1",
       },
       actorsById: { PC_1: actor },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -681,9 +677,7 @@ describe("Flat state access", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor },
-      {},
-      { id: "test", weapons: [], armors: [] }
+      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
     );
 
     // Apply choice with effects containing dots in keys
@@ -808,9 +802,7 @@ describe("Sequence check", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor },
-      {},
-      { id: "test", weapons: [], armors: [] }
+      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
     );
 
     // Apply choice with sequence check
@@ -926,9 +918,7 @@ describe("Sequence check", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor },
-      {},
-      { id: "test", weapons: [], armors: [] }
+      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
     );
 
     // Apply choice with sequence check that will likely fail on step 2
@@ -1245,10 +1235,11 @@ describe("Combat attack check", () => {
   it("melee hit with parry success where defenderDoS >= attackerDoS => MISS", () => {
     const storyPack = makeTestStoryPack();
     const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });
-    const defender = makeTestActor({ 
-      id: "NPC_1", 
+    const defender = makeTestActor({
+      id: "NPC_1",
       stats: { WS: 60 },
       skills: { "skill:parry": 1 }, // Rank 1 = trained, +0 modifier
+      tags: ["natural_weapon"],
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
@@ -1288,7 +1279,11 @@ describe("Combat attack check", () => {
   it("melee hit with parry fail => HIT", () => {
     const storyPack = makeTestStoryPack();
     const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });
-    const defender = makeTestActor({ id: "NPC_1", stats: { WS: 50 } });
+    const defender = makeTestActor({
+      id: "NPC_1",
+      stats: { WS: 50 },
+      tags: ["natural_weapon"],
+    });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
 
@@ -1411,10 +1406,11 @@ describe("Combat attack check", () => {
   it("melee hit with tie (equal DoS) => MISS (defender wins ties)", () => {
     const storyPack = makeTestStoryPack();
     const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });
-    const defender = makeTestActor({ 
-      id: "NPC_1", 
+    const defender = makeTestActor({
+      id: "NPC_1",
       stats: { WS: 50 },
       skills: { "skill:parry": 1 }, // Rank 1 = trained, +0 modifier
+      tags: ["natural_weapon"],
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
@@ -2118,7 +2114,7 @@ describe("Opposed check", () => {
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -2308,7 +2304,7 @@ describe("Opposed check", () => {
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -2498,7 +2494,7 @@ describe("Opposed check", () => {
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {
@@ -2697,7 +2693,7 @@ describe("Opposed check", () => {
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
-      itemCatalogById: {},
+      itemsById: {},
       weaponsById: {},
       armorsById: {},
       runtime: {

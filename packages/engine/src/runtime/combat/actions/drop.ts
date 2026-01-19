@@ -2,7 +2,7 @@ import type { Effect, GameSave, ItemRef } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { posKey } from "../../items";
-import { getActorInventory } from "../../characters/inventory";
+import { getActorInventory, getItemRefQty } from "../../characters/inventory";
 
 /**
  * Drop: drops an item from inventory or equipment to the ground at actor position
@@ -39,8 +39,19 @@ export function combatDrop(
   let updatedActor = { ...actor };
 
   // Determine what to drop
-  if (effect.fromSlot === "mainHand" || (!effect.fromSlot && !effect.itemRef && !effect.inventoryIndex)) {
-    // Drop equipped mainHand (default behavior)
+  if (effect.fromSlot && effect.fromSlot !== "inventory") {
+    itemRef = actor.equipment?.[effect.fromSlot] ?? null;
+    if (itemRef) {
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          [effect.fromSlot]: null,
+        },
+      };
+    }
+  } else if (!effect.fromSlot && !effect.itemRef && effect.inventoryIndex === undefined) {
+    // Default: drop equipped mainHand
     itemRef = actor.equipment?.mainHand ?? null;
     if (itemRef) {
       updatedActor = {
@@ -51,36 +62,20 @@ export function combatDrop(
         },
       };
     }
-  } else if (effect.fromSlot === "offHand") {
-    itemRef = actor.equipment?.offHand ?? null;
-    if (itemRef) {
-      updatedActor = {
-        ...updatedActor,
-        equipment: {
-          ...updatedActor.equipment,
-          offHand: null,
-        },
-      };
-    }
-  } else if (effect.fromSlot === "armor") {
-    itemRef = actor.equipment?.armor ?? null;
-    if (itemRef) {
-      updatedActor = {
-        ...updatedActor,
-        equipment: {
-          ...updatedActor.equipment,
-          armor: null,
-        },
-      };
-    }
   } else if (effect.fromSlot === "inventory" && effect.inventoryIndex !== undefined) {
     // Drop from inventory
     const inventory = getActorInventory(actor);
     if (effect.inventoryIndex >= 0 && effect.inventoryIndex < inventory.length) {
-      itemRef = inventory[effect.inventoryIndex];
+      const entry = inventory[effect.inventoryIndex];
+      const qty = getItemRefQty(entry);
+      itemRef = qty > 1 ? { ...entry, qty: 1 } : entry;
+      const updatedInventory =
+        qty > 1
+          ? inventory.map((item, idx) => (idx === effect.inventoryIndex ? { ...item, qty: qty - 1 } : item))
+          : inventory.filter((_, idx) => idx !== effect.inventoryIndex);
       updatedActor = {
         ...updatedActor,
-        inventory: inventory.filter((_, idx) => idx !== effect.inventoryIndex),
+        inventory: updatedInventory,
       };
     }
   } else if (effect.itemRef) {
@@ -89,40 +84,42 @@ export function combatDrop(
     const inventory = getActorInventory(actor);
     const inventoryIndex = inventory.findIndex((item) => item.kind === itemRef!.kind && item.id === itemRef!.id);
     if (inventoryIndex !== -1) {
+      const entry = inventory[inventoryIndex];
+      const qty = getItemRefQty(entry);
+      const updatedInventory =
+        qty > 1
+          ? inventory.map((item, idx) => (idx === inventoryIndex ? { ...item, qty: qty - 1 } : item))
+          : inventory.filter((_, idx) => idx !== inventoryIndex);
       updatedActor = {
         ...updatedActor,
-        inventory: inventory.filter((_, idx) => idx !== inventoryIndex),
+        inventory: updatedInventory,
       };
     } else {
       // Check equipment slots
-      if (actor.equipment?.mainHand?.kind === itemRef.kind && actor.equipment.mainHand.id === itemRef.id) {
-        updatedActor = {
-          ...updatedActor,
-          equipment: {
-            ...updatedActor.equipment,
-            mainHand: null,
-          },
-        };
-      } else if (actor.equipment?.offHand?.kind === itemRef.kind && actor.equipment.offHand.id === itemRef.id) {
-        updatedActor = {
-          ...updatedActor,
-          equipment: {
-            ...updatedActor.equipment,
-            offHand: null,
-          },
-        };
-      } else if (actor.equipment?.armor?.kind === itemRef.kind && actor.equipment.armor.id === itemRef.id) {
-        updatedActor = {
-          ...updatedActor,
-          equipment: {
-            ...updatedActor.equipment,
-            armor: null,
-          },
-        };
-      } else {
-        // Item not found
+      const slotKeys: Array<keyof typeof actor.equipment> = [
+        "mainHand",
+        "offHand",
+        "armor",
+        "helmet",
+        "boots",
+        "cloak",
+        "necklace",
+        "ring1",
+        "ring2",
+      ];
+      const slotKey = slotKeys.find(
+        (slot) => actor.equipment?.[slot]?.kind === itemRef.kind && actor.equipment?.[slot]?.id === itemRef.id
+      );
+      if (!slotKey) {
         return { save };
       }
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          [slotKey]: null,
+        },
+      };
     }
   }
 
@@ -167,6 +164,8 @@ export function combatDrop(
     itemName = save.weaponsById?.[itemRef.id]?.name || "l'arma";
   } else if (itemRef.kind === "armor") {
     itemName = save.armorsById?.[itemRef.id]?.name || "l'armatura";
+  } else if (itemRef.kind === "item" || itemRef.kind === "misc") {
+    itemName = save.itemsById?.[itemRef.id]?.name || "l'oggetto";
   }
 
   const logEntry =

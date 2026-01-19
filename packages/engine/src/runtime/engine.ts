@@ -1,4 +1,4 @@
-import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, Item, ItemId, CheckResult } from "./types";
+import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, ItemDefinition, ItemId, CheckResult } from "./types";
 import { evaluateConditions } from "./conditions";
 import { RNG } from "./rng";
 import { appendCombatLog } from "./combat/narration";
@@ -6,7 +6,7 @@ import { startCombat, advanceCombatTurn, getCurrentTurnActorId } from "./combat/
 import { runNpcTurn } from "./combat/npcAi";
 import { distanceChebyshev, clampToGrid } from "./combat/movement";
 import type { ContentPack } from "../content/types";
-import { mergeWeapons, mergeArmors } from "../content/merge";
+import { mergeWeapons, mergeArmors, mergeItems } from "../content/merge";
 import { handleChoice } from "./choices/handlers";
 import { getCurrentScene } from "./selectors";
 
@@ -43,7 +43,17 @@ function makeDefaultActor(id: string, name?: string): Actor {
     skills: {},
     talents: {},
     traits: {},
-    equipment: { mainHand: null, offHand: null, armor: null },
+    equipment: {
+      mainHand: null,
+      offHand: null,
+      armor: null,
+      helmet: null,
+      boots: null,
+      cloak: null,
+      necklace: null,
+      ring1: null,
+      ring2: null,
+    },
     status: { conditions: [], tempModifiers: [] },
   };
 }
@@ -71,8 +81,7 @@ export function createNewGame(
   saveSeed: number,
   party: Party,
   actorsById: Record<ActorId, Actor>,
-  itemCatalogById: Record<ItemId, Item>,
-  contentPack: ContentPack = { id: "default", weapons: [], armors: [] }
+  contentPack: ContentPack = { id: "default", items: [], weapons: [], armors: [] }
 ): GameSave {
   const castActorsById = bootstrapActorsFromCast(storyPack);
 
@@ -82,6 +91,7 @@ export function createNewGame(
   };
 
   // Merge global content pack with story pack content
+  const itemsById = mergeItems(contentPack.items, storyPack.items);
   const weaponsById = mergeWeapons(contentPack.weapons, storyPack.weapons);
   const armorsById = mergeArmors(contentPack.armors, storyPack.armors);
 
@@ -99,7 +109,7 @@ export function createNewGame(
     },
     party,
     actorsById: mergedActorsById,
-    itemCatalogById,
+    itemsById,
     weaponsById,
     armorsById,
     runtime: {

@@ -1,0 +1,77 @@
+[
+  {
+    "id": "shield:wooden",
+    "name": "Wooden Shield",
+    "type": "wearable",
+    "slot": "offHand",
+    "weight": 4,
+    "tags": ["shield"],
+    "shield": {
+      "parryBonus": 10
+    }
+  },
+  {
+    "id": "helmet:leather",
+    "name": "Leather Cap",
+    "type": "wearable",
+    "slot": "helmet",
+    "weight": 1,
+    "tags": ["light"]
+  },
+  {
+    "id": "boots:leather",
+    "name": "Leather Boots",
+    "type": "wearable",
+    "slot": "boots",
+    "weight": 1,
+    "tags": ["light"]
+  },
+  {
+    "id": "cloak:traveler",
+    "name": "Traveler's Cloak",
+    "type": "wearable",
+    "slot": "cloak",
+    "weight": 1,
+    "tags": ["cloth"]
+  },
+  {
+    "id": "necklace:iron",
+    "name": "Iron Necklace",
+    "type": "wearable",
+    "slot": "necklace",
+    "weight": 1,
+    "tags": ["jewelry"]
+  },
+  {
+    "id": "ring:agility",
+    "name": "Ring of Agility",
+    "type": "wearable",
+    "slot": "ring",
+    "weight": 0.1,
+    "tags": ["jewelry"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "stat.AGI.testAdd",
+        "op": "add",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "id": "ammo:arrow",
+    "name": "Arrows",
+    "type": "consumable",
+    "weight": 0.1,
+    "maxStack": 20,
+    "tags": ["ammo", "arrow"]
+  },
+  {
+    "id": "ammo:bolt",
+    "name": "Bolts",
+    "type": "consumable",
+    "weight": 0.1,
+    "maxStack": 20,
+    "tags": ["ammo", "bolt"]
+  }
+]

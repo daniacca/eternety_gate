@@ -103,7 +103,13 @@
       "properties": {
         "mainHand": { "$ref": "#/$defs/itemRef" },
         "offHand": { "$ref": "#/$defs/itemRef" },
-        "armor": { "$ref": "#/$defs/itemRef" }
+        "armor": { "$ref": "#/$defs/itemRef" },
+        "helmet": { "$ref": "#/$defs/itemRef" },
+        "boots": { "$ref": "#/$defs/itemRef" },
+        "cloak": { "$ref": "#/$defs/itemRef" },
+        "necklace": { "$ref": "#/$defs/itemRef" },
+        "ring1": { "$ref": "#/$defs/itemRef" },
+        "ring2": { "$ref": "#/$defs/itemRef" }
       }
     },
     "inventory": {
@@ -152,8 +158,9 @@
           "required": ["kind", "id"],
           "additionalProperties": false,
           "properties": {
-            "kind": { "type": "string", "enum": ["weapon", "armor", "misc"] },
-            "id": { "type": "string" }
+            "kind": { "type": "string", "enum": ["weapon", "armor", "item", "misc"] },
+            "id": { "type": "string" },
+            "qty": { "type": "number" }
           }
         }
       ]

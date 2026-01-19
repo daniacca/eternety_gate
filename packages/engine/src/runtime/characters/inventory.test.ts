@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getActorInventory, getEquippedWeaponId, getEquippedArmorId } from "./inventory";
+import { getActorInventory, getEquippedWeaponId, getEquippedArmorId, getInventoryItemQty, removeInventoryItemQty } from "./inventory";
 import { makeTestActor } from "../test-helpers/makeTestActor";
 
 describe("inventory", () => {
@@ -21,14 +21,35 @@ describe("inventory", () => {
     it("should return inventory items when present", () => {
       const actor = makeTestActor({
         inventory: [
-          { id: "item1", kind: "misc" },
-          { id: "item2", kind: "misc" },
+          { id: "item1", kind: "item" },
+          { id: "item2", kind: "item" },
         ],
       });
       const inventory = getActorInventory(actor);
       expect(inventory).toHaveLength(2);
-      expect(inventory[0]).toEqual({ id: "item1", kind: "misc" });
-      expect(inventory[1]).toEqual({ id: "item2", kind: "misc" });
+      expect(inventory[0]).toEqual({ id: "item1", kind: "item" });
+      expect(inventory[1]).toEqual({ id: "item2", kind: "item" });
+    });
+  });
+
+  describe("inventory quantities", () => {
+    it("should sum quantities across stacks", () => {
+      const inventory = [
+        { id: "ammo:arrow", kind: "item", qty: 5 },
+        { id: "ammo:arrow", kind: "item", qty: 3 },
+        { id: "item:other", kind: "item" },
+      ];
+      expect(getInventoryItemQty(inventory, "ammo:arrow")).toBe(8);
+    });
+
+    it("should remove quantity across stacks", () => {
+      const inventory = [
+        { id: "ammo:arrow", kind: "item", qty: 2 },
+        { id: "ammo:arrow", kind: "item", qty: 3 },
+      ];
+      const { updatedInventory, removedQty } = removeInventoryItemQty(inventory, "ammo:arrow", 4);
+      expect(removedQty).toBe(4);
+      expect(getInventoryItemQty(updatedInventory, "ammo:arrow")).toBe(1);
     });
   });
 

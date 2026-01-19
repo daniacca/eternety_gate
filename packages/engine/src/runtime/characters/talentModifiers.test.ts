@@ -64,7 +64,7 @@ function createSave(actors: Actor[]): GameSave {
     state: { flags: {}, counters: {} },
     party: { actors: actors.map(a => a.id), activeActorId: actors[0]?.id || "" },
     actorsById,
-    itemCatalogById: {},
+    itemsById: {},
     weaponsById: {},
     armorsById: {},
     runtime: {
@@ -214,9 +214,22 @@ describe("Shield Mastery", () => {
   it("should return +10 parry per rank when shield equipped", () => {
     const actor = createActor("PC_1", { "talent:shield_mastery": 1 });
     // Add shield to off-hand
-    actor.equipment = { offHand: { kind: "armor", id: "shield:basic" } };
-    
-    const save = createSave([actor]);
+    actor.equipment = { offHand: { kind: "item", id: "shield:basic" } };
+
+    const save = {
+      ...createSave([actor]),
+      itemsById: {
+        "shield:basic": {
+          id: "shield:basic",
+          name: "Basic Shield",
+          type: "wearable",
+          slot: "offHand",
+          weight: 2,
+          tags: ["shield"],
+          shield: { parryBonus: 10 },
+        },
+      },
+    };
     const catalogs = createCatalogs([shieldMasteryTalent]);
     
     const bonus = getShieldMasteryParryBonus(save, catalogs, "PC_1");
@@ -225,9 +238,22 @@ describe("Shield Mastery", () => {
 
   it("should return +20 parry at rank 2", () => {
     const actor = createActor("PC_1", { "talent:shield_mastery": 2 });
-    actor.equipment = { offHand: { kind: "armor", id: "shield:basic" } };
-    
-    const save = createSave([actor]);
+    actor.equipment = { offHand: { kind: "item", id: "shield:basic" } };
+
+    const save = {
+      ...createSave([actor]),
+      itemsById: {
+        "shield:basic": {
+          id: "shield:basic",
+          name: "Basic Shield",
+          type: "wearable",
+          slot: "offHand",
+          weight: 2,
+          tags: ["shield"],
+          shield: { parryBonus: 10 },
+        },
+      },
+    };
     const catalogs = createCatalogs([shieldMasteryTalent]);
     
     const bonus = getShieldMasteryParryBonus(save, catalogs, "PC_1");

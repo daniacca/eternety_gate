@@ -2,6 +2,7 @@ import type { GameSave, Actor, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById } from "../../content/loadCatalogs";
 import { getCharacteristicBonus } from "./bonuses";
+import { hasShieldEquipped } from "../combat/equipment";
 import { getTalentParams } from "./prerequisites";
 
 /**
@@ -83,10 +84,7 @@ export function getShieldMasteryParryBonus(
   const actor = save.actorsById[actorId];
   if (!actor) return 0;
 
-  // Check if actor has shield equipped in off-hand
-  const offHand = actor.equipment?.offHand;
-  const hasShield = offHand?.kind === "armor" || (offHand?.id && offHand.id.includes("shield"));
-  if (!hasShield) return 0;
+  if (!hasShieldEquipped(save, actorId)) return 0;
 
   // Get Shield Mastery bonus (10 per rank)
   return getTalentModifierTotal(save, catalogs, actorId, "combat.shieldMasteryParryBonus");

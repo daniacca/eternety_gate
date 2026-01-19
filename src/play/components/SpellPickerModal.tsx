@@ -1,10 +1,7 @@
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import type { GameSave, ActorId } from "@eg/engine";
 import { getLearnedSpells, getAllSpells, canLearnSpell, loadCharacterCatalogs } from "@eg/engine";
-import sigilContent from "@eg/content/sigil.content.json";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
-import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
+import { sigilContentPack } from "@eg/content/src";
 
 interface SpellPickerModalProps {
   visible: boolean;
@@ -27,12 +24,7 @@ export function SpellPickerModal({
   onLearnSpell,
   actionAvailable = true,
 }: SpellPickerModalProps) {
-  const catalogs = loadCharacterCatalogs({
-    ...sigilContent,
-    skills: skillsCatalog as any,
-    talents: talentsCatalog as any,
-    traits: traitsCatalog as any,
-  } as any);
+  const catalogs = loadCharacterCatalogs(sigilContentPack as any);
 
   const actor = save.actorsById[actorId];
   const learnedSpells = getLearnedSpells(save, actorId, catalogs);
