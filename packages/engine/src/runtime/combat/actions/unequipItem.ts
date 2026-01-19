@@ -1,5 +1,5 @@
 import type { Effect, GameSave } from "../../types";
-import { getActorInventory } from "../../characters/inventory";
+import { unequipItem } from "../../equipment/management";
 
 /**
  * UnequipItem: moves an equipped item back to inventory
@@ -13,29 +13,7 @@ export function combatUnequipItem(
     return { save };
   }
 
-  const itemRef = actor.equipment?.[effect.slot] ?? null;
-  if (!itemRef) {
-    return { save }; // Slot is empty
-  }
-
-  const inventory = getActorInventory(actor);
-  const updatedActor = {
-    ...actor,
-    inventory: [...inventory, itemRef],
-    equipment: {
-      ...actor.equipment,
-      [effect.slot]: null,
-    },
-  };
-
-  const currentSave: GameSave = {
-    ...save,
-    actorsById: {
-      ...save.actorsById,
-      [effect.actorId]: updatedActor,
-    },
-  };
-
-  return { save: currentSave };
+  const updatedSave = unequipItem(save, effect.actorId, effect.slot);
+  return { save: updatedSave };
 }
 

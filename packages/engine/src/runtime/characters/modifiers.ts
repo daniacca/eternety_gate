@@ -169,12 +169,33 @@ function getModifierTotalBase(
 
   for (const itemRef of equippedItems) {
     if (!itemRef) continue;
-    if (itemRef.kind !== "item" && itemRef.kind !== "misc") continue;
-    const item = save.itemsById?.[itemRef.id];
-    if (!item || !item.grants) continue;
-    for (const grant of item.grants) {
-      if (grant.type === "modifier" && grant.key === key) {
-        total += grant.value;
+    if (itemRef.kind === "item" || itemRef.kind === "misc") {
+      const item = save.itemsById?.[itemRef.id];
+      if (!item || !item.grants) continue;
+      for (const grant of item.grants) {
+        if (grant.type === "modifier" && grant.key === key) {
+          total += grant.value;
+        }
+      }
+      continue;
+    }
+    if (itemRef.kind === "weapon") {
+      const weapon = save.weaponsById?.[itemRef.id];
+      if (!weapon || !weapon.grants) continue;
+      for (const grant of weapon.grants) {
+        if (grant.type === "modifier" && grant.key === key) {
+          total += grant.value;
+        }
+      }
+      continue;
+    }
+    if (itemRef.kind === "armor") {
+      const armor = save.armorsById?.[itemRef.id];
+      if (!armor || !armor.grants) continue;
+      for (const grant of armor.grants) {
+        if (grant.type === "modifier" && grant.key === key) {
+          total += grant.value;
+        }
       }
     }
   }

@@ -32,6 +32,15 @@ export {
   hasShieldEquipped,
 } from "./runtime/combat/equipment";
 
+export {
+  canEquipItem,
+  equipItem,
+  unequipItem,
+  listEquippableInventoryItems,
+  getItemDefinition,
+  getItemDisplaySummary,
+} from "./runtime/equipment/management";
+
 // Inventory helpers
 export { posKey, isWeaponItemRef, isArmorItemRef, isCatalogItemRef } from "./runtime/items";
 export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./runtime/characters/inventory";

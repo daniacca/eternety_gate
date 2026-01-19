@@ -1,6 +1,6 @@
-import type { Effect, GameSave, ItemRef } from "../../types";
-import { getActorInventory, getItemRefQty } from "../../characters/inventory";
+import type { Effect, GameSave } from "../../types";
 import { getCurrentTurnActorId, calculateInitialMovement } from "../combat";
+import { equipItem } from "../../equipment/management";
 
 /**
  * EquipItem: equips an item from inventory into a slot (swaps if slot occupied)
@@ -51,105 +51,9 @@ export function combatEquipItem(
     }
   }
 
-  const inventory = getActorInventory(actor);
-  let itemRef: ItemRef | null = null;
-  let updatedInventory = [...inventory];
-
-  function normalizeItemRefForEquip(ref: ItemRef): ItemRef {
-    const { qty, ...rest } = ref;
-    return rest;
-  }
-
-  function tryRemoveFromInventoryByIndex(index: number): { ref: ItemRef; updated: ItemRef[] } | null {
-    if (index < 0 || index >= inventory.length) return null;
-    const entry = inventory[index];
-    const qty = getItemRefQty(entry);
-    if (qty > 1) {
-      const updated = [...inventory];
-      updated[index] = { ...entry, qty: qty - 1 };
-      return { ref: { ...entry, qty: 1 }, updated };
-    }
-    return { ref: entry, updated: inventory.filter((_, idx) => idx !== index) };
-  }
-
-  function tryRemoveFromInventoryByRef(ref: ItemRef): { ref: ItemRef; updated: ItemRef[] } | null {
-    const index = inventory.findIndex((item) => item.kind === ref.kind && item.id === ref.id);
-    if (index === -1) return null;
-    return tryRemoveFromInventoryByIndex(index);
-  }
-
-  // Find item in inventory
-  if (effect.inventoryIndex !== undefined) {
-    const result = tryRemoveFromInventoryByIndex(effect.inventoryIndex);
-    if (result) {
-      itemRef = result.ref;
-      updatedInventory = result.updated;
-    }
-  } else {
-    // Find by itemRef
-    const result = tryRemoveFromInventoryByRef(effect.itemRef);
-    if (result) {
-      itemRef = result.ref;
-      updatedInventory = result.updated;
-    }
-  }
-
-  if (!itemRef) {
-    // Item not found in inventory
+  const updatedSave = equipItem(save, effect.actorId, effect.itemRef, effect.slot);
+  if (updatedSave === save) {
     return { save };
-  }
-
-  // Validate slot compatibility
-  const normalizedRef = normalizeItemRefForEquip(itemRef);
-  const itemKind = normalizedRef.kind;
-  const itemDef = itemKind === "item" || itemKind === "misc" ? save.itemsById?.[normalizedRef.id] : null;
-
-  if (effect.slot === "mainHand") {
-    const canEquipMainHand =
-      itemKind === "weapon" || (itemDef && itemDef.type === "wearable" && itemDef.slot === "mainHand");
-    if (!canEquipMainHand) {
-      return { save };
-    }
-  }
-  if (effect.slot === "offHand") {
-    const canEquipOffHand = itemDef && itemDef.type === "wearable" && itemDef.slot === "offHand";
-    if (!canEquipOffHand) {
-      return { save };
-    }
-  }
-  if (effect.slot === "armor" && itemKind !== "armor") {
-    return { save };
-  }
-  if (["helmet", "boots", "cloak", "necklace"].includes(effect.slot)) {
-    if (!itemDef || itemDef.type !== "wearable" || itemDef.slot !== effect.slot) {
-      return { save };
-    }
-  }
-  if (effect.slot === "ring1" || effect.slot === "ring2") {
-    if (!itemDef || itemDef.type !== "wearable" || itemDef.slot !== "ring") {
-      return { save };
-    }
-  }
-
-  // Get currently equipped item (for swap)
-  const currentlyEquipped = actor.equipment?.[effect.slot] ?? null;
-
-  // Update actor
-  let updatedActor = {
-    ...actor,
-    inventory: updatedInventory,
-    equipment: {
-      ...actor.equipment,
-      [effect.slot]: normalizedRef,
-    },
-  };
-
-  // If slot was occupied, add old item to inventory
-  if (currentlyEquipped) {
-    updatedActor = {
-      ...updatedActor,
-      inventory: [...updatedActor.inventory, currentlyEquipped],
-    };
   }
 
   // If in combat, update combat state: consume all movement (unless quick_draw) and track equipping this round
@@ -171,15 +75,10 @@ export function combatEquipItem(
     };
   }
 
-  // Update save with equipped actor and combat state
   const currentSave: GameSave = {
-    ...save,
-    actorsById: {
-      ...save.actorsById,
-      [effect.actorId]: updatedActor,
-    },
+    ...updatedSave,
     runtime: {
-      ...save.runtime,
+      ...updatedSave.runtime,
       ...(updatedCombat ? { combat: updatedCombat } : {}),
     },
   };

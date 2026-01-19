@@ -448,6 +448,7 @@ export type Weapon = {
     consumedPerAttack: number;
   };
   qualities?: string[];
+  grants?: ItemGrant[];
 };
 
 export type Armor = {
@@ -457,6 +458,7 @@ export type Armor = {
   agiMax?: number;
   weight: number;
   tags?: string[];
+  grants?: ItemGrant[];
 };
 
 export type Equipment = {

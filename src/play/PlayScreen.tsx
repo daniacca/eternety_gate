@@ -249,14 +249,13 @@ export function PlayScreen() {
     setSave(newSave);
   };
 
-  const handleEquipItem = (slot: EquipmentSlot, inventoryIndex: number, itemRef: ItemRef) => {
+  const handleEquipItem = (slot: EquipmentSlot, itemRef: ItemRef) => {
     applySystemEffects([
       {
         op: "combatEquipItem",
         actorId: save.party.activeActorId,
         itemRef,
         slot,
-        inventoryIndex,
       },
     ]);
   };
@@ -270,6 +269,93 @@ export function PlayScreen() {
       },
     ]);
   };
+
+  const handleSpawnTestGear = useCallback(() => {
+    setSave((currentSave) => {
+      const actorId = currentSave.party.activeActorId;
+      const actor = currentSave.actorsById[actorId];
+      if (!actor) return currentSave;
+
+      const itemsById = currentSave.itemsById ?? {};
+      const inventory = actor.inventory ? [...actor.inventory] : [];
+      const equipment = actor.equipment ?? {};
+
+      const getQty = (ref: ItemRef) => ref.qty ?? 1;
+      const getInventoryQty = (kind: ItemRef["kind"], id: string) =>
+        inventory.reduce((total, entry) => {
+          if (entry.kind !== kind || entry.id !== id) return total;
+          return total + getQty(entry);
+        }, 0);
+      const isEquipped = (kind: ItemRef["kind"], id: string) =>
+        Object.values(equipment).some((entry) => entry && entry.kind === kind && entry.id === id);
+      const hasItem = (kind: ItemRef["kind"], id: string) =>
+        inventory.some((entry) => entry.kind === kind && entry.id === id) || isEquipped(kind, id);
+
+      const addStackable = (itemId: string, qty: number) => {
+        if (qty <= 0) return;
+        const def = itemsById[itemId];
+        const maxStack = def?.maxStack ?? 1;
+        if (maxStack <= 1) {
+          for (let i = 0; i < qty; i += 1) {
+            inventory.push({ kind: "item", id: itemId });
+          }
+          return;
+        }
+        let remaining = qty;
+        for (let i = 0; i < inventory.length && remaining > 0; i += 1) {
+          const entry = inventory[i];
+          if (entry.kind !== "item" || entry.id !== itemId) continue;
+          const currentQty = getQty(entry);
+          const space = maxStack - currentQty;
+          if (space <= 0) continue;
+          const add = Math.min(space, remaining);
+          remaining -= add;
+          inventory[i] = { ...entry, qty: currentQty + add };
+        }
+        while (remaining > 0) {
+          const stackQty = Math.min(maxStack, remaining);
+          remaining -= stackQty;
+          inventory.push({ kind: "item", id: itemId, qty: stackQty });
+        }
+      };
+
+      const addIfMissing = (ref: ItemRef) => {
+        if (hasItem(ref.kind, ref.id)) return;
+        inventory.push(ref);
+      };
+
+      addIfMissing({ kind: "weapon", id: "longsword" });
+      addIfMissing({ kind: "weapon", id: "greatsword" });
+      addIfMissing({ kind: "item", id: "shield:wooden" });
+      addIfMissing({ kind: "weapon", id: "shortbow" });
+      addIfMissing({ kind: "armor", id: "leather" });
+      addIfMissing({ kind: "armor", id: "fullplate" });
+      addIfMissing({ kind: "item", id: "ring:agility" });
+      addIfMissing({ kind: "item", id: "necklace:iron" });
+      addIfMissing({ kind: "item", id: "cloak:traveler" });
+      addIfMissing({ kind: "item", id: "boots:leather" });
+      addIfMissing({ kind: "item", id: "helmet:leather" });
+
+      const arrowQty = getInventoryQty("item", "ammo:arrow");
+      const desiredArrows = 20;
+      if (arrowQty < desiredArrows) {
+        addStackable("ammo:arrow", desiredArrows - arrowQty);
+      }
+
+      const updatedActor = {
+        ...actor,
+        inventory,
+      };
+
+      return {
+        ...currentSave,
+        actorsById: {
+          ...currentSave.actorsById,
+          [actorId]: updatedActor,
+        },
+      };
+    });
+  }, []);
 
   const buildInitialSelection = (spec: TargetSpec): Partial<TargetSelection> => {
     switch (spec.shape.kind) {
@@ -584,6 +670,7 @@ export function PlayScreen() {
         save={save}
         onClose={() => setPlayerSheetVisible(false)}
         applySystemEffects={applySystemEffects}
+        onDebugSpawnGear={__DEV__ ? handleSpawnTestGear : undefined}
       />
 
       {/* Talent Shop Modal */}

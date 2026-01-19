@@ -74,6 +74,21 @@
     "qualities": ["balanced"]
   },
   {
+    "id": "greatsword",
+    "name": "Greatsword",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "double",
+      "add": 0,
+      "bonus": "SB"
+    },
+    "damageType": "rendering",
+    "penetration": 2,
+    "weight": 6,
+    "handedness": "twoHand",
+    "qualities": ["heavy"]
+  },
+  {
     "id": "dagger",
     "name": "Dagger",
     "kind": "MELEE",

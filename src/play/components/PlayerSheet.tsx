@@ -27,6 +27,7 @@ interface PlayerSheetProps {
   save: GameSave;
   onClose: () => void;
   applySystemEffects?: (effects: Effect[]) => void;
+  onDebugSpawnGear?: () => void;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -55,7 +56,7 @@ const statLabels: Record<string, string> = {
   PER: "Percezione",
 };
 
-export function PlayerSheet({ visible, save, onClose, applySystemEffects }: PlayerSheetProps) {
+export function PlayerSheet({ visible, save, onClose, applySystemEffects, onDebugSpawnGear }: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
   const [showTalentShop, setShowTalentShop] = useState(false);
   const { width } = useWindowDimensions();
@@ -217,6 +218,11 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects }: Play
                       <Text style={styles.devButtonText}>+1 Fate</Text>
                     </TouchableOpacity>
                   </View>
+                  {onDebugSpawnGear && (
+                    <TouchableOpacity style={styles.devButtonWide} onPress={onDebugSpawnGear}>
+                      <Text style={styles.devButtonText}>Spawn Test Gear</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
@@ -855,6 +861,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "#ef4444",
     borderRadius: 6,
+  },
+  devButtonWide: {
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#ef4444",
+    borderRadius: 6,
+    alignItems: "center",
   },
   devButtonText: {
     color: "#fff",
