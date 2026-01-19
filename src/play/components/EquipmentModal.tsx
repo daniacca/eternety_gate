@@ -6,7 +6,10 @@ import {
   listEquippableInventoryItems,
   getItemDefinition,
   getItemDisplaySummary,
+  loadWeaponQualities,
+  resolveWeaponQualities,
 } from "@eg/engine";
+import { sigilContentPack } from "@eg/content/src";
 
 type EquipmentSlot =
   | "mainHand"
@@ -198,6 +201,7 @@ function ItemInspectModal({
   save: GameSave;
 }) {
   if (!visible || !itemRef) return null;
+  const weaponQualityCatalog = loadWeaponQualities(sigilContentPack as any);
   const resolved = getItemDefinition(itemRef, {
     itemsById: save.itemsById ?? {},
     weaponsById: save.weaponsById ?? {},
@@ -224,9 +228,6 @@ function ItemInspectModal({
     }
     if (weapon.ammo) {
       rows.push({ label: "Ammo", value: `${weapon.ammo.itemId} x${weapon.ammo.consumedPerAttack}` });
-    }
-    if (weapon.qualities?.length) {
-      rows.push({ label: "Qualities", value: weapon.qualities.join(", ") });
     }
     if (weapon.weight !== undefined) {
       rows.push({ label: "Weight", value: String(weapon.weight) });
@@ -270,6 +271,20 @@ function ItemInspectModal({
     }
   }
 
+  const qualityDetails =
+    resolved && resolved.kind === "weapon"
+      ? resolveWeaponQualities(resolved.def, weaponQualityCatalog).map((quality) => {
+          const qualityDef = weaponQualityCatalog[quality.id];
+          const label = qualityDef ? qualityDef.name : quality.id;
+          const rankLabel = quality.rank ? `${label} (${quality.rank})` : label;
+          return {
+            id: quality.id,
+            label: rankLabel,
+            description: qualityDef?.description ?? "",
+          };
+        })
+      : [];
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -288,6 +303,17 @@ function ItemInspectModal({
                 <Text style={styles.inspectValue}>{row.value}</Text>
               </View>
             ))}
+            {qualityDetails.length > 0 && (
+              <View style={styles.qualitySection}>
+                <Text style={styles.qualityHeader}>Qualities</Text>
+                {qualityDetails.map((quality) => (
+                  <View key={quality.id} style={styles.qualityRow}>
+                    <Text style={styles.qualityName}>{quality.label}</Text>
+                    {quality.description ? <Text style={styles.qualityDescription}>{quality.description}</Text> : null}
+                  </View>
+                ))}
+              </View>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -443,6 +469,30 @@ const styles = StyleSheet.create({
   inspectValue: {
     fontSize: 13,
     color: "#333",
+    marginTop: 2,
+  },
+  qualitySection: {
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  qualityHeader: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#666",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  qualityRow: {
+    marginBottom: 8,
+  },
+  qualityName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+  },
+  qualityDescription: {
+    fontSize: 12,
+    color: "#555",
     marginTop: 2,
   },
 });

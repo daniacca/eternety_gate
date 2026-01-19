@@ -1,0 +1,157 @@
+[
+  {
+    "id": "accurate",
+    "name": "Accurate",
+    "description": "When aiming, gain +10 to hit and add extra damage dice equal to floor(DoS / 2).",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "inaccurate",
+    "name": "Inaccurate",
+    "description": "Aim stance provides no bonus to hit with this weapon.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "balanced",
+    "name": "Balanced",
+    "description": "+10 to Parry checks when using this weapon to parry.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "unbalanced",
+    "name": "Unbalanced",
+    "description": "-10 to Parry checks when using this weapon to parry; Swift Attack is not allowed.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "unwieldy",
+    "name": "Unwieldy",
+    "description": "Cannot be used to parry; Swift Attack is not allowed.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "flexible",
+    "name": "Flexible",
+    "description": "Attacks made with this weapon cannot be parried (dodge still allowed).",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "tearing",
+    "name": "Tearing",
+    "description": "Roll one extra d10 for damage and discard the lowest.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "razor_sharp",
+    "name": "Razor Sharp",
+    "description": "If attack DoS is 3+, double weapon penetration for this attack.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "felling",
+    "name": "Felling",
+    "description": "Reduce target Toughness Bonus by X for soak on this attack.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
+    "hooks": []
+  },
+  {
+    "id": "force",
+    "name": "Force",
+    "description": "If the wielder has the weaver trait, add PM to damage and penetration for this attack.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "vengeful",
+    "name": "Vengeful",
+    "description": "On critical hits, roll best-of-X for damage dice (minimum 2).",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 2
+      }
+    },
+    "hooks": []
+  },
+  {
+    "id": "shocking",
+    "name": "Shocking",
+    "description": "On hit, inflicts 1d5 fatigue and stunned for ceil(DoS / 2) rounds.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "toxic",
+    "name": "Toxic",
+    "description": "Target must pass a Toughness test at -10 per rank or suffer 1d10 direct damage.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
+    "hooks": []
+  },
+  {
+    "id": "sanctified",
+    "name": "Sanctified",
+    "description": "Counts as magical vs daemonic-spiritual targets and triggers spiritual instability test.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "magic_field",
+    "name": "Magic Field",
+    "description": "On successful parry, may destroy the attacking weapon (unless it is magical or natural).",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "simple",
+    "name": "Simple",
+    "description": "A basic weapon with no special combat effects.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "primitive",
+    "name": "Primitive",
+    "description": "Crude construction; special interactions are handled by higher-level rules.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "heavy",
+    "name": "Heavy",
+    "description": "Large and heavy weapon; special interactions are handled by higher-level rules.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "light",
+    "name": "Light",
+    "description": "Lightweight weapon; special interactions are handled by higher-level rules.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "slow",
+    "name": "Slow",
+    "description": "Slow to reload or swing; special interactions are handled by higher-level rules.",
+    "paramsSchema": {},
+    "hooks": []
+  }
+]

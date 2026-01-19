@@ -411,6 +411,7 @@ export type StoryPack = {
   skills?: any[];
   talents?: any[];
   traits?: any[];
+  weaponQualities?: any[];
   grids?: any[];
   tiles?: any;
 
@@ -423,6 +424,11 @@ export type StoryPack = {
 
 export type WeaponDamageTier = "fixed" | "half" | "single" | "double" | "triple" | "quadfold" | "fivefold";
 export type WeaponDamageType = "energy" | "explosive" | "impact" | "rendering" | "piercing";
+
+export type WeaponQualityRef = {
+  id: string;
+  rank?: number;
+};
 
 export type Weapon = {
   id: WeaponId;
@@ -447,7 +453,7 @@ export type Weapon = {
     itemId: ItemId;
     consumedPerAttack: number;
   };
-  qualities?: string[];
+  qualities?: WeaponQualityRef[];
   grants?: ItemGrant[];
 };
 

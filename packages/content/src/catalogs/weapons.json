@@ -19,7 +19,7 @@
       "itemId": "ammo:arrow",
       "consumedPerAttack": 1
     },
-    "qualities": ["simple"]
+    "qualities": [{ "id": "simple" }]
   },
   {
     "id": "longbow",
@@ -41,7 +41,7 @@
       "itemId": "ammo:arrow",
       "consumedPerAttack": 1
     },
-    "qualities": ["accurate"]
+    "qualities": [{ "id": "accurate" }]
   },
   {
     "id": "club",
@@ -56,7 +56,7 @@
     "penetration": 0,
     "weight": 2,
     "handedness": "oneHand",
-    "qualities": ["primitive"]
+    "qualities": [{ "id": "primitive" }, { "id": "unbalanced" }]
   },
   {
     "id": "longsword",
@@ -71,7 +71,7 @@
     "penetration": 1,
     "weight": 3,
     "handedness": "oneHand",
-    "qualities": ["balanced"]
+    "qualities": [{ "id": "balanced" }]
   },
   {
     "id": "greatsword",
@@ -86,7 +86,7 @@
     "penetration": 2,
     "weight": 6,
     "handedness": "twoHand",
-    "qualities": ["heavy"]
+    "qualities": [{ "id": "heavy" }, { "id": "balanced" }]
   },
   {
     "id": "dagger",
@@ -101,7 +101,7 @@
     "penetration": 0,
     "weight": 1,
     "handedness": "oneHand",
-    "qualities": ["light"]
+    "qualities": [{ "id": "light" }]
   },
   {
     "id": "crossbow",
@@ -123,6 +123,116 @@
       "itemId": "ammo:bolt",
       "consumedPerAttack": 1
     },
-    "qualities": ["slow"]
+    "qualities": [{ "id": "slow" }]
+  },
+  {
+    "id": "venom_whip",
+    "name": "Venom Whip",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "single",
+      "add": 1,
+      "bonus": "SB"
+    },
+    "damageType": "impact",
+    "penetration": 1,
+    "weight": 2,
+    "handedness": "oneHand",
+    "qualities": [
+      { "id": "flexible" },
+      { "id": "toxic", "rank": 2 },
+      { "id": "shocking" }
+    ]
+  },
+  {
+    "id": "sanctified_greatblade",
+    "name": "Sanctified Greatblade",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "double",
+      "add": 1,
+      "bonus": "SB"
+    },
+    "damageType": "rendering",
+    "penetration": 3,
+    "weight": 7,
+    "handedness": "twoHand",
+    "qualities": [
+      { "id": "balanced" },
+      { "id": "razor_sharp" },
+      { "id": "sanctified" },
+      { "id": "vengeful", "rank": 3 }
+    ]
+  },
+  {
+    "id": "harquebus",
+    "name": "Harquebus",
+    "kind": "RANGED",
+    "damage": {
+      "tier": "single",
+      "add": 2
+    },
+    "damageType": "energy",
+    "penetration": 4,
+    "range": {
+      "short": 6,
+      "long": 12
+    },
+    "ammo": {
+      "itemId": "ammo:shot",
+      "consumedPerAttack": 1
+    },
+    "weight": 4,
+    "handedness": "twoHand",
+    "qualities": [
+      { "id": "accurate" },
+      { "id": "felling", "rank": 2 },
+      { "id": "razor_sharp" }
+    ]
+  },
+  {
+    "id": "force_sword",
+    "name": "Force Sword",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "single",
+      "add": 2,
+      "bonus": "SB"
+    },
+    "damageType": "rendering",
+    "penetration": 1,
+    "weight": 3,
+    "handedness": "oneHand",
+    "qualities": [{ "id": "balanced" }, { "id": "force" }]
+  },
+  {
+    "id": "staff",
+    "name": "Staff",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "single",
+      "add": 0,
+      "bonus": "SB"
+    },
+    "damageType": "impact",
+    "penetration": 0,
+    "weight": 2,
+    "handedness": "oneHand",
+    "qualities": [{ "id": "balanced" }]
+  },
+  {
+    "id": "warhammer",
+    "name": "Warhammer",
+    "kind": "MELEE",
+    "damage": {
+      "tier": "double",
+      "add": 3,
+      "bonus": "SB"
+    },
+    "damageType": "impact",
+    "penetration": 3,
+    "weight": 6,
+    "handedness": "twoHand",
+    "qualities": [{ "id": "heavy" }, { "id": "unwieldy" }, { "id": "shocking" }]
   }
 ]

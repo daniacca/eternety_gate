@@ -3,6 +3,7 @@ import type { StatKey } from "../runtime/types";
 export type SkillId = string;
 export type TalentId = string;
 export type TraitId = string;
+export type WeaponQualityId = string;
 
 export type Skill = {
   id: SkillId;
@@ -58,6 +59,14 @@ export type Trait = {
   name: string;
   grants: Grant[];
   params?: Record<string, { type: string; required?: boolean; min?: number; max?: number }>;
+};
+
+export type WeaponQuality = {
+  id: WeaponQualityId;
+  name: string;
+  description: string;
+  paramsSchema?: Record<string, { type: string; required?: boolean; min?: number; max?: number }>;
+  hooks?: string[];
 };
 
 export type CharacterCatalogs = {

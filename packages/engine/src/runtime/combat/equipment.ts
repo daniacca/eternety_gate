@@ -182,7 +182,8 @@ export function calculateWeaponDamage(
   rng: { nextInt: (min: number, max: number) => number },
   mode: "MELEE" | "RANGED",
   rollsCount: number = 1,
-  catalogs?: CharacterCatalogs
+  catalogs?: CharacterCatalogs,
+  options?: { tearing?: boolean; extraDice?: number }
 ): { rawDamage: number; weaponName: string; weaponId: WeaponId | "unarmed" } {
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
     // Unarmed: 1d5 + STR bonus (always applies STR bonus for unarmed)
@@ -213,6 +214,9 @@ export function calculateWeaponDamage(
   const meleeTalentBonus = mode === "MELEE" && catalogs ? getMeleeDamageBonusFromTalents(save, catalogs, attacker.id) : 0;
   const rangedTalentBonus = mode === "RANGED" && catalogs ? getRangedDamageBonusFromTalents(save, catalogs, attacker.id) : 0;
 
+  const extraDice = Math.max(0, options?.extraDice ?? 0);
+  const tearing = options?.tearing ?? false;
+
   for (let i = 0; i < rollsCount; i++) {
     // Calculate damage based on weapon damage tier
     let dieRoll = 0;
@@ -224,24 +228,72 @@ export function calculateWeaponDamage(
         dieRoll = rng.nextInt(1, 5); // 1d5
         break;
       case "single":
-        dieRoll = rng.nextInt(1, 10); // 1d10
+        if (tearing) {
+          const rolls = [rng.nextInt(1, 10), rng.nextInt(1, 10)];
+          rolls.sort((a, b) => a - b);
+          dieRoll = rolls[1];
+        } else {
+          dieRoll = rng.nextInt(1, 10); // 1d10
+        }
         break;
       case "double":
-        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10); // 2d10
+        if (tearing) {
+          const rolls = [rng.nextInt(1, 10), rng.nextInt(1, 10), rng.nextInt(1, 10)];
+          rolls.sort((a, b) => a - b);
+          dieRoll = rolls[1] + rolls[2];
+        } else {
+          dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10); // 2d10
+        }
         break;
       case "triple":
-        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 3d10
+        if (tearing) {
+          const rolls = [rng.nextInt(1, 10), rng.nextInt(1, 10), rng.nextInt(1, 10), rng.nextInt(1, 10)];
+          rolls.sort((a, b) => a - b);
+          dieRoll = rolls[1] + rolls[2] + rolls[3];
+        } else {
+          dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 3d10
+        }
         break;
       case "quadfold":
-        dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 4d10
+        if (tearing) {
+          const rolls = [
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+          ];
+          rolls.sort((a, b) => a - b);
+          dieRoll = rolls[1] + rolls[2] + rolls[3] + rolls[4];
+        } else {
+          dieRoll = rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 4d10
+        }
         break;
       case "fivefold":
-        dieRoll =
-          rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 5d10
+        if (tearing) {
+          const rolls = [
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+            rng.nextInt(1, 10),
+          ];
+          rolls.sort((a, b) => a - b);
+          dieRoll = rolls[1] + rolls[2] + rolls[3] + rolls[4] + rolls[5];
+        } else {
+          dieRoll =
+            rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 5d10
+        }
         break;
     }
 
     let rollDamage = dieRoll + weapon.damage.add;
+    if (extraDice > 0) {
+      for (let extra = 0; extra < extraDice; extra++) {
+        rollDamage += rng.nextInt(1, 10);
+      }
+    }
 
     // MELEE: Always apply STR bonus + melee talent bonuses (Crushing Blow, Deathdealer)
     // RANGED: Never apply STR bonus (only weapon base damage + ranged bonuses)

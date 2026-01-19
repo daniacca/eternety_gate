@@ -12,6 +12,7 @@ import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
 import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
+import { hasWeaponQuality } from "../weaponQualities";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -138,8 +139,22 @@ export function computeAttackTarget(
   // Aim stance modifier: +20 bonus for ranged attacks when aim stance is active
   const attackerStance = save.runtime.combat?.stancesByActorId?.[attacker.id];
   if (check.attacker.mode === "RANGED" && attackerStance === "aim") {
-    combatModifier += 20;
-    modifierTags.push("combat:mod:aim=+20");
+    const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
+    const attackerWeapon =
+      attackerWeaponId && attackerWeaponId !== "unarmed" ? save.weaponsById?.[attackerWeaponId] : null;
+    const hasInaccurate = hasWeaponQuality(attackerWeapon, "inaccurate");
+    const hasAccurate = hasWeaponQuality(attackerWeapon, "accurate");
+
+    if (hasInaccurate) {
+      modifierTags.push("combat:mod:aim=+0 (Inaccurate)");
+    } else {
+      combatModifier += 20;
+      modifierTags.push("combat:mod:aim=+20");
+      if (hasAccurate) {
+        combatModifier += 10;
+        modifierTags.push("combat:mod:accurate=+10");
+      }
+    }
   }
 
   // Stance modifiers
@@ -350,13 +365,22 @@ export function performCombatAttackCheck(
   const turnCounter = combat?.turnCounter ?? 0;
   const disabledUntil = combat?.parryDisabledUntilTurnCounterByActorId?.[defender.id] ?? -1;
   const defenderWeapon = getEquippedWeapon(save, defender.id);
+  const parryWeapon = defenderWeapon?.kind === "MELEE" ? defenderWeapon : null;
   const hasMeleeWeapon = defenderWeapon?.kind === "MELEE";
   const hasShield = hasShieldEquipped(save, defender.id);
   const hasNaturalWeapons = defender.tags?.includes("natural_weapon") || defender.traits?.["trait:natural_weapons"] !== undefined;
+  const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
+  const attackerWeapon =
+    attackerWeaponId && attackerWeaponId !== "unarmed" ? save.weaponsById?.[attackerWeaponId] : null;
+  const attackHasFlexible = hasWeaponQuality(attackerWeapon, "flexible");
+  const parryWeaponUnwieldy = hasWeaponQuality(parryWeapon, "unwieldy");
+  const parryBlockedByUnwieldy = parryWeaponUnwieldy && !hasShield;
   const canParry =
     turnCounter >= disabledUntil &&
     check.defense.allowParry &&
-    (hasMeleeWeapon || hasShield || hasNaturalWeapons);
+    (hasMeleeWeapon || hasShield || hasNaturalWeapons) &&
+    !attackHasFlexible &&
+    !parryBlockedByUnwieldy;
   const canDodge = check.defense.allowDodge;
 
   // Use skill keys for defense
@@ -412,6 +436,12 @@ export function performCombatAttackCheck(
   if (!canParry && check.defense.allowParry) {
     tags.push("combat:defense:parryBlocked=1");
   }
+  if (attackHasFlexible) {
+    tags.push("combat:defense:parryBlocked=flexible");
+  }
+  if (parryBlockedByUnwieldy) {
+    tags.push("combat:defense:parryBlocked=unwieldy");
+  }
 
   // Initialize updatedSave (will be updated if defense check is logged)
   let updatedSave = save;
@@ -436,8 +466,12 @@ export function performCombatAttackCheck(
 
   // Roll defense using the chosen skill
   const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
-  // Add Shield Mastery bonus to parry target only
-  const parryBonus = defenseType === "parry" ? shieldMasteryBonus : 0;
+  // Add parry bonuses to parry target only
+  const parryQualityBonus =
+    defenseType === "parry"
+      ? (hasWeaponQuality(parryWeapon, "balanced") ? 10 : 0) + (hasWeaponQuality(parryWeapon, "unbalanced") ? -10 : 0)
+      : 0;
+  const parryBonus = defenseType === "parry" ? shieldMasteryBonus + parryQualityBonus : 0;
   const defenseTarget = defenseBreakdown.target + parryBonus;
 
   const defenseRoll = rng.rollD100();
@@ -468,7 +502,8 @@ export function performCombatAttackCheck(
           `combat:defCalc:base=${defenseBreakdown.baseValue}`,
           `combat:defCalc:mods=${defenseBreakdown.tempModsSum}`,
           `combat:defCalc:target=${defenseTarget}`,
-          ...(parryBonus > 0 ? [`combat:defCalc:shieldMastery=+${parryBonus}`] : []),
+          ...(shieldMasteryBonus > 0 ? [`combat:defCalc:shieldMastery=+${shieldMasteryBonus}`] : []),
+          ...(parryQualityBonus !== 0 ? [`combat:defCalc:weaponQuality=${parryQualityBonus}`] : []),
         ],
       };
       updatedSave = appendRuntimeLog(updatedSave, {
@@ -548,6 +583,66 @@ export function performCombatAttackCheck(
     if (isTie) {
       tags.push("combat:tie=1");
     }
+
+    // Magic Field / Force: parry may destroy attacking weapon
+    if (defenseType === "parry" && defenseResult.success) {
+      const parryHasMagicField = hasWeaponQuality(parryWeapon, "magic_field") || hasWeaponQuality(parryWeapon, "force");
+      if (parryHasMagicField) {
+        const attackerHasNaturalWeapons =
+          attacker.tags?.includes("natural_weapon") || attacker.traits?.["trait:natural_weapons"] !== undefined;
+        const attackerWeaponIdForDestruction = attackerWeaponId ?? getEquippedWeaponId(attacker);
+        const attackerWeaponForDestruction =
+          attackerWeaponIdForDestruction && attackerWeaponIdForDestruction !== "unarmed"
+            ? save.weaponsById?.[attackerWeaponIdForDestruction]
+            : null;
+        const attackerHasMagicField =
+          hasWeaponQuality(attackerWeaponForDestruction, "magic_field") || hasWeaponQuality(attackerWeaponForDestruction, "force");
+
+        if (!attackerHasNaturalWeapons && !attackerHasMagicField && attackerWeaponForDestruction) {
+          const destructionRoll = rng.rollD100();
+          const shouldDestroy = destructionRoll <= 50;
+
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: shouldDestroy
+              ? `Magic Field: ${attacker.id} weapon destroyed (roll ${destructionRoll})`
+              : `Magic Field: ${attacker.id} weapon survives (roll ${destructionRoll})`,
+            turnCounter: save.runtime.combat?.turnCounter ?? 0,
+            resolutionId,
+            tags: [
+              "weapon:magicField",
+              `roll=${destructionRoll}`,
+              `destroyed=${shouldDestroy ? 1 : 0}`,
+              `weaponId=${attackerWeaponIdForDestruction}`,
+            ],
+          });
+
+          if (shouldDestroy) {
+            const attackerToUpdate = updatedSave.actorsById[attacker.id];
+            if (attackerToUpdate?.equipment) {
+              const updatedEquipment = { ...attackerToUpdate.equipment };
+              if (updatedEquipment.mainHand?.kind === "weapon" && updatedEquipment.mainHand.id === attackerWeaponIdForDestruction) {
+                updatedEquipment.mainHand = null;
+              }
+              if (updatedEquipment.offHand?.kind === "weapon" && updatedEquipment.offHand.id === attackerWeaponIdForDestruction) {
+                updatedEquipment.offHand = null;
+              }
+              updatedSave = {
+                ...updatedSave,
+                actorsById: {
+                  ...updatedSave.actorsById,
+                  [attacker.id]: {
+                    ...attackerToUpdate,
+                    equipment: updatedEquipment,
+                  },
+                },
+              };
+            }
+          }
+        }
+      }
+    }
+
     return {
       result: {
         checkId: check.id,

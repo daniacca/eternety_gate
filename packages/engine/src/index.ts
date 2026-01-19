@@ -69,11 +69,25 @@ export {
   loadCharacterCatalogs,
   loadTerrainCatalogs,
   loadEquipmentCatalogs,
+  loadWeaponQualities,
   getSkillById,
   getTalentById,
   getTraitById,
 } from "./content/loadCatalogs";
-export type { Skill, Talent, Trait, CharacterCatalogs, SkillId, TalentId, TraitId, GridDefinition, TileDefinition, TerrainCatalogs } from "./content/catalogs";
+export type {
+  Skill,
+  Talent,
+  Trait,
+  CharacterCatalogs,
+  SkillId,
+  TalentId,
+  TraitId,
+  GridDefinition,
+  TileDefinition,
+  TerrainCatalogs,
+  WeaponQuality,
+  WeaponQualityId,
+} from "./content/catalogs";
 
 // Terrain helpers
 export { getGrid, getCellTerrain } from "./runtime/combat/terrain";
@@ -101,6 +115,12 @@ export { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./runtime/characte
 export { getMagicPower } from "./runtime/magic/pm";
 export { canLearnSpell, learnSpell, getLearnedSpells, hasLearnedSpell } from "./runtime/magic/learning";
 export { getAllSpells, getSpellById, getEffectById } from "./runtime/magic/catalogs";
+export {
+  resolveWeaponQualities,
+  getWeaponQuality,
+  hasWeaponQuality,
+  getWeaponQualityRank,
+} from "./runtime/weaponQualities";
 
 // Targeting types (legacy + new combat targeting)
 export type {

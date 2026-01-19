@@ -73,5 +73,13 @@
     "weight": 0.1,
     "maxStack": 20,
     "tags": ["ammo", "bolt"]
+  },
+  {
+    "id": "ammo:shot",
+    "name": "Shots",
+    "type": "consumable",
+    "weight": 0.1,
+    "maxStack": 20,
+    "tags": ["ammo", "shot"]
   }
 ]

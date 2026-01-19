@@ -6,6 +6,7 @@ import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
 import { footprintDistanceBetweenActors } from "../footprint";
 import { getEquippedWeaponId } from "../../characters/inventory";
+import { hasWeaponQuality } from "../../weaponQualities";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
 
@@ -146,6 +147,30 @@ export function combatSwiftAttack(
   }
 
   const weaponId = effect.weaponId ?? getEquippedWeaponId(attacker);
+  const weaponDef = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
+
+  if (weaponDef && (hasWeaponQuality(weaponDef, "unbalanced") || hasWeaponQuality(weaponDef, "unwieldy"))) {
+    const blockedCheck = {
+      checkId: "combat:swiftAttack:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=weaponUnbalanced"],
+    };
+    return {
+      save: {
+        ...currentSave,
+        runtime: {
+          ...currentSave.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
 
   // Build CombatAttackCheck for melee attack
   const check: CombatAttackCheck = {

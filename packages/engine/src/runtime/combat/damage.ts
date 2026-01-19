@@ -1,7 +1,7 @@
-import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId } from "../types";
+import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId, SingleCheck } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
-import { resolveActor } from "../checks";
+import { performCheckWithSave, resolveActor } from "../checks";
 import { calculateWeaponDamage, getActorArmor } from "./equipment";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
 import { getEquippedWeaponId } from "../characters/inventory";
@@ -11,6 +11,9 @@ import { calculateMaxHp } from "../characters/hp";
 import { applyDamageToActor } from "./criticalDamage";
 import { getModifierTotal } from "../characters/modifiers";
 import { trackCombatDamage } from "./damageTracking";
+import { hasTrait } from "../characters/prerequisites";
+import { getMagicPower } from "../magic/pm";
+import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -45,6 +48,8 @@ export function applyCombatDamageIfHit(
     return { save, didApplyDamage: false, targetKo: false };
   }
 
+  let updatedSave: GameSave = save;
+
   // Get weapon ID from check or actor equipment
   const weaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
   const mode = check.attacker.mode; // MELEE or RANGED
@@ -69,15 +74,21 @@ export function applyCombatDamageIfHit(
     const weaponForFury = save.weaponsById?.[finalWeaponId];
     // Base rolls = 2 for all weapons
     rollsCount = 2;
-    // Check for vengeful trait in tags (e.g., "vengeful" or "vengeful:3")
-    if (weaponForFury && weaponForFury.tags) {
-      const vengefulTag = weaponForFury.tags.find((tag) => tag.startsWith("vengeful"));
-      if (vengefulTag) {
-        // Parse numeric value if present (e.g., "vengeful:3" -> 3)
-        const match = vengefulTag.match(/vengeful:(\d+)/);
-        const vengefulValue = match ? parseInt(match[1], 10) : 3; // Default to 3 if just "vengeful"
-        if (vengefulValue > 2) {
-          rollsCount = vengefulValue;
+    if (weaponForFury) {
+      const vengefulQuality = getWeaponQuality(weaponForFury, "vengeful");
+      if (vengefulQuality) {
+        const vengefulRank = vengefulQuality.rank ?? 3;
+        if (vengefulRank > 2) {
+          rollsCount = vengefulRank;
+        }
+      } else if (weaponForFury.tags) {
+        const vengefulTag = weaponForFury.tags.find((tag) => tag.startsWith("vengeful"));
+        if (vengefulTag) {
+          const match = vengefulTag.match(/vengeful:(\d+)/);
+          const vengefulValue = match ? parseInt(match[1], 10) : 3;
+          if (vengefulValue > 2) {
+            rollsCount = vengefulValue;
+          }
         }
       }
     }
@@ -113,10 +124,35 @@ export function applyCombatDamageIfHit(
     }
     damageFormula = formulaParts.join(" + ");
   } else {
-    const result = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs);
-    rawDamage = result.rawDamage;
-    weaponName = result.weaponName;
-    calculatedWeaponId = result.weaponId;
+    const weaponForQualities = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
+    const hasAccurate = hasWeaponQuality(weaponForQualities, "accurate");
+    const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
+    const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
+    const forceBonus =
+      hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver")
+        ? getMagicPower(save, attacker.id, catalogs)
+        : 0;
+
+    const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
+      tearing: hasTearing,
+      extraDice: accurateExtraDice,
+    });
+    rawDamage = damageCalc.rawDamage;
+    if (forceBonus > 0) {
+      rawDamage += forceBonus;
+    }
+    weaponName = damageCalc.weaponName;
+    calculatedWeaponId = damageCalc.weaponId;
+
+    if (accurateExtraDice > 0) {
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Accurate: +${accurateExtraDice}d10 damage dice`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:accurate", `extraDice=${accurateExtraDice}`],
+      });
+    }
 
     // Build formula string for logging
     const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
@@ -154,6 +190,12 @@ export function applyCombatDamageIfHit(
         }
       }
 
+      if (accurateExtraDice > 0) {
+        formulaParts.push(`${accurateExtraDice}d10 (Accurate)`);
+      }
+      if (forceBonus > 0) {
+        formulaParts.push(`${forceBonus} (Force)`);
+      }
       damageFormula = formulaParts.join(" + ");
     } else {
       // Unarmed
@@ -161,6 +203,9 @@ export function applyCombatDamageIfHit(
       const formulaParts: string[] = ["1d5"];
       if (strBonus > 0) {
         formulaParts.push(`${strBonus} (STR)`);
+      }
+      if (forceBonus > 0) {
+        formulaParts.push(`${forceBonus} (Force)`);
       }
       damageFormula = formulaParts.join(" + ");
     }
@@ -174,6 +219,14 @@ export function applyCombatDamageIfHit(
   // Get weapon for penetration calculation
   const weaponForPenetration =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+  const forcePenBonus =
+    weaponForPenetration && hasWeaponQuality(weaponForPenetration, "force") && hasTrait(attacker, "trait:weaver")
+      ? getMagicPower(save, attacker.id, catalogs)
+      : 0;
+  const razorSharpActive =
+    weaponForPenetration && hasWeaponQuality(weaponForPenetration, "razor_sharp") && result.dos >= 3;
+  const basePenetration = weaponForPenetration ? weaponForPenetration.penetration + forcePenBonus : 0;
+  const effectivePenetration = razorSharpActive ? basePenetration * 2 : basePenetration;
 
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
@@ -186,7 +239,7 @@ export function applyCombatDamageIfHit(
   } else if (weaponForPenetration) {
     // Apply weapon penetration: penetration ignores that much armor soak
     // Penetration reduces effective soak (but not below 0)
-    effectiveSoak = Math.max(0, soak - weaponForPenetration.penetration);
+    effectiveSoak = Math.max(0, soak - effectivePenetration);
   }
   const extraSoak = machineSoak > 0 ? machineSoak : naturalArmorSoak;
   if (extraSoak > 0) {
@@ -195,12 +248,42 @@ export function applyCombatDamageIfHit(
 
   // Get defender TOU bonus (always reduces damage)
   let touBonus = getCharacteristicBonus(save, defender.id, "TOU", catalogs);
+  const fellingRank = weaponForPenetration ? getWeaponQualityRank(weaponForPenetration, "felling") : null;
+  if (fellingRank && fellingRank > 0) {
+    const reduced = Math.max(0, touBonus - fellingRank);
+    if (reduced !== touBonus) {
+      touBonus = reduced;
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Felling: Toughness Bonus reduced by ${fellingRank}`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:felling", `reduction=${fellingRank}`],
+      });
+    }
+  }
   if (isMagicalSource) {
     const daemonicParams = defender.traits?.["trait:daemonic"];
     const daemonicBonus = typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
     if (daemonicBonus > 0) {
       touBonus = Math.max(0, touBonus - daemonicBonus);
     }
+  }
+  if (weaponForPenetration && hasWeaponQuality(weaponForPenetration, "sanctified")) {
+    const spiritualParams = defender.traits?.["trait:daemonic_spiritual"];
+    const spiritualBonus = typeof spiritualParams === "object" && typeof spiritualParams.x === "number" ? spiritualParams.x : 0;
+    if (spiritualBonus > 0) {
+      touBonus = Math.max(0, touBonus - spiritualBonus);
+    }
+  }
+  if (razorSharpActive) {
+    updatedSave = appendRuntimeLog(updatedSave, {
+      kind: "system",
+      message: `Razor Sharp: penetration doubled to ${effectivePenetration}`,
+      turnCounter: save.runtime.combat?.turnCounter ?? 0,
+      resolutionId,
+      tags: ["weapon:razor_sharp", `penetration=${effectivePenetration}`],
+    });
   }
 
   // Calculate final damage after soak and TOU bonus
@@ -220,10 +303,10 @@ export function applyCombatDamageIfHit(
   const fullFormula = `${damageFormula} | ${reductionFormula}`;
 
   // Apply damage using centralized function
-  const damageResult = applyDamageToActor(defender, finalDamage, save, rng, storyPack, catalogs);
+  const damageResult = applyDamageToActor(defender, finalDamage, updatedSave, rng, storyPack, catalogs);
   const updatedDefender = damageResult.updatedActor;
-  const emittedEffects = damageResult.effects;
-  const actorDied = damageResult.actorDied;
+  const emittedEffects: Effect[] = [...(damageResult.effects || [])];
+  let actorDied = damageResult.actorDied;
   const dieHardUsed = damageResult.dieHardUsed ?? false;
 
   // If Die Hard was used, return early with special handling
@@ -233,11 +316,11 @@ export function applyCombatDamageIfHit(
       [defender.id]: updatedDefender,
     };
 
-    let updatedSave: GameSave = {
-      ...save,
+    updatedSave = {
+      ...updatedSave,
       actorsById: updatedActorsById,
       runtime: {
-        ...save.runtime,
+        ...updatedSave.runtime,
         rngCounter: rng.getCounter(),
       },
     };
@@ -308,11 +391,11 @@ export function applyCombatDamageIfHit(
         }
       : lastCheck; // if null/undefined, leave it as is
 
-  let updatedSave: GameSave = {
-    ...save,
+  updatedSave = {
+    ...updatedSave,
     actorsById: updatedActorsById,
     runtime: {
-      ...save.runtime,
+      ...updatedSave.runtime,
       lastCheck: updatedLastCheck,
       rngCounter: rng.getCounter(),
     },
@@ -389,10 +472,173 @@ export function applyCombatDamageIfHit(
     }
   }
 
-  const targetKo = hpAfter === 0 || actorDied;
   const didApplyDamage = finalDamage > 0;
   if (didApplyDamage) {
     updatedSave = trackCombatDamage(updatedSave, attacker.id, defender.id, finalDamage);
+  }
+
+  // Weapon qualities: on-hit effects (only if final damage >= 1)
+  const weaponForHitEffects =
+    calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+  if (didApplyDamage && weaponForHitEffects) {
+    if (hasWeaponQuality(weaponForHitEffects, "shocking")) {
+      const fatigueRoll = rng.nextInt(1, 5);
+      const stunnedDuration = Math.ceil(result.dos / 2);
+      emittedEffects.push({
+        op: "addCondition",
+        actorId: defender.id,
+        condition: "fatigue",
+        stacks: fatigueRoll,
+        source: "weapon:shocking",
+      });
+      if (stunnedDuration > 0) {
+        emittedEffects.push({
+          op: "addCondition",
+          actorId: defender.id,
+          condition: "stunned",
+          durationTurns: stunnedDuration,
+          source: "weapon:shocking",
+        });
+      }
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Shocking: fatigue ${fatigueRoll}, stunned ${stunnedDuration} rounds`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:shocking", `fatigue=${fatigueRoll}`, `stunned=${stunnedDuration}`],
+      });
+    }
+
+    const toxicRank = getWeaponQualityRank(weaponForHitEffects, "toxic");
+    if (toxicRank && toxicRank > 0 && storyPack) {
+      const toxicCheck: SingleCheck = {
+        id: `combat:toxic:${attacker.id}:${defender.id}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: defender.id },
+        key: "TOU",
+        difficulty: "Challenging",
+        modifier: -10 * toxicRank,
+      };
+      const { result: toxicResult, save: saveAfterToxicCheck } = performCheckWithSave(
+        toxicCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        resolutionId ? `${resolutionId}:toxic` : undefined
+      );
+      updatedSave = {
+        ...saveAfterToxicCheck,
+        runtime: {
+          ...saveAfterToxicCheck.runtime,
+          rngCounter: rng.getCounter(),
+        },
+      };
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Toxic: ${defender.id} ${toxicResult?.success ? "resists" : "fails"} (rank ${toxicRank})`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:toxic", `rank=${toxicRank}`, `success=${toxicResult?.success ? 1 : 0}`],
+      });
+
+      if (!toxicResult?.success) {
+        const directDamage = rng.nextInt(1, 10);
+        const currentDefender = updatedSave.actorsById[defender.id] ?? defender;
+        const toxicDamageResult = applyDamageToActor(currentDefender, directDamage, updatedSave, rng, storyPack, catalogs);
+        const toxicDefender = toxicDamageResult.updatedActor;
+        if (toxicDamageResult.actorDied) {
+          actorDied = true;
+        }
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [defender.id]: toxicDefender,
+          },
+          runtime: {
+            ...updatedSave.runtime,
+            rngCounter: rng.getCounter(),
+          },
+        };
+        if (toxicDamageResult.effects.length > 0) {
+          emittedEffects.push(...toxicDamageResult.effects);
+        }
+        updatedSave = appendRuntimeLog(updatedSave, {
+          kind: "system",
+          message: `Toxic: ${defender.id} suffers ${directDamage} direct damage`,
+          turnCounter: save.runtime.combat?.turnCounter ?? 0,
+          resolutionId,
+          tags: ["weapon:toxic", `damage=${directDamage}`, "direct=1"],
+        });
+      }
+    }
+
+    if (hasWeaponQuality(weaponForHitEffects, "sanctified") && storyPack) {
+      const hasInstability = defender.traits?.["trait:spiritual_instability"] !== undefined;
+      if (hasInstability) {
+        const penalty = -10 - 5 * result.dos;
+        const instabilityCheck: SingleCheck = {
+          id: `combat:sanctified:instability:${defender.id}`,
+          kind: "single",
+          actorRef: { mode: "byId", actorId: defender.id },
+          key: "WIL",
+          difficulty: "Challenging",
+          modifier: penalty,
+        };
+        const { result: instabilityResult, save: saveAfterCheck } = performCheckWithSave(
+          instabilityCheck,
+          storyPack,
+          updatedSave,
+          rng,
+          resolutionId ? `${resolutionId}:sanctified` : undefined
+        );
+        updatedSave = {
+          ...saveAfterCheck,
+          runtime: {
+            ...saveAfterCheck.runtime,
+            rngCounter: rng.getCounter(),
+          },
+        };
+        updatedSave = appendRuntimeLog(updatedSave, {
+          kind: "system",
+          message: `Sanctified: spiritual instability ${instabilityResult?.success ? "resisted" : "triggered"}`,
+          turnCounter: save.runtime.combat?.turnCounter ?? 0,
+          resolutionId,
+          tags: ["weapon:sanctified", `success=${instabilityResult?.success ? 1 : 0}`, `penalty=${penalty}`],
+        });
+
+        if (instabilityResult && !instabilityResult.success) {
+          const backlashDamage = 1 + instabilityResult.dof;
+          const currentDefender = updatedSave.actorsById[defender.id] ?? defender;
+          const instabilityDamageResult = applyDamageToActor(currentDefender, backlashDamage, updatedSave, rng, storyPack, catalogs);
+          const instabilityDefender = instabilityDamageResult.updatedActor;
+          if (instabilityDamageResult.actorDied) {
+            actorDied = true;
+          }
+          updatedSave = {
+            ...updatedSave,
+            actorsById: {
+              ...updatedSave.actorsById,
+              [defender.id]: instabilityDefender,
+            },
+            runtime: {
+              ...updatedSave.runtime,
+              rngCounter: rng.getCounter(),
+            },
+          };
+          if (instabilityDamageResult.effects.length > 0) {
+            emittedEffects.push(...instabilityDamageResult.effects);
+          }
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: `Sanctified: ${defender.id} suffers ${backlashDamage} instability damage`,
+            turnCounter: save.runtime.combat?.turnCounter ?? 0,
+            resolutionId,
+            tags: ["weapon:sanctified", "spirit:instability", `damage=${backlashDamage}`],
+          });
+        }
+      }
+    }
   }
 
   // Called Shot effects on successful hit (only if damage > 0)
@@ -465,6 +711,10 @@ export function applyCombatDamageIfHit(
       resolutionId,
     });
   }
+
+  const postDefender = updatedSave.actorsById[defender.id] ?? updatedDefender;
+  const postHpAfter = maxHp - (postDefender.resources.wounds ?? 0);
+  const targetKo = postHpAfter === 0 || postDefender.resources.isDead === true || actorDied;
 
   return {
     save: updatedSave,

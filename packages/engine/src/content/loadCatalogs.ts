@@ -1,5 +1,14 @@
 import type { ContentPack } from "./types";
-import type { Skill, Talent, Trait, CharacterCatalogs, TerrainCatalogs, GridDefinition, TileDefinition } from "./catalogs";
+import type {
+  Skill,
+  Talent,
+  Trait,
+  CharacterCatalogs,
+  TerrainCatalogs,
+  GridDefinition,
+  TileDefinition,
+  WeaponQuality,
+} from "./catalogs";
 import type { ItemDefinition, Weapon, Armor, ItemId, WeaponId, ArmorId } from "../runtime/types";
 
 function indexById<T extends { id: string }>(arr: T[]): Record<string, T> {
@@ -56,6 +65,13 @@ export function loadEquipmentCatalogs(contentPack: ContentPack): {
     weaponsById: contentPack.weapons ? (indexById(contentPack.weapons) as Record<WeaponId, Weapon>) : {},
     armorsById: contentPack.armors ? (indexById(contentPack.armors) as Record<ArmorId, Armor>) : {},
   };
+}
+
+/**
+ * Loads weapon quality catalog from a content pack
+ */
+export function loadWeaponQualities(contentPack: ContentPack): Record<string, WeaponQuality> {
+  return contentPack.weaponQualities ? indexById(contentPack.weaponQualities) : {};
 }
 
 /**

@@ -7,6 +7,7 @@ import effectsCatalog from "./catalogs/effects.json";
 import gridsCatalog from "./catalogs/grids.json";
 import tilesCatalog from "./catalogs/tiles.json";
 import weaponsCatalog from "./catalogs/weapons.json";
+import weaponQualitiesCatalog from "./catalogs/weapon_qualities.json";
 import armorsCatalog from "./catalogs/armors.json";
 import itemsCatalog from "./catalogs/items.json";
 import type { ContentPack } from "@eg/engine";
@@ -20,6 +21,7 @@ export const sigilContentPack: ContentPack = {
   effects: effectsCatalog,
   items: itemsCatalog,
   weapons: weaponsCatalog,
+  weaponQualities: weaponQualitiesCatalog,
   armors: armorsCatalog,
   grids: gridsCatalog.grids,
   tiles: tilesCatalog.tiles,
@@ -36,6 +38,7 @@ export {
   tilesCatalog,
   itemsCatalog,
   weaponsCatalog,
+  weaponQualitiesCatalog,
   armorsCatalog,
 };
 
