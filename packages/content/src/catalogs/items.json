@@ -7,7 +7,7 @@
     "weight": 4,
     "tags": ["shield"],
     "shield": {
-      "parryBonus": 10
+      "soak": 1
     }
   },
   {

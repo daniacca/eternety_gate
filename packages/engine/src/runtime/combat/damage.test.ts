@@ -5,6 +5,7 @@ import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
 import { FakeRng } from "../test-helpers/fakeRng";
 import type { CombatAttackCheck, CheckResult, Weapon, Armor } from "../types";
+import type { CharacterCatalogs, Trait } from "../../content/catalogs";
 
 describe("damage", () => {
   describe("applyCombatDamageIfHit", () => {
@@ -448,6 +449,180 @@ describe("damage", () => {
       // Weapon penetration: 1, armor soak: 5, effective soak: 5 - 1 = 4
       expect(damageResult.finalDamage).toBe(6); // 15 raw - 4 effective soak - 5 TOU bonus
       expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(56); // Assuming maxHp=100, 50 wounds + 6 = 56 wounds
+    });
+
+    it("should add natural armor soak on top of equipped armor", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "axe",
+        name: "Axe",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "impact",
+        penetration: 0,
+      };
+      const armor: Armor = {
+        id: "leather",
+        name: "Leather Armor",
+        soak: 2,
+      };
+      const naturalArmorTrait: Trait = {
+        id: "trait:natural_armour",
+        name: "Natural Armor",
+        params: { armor: { type: "number", required: true } },
+        grants: [{ type: "modifier", key: "combat.naturalArmor", op: "add", valueRef: "armor" }],
+      };
+      const catalogs: CharacterCatalogs = { skills: [], talents: [], traits: [naturalArmorTrait] };
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 50 }, // SB 5
+        equipment: { mainHand: { kind: "weapon", id: "axe" } },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        equipment: { armor: { kind: "armor", id: "leather" } },
+        traits: { "trait:natural_armour": { armor: 3 } },
+      });
+      const save = {
+        ...makeTestSave(storyPack, attacker),
+        weaponsById: { axe: weapon },
+        armorsById: { leather: armor },
+      };
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      // Roll 10 on d10: 10 + 0 (add) + 5 (SB) = 15 raw damage
+      const d100For10 = FakeRng.d100ForNextInt(10, 1, 10);
+      const rng = new FakeRng([d100For10]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: {
+          actorRef: { mode: "byId", actorId: attacker.id },
+          mode: "MELEE",
+          weaponId: "axe",
+        },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 30,
+        target: 40,
+        success: true,
+        dos: 10,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng, storyPack, undefined, catalogs);
+
+      expect(damageResult.didApplyDamage).toBe(true);
+      // Armor soak: 2, natural armor soak: 3 (stacks), total soak 5
+      expect(damageResult.finalDamage).toBe(5); // 15 raw - 5 soak - 5 TOU bonus
+    });
+
+    it("should use machine soak instead of natural armor when both are present", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "hammer",
+        name: "Hammer",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "impact",
+        penetration: 0,
+      };
+      const naturalArmorTrait: Trait = {
+        id: "trait:natural_armour",
+        name: "Natural Armor",
+        params: { armor: { type: "number", required: true } },
+        grants: [{ type: "modifier", key: "combat.naturalArmor", op: "add", valueRef: "armor" }],
+      };
+      const machineTrait: Trait = {
+        id: "trait:machine",
+        name: "Machine",
+        params: { x: { type: "number", required: true } },
+        grants: [{ type: "modifier", key: "combat.machineSoak", op: "add", valueRef: "x" }],
+      };
+      const catalogs: CharacterCatalogs = {
+        skills: [],
+        talents: [],
+        traits: [naturalArmorTrait, machineTrait],
+      };
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 50 }, // SB 5
+        equipment: { mainHand: { kind: "weapon", id: "hammer" } },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        traits: {
+          "trait:natural_armour": { armor: 3 },
+          "trait:machine": { x: 4 },
+        },
+      });
+      const save = {
+        ...makeTestSave(storyPack, attacker),
+        weaponsById: { hammer: weapon },
+      };
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      // Roll 10 on d10: 10 + 0 (add) + 5 (SB) = 15 raw damage
+      const d100For10 = FakeRng.d100ForNextInt(10, 1, 10);
+      const rng = new FakeRng([d100For10]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: {
+          actorRef: { mode: "byId", actorId: attacker.id },
+          mode: "MELEE",
+          weaponId: "hammer",
+        },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 30,
+        target: 40,
+        success: true,
+        dos: 10,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng, storyPack, undefined, catalogs);
+
+      expect(damageResult.didApplyDamage).toBe(true);
+      // Machine soak overrides natural armor (4 vs 3)
+      expect(damageResult.finalDamage).toBe(6); // 15 raw - 4 soak - 5 TOU bonus
     });
 
     it("should reduce damage to 0 when armor soak exceeds raw damage", () => {

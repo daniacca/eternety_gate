@@ -2,18 +2,14 @@ import { describe, it, expect } from "vitest";
 import type { GameSave, Actor } from "../types";
 import type { CharacterCatalogs, Talent } from "../../content/catalogs";
 import {
-  getTalentModifierTotal,
   hasTalentHook,
   getShieldMasteryParryBonus,
-  getCombatMasterPenalty,
   getCrushingBlowDamageBonus,
   getDeathdealerDamageBonus,
   hasMarksmanTalent,
   hasDeadeyeTalent,
   getFatiguePenaltyReduction,
-  hasLeapUpTalent,
   getResistanceBonus,
-  getChannelingBonus,
   getCastingSpecializationBonus,
   getMeleeDamageBonusFromTalents,
   getRangedDamageBonusFromTalents,
@@ -40,7 +36,6 @@ function createActor(id: string, talents: Record<string, number> = {}, stats: Pa
     resources: {
       wounds: 0,
       rf: 0,
-      peq: 0,
     },
     skills: {},
     talents,
@@ -222,11 +217,11 @@ describe("Shield Mastery", () => {
         "shield:basic": {
           id: "shield:basic",
           name: "Basic Shield",
-          type: "wearable",
-          slot: "offHand",
+          type: "wearable" as const,
+          slot: "offHand" as const,
           weight: 2,
           tags: ["shield"],
-          shield: { parryBonus: 10 },
+          shield: { soak: 1 },
         },
       },
     };
@@ -246,11 +241,11 @@ describe("Shield Mastery", () => {
         "shield:basic": {
           id: "shield:basic",
           name: "Basic Shield",
-          type: "wearable",
-          slot: "offHand",
+          type: "wearable" as const,
+          slot: "offHand" as const,
           weight: 2,
           tags: ["shield"],
-          shield: { parryBonus: 10 },
+          shield: { soak: 1 },
         },
       },
     };

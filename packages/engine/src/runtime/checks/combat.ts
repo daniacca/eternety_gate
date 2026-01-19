@@ -11,7 +11,7 @@ import { appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
-import { getEquippedWeapon, getShieldParryBonus, hasShieldEquipped } from "../combat/equipment";
+import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -368,7 +368,6 @@ export function performCombatAttackCheck(
 
   // Get Shield Mastery parry bonus (if defender has talent and shield equipped)
   const shieldMasteryBonus = catalogs ? getShieldMasteryParryBonus(save, catalogs, defender.id) : 0;
-  const shieldParryBonus = hasShield ? getShieldParryBonus(save, defender.id) : 0;
 
   if (check.defense.strategy === "preferParry" && canParry) {
     defenseType = "parry";
@@ -383,7 +382,7 @@ export function performCombatAttackCheck(
 
     if (canParry) {
       const parryBreakdown = computeTargetBreakdown(defender, parrySkillKey, "Challenging", save, storyPack);
-      parryTarget = parryBreakdown.target + shieldMasteryBonus + shieldParryBonus;
+      parryTarget = parryBreakdown.target + shieldMasteryBonus;
     }
 
     if (canDodge) {
@@ -438,7 +437,7 @@ export function performCombatAttackCheck(
   // Roll defense using the chosen skill
   const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
   // Add Shield Mastery bonus to parry target only
-  const parryBonus = defenseType === "parry" ? shieldMasteryBonus + shieldParryBonus : 0;
+  const parryBonus = defenseType === "parry" ? shieldMasteryBonus : 0;
   const defenseTarget = defenseBreakdown.target + parryBonus;
 
   const defenseRoll = rng.rollD100();

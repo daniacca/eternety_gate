@@ -1,7 +1,6 @@
 import type { GameSave, Actor } from "../types";
 import type { CharacterCatalogs, Prerequisite, Talent } from "../../content/catalogs";
 import { getCharacteristicValue } from "./bonuses";
-import { hasShieldEquipped } from "../combat/equipment";
 
 /**
  * Talent params stored on actor for talents with choices (e.g., Resistance: poison)
@@ -67,13 +66,6 @@ export function evaluatePrerequisites(
         return {
           valid: false,
           reason: `Already has ${prereq.talentId} with ${prereq.paramKey}=${prereq.paramValue}`,
-        };
-      }
-    } else if (prereq.type === "hasEquippedOffhandShield") {
-      if (!hasShieldEquipped(save, actor.id)) {
-        return {
-          valid: false,
-          reason: `Requires a shield equipped in off-hand`,
         };
       }
     }

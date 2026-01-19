@@ -169,6 +169,7 @@ export function applyCombatDamageIfHit(
   // Get defender armor soak
   const { soak, armorId } = getActorArmor(save, defender);
   const machineSoak = catalogs ? getModifierTotal(save, catalogs, defender.id, "combat.machineSoak") : 0;
+  const naturalArmorSoak = catalogs ? getModifierTotal(save, catalogs, defender.id, "combat.naturalArmor") : 0;
 
   // Get weapon for penetration calculation
   const weaponForPenetration =
@@ -187,8 +188,9 @@ export function applyCombatDamageIfHit(
     // Penetration reduces effective soak (but not below 0)
     effectiveSoak = Math.max(0, soak - weaponForPenetration.penetration);
   }
-  if (machineSoak > 0) {
-    effectiveSoak += machineSoak;
+  const extraSoak = machineSoak > 0 ? machineSoak : naturalArmorSoak;
+  if (extraSoak > 0) {
+    effectiveSoak += extraSoak;
   }
 
   // Get defender TOU bonus (always reduces damage)

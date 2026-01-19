@@ -478,7 +478,7 @@ export type ItemDefinition = {
   tags?: string[];
   grants?: ItemGrant[];
   shield?: {
-    parryBonus?: number;
+    soak?: number;
   };
   use?: {
     actionId: string;

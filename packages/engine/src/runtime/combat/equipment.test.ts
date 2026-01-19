@@ -104,6 +104,33 @@ describe("equipment", () => {
       expect(result.soak).toBe(0);
     });
 
+    it("should include shield soak when no armor is equipped", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        equipment: { armor: null, offHand: { kind: "item", id: "shield:basic" } },
+      });
+      const save = {
+        ...makeTestSave(storyPack, actor),
+        itemsById: {
+          "shield:basic": {
+            id: "shield:basic",
+            name: "Basic Shield",
+            type: "wearable",
+            slot: "offHand",
+            weight: 2,
+            tags: ["shield"],
+            shield: { soak: 1 },
+          },
+        },
+      };
+
+      const result = getActorArmor(save, actor);
+
+      expect(result.armor).toBeNull();
+      expect(result.armorId).toBe("none");
+      expect(result.soak).toBe(1);
+    });
+
     it("should return equipped armor when actor has armor", () => {
       const storyPack = makeTestStoryPack();
       const armor: Armor = {
@@ -122,6 +149,42 @@ describe("equipment", () => {
       expect(result.armor).toEqual(armor);
       expect(result.armorId).toBe("leather");
       expect(result.name).toBe("Leather Armor");
+      expect(result.soak).toBe(3);
+    });
+
+    it("should stack shield soak with equipped armor", () => {
+      const storyPack = makeTestStoryPack();
+      const armor: Armor = {
+        id: "leather",
+        name: "Leather Armor",
+        soak: 2,
+      };
+      const actor = makeTestActor({
+        equipment: {
+          armor: { kind: "armor", id: "leather" },
+          offHand: { kind: "item", id: "shield:basic" },
+        },
+      });
+      const save = {
+        ...makeTestSave(storyPack, actor),
+        armorsById: { leather: armor },
+        itemsById: {
+          "shield:basic": {
+            id: "shield:basic",
+            name: "Basic Shield",
+            type: "wearable",
+            slot: "offHand",
+            weight: 2,
+            tags: ["shield"],
+            shield: { soak: 1 },
+          },
+        },
+      };
+
+      const result = getActorArmor(save, actor);
+
+      expect(result.armor).toEqual(armor);
+      expect(result.armorId).toBe("leather");
       expect(result.soak).toBe(3);
     });
   });

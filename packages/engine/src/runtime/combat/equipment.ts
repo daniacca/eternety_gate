@@ -98,11 +98,11 @@ export function getEquippedShield(
 }
 
 /**
- * Gets shield parry bonus from equipped shield (if any)
+ * Gets shield soak bonus from equipped shield (if any)
  */
-export function getShieldParryBonus(save: GameSave, actorId: string, catalogs?: EquipmentCatalogs): number {
+export function getShieldSoak(save: GameSave, actorId: string, catalogs?: EquipmentCatalogs): number {
   const shield = getEquippedShield(save, actorId, catalogs);
-  return shield?.shield?.parryBonus ?? 0;
+  return shield?.shield?.soak ?? 0;
 }
 
 /**
@@ -149,13 +149,14 @@ export function getActorArmor(
 } {
   const armorId = getEquippedArmorId(actor);
   const armor = armorId ? save.armorsById?.[armorId] : null;
+  const shieldSoak = getShieldSoak(save, actor.id);
 
   if (!armorId || !armor) {
     return {
       armor: null,
       armorId: "none",
       name: "None",
-      soak: 0,
+      soak: shieldSoak,
     };
   }
 
@@ -163,7 +164,7 @@ export function getActorArmor(
     armor,
     armorId,
     name: armor.name,
-    soak: armor.soak,
+    soak: armor.soak + shieldSoak,
   };
 }
 

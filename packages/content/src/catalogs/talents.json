@@ -242,14 +242,13 @@
     "grants": [{ "type": "modifier", "key": "combat.deathdealerDamageBonus", "op": "add", "value": 1 }],
     "maxRank": 1
   },
-
   {
     "id": "talent:shield_mastery",
     "name": "Maestria dello Scudo",
     "description": "Rank 1: +10 Parry. Rank 2: +20 Parry. Requires a shield equipped.",
     "tier": 1,
     "xpCost": 500,
-    "prerequisites": [],
+    "prerequisites": [{ "type": "statAtLeast", "stat": "WS", "value": 30 }],
     "grants": [{ "type": "modifier", "key": "combat.shieldMasteryParryBonus", "op": "add", "value": 10 }],
     "maxRank": 2
   },

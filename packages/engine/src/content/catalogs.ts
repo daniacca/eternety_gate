@@ -21,8 +21,7 @@ export type Prerequisite =
   | { type: "hasTalentRank"; talentId: TalentId; minRank: number }
   | { type: "hasTrait"; traitId: TraitId }
   | { type: "hasSpell"; spellId: string }
-  | { type: "notHasTalentWithParam"; talentId: TalentId; paramKey: string; paramValue: string }
-  | { type: "hasEquippedOffhandShield" };
+  | { type: "notHasTalentWithParam"; talentId: TalentId; paramKey: string; paramValue: string };
 
 export type Grant =
   | { type: "modifier"; key: string; op: "add"; value: number; valueRef?: string }

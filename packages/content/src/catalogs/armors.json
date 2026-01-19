@@ -3,7 +3,6 @@
     "id": "leather",
     "name": "Leather Armor",
     "soak": 1,
-    "agiMax": 65,
     "weight": 6,
     "tags": ["light"]
   },
