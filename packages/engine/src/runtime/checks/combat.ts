@@ -432,6 +432,17 @@ export function performCombatAttackCheck(
     }
   }
 
+  // Fallback: if preferred defense isn't available, use the other if allowed.
+  if (defenseType === "none") {
+    if (canDodge) {
+      defenseType = "dodge";
+      defenseSkillKey = dodgeSkillKey;
+    } else if (canParry) {
+      defenseType = "parry";
+      defenseSkillKey = parrySkillKey;
+    }
+  }
+
   tags.push(`combat:defense=${defenseType}`);
   if (!canParry && check.defense.allowParry) {
     tags.push("combat:defense:parryBlocked=1");

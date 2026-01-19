@@ -58,6 +58,7 @@ export function runNarrativeSpell(
   const tags: string[] = ["magic:mode=narrative"];
   const logs: string[] = [];
   const appliedOps: NarrativeOp[] = [];
+  const skipRfCost = request.options?.skipRfCost;
 
   // Resolve caster
   const casterId = (request.casterId ?? save.party.activeActorId) as ActorId;
@@ -239,6 +240,9 @@ export function runNarrativeSpell(
   }
 
   // Apply RF
+  if (skipRfCost) {
+    rfToApply = 0;
+  }
   if (rfToApply > 0) {
     updatedSave = applyFatigue(updatedSave, casterId, rfToApply, catalogs);
     logs.push(`Affaticamento: +${rfToApply} RF`);

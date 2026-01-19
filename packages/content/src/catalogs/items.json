@@ -59,6 +59,46 @@
     ]
   },
   {
+    "id": "potion:healing",
+    "name": "Healing Potion",
+    "type": "consumable",
+    "kind": "consumable",
+    "weight": 0.2,
+    "maxStack": 5,
+    "tags": ["potion", "healing"],
+    "consumable": {
+      "actionId": "item:potion_heal",
+      "consumeOnUse": true
+    }
+  },
+  {
+    "id": "potion:fatigue",
+    "name": "Fatigue Draught",
+    "type": "consumable",
+    "kind": "consumable",
+    "weight": 0.2,
+    "maxStack": 5,
+    "tags": ["potion", "fatigue"],
+    "consumable": {
+      "actionId": "item:potion_fatigue",
+      "consumeOnUse": true
+    }
+  },
+  {
+    "id": "scroll:soothe_wounds",
+    "name": "Scroll of Soothe Wounds",
+    "type": "consumable",
+    "kind": "consumable",
+    "weight": 0.1,
+    "maxStack": 3,
+    "tags": ["scroll", "magic"],
+    "consumable": {
+      "actionId": "item:scroll_cast",
+      "consumeOnUse": true,
+      "spellId": "spell:soothe_wounds"
+    }
+  },
+  {
     "id": "ammo:arrow",
     "name": "Arrows",
     "type": "consumable",

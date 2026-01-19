@@ -44,6 +44,7 @@ export {
 // Inventory helpers
 export { posKey, isWeaponItemRef, isArmorItemRef, isCatalogItemRef } from "./runtime/items";
 export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./runtime/characters/inventory";
+export { canUseItem, useItem } from "./runtime/items";
 
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from "./runtime/combat/movement";

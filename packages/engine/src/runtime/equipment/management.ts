@@ -47,6 +47,10 @@ function getItemMaxStack(def?: ItemDefinition | null): number {
   return def?.maxStack ?? 1;
 }
 
+function getItemCategory(def?: ItemDefinition | null): "wearable" | "consumable" | undefined {
+  return def?.kind ?? def?.type;
+}
+
 function isStackableItem(itemRef: ItemRef, catalogs: EquipmentCatalogs): boolean {
   if (itemRef.kind !== "item" && itemRef.kind !== "misc") return false;
   const def = catalogs.itemsById[itemRef.id];
@@ -125,7 +129,7 @@ function resolveSlotForItem(
   }
 
   if (resolved.kind === "item") {
-    if (resolved.def.type !== "wearable" || !resolved.def.slot) {
+    if (getItemCategory(resolved.def) !== "wearable" || !resolved.def.slot) {
       return { reason: "Item cannot be equipped." };
     }
     if (resolved.def.slot === "ring") {
@@ -250,7 +254,7 @@ export function canEquipItem(
   }
 
   if (resolved.kind === "item") {
-    if (resolved.def.type !== "wearable" || !resolved.def.slot) {
+    if (getItemCategory(resolved.def) !== "wearable" || !resolved.def.slot) {
       return { ok: false, reason: "Item cannot be equipped." };
     }
     if (resolved.def.slot === "ring") {

@@ -21,6 +21,7 @@ import {
   type TargetPreview,
   type Direction8,
   type Position,
+  useItem,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -125,6 +126,9 @@ export function PlayScreen() {
         { kind: "item" as const, id: "necklace:iron" },
         { kind: "item" as const, id: "ring:agility" },
         { kind: "item" as const, id: "ammo:arrow", qty: 10 },
+        { kind: "item" as const, id: "potion:healing", qty: 2 },
+        { kind: "item" as const, id: "potion:fatigue", qty: 2 },
+        { kind: "item" as const, id: "scroll:soothe_wounds" },
       ],
     };
 
@@ -197,9 +201,11 @@ export function PlayScreen() {
     []
   );
 
-  type SpellTargetingState = {
+  type ActionTargetingState = {
+    kind: "spell" | "item";
     spellId: string;
-    spellName: string;
+    label: string;
+    itemRef?: ItemRef;
     targetSpec: TargetSpec;
     selection: Partial<TargetSelection>;
     preview: TargetPreview;
@@ -210,7 +216,7 @@ export function PlayScreen() {
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
-  const [spellTargeting, setSpellTargeting] = useState<SpellTargetingState | null>(null);
+  const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
   const { width, height } = useWindowDimensions();
 
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
@@ -247,6 +253,33 @@ export function PlayScreen() {
     };
 
     setSave(newSave);
+  };
+
+  const applyItemUse = (itemRef: ItemRef, targetSelection?: TargetSelection) => {
+    const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
+    const result = useItem(save, save.party.activeActorId, itemRef, {
+      storyPack: storyPackWithCatalogs,
+      rng,
+      targetSelection,
+    });
+    const updatedSave = {
+      ...result.save,
+      runtime: {
+        ...result.save.runtime,
+        rngCounter: rng.getCounter(),
+      },
+    };
+    setSave(updatedSave);
+  };
+
+  const handleUseItem = (itemRef: ItemRef) => {
+    const itemDef = save.itemsById?.[itemRef.id];
+    const actionId = itemDef?.consumable?.actionId;
+    if (actionId === "item:scroll_cast" && save.runtime.combat?.active) {
+      startItemTargeting(itemRef);
+      return;
+    }
+    applyItemUse(itemRef);
   };
 
   const handleEquipItem = (slot: EquipmentSlot, itemRef: ItemRef) => {
@@ -335,6 +368,12 @@ export function PlayScreen() {
       addIfMissing({ kind: "item", id: "cloak:traveler" });
       addIfMissing({ kind: "item", id: "boots:leather" });
       addIfMissing({ kind: "item", id: "helmet:leather" });
+      addIfMissing({ kind: "item", id: "scroll:soothe_wounds" });
+
+      const healPotionQty = getInventoryQty("item", "potion:healing");
+      const fatiguePotionQty = getInventoryQty("item", "potion:fatigue");
+      if (healPotionQty < 2) addStackable("potion:healing", 2 - healPotionQty);
+      if (fatiguePotionQty < 2) addStackable("potion:fatigue", 2 - fatiguePotionQty);
 
       const arrowQty = getInventoryQty("item", "ammo:arrow");
       const desiredArrows = 20;
@@ -384,9 +423,32 @@ export function PlayScreen() {
     const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
     const selection = buildInitialSelection(targetSpec);
     const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
-    setSpellTargeting({
+    setActionTargeting({
+      kind: "spell",
       spellId,
-      spellName: spell.name,
+      label: spell.name,
+      targetSpec,
+      selection,
+      preview,
+    });
+  };
+
+  const startItemTargeting = (itemRef: ItemRef) => {
+    const itemDef = save.itemsById?.[itemRef.id];
+    const spellId = itemDef?.consumable?.spellId;
+    if (!spellId) return;
+    const spell = getSpellById(spellId);
+    const effectDef = spell ? getEffectById(spell.effectId) : null;
+    if (!spell || !effectDef) return;
+    const cnBase = effectDef.baseCN ?? spell.baseCN;
+    const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
+    const selection = buildInitialSelection(targetSpec);
+    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    setActionTargeting({
+      kind: "item",
+      spellId,
+      label: itemDef?.name || spell.name,
+      itemRef,
       targetSpec,
       selection,
       preview,
@@ -394,7 +456,7 @@ export function PlayScreen() {
   };
 
   const handleTargetDirection = (dir: Direction8) => {
-    setSpellTargeting((current) => {
+    setActionTargeting((current) => {
       if (!current) return current;
       const kind = current.targetSpec.shape.kind;
       if (kind === "touch") {
@@ -417,7 +479,7 @@ export function PlayScreen() {
   };
 
   const handleCellTarget = (pos: Position) => {
-    setSpellTargeting((current) => {
+    setActionTargeting((current) => {
       if (!current) return current;
       const kind = current.targetSpec.shape.kind;
       if (kind === "single") {
@@ -435,30 +497,34 @@ export function PlayScreen() {
   };
 
   const confirmSpellTargeting = () => {
-    if (!spellTargeting || !spellTargeting.preview.valid) return;
-    applySystemEffects([
-      {
-        op: "combatCastSpell",
-        actorId: save.party.activeActorId,
-        spellId: spellTargeting.spellId,
-        targetSelection: spellTargeting.selection as TargetSelection,
-      },
-    ]);
-    setSpellTargeting(null);
+    if (!actionTargeting || !actionTargeting.preview.valid) return;
+    if (actionTargeting.kind === "spell") {
+      applySystemEffects([
+        {
+          op: "combatCastSpell",
+          actorId: save.party.activeActorId,
+          spellId: actionTargeting.spellId,
+          targetSelection: actionTargeting.selection as TargetSelection,
+        },
+      ]);
+    } else if (actionTargeting.itemRef) {
+      applyItemUse(actionTargeting.itemRef, actionTargeting.selection as TargetSelection);
+    }
+    setActionTargeting(null);
   };
 
-  const cancelSpellTargeting = () => setSpellTargeting(null);
+  const cancelSpellTargeting = () => setActionTargeting(null);
 
   const lastCheck = save.runtime.lastPlayerCheck || save.runtime.lastCheck;
   const tags = lastCheck && lastCheck !== null ? lastCheck.tags : [];
   const combat = save.runtime.combat;
-  const targetingInfo = spellTargeting
+  const targetingInfo = actionTargeting
     ? {
-        spellName: spellTargeting.spellName,
-        previewValid: spellTargeting.preview.valid,
-        reason: spellTargeting.preview.reason,
-        requiresDirection: spellTargeting.targetSpec.requiresDirection,
-        direction: "direction" in spellTargeting.selection ? (spellTargeting.selection as any).direction : undefined,
+        spellName: actionTargeting.label,
+        previewValid: actionTargeting.preview.valid,
+        reason: actionTargeting.preview.reason,
+        requiresDirection: actionTargeting.targetSpec.requiresDirection,
+        direction: "direction" in actionTargeting.selection ? (actionTargeting.selection as any).direction : undefined,
       }
     : undefined;
 
@@ -503,8 +569,8 @@ export function PlayScreen() {
             combat={combat}
             save={save}
             styles={styles}
-            targetingPreview={spellTargeting?.preview}
-            onCellPress={spellTargeting ? handleCellTarget : undefined}
+            targetingPreview={actionTargeting?.preview}
+            onCellPress={actionTargeting ? handleCellTarget : undefined}
           />
         ) : (
           <View style={styles.gameArea}>
@@ -670,6 +736,7 @@ export function PlayScreen() {
         save={save}
         onClose={() => setPlayerSheetVisible(false)}
         applySystemEffects={applySystemEffects}
+        onUseItem={handleUseItem}
         onDebugSpawnGear={__DEV__ ? handleSpawnTestGear : undefined}
       />
 

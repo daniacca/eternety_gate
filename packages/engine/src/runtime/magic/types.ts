@@ -168,6 +168,9 @@ export type NarrativeSpellRequest = {
   spellId: string;
   casterId?: string; // Default = party.activeActorId
   targetActorId?: string; // For singleActor target
+  options?: {
+    skipRfCost?: boolean;
+  };
   context?: {
     sceneId?: string;
     choiceId?: string;

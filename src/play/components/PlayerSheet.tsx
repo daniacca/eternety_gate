@@ -13,6 +13,7 @@ import {
   getLearnedSpells,
   getMagicPower,
   getActorTalentsWithParams,
+  canUseItem,
 } from "@eg/engine";
 import { useState } from "react";
 import type { ConditionId } from "@eg/engine";
@@ -27,6 +28,7 @@ interface PlayerSheetProps {
   save: GameSave;
   onClose: () => void;
   applySystemEffects?: (effects: Effect[]) => void;
+  onUseItem?: (itemRef: ItemRef) => void;
   onDebugSpawnGear?: () => void;
 }
 
@@ -56,7 +58,7 @@ const statLabels: Record<string, string> = {
   PER: "Percezione",
 };
 
-export function PlayerSheet({ visible, save, onClose, applySystemEffects, onDebugSpawnGear }: PlayerSheetProps) {
+export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseItem, onDebugSpawnGear }: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
   const [showTalentShop, setShowTalentShop] = useState(false);
   const { width } = useWindowDimensions();
@@ -99,7 +101,7 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onDebu
     if (itemRef.kind === "armor") {
       return save.armorsById?.[itemRef.id]?.name || itemRef.id;
     }
-    return itemRef.id;
+    return save.itemsById?.[itemRef.id]?.name || itemRef.id;
   };
 
   // Helper to handle equip action
@@ -552,28 +554,42 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onDebu
               {inventory.length === 0 ? (
                 <Text style={styles.emptyText}>Inventario vuoto</Text>
               ) : (
-                inventory.map((itemRef, index) => (
-                  <View key={index} style={styles.inventoryRow}>
-                    <Text style={styles.inventoryItem}>{getItemName(itemRef)}</Text>
-                    {applySystemEffects && (
-                      <View style={styles.inventoryActions}>
-                        {(itemRef.kind === "weapon" || itemRef.kind === "armor") && (
-                          <TouchableOpacity style={styles.actionButton} onPress={() => handleEquip(itemRef, index)}>
-                            <Text style={styles.actionButtonText}>
-                              {itemRef.kind === "weapon" ? "Equipaggia" : "Indossa"}
-                            </Text>
+                inventory.map((itemRef, index) => {
+                  const itemDef = itemRef.kind === "item" || itemRef.kind === "misc" ? save.itemsById?.[itemRef.id] : null;
+                  const isConsumable = Boolean(itemDef?.consumable?.actionId);
+                  const canUse = isConsumable ? canUseItem(save, activeActor.id, itemRef) : { ok: false };
+                  return (
+                    <View key={index} style={styles.inventoryRow}>
+                      <Text style={styles.inventoryItem}>{getItemName(itemRef)}</Text>
+                      {applySystemEffects && (
+                        <View style={styles.inventoryActions}>
+                          {isConsumable && onUseItem && (
+                            <TouchableOpacity
+                              style={[styles.actionButton, !canUse.ok && styles.actionButtonDisabled]}
+                              onPress={() => onUseItem(itemRef)}
+                              disabled={!canUse.ok}
+                            >
+                              <Text style={[styles.actionButtonText, !canUse.ok && styles.actionButtonTextDisabled]}>Usa</Text>
+                            </TouchableOpacity>
+                          )}
+                          {(itemRef.kind === "weapon" || itemRef.kind === "armor") && (
+                            <TouchableOpacity style={styles.actionButton} onPress={() => handleEquip(itemRef, index)}>
+                              <Text style={styles.actionButtonText}>
+                                {itemRef.kind === "weapon" ? "Equipaggia" : "Indossa"}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.dropButton]}
+                            onPress={() => handleDrop(itemRef, "inventory", index)}
+                          >
+                            <Text style={styles.actionButtonText}>Lascia</Text>
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.dropButton]}
-                          onPress={() => handleDrop(itemRef, "inventory", index)}
-                        >
-                          <Text style={styles.actionButtonText}>Lascia</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                ))
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
               )}
             </View>
           </ScrollView>
@@ -765,6 +781,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     borderRadius: 4,
   },
+  actionButtonDisabled: {
+    backgroundColor: "#ccc",
+    opacity: 0.6,
+  },
   dropButton: {
     backgroundColor: "#FF3B30",
   },
@@ -772,6 +792,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "500",
+  },
+  actionButtonTextDisabled: {
+    color: "#666",
   },
   emptyText: {
     fontSize: 14,

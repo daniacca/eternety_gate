@@ -117,3 +117,4 @@ export { computeTargetBreakdown, resolveDifficulty } from "./target";
 export { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
 export { evaluateRoll, rollD100Check, addPhenomenaTags } from "./evaluation";
 export { computeAttackTarget } from "./combat";
+export { performCombatAttackCheck } from "./combat";

@@ -4,7 +4,7 @@ import { makeTestActor } from "../test-helpers/makeTestActor";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { FakeRng } from "../test-helpers/fakeRng";
-import { computeAttackTarget, performCombatAttackCheck } from "../checks";
+import { computeAttackTarget, performCombatAttackCheck } from "../checks/combat";
 import { applyCombatDamageIfHit } from "./damage";
 
 function makeCombatState(participants: ActorId[], stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">): CombatState {

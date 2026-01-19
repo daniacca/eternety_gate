@@ -189,6 +189,11 @@ export type Effect =
       actorId: ActorId;
       spellId: string;
       targetSelection: TargetSelection;
+      castOptions?: {
+        ignoreWeaverRequirement?: boolean;
+        skipRfCost?: boolean;
+        noOvercast?: boolean;
+      };
     }
   | {
       op: "learnSpell";
@@ -480,6 +485,7 @@ export type ItemDefinition = {
   id: ItemId;
   name: string;
   type: "wearable" | "consumable";
+  kind?: "wearable" | "consumable";
   slot?: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring";
   weight: number;
   maxStack?: number;
@@ -487,6 +493,11 @@ export type ItemDefinition = {
   grants?: ItemGrant[];
   shield?: {
     soak?: number;
+  };
+  consumable?: {
+    actionId: string;
+    consumeOnUse: true;
+    spellId?: string;
   };
   use?: {
     actionId: string;

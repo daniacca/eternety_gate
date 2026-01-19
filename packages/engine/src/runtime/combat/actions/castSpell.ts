@@ -85,6 +85,8 @@ export function combatCastSpell(
     return { save };
   }
 
+  const castOptions = effect.castOptions;
+
   const actor = save.actorsById[turnActorId];
   if (!actor) {
     return { save };
@@ -107,7 +109,7 @@ export function combatCastSpell(
 
   // Check if actor has magic gate trait (unlocks magic actions)
   // Note: Check for "magic:cast" action unlock (trait:weaver grants this)
-  if (catalogs && !hasUnlockedAction(save, catalogs, turnActorId, "magic:cast")) {
+  if (catalogs && !castOptions?.ignoreWeaverRequirement && !hasUnlockedAction(save, catalogs, turnActorId, "magic:cast")) {
     const blockedCheck: CheckResult = {
       checkId: "combat:castSpell:blocked",
       actorId: turnActorId,
@@ -314,7 +316,8 @@ export function combatCastSpell(
   const castDoS = result.dos;
   const effectiveDoS = castDoS + channelDoS;
   const success = effectiveDoS >= cnBase;
-  const overcast = Math.max(0, effectiveDoS - cnBase);
+  const rawOvercast = Math.max(0, effectiveDoS - cnBase);
+  const overcast = castOptions?.noOvercast ? 0 : rawOvercast;
   const manifestedPM = cnBase + overcast;
 
   // Calculate PM
@@ -353,6 +356,10 @@ export function combatCastSpell(
     if (phenomenaTriggered) {
       rfToApply += 1;
     }
+  }
+
+  if (castOptions?.skipRfCost) {
+    rfToApply = 0;
   }
 
   // Apply RF
