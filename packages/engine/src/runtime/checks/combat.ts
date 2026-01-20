@@ -11,6 +11,7 @@ import { appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
+import { getUntouchableAuraImpact } from "../combat/untouchableAura";
 import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
 import { hasWeaponQuality } from "../weaponQualities";
 import {
@@ -33,8 +34,11 @@ export function computeAttackTarget(
   storyPack?: StoryPack,
   catalogs?: CharacterCatalogs
 ): { target: number; tags: string[]; modifier: number } {
-  // Determine attack stat (WS for MELEE, BS for RANGED)
-  const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
+  // Determine attack stat (WS for MELEE, BS/WIL for RANGED)
+  const attackStatKey = resolveAttackStatKey(check, attacker, save);
+  const weaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
+  const attackWeapon = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
+  const isMagicFueled = hasWeaponQuality(attackWeapon, "magic_fueled");
   const breakdown = computeTargetBreakdown(attacker, attackStatKey, "Challenging", save, storyPack);
 
   // Apply combat modifiers to target
@@ -57,6 +61,21 @@ export function computeAttackTarget(
   
   // Check if attacker has Deadeye talent (ignore light cover, treat heavy as light)
   const attackerHasDeadeye = catalogs && hasDeadeyeTalent(save, catalogs, attacker.id);
+
+  // Magic Fueled: non-weavers suffer -10 penalty to fire
+  if (isMagicFueled && !hasTrait(attacker, "trait:weaver")) {
+    combatModifier -= 10;
+    modifierTags.push("combat:mod:magicFueled=nonWeaver:-10");
+  }
+
+  // Magic Fueled: untouchable aura penalty (same as spellcasting)
+  if (isMagicFueled && catalogs) {
+    const auraImpact = getUntouchableAuraImpact(save, catalogs, attacker.id);
+    if (auraImpact) {
+      combatModifier += auraImpact.penalty;
+      modifierTags.push(`combat:mod:magicFueled:aura=${auraImpact.penalty}`);
+    }
+  }
 
   // Range band modifier (RANGED only)
   // Global rule based on Chebyshev distance:
@@ -284,8 +303,8 @@ export function performCombatAttackCheck(
     modifier: combatModifier,
   } = computeAttackTarget(check, attacker, defender, save, storyPack, catalogs);
 
-  // Determine attack stat for tags
-  const attackStatKey: StatOrSkillKey = check.attacker.mode === "MELEE" ? "WS" : "BS";
+  // Determine attack stat for tags (match computeAttackTarget)
+  const attackStatKey = resolveAttackStatKey(check, attacker, save);
 
   // Roll attack
   const attackRoll = rng.rollD100();
@@ -669,4 +688,25 @@ export function performCombatAttackCheck(
       save: updatedSave,
     };
   }
+}
+
+/**
+ * Resolves the attack stat key based on the check and attacker.
+ * Rules:
+ * - If the check is a melee attack, return "WS"
+ * - If the check is a ranged attack and the weapon is magic fueled, return "WIL"
+ * - In all other cases (so, ranged attack and not magic fueled), return "BS"
+ * @param check - The combat attack check
+ * @param attacker - The attacker actor
+ * @param save - The game save
+ * @returns The attack stat key
+ */
+function resolveAttackStatKey(check: CombatAttackCheck, attacker: Actor, save: GameSave): StatOrSkillKey {
+  if (check.attacker.mode === "MELEE") {
+    return "WS";
+  }
+  const weaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
+  const attackWeapon = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
+  const isMagicFueled = hasWeaponQuality(attackWeapon, "magic_fueled");
+  return isMagicFueled ? "WIL" : "BS";
 }

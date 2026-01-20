@@ -14,6 +14,8 @@ import {
   getInventoryItemQty,
   removeInventoryItemQty,
 } from "../../characters/inventory";
+import { getWeaponQualityRank, hasWeaponQuality } from "../../weaponQualities";
+import { isUntouchable } from "../../characters/untouchable";
 
 /**
  * Centralized attack resolution: the only place that resolves attacks end-to-end
@@ -166,6 +168,8 @@ export function combatRequestAttack(
     // Note: validateAndApplyRangedModifiers expects a CombatAttackCheck, we'll build it below
   }
 
+  const channelDoS = combat.channeling?.actorId === effect.attackerId ? combat.channeling.accumulatedDoS : 0;
+
   // Mutable save for further updates (ammo, action, etc.)
   let currentSave: GameSave = save;
 
@@ -177,8 +181,32 @@ export function combatRequestAttack(
     }
     const weaponId = effect.weaponId ?? getEquippedWeaponId(attacker);
     const weapon = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
+    const isMagicFueled = hasWeaponQuality(weapon, "magic_fueled");
 
-    if (weapon?.ammo) {
+    if (isMagicFueled && isUntouchable(attacker)) {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=untouchable", "combat:blocked=magicFueled"],
+      };
+      return {
+        save: {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+
+    if (weapon?.ammo && !isMagicFueled) {
       const inventory = getActorInventory(attacker);
       const availableAmmo = getInventoryItemQty(inventory, weapon.ammo.itemId);
       if (availableAmmo < weapon.ammo.consumedPerAttack) {
@@ -368,9 +396,54 @@ export function combatRequestAttack(
         })
       : undefined;
 
+  const weaponIdForQuality = check.attacker.weaponId ?? getEquippedWeaponId(attacker || currentSave.actorsById[effect.attackerId]);
+  const weaponForQuality =
+    weaponIdForQuality && weaponIdForQuality !== "unarmed" ? currentSave.weaponsById?.[weaponIdForQuality] : null;
+  const isMagicFueled = hasWeaponQuality(weaponForQuality, "magic_fueled");
+  const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
+
   // Apply damage if hit (pass resolutionId to correlate with check)
-  const damageResult = applyCombatDamageIfHit(check, result, currentSave, rng, storyPack, resolutionId, catalogs);
+  let damageResult = applyCombatDamageIfHit(
+    check,
+    result,
+    currentSave,
+    rng,
+    storyPack,
+    resolutionId,
+    catalogs,
+    isMagicFueled
+  );
   currentSave = damageResult.save;
+
+  if (isMagicFueled && result.success) {
+    const totalDoS = result.dos + channelDoS;
+    const hits = Math.min(magicFueledRank, Math.max(1, totalDoS));
+    if (hits > 1) {
+      for (let hitNumber = 2; hitNumber <= hits; hitNumber++) {
+        damageResult = applyCombatDamageIfHit(
+          check,
+          result,
+          currentSave,
+          rng,
+          storyPack,
+          resolutionId,
+          catalogs,
+          true
+        );
+        currentSave = damageResult.save;
+        if (damageResult.actorDied && currentSave.runtime.gameOver) {
+          break;
+        }
+      }
+      const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
+      const defenderName = defender?.name || effect.defenderId;
+      const hitsLogEntry =
+        attacker?.kind === "PC"
+          ? `Colpisci ${defenderName} ${hits} volte con l'energia magica!`
+          : `${attacker?.name || effect.attackerId} colpisce ${defenderName} ${hits} volte con energia magica.`;
+      currentSave = appendCombatLog(currentSave, hitsLogEntry);
+    }
+  }
 
   // Handle death and game over
   if (damageResult.actorDied) {

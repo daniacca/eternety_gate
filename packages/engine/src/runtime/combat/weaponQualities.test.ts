@@ -137,6 +137,49 @@ describe("weapon qualities", () => {
     expect(result?.tags).toContain("combat:defense=dodge");
   });
 
+  it("magic fueled uses WIL and applies non-weaver penalty", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WIL: 60, BS: 80 } });
+    const defender = makeTestActor({ id: "defender" });
+    const magicFueledWeapon: Weapon = {
+      id: "gauntlet",
+      name: "Gauntlet",
+      kind: "RANGED",
+      damage: { tier: "single", add: 0 },
+      damageType: "energy",
+      penetration: 0,
+      range: { short: 5, long: 10 },
+      qualities: [{ id: "magic_fueled", rank: 2 }],
+    };
+
+    const save = makeTestSave(storyPack, attacker);
+    const saveWithBoth = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [defender.id]: defender,
+      },
+      weaponsById: { gauntlet: magicFueledWeapon },
+      runtime: {
+        ...save.runtime,
+        combat: makeCombatState([attacker.id, defender.id]),
+      },
+    };
+
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "RANGED", weaponId: "gauntlet" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+
+    const rng = new FakeRng([10, 100]);
+    const { result } = performCombatAttackCheck(check, storyPack, saveWithBoth, rng);
+    expect(result?.tags).toContain("combat:attackStat=WIL");
+    expect(result?.tags).toContain("combat:mod:magicFueled=nonWeaver:-10");
+  });
+
   it("unwieldy weapons cannot be used to parry", () => {
     const storyPack = makeTestStoryPack();
     const attacker = makeTestActor({ id: "attacker" });

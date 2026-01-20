@@ -120,6 +120,18 @@
     "hooks": []
   },
   {
+    "id": "magic_fueled",
+    "name": "Magic Fueled",
+    "description": "Ranged weapon fueled by magic; uses WIL for attacks and can generate multiple hits.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
+    "hooks": []
+  },
+  {
     "id": "simple",
     "name": "Simple",
     "description": "A basic weapon with no special combat effects.",

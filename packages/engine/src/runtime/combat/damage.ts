@@ -126,12 +126,15 @@ export function applyCombatDamageIfHit(
   } else {
     const weaponForQualities = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
     const hasAccurate = hasWeaponQuality(weaponForQualities, "accurate");
+    const hasMagicFueled = hasWeaponQuality(weaponForQualities, "magic_fueled");
     const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
     const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
     const forceBonus =
       hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver")
         ? getMagicPower(save, attacker.id, catalogs)
         : 0;
+    const magicFueledBonus =
+      hasMagicFueled && hasTrait(attacker, "trait:weaver") ? getMagicPower(save, attacker.id, catalogs) : 0;
 
     const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
       tearing: hasTearing,
@@ -140,6 +143,9 @@ export function applyCombatDamageIfHit(
     rawDamage = damageCalc.rawDamage;
     if (forceBonus > 0) {
       rawDamage += forceBonus;
+    }
+    if (magicFueledBonus > 0) {
+      rawDamage += magicFueledBonus;
     }
     weaponName = damageCalc.weaponName;
     calculatedWeaponId = damageCalc.weaponId;
@@ -223,9 +229,16 @@ export function applyCombatDamageIfHit(
     weaponForPenetration && hasWeaponQuality(weaponForPenetration, "force") && hasTrait(attacker, "trait:weaver")
       ? getMagicPower(save, attacker.id, catalogs)
       : 0;
+  const magicFueledPenBonus =
+    weaponForPenetration &&
+    hasWeaponQuality(weaponForPenetration, "magic_fueled") &&
+    hasTrait(attacker, "trait:weaver")
+      ? getMagicPower(save, attacker.id, catalogs)
+      : 0;
   const razorSharpActive =
     weaponForPenetration && hasWeaponQuality(weaponForPenetration, "razor_sharp") && result.dos >= 3;
-  const basePenetration = weaponForPenetration ? weaponForPenetration.penetration + forcePenBonus : 0;
+  const basePenetration =
+    weaponForPenetration ? weaponForPenetration.penetration + forcePenBonus + magicFueledPenBonus : 0;
   const effectivePenetration = razorSharpActive ? basePenetration * 2 : basePenetration;
 
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
@@ -289,6 +302,20 @@ export function applyCombatDamageIfHit(
   // Calculate final damage after soak and TOU bonus
   // Formula: (raw damage - armor soak - TOU bonus - other reductions)
   let finalDamage = Math.max(0, rawDamage - effectiveSoak - touBonus);
+
+  if (weaponForPenetration && hasWeaponQuality(weaponForPenetration, "magic_fueled")) {
+    const mr = catalogs ? getModifierTotal(save, catalogs, defender.id, "magic.resistance") : 0;
+    if (mr > 0) {
+      finalDamage = Math.max(0, finalDamage - mr);
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Magic Resistance: -${mr} damage`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:magic_fueled", `magicResistance=${mr}`],
+      });
+    }
+  }
 
   // Called Shot: Head doubles damage after soak
   const calledShotZone = check.modifiers?.calledShotZone;

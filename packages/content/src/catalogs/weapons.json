@@ -126,6 +126,24 @@
     "qualities": []
   },
   {
+    "id": "eldritch_gauntlet",
+    "name": "Eldritch Gauntlet",
+    "kind": "RANGED",
+    "damage": {
+      "tier": "single",
+      "add": 1
+    },
+    "damageType": "energy",
+    "penetration": 1,
+    "range": {
+      "short": 5,
+      "long": 10
+    },
+    "weight": 3,
+    "handedness": "oneHand",
+    "qualities": [{ "id": "magic_fueled", "rank": 3 }]
+  },
+  {
     "id": "venom_whip",
     "name": "Venom Whip",
     "kind": "MELEE",
