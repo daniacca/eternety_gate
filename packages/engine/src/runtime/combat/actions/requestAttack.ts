@@ -17,6 +17,25 @@ import {
 import { getWeaponQualityRank, hasWeaponQuality } from "../../weaponQualities";
 import { isUntouchable } from "../../characters/untouchable";
 
+const TALENT_TWO_WEAPON_WIELDER = "talent:two_weapon_wielder";
+const TALENT_AMBIDEXTROUS = "talent:ambidextrous";
+const TALENT_TWO_WEAPON_MASTER = "talent:two_weapon_master";
+
+function getDualWieldPenalty(actor: GameSave["actorsById"][string]): number | null {
+  if (!actor) return null;
+  if ((actor.talents[TALENT_TWO_WEAPON_MASTER] ?? 0) > 0) return 0;
+  if ((actor.talents[TALENT_AMBIDEXTROUS] ?? 0) > 0) return -10;
+  if ((actor.talents[TALENT_TWO_WEAPON_WIELDER] ?? 0) > 0) return -20;
+  return null;
+}
+
+function getEquippedWeaponIds(actor: GameSave["actorsById"][string]): { main?: string | null; off?: string | null } {
+  if (!actor) return {};
+  const main = actor.equipment?.mainHand?.kind === "weapon" ? actor.equipment.mainHand.id : null;
+  const off = actor.equipment?.offHand?.kind === "weapon" ? actor.equipment.offHand.id : null;
+  return { main, off };
+}
+
 /**
  * Centralized attack resolution: the only place that resolves attacks end-to-end
  * Validates combat, turn, action availability, performs check, applies damage, handles KO
@@ -172,82 +191,32 @@ export function combatRequestAttack(
 
   // Mutable save for further updates (ammo, action, etc.)
   let currentSave: GameSave = save;
-
-  // Consume ammo for ranged attacks if required
-  if (effect.mode === "RANGED") {
-    const attacker = currentSave.actorsById[effect.attackerId];
-    if (!attacker) {
-      return { save: currentSave };
-    }
-    const weaponId = effect.weaponId ?? getEquippedWeaponId(attacker);
-    const weapon = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
-    const isMagicFueled = hasWeaponQuality(weapon, "magic_fueled");
-
-    if (isMagicFueled && isUntouchable(attacker)) {
-      const blockedCheck = {
-        checkId: "combat:attack:blocked",
-        actorId: effect.attackerId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none" as const,
-        tags: ["combat:blocked=untouchable", "combat:blocked=magicFueled"],
-      };
-      return {
-        save: {
-          ...currentSave,
-          runtime: {
-            ...currentSave.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
-      };
-    }
-
-    if (weapon?.ammo && !isMagicFueled) {
-      const inventory = getActorInventory(attacker);
-      const availableAmmo = getInventoryItemQty(inventory, weapon.ammo.itemId);
-      if (availableAmmo < weapon.ammo.consumedPerAttack) {
-        const blockedCheck = {
-          checkId: "combat:attack:blocked",
-          actorId: effect.attackerId,
-          roll: 0,
-          target: 0,
-          success: false,
-          dos: 0,
-          dof: 0,
-          critical: "none" as const,
-          tags: ["combat:blocked=noAmmo"],
-        };
-        const saveWithLog = appendCombatLog(currentSave, "No ammo.");
-        return {
-          save: {
-            ...saveWithLog,
-            runtime: {
-              ...saveWithLog.runtime,
-              lastCheck: blockedCheck,
-            },
-          },
-        };
-      }
-
-      const { updatedInventory } = removeInventoryItemQty(inventory, weapon.ammo.itemId, weapon.ammo.consumedPerAttack);
-      currentSave = {
-        ...currentSave,
-        actorsById: {
-          ...currentSave.actorsById,
-          [attacker.id]: {
-            ...attacker,
-            inventory: updatedInventory,
-          },
-        },
-      };
-    }
+  const attacker = currentSave.actorsById[effect.attackerId];
+  if (!attacker) {
+    return { save: currentSave };
   }
 
-  // Build CombatAttackCheck
+  const { main: mainWeaponId, off: offWeaponId } = getEquippedWeaponIds(attacker);
+  const dualPenalty = getDualWieldPenalty(attacker);
+  const hasDualWeapons = Boolean(mainWeaponId && offWeaponId);
+  const canDualWield = hasDualWeapons && dualPenalty !== null;
+
+  const resolveWeaponIds = (): Array<string | null> => {
+    if (!canDualWield) {
+      return [effect.weaponId ?? mainWeaponId ?? offWeaponId ?? null];
+    }
+    if (effect.mode === "RANGED") {
+      return [mainWeaponId ?? null, offWeaponId ?? null].filter((id) => id !== null) as Array<string | null>;
+    }
+    return [mainWeaponId ?? null, offWeaponId ?? null].filter((id) => id !== null) as Array<string | null>;
+  };
+
+  let weaponIdsToUse = resolveWeaponIds();
+  if (weaponIdsToUse.length === 0) {
+    weaponIdsToUse = [null];
+  }
+  const dualWieldPenalty = canDualWield && weaponIdsToUse.length > 1 ? dualPenalty ?? 0 : 0;
+
   // Include mode and special modifiers in checkId for better identification
   const checkIdSuffix = effect.modifiers?.hitBonus === 20 ? ":allOut" : "";
 
@@ -272,31 +241,39 @@ export function combatRequestAttack(
     }
   }
 
-  const check: CombatAttackCheck = {
-    id: `combat:requestAttack:${effect.mode.toLowerCase()}:${effect.attackerId}:${effect.defenderId}${checkIdSuffix}`,
-    kind: "combatAttack",
-    attacker: {
-      actorRef: { mode: "byId", actorId: effect.attackerId },
-      mode: effect.mode,
-      weaponId: effect.weaponId ?? null,
-    },
-    defender: {
-      actorRef: { mode: "byId", actorId: effect.defenderId },
-    },
-    defense: effect.defense || {
-      allowParry: true,
-      allowDodge: true,
-      strategy: "autoBest",
-    },
-    modifiers: {
+  const buildCombatCheck = (weaponId: string | null, suffix: string): CombatAttackCheck => {
+    const baseHitBonus = effect.modifiers?.hitBonus;
+    const hitBonus = (baseHitBonus ?? 0) + dualWieldPenalty;
+    const modifiers = {
       ...effect.modifiers,
       cover: coverModifier,
-    },
+      ...(baseHitBonus !== undefined || hitBonus !== 0 ? { hitBonus } : {}),
+    };
+    return {
+      id: `combat:requestAttack:${effect.mode.toLowerCase()}:${effect.attackerId}:${effect.defenderId}${checkIdSuffix}${suffix}`,
+      kind: "combatAttack",
+      attacker: {
+        actorRef: { mode: "byId", actorId: effect.attackerId },
+        mode: effect.mode,
+        weaponId: weaponId ?? null,
+      },
+      defender: {
+        actorRef: { mode: "byId", actorId: effect.defenderId },
+      },
+      defense: effect.defense || {
+        allowParry: true,
+        allowDodge: true,
+        strategy: "autoBest",
+      },
+      modifiers,
+    };
   };
 
-  // For ranged attacks, validate modifiers
+  const primaryWeaponId = weaponIdsToUse[0] ?? null;
+  const primaryCheck = buildCombatCheck(primaryWeaponId, "");
+
   if (effect.mode === "RANGED") {
-    const blockedCheck = validateAndApplyRangedModifiers(check, save, dist, check.id, effect.attackerId);
+    const blockedCheck = validateAndApplyRangedModifiers(primaryCheck, save, dist, primaryCheck.id, effect.attackerId);
     if (blockedCheck) {
       return {
         save: {
@@ -307,6 +284,62 @@ export function combatRequestAttack(
           },
         },
       };
+    }
+  }
+
+  if (effect.mode === "RANGED") {
+    const primaryWeapon =
+      primaryWeaponId && primaryWeaponId !== "unarmed" ? currentSave.weaponsById?.[primaryWeaponId] : null;
+    const isMagicFueled = hasWeaponQuality(primaryWeapon, "magic_fueled");
+    if (isMagicFueled && isUntouchable(attacker)) {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=untouchable", "combat:blocked=magicFueled"],
+      };
+      return {
+        save: {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+
+    if (primaryWeapon?.ammo && !isMagicFueled) {
+      const inventory = getActorInventory(attacker);
+      const availableAmmo = getInventoryItemQty(inventory, primaryWeapon.ammo.itemId);
+      if (availableAmmo < primaryWeapon.ammo.consumedPerAttack) {
+        const blockedCheck = {
+          checkId: "combat:attack:blocked",
+          actorId: effect.attackerId,
+          roll: 0,
+          target: 0,
+          success: false,
+          dos: 0,
+          dof: 0,
+          critical: "none" as const,
+          tags: ["combat:blocked=noAmmo"],
+        };
+        const saveWithLog = appendCombatLog(currentSave, "No ammo.");
+        return {
+          save: {
+            ...saveWithLog,
+            runtime: {
+              ...saveWithLog.runtime,
+              lastCheck: blockedCheck,
+            },
+          },
+        };
+      }
     }
   }
 
@@ -337,51 +370,6 @@ export function combatRequestAttack(
   const resolutionId = `res:${seq}`;
   currentSave = saveWithSeq;
 
-  // Perform check (aim stance is still available here, so bonus will be applied)
-  // performCheckWithSave handles all logging automatically (attack + defense if party members)
-  const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng, resolutionId);
-  if (!result) {
-    return { save: currentSave };
-  }
-
-  // Use the updated save from performCheckWithSave (includes all check logs)
-  currentSave = afterCheckSave;
-
-  // Resolve attacker to check if it's a player actor (for lastPlayerCheck)
-  const attacker = resolveActor({ mode: "byId", actorId: effect.attackerId }, currentSave);
-  const isPlayerActor = attacker?.kind === "PC";
-
-  // NOW consume aim stance if this was a ranged attack (after check is performed)
-  let updatedStancesByActorId = combat.stancesByActorId;
-  if (effect.mode === "RANGED" && updatedStancesByActorId?.[effect.attackerId] === "aim") {
-    updatedStancesByActorId = {
-      ...updatedStancesByActorId,
-    };
-    delete updatedStancesByActorId[effect.attackerId];
-    currentSave = {
-      ...currentSave,
-      runtime: {
-        ...currentSave.runtime,
-        combat: {
-          ...currentSave.runtime.combat!,
-          stancesByActorId: updatedStancesByActorId,
-        },
-      },
-    };
-  }
-
-  // Update lastCheck and lastPlayerCheck (for UI)
-  // This ensures checks from emitted effects (like All-Out Attack) are visible in the UI
-  currentSave = {
-    ...currentSave,
-    runtime: {
-      ...currentSave.runtime,
-      lastCheck: result,
-      lastPlayerCheck: isPlayerActor ? result : currentSave.runtime.lastPlayerCheck,
-      rngCounter: rng.getCounter(),
-    },
-  };
-
   // Load catalogs from storyPack (if available) or use empty catalogs
   const catalogs =
     storyPack?.skills || storyPack?.talents || storyPack?.traits
@@ -396,207 +384,346 @@ export function combatRequestAttack(
         })
       : undefined;
 
-  const weaponIdForQuality = check.attacker.weaponId ?? getEquippedWeaponId(attacker || currentSave.actorsById[effect.attackerId]);
-  const weaponForQuality =
-    weaponIdForQuality && weaponIdForQuality !== "unarmed" ? currentSave.weaponsById?.[weaponIdForQuality] : null;
-  const isMagicFueled = hasWeaponQuality(weaponForQuality, "magic_fueled");
-  const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
+  const emittedEffects: Effect[] = [];
+  let aimConsumed = false;
 
-  // Apply damage if hit (pass resolutionId to correlate with check)
-  let damageResult = applyCombatDamageIfHit(
-    check,
-    result,
-    currentSave,
-    rng,
-    storyPack,
-    resolutionId,
-    catalogs,
-    isMagicFueled
-  );
-  currentSave = damageResult.save;
+  for (let index = 0; index < weaponIdsToUse.length; index++) {
+    const weaponId = weaponIdsToUse[index] ?? null;
+    const suffix = weaponIdsToUse.length > 1 ? `:twf${index + 1}` : "";
+    const attackCheck = buildCombatCheck(weaponId, suffix);
 
-  if (isMagicFueled && result.success) {
-    const totalDoS = result.dos + channelDoS;
-    const hits = Math.min(magicFueledRank, Math.max(1, totalDoS));
-    if (hits > 1) {
-      for (let hitNumber = 2; hitNumber <= hits; hitNumber++) {
-        damageResult = applyCombatDamageIfHit(
-          check,
-          result,
-          currentSave,
-          rng,
-          storyPack,
-          resolutionId,
-          catalogs,
-          true
-        );
-        currentSave = damageResult.save;
-        if (damageResult.actorDied && currentSave.runtime.gameOver) {
-          break;
+    if (effect.mode === "RANGED") {
+      const blockedCheck = validateAndApplyRangedModifiers(attackCheck, currentSave, dist, attackCheck.id, effect.attackerId);
+      if (blockedCheck) {
+        if (index === 0) {
+          return {
+            save: {
+              ...currentSave,
+              runtime: {
+                ...currentSave.runtime,
+                lastCheck: blockedCheck,
+              },
+            },
+          };
+        }
+        continue;
+      }
+    }
+
+    if (effect.mode === "RANGED") {
+      const currentAttacker = currentSave.actorsById[effect.attackerId];
+      if (!currentAttacker) {
+        return { save: currentSave };
+      }
+      const weapon = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
+      const isMagicFueled = hasWeaponQuality(weapon, "magic_fueled");
+      if (isMagicFueled && isUntouchable(currentAttacker)) {
+        if (index === 0) {
+          const blockedCheck = {
+            checkId: "combat:attack:blocked",
+            actorId: effect.attackerId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none" as const,
+            tags: ["combat:blocked=untouchable", "combat:blocked=magicFueled"],
+          };
+          return {
+            save: {
+              ...currentSave,
+              runtime: {
+                ...currentSave.runtime,
+                lastCheck: blockedCheck,
+              },
+            },
+          };
+        }
+        continue;
+      }
+
+      if (weapon?.ammo && !isMagicFueled) {
+        const inventory = getActorInventory(currentAttacker);
+        const availableAmmo = getInventoryItemQty(inventory, weapon.ammo.itemId);
+        if (availableAmmo < weapon.ammo.consumedPerAttack) {
+          if (index === 0) {
+            const blockedCheck = {
+              checkId: "combat:attack:blocked",
+              actorId: effect.attackerId,
+              roll: 0,
+              target: 0,
+              success: false,
+              dos: 0,
+              dof: 0,
+              critical: "none" as const,
+              tags: ["combat:blocked=noAmmo"],
+            };
+            const saveWithLog = appendCombatLog(currentSave, "No ammo.");
+            return {
+              save: {
+                ...saveWithLog,
+                runtime: {
+                  ...saveWithLog.runtime,
+                  lastCheck: blockedCheck,
+                },
+              },
+            };
+          }
+          currentSave = appendCombatLog(currentSave, "No ammo.");
+          continue;
+        }
+
+        const { updatedInventory } = removeInventoryItemQty(inventory, weapon.ammo.itemId, weapon.ammo.consumedPerAttack);
+        currentSave = {
+          ...currentSave,
+          actorsById: {
+            ...currentSave.actorsById,
+            [currentAttacker.id]: {
+              ...currentAttacker,
+              inventory: updatedInventory,
+            },
+          },
+        };
+      }
+    }
+
+    // Perform check (aim stance is still available here, so bonus will be applied)
+    // performCheckWithSave handles all logging automatically (attack + defense if party members)
+    const attackResolutionId = `${resolutionId}${suffix}`;
+    const { result, save: afterCheckSave } = performCheckWithSave(attackCheck, storyPack, currentSave, rng, attackResolutionId);
+    if (!result) {
+      continue;
+    }
+
+    // Use the updated save from performCheckWithSave (includes all check logs)
+    currentSave = afterCheckSave;
+
+    const isPlayerActor = currentSave.actorsById[effect.attackerId]?.kind === "PC";
+
+    // NOW consume aim stance if this was a ranged attack (after check is performed)
+    if (!aimConsumed && effect.mode === "RANGED") {
+      let updatedStancesByActorId = currentSave.runtime.combat?.stancesByActorId;
+      if (updatedStancesByActorId?.[effect.attackerId] === "aim") {
+        updatedStancesByActorId = {
+          ...updatedStancesByActorId,
+        };
+        delete updatedStancesByActorId[effect.attackerId];
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            combat: {
+              ...currentSave.runtime.combat!,
+              stancesByActorId: updatedStancesByActorId,
+            },
+          },
+        };
+      }
+      aimConsumed = true;
+    }
+
+    // Update lastCheck and lastPlayerCheck (for UI)
+    currentSave = {
+      ...currentSave,
+      runtime: {
+        ...currentSave.runtime,
+        lastCheck: result,
+        lastPlayerCheck: isPlayerActor ? result : currentSave.runtime.lastPlayerCheck,
+        rngCounter: rng.getCounter(),
+      },
+    };
+
+    const weaponForQuality = weaponId && weaponId !== "unarmed" ? currentSave.weaponsById?.[weaponId] : null;
+    const isMagicFueled = hasWeaponQuality(weaponForQuality, "magic_fueled");
+    const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
+
+    // Apply damage if hit (pass resolutionId to correlate with check)
+    let damageResult = applyCombatDamageIfHit(
+      attackCheck,
+      result,
+      currentSave,
+      rng,
+      storyPack,
+      attackResolutionId,
+      catalogs,
+      isMagicFueled
+    );
+    currentSave = damageResult.save;
+
+    if (isMagicFueled && result.success) {
+      const totalDoS = result.dos + channelDoS;
+      const hits = Math.min(magicFueledRank, Math.max(1, totalDoS));
+      if (hits > 1) {
+        for (let hitNumber = 2; hitNumber <= hits; hitNumber++) {
+          damageResult = applyCombatDamageIfHit(
+            attackCheck,
+            result,
+            currentSave,
+            rng,
+            storyPack,
+            attackResolutionId,
+            catalogs,
+            true
+          );
+          currentSave = damageResult.save;
+          if (damageResult.actorDied && currentSave.runtime.gameOver) {
+            break;
+          }
+        }
+        const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
+        const defenderName = defender?.name || effect.defenderId;
+        const hitsLogEntry =
+          attacker?.kind === "PC"
+            ? `Colpisci ${defenderName} ${hits} volte con l'energia magica!`
+            : `${attacker?.name || effect.attackerId} colpisce ${defenderName} ${hits} volte con energia magica.`;
+        currentSave = appendCombatLog(currentSave, hitsLogEntry);
+      }
+    }
+
+    // Handle death and game over
+    if (damageResult.actorDied) {
+      const deadActor = currentSave.actorsById[effect.defenderId];
+      if (deadActor) {
+        const pcDied = deadActor.kind === "PC";
+        const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
+        const allPartyDead = partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
+
+        if (pcDied || allPartyDead) {
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              gameOver: {
+                reason: pcDied ? "playerDead" : "partyDead",
+                sceneId: currentSave.runtime.currentSceneId,
+              },
+              combat: undefined,
+            },
+          };
+          currentSave = appendCombatLog(currentSave, "Game Over.");
         }
       }
-      const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
-      const defenderName = defender?.name || effect.defenderId;
-      const hitsLogEntry =
-        attacker?.kind === "PC"
-          ? `Colpisci ${defenderName} ${hits} volte con l'energia magica!`
-          : `${attacker?.name || effect.attackerId} colpisce ${defenderName} ${hits} volte con energia magica.`;
-      currentSave = appendCombatLog(currentSave, hitsLogEntry);
     }
-  }
 
-  // Handle death and game over
-  if (damageResult.actorDied) {
-    const deadActor = currentSave.actorsById[effect.defenderId];
-    if (deadActor) {
-      const pcDied = deadActor.kind === "PC";
+    const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
+    if (attacker && defender) {
+      currentSave = appendAttackNarration(currentSave, attacker, defender, result);
+    }
 
-      // Check if all party members are dead
-      const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
-      const allPartyDead = partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
+    if (damageResult.actorDied && currentSave.runtime.combat?.active) {
+      const deadActor = currentSave.actorsById[effect.defenderId];
+      if (deadActor && deadActor.resources.isDead === true) {
+        const aliveParticipants = currentSave.runtime.combat.participants.filter((id) => {
+          const actor = currentSave.actorsById[id];
+          return actor && actor.resources.isDead !== true;
+        });
 
-      if (pcDied || allPartyDead) {
-        // Set game over
-        currentSave = {
-          ...currentSave,
-          runtime: {
-            ...currentSave.runtime,
-            gameOver: {
-              reason: pcDied ? "playerDead" : "partyDead",
-              sceneId: currentSave.runtime.currentSceneId,
+        const partyIds = new Set(currentSave.party.actors);
+        const enemyIds = aliveParticipants.filter((id) => !partyIds.has(id));
+
+        const partyAlive = aliveParticipants.filter((id) => {
+          const actor = currentSave.actorsById[id];
+          return partyIds.has(id) && actor && actor.resources.isDead !== true;
+        });
+
+        const enemiesAlive = aliveParticipants.filter((id) => {
+          const actor = currentSave.actorsById[id];
+          return enemyIds.includes(id) && actor && actor.resources.isDead !== true;
+        });
+
+        if (enemiesAlive.length === 0 && partyAlive.length > 0) {
+          const combatState = currentSave.runtime.combat;
+          const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+          currentSave = appendCombatLog(currentSave, "Tutti i nemici presenti nell'area sono stati sconfitti.");
+
+          const last = currentSave.runtime.lastCheck;
+          const endCheck: CheckResult = last
+            ? {
+                ...last,
+                tags: [...last.tags, "combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
+              }
+            : {
+                checkId: "combat:end",
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: true,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: ["combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
+              };
+
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              combat: undefined,
+              lastCheck: endCheck,
+              combatEndedSceneId: endedSceneId,
             },
-            combat: undefined, // End combat cleanly
-          },
-        };
-        currentSave = appendCombatLog(currentSave, "Game Over.");
+          };
+        } else if (partyAlive.length === 0) {
+          const combatState = currentSave.runtime.combat;
+          const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+          currentSave = appendCombatLog(currentSave, "Il party è stato annientato. Game over.");
+
+          const last = currentSave.runtime.lastCheck;
+          const endCheck: CheckResult = last
+            ? {
+                ...last,
+                tags: [
+                  ...last.tags,
+                  "combat:state=end",
+                  "combat:outcome=defeat",
+                  ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
+                ],
+              }
+            : {
+                checkId: "combat:end",
+                actorId: currentSave.party.activeActorId,
+                roll: 0,
+                target: 0,
+                success: true,
+                dos: 0,
+                dof: 0,
+                critical: "none",
+                tags: [
+                  "combat:state=end",
+                  "combat:outcome=defeat",
+                  ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
+                ],
+              };
+
+          currentSave = {
+            ...currentSave,
+            runtime: {
+              ...currentSave.runtime,
+              combat: undefined,
+              lastCheck: endCheck,
+              combatEndedSceneId: endedSceneId,
+            },
+          };
+        }
       }
     }
-  }
 
-  // Add narration for attack result (consolidated function)
-  // attacker is already resolved above (line 493)
-  const defender = resolveActor({ mode: "byId", actorId: effect.defenderId }, currentSave);
-  if (attacker && defender) {
-    currentSave = appendAttackNarration(currentSave, attacker, defender, result);
-  }
-
-  // Handle death and end combat if needed (check isDead, not HP)
-  if (damageResult.actorDied && currentSave.runtime.combat?.active) {
-    const deadActor = currentSave.actorsById[effect.defenderId];
-    if (deadActor && deadActor.resources.isDead === true) {
-      const aliveParticipants = currentSave.runtime.combat.participants.filter((id) => {
-        const actor = currentSave.actorsById[id];
-        return actor && actor.resources.isDead !== true;
-      });
-
-      // Check if combat should end based on factions
-      const partyIds = new Set(currentSave.party.actors);
-      const enemyIds = aliveParticipants.filter((id) => !partyIds.has(id));
-
-      const partyAlive = aliveParticipants.filter((id) => {
-        const actor = currentSave.actorsById[id];
-        return partyIds.has(id) && actor && actor.resources.isDead !== true;
-      });
-
-      const enemiesAlive = aliveParticipants.filter((id) => {
-        const actor = currentSave.actorsById[id];
-        return enemyIds.includes(id) && actor && actor.resources.isDead !== true;
-      });
-
-      if (enemiesAlive.length === 0 && partyAlive.length > 0) {
-        // All enemies dead - party victory
-        const combatState = currentSave.runtime.combat;
-        const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
-        currentSave = appendCombatLog(currentSave, "Tutti i nemici presenti nell'area sono stati sconfitti.");
-
-        const last = currentSave.runtime.lastCheck;
-        const endCheck: CheckResult = last
-          ? {
-              ...last,
-              tags: [...last.tags, "combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
-            }
-          : {
-              checkId: "combat:end",
-              actorId: currentSave.party.activeActorId,
-              roll: 0,
-              target: 0,
-              success: true,
-              dos: 0,
-              dof: 0,
-              critical: "none",
-              tags: ["combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
-            };
-
-        currentSave = {
-          ...currentSave,
-          runtime: {
-            ...currentSave.runtime,
-            combat: undefined,
-            lastCheck: endCheck,
-            combatEndedSceneId: endedSceneId,
-          },
-        };
-      } else if (partyAlive.length === 0) {
-        // All party dead - defeat
-        const combatState = currentSave.runtime.combat;
-        const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
-        currentSave = appendCombatLog(currentSave, "Il party è stato annientato. Game over.");
-
-        const last = currentSave.runtime.lastCheck;
-        const endCheck: CheckResult = last
-          ? {
-              ...last,
-              tags: [
-                ...last.tags,
-                "combat:state=end",
-                "combat:outcome=defeat",
-                ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
-              ],
-            }
-          : {
-              checkId: "combat:end",
-              actorId: currentSave.party.activeActorId,
-              roll: 0,
-              target: 0,
-              success: true,
-              dos: 0,
-              dof: 0,
-              critical: "none",
-              tags: [
-                "combat:state=end",
-                "combat:outcome=defeat",
-                ...(enemiesAlive.length > 0 ? [`combat:winner=${enemiesAlive[0]}`] : []),
-              ],
-            };
-
-        currentSave = {
-          ...currentSave,
-          runtime: {
-            ...currentSave.runtime,
-            combat: undefined,
-            lastCheck: endCheck,
-            combatEndedSceneId: endedSceneId,
-          },
-        };
+    if (result.success) {
+      if (effect.onSuccessEffects && effect.onSuccessEffects.length > 0) {
+        emittedEffects.push(...effect.onSuccessEffects);
+      }
+      if (damageResult.effects && damageResult.effects.length > 0) {
+        emittedEffects.push(...damageResult.effects);
+      }
+    } else {
+      if (effect.onFailureEffects && effect.onFailureEffects.length > 0) {
+        emittedEffects.push(...effect.onFailureEffects);
       }
     }
-  }
 
-  // Emit onSuccess/onFailure effects based on attack result
-  const emittedEffects: Effect[] = [];
-  if (result.success) {
-    // Attack hit - emit onSuccess effects
-    if (effect.onSuccessEffects && effect.onSuccessEffects.length > 0) {
-      emittedEffects.push(...effect.onSuccessEffects);
-    }
-    // Also emit effects from damage (e.g., critical damage conditions)
-    if (damageResult.effects && damageResult.effects.length > 0) {
-      emittedEffects.push(...damageResult.effects);
-    }
-  } else {
-    // Attack missed (including parry/dodge) - emit onFailure effects
-    if (effect.onFailureEffects && effect.onFailureEffects.length > 0) {
-      emittedEffects.push(...effect.onFailureEffects);
+    if (currentSave.runtime.gameOver) {
+      break;
     }
   }
 

@@ -117,9 +117,23 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     const npcWeapon = npcActor ? getActorWeapon(save, npcActor) : null;
     const npcArmor = npcActor ? getActorArmor(save, npcActor) : null;
 
-    // Weapon capabilities
-    const hasRangedWeapon = pcWeapon?.weapon?.kind === "RANGED";
-    const weaponRange = pcWeapon?.weapon?.range || null;
+    // Weapon capabilities (check both hands for ranged weapons)
+    const mainWeaponId = pcActor?.equipment?.mainHand?.kind === "weapon" ? pcActor.equipment.mainHand.id : null;
+    const offWeaponId = pcActor?.equipment?.offHand?.kind === "weapon" ? pcActor.equipment.offHand.id : null;
+    const mainWeapon = mainWeaponId ? save.weaponsById?.[mainWeaponId] : null;
+    const offWeapon = offWeaponId ? save.weaponsById?.[offWeaponId] : null;
+    const rangedWeapons = [mainWeapon, offWeapon].filter((weapon) => weapon?.kind === "RANGED");
+    const hasRangedWeapon = rangedWeapons.length > 0;
+    const weaponRange = rangedWeapons.length
+      ? rangedWeapons.reduce(
+          (acc, weapon) => {
+            const short = weapon?.range?.short ?? acc.short;
+            const long = weapon?.range?.long ?? acc.long;
+            return { short: Math.max(acc.short, short), long: Math.max(acc.long, long) };
+          },
+          { short: 0, long: 0 }
+        )
+      : null;
 
     // Basic attack availability - check if any NPC is in melee range
     let canMelee = false;
@@ -147,11 +161,12 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     let canRangedReason: string | null = null;
 
     // Update canRanged based on weapon range if available
-    if (hasRangedWeapon && weaponRange && distance !== null) {
-      canRanged = distance > 1 && distance <= weaponRange.long;
+    if (hasRangedWeapon && distance !== null) {
+      const maxRange = weaponRange?.long ?? 8;
+      canRanged = distance > 1 && distance <= maxRange;
       if (distance <= 1) {
         canRangedReason = "In melee";
-      } else if (distance > weaponRange.long) {
+      } else if (distance > maxRange) {
         canRangedReason = "Out of range";
       }
     } else if (!hasRangedWeapon) {

@@ -49,6 +49,13 @@ export function CombatControl({
   const [activeSection, setActiveSection] = useState<"movement" | "attacks" | "stance" | "magic">("movement");
   const [calledShotPickerVisible, setCalledShotPickerVisible] = useState(false);
   const [pendingCalledShotMode, setPendingCalledShotMode] = useState<"MELEE" | "RANGED" | null>(null);
+  const [calledShotWeaponId, setCalledShotWeaponId] = useState<string | null>(null);
+  const [weaponPickerVisible, setWeaponPickerVisible] = useState(false);
+  const [weaponPickerOptions, setWeaponPickerOptions] = useState<Array<{ id: string | null; name: string }>>([]);
+  const [weaponPickerContext, setWeaponPickerContext] = useState<{
+    kind: "melee" | "ranged" | "calledShot" | "swift";
+    mode: "MELEE" | "RANGED";
+  } | null>(null);
 
   if (!model || !model.isCombatActive) return null;
 
@@ -82,6 +89,69 @@ export function CombatControl({
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:calledShot")
     : false;
 
+  const activeActor = save.actorsById[save.party.activeActorId];
+  const mainWeaponId = activeActor?.equipment?.mainHand?.kind === "weapon" ? activeActor.equipment.mainHand.id : null;
+  const offWeaponId = activeActor?.equipment?.offHand?.kind === "weapon" ? activeActor.equipment.offHand.id : null;
+  const mainWeapon = mainWeaponId ? save.weaponsById?.[mainWeaponId] : null;
+  const offWeapon = offWeaponId ? save.weaponsById?.[offWeaponId] : null;
+  const hasTwoWeaponWielder = (activeActor?.talents?.["talent:two_weapon_wielder"] ?? 0) > 0;
+
+  const getWeaponOptionsForMode = (mode: "MELEE" | "RANGED") => {
+    const options: Array<{ id: string | null; name: string }> = [];
+    if (mode === "MELEE") {
+      if (mainWeaponId) options.push({ id: mainWeaponId, name: mainWeapon?.name || mainWeaponId });
+      if (offWeaponId) options.push({ id: offWeaponId, name: offWeapon?.name || offWeaponId });
+    } else {
+      if (mainWeaponId && mainWeapon?.kind === "RANGED") {
+        options.push({ id: mainWeaponId, name: mainWeapon?.name || mainWeaponId });
+      }
+      if (offWeaponId && offWeapon?.kind === "RANGED") {
+        options.push({ id: offWeaponId, name: offWeapon?.name || offWeaponId });
+      }
+    }
+    return options;
+  };
+
+  const openWeaponPicker = (kind: "melee" | "ranged" | "calledShot" | "swift", mode: "MELEE" | "RANGED") => {
+    const options = getWeaponOptionsForMode(mode);
+    setWeaponPickerOptions(options);
+    setWeaponPickerContext({ kind, mode });
+    setWeaponPickerVisible(true);
+  };
+
+  const applyAttackWithWeapon = (
+    kind: "melee" | "ranged" | "calledShot" | "swift",
+    mode: "MELEE" | "RANGED",
+    weaponId: string | null
+  ) => {
+    if (!model.selectedTargetId) return;
+    if (kind === "swift") {
+      applySystemEffects([
+        {
+          op: "combatSwiftAttack",
+          attackerId: save.party.activeActorId,
+          defenderId: model.selectedTargetId,
+          weaponId,
+        },
+      ]);
+      return;
+    }
+    if (kind === "calledShot") {
+      setCalledShotWeaponId(weaponId);
+      setPendingCalledShotMode(mode);
+      setCalledShotPickerVisible(true);
+      return;
+    }
+    applySystemEffects([
+      {
+        op: "combatRequestAttack",
+        attackerId: save.party.activeActorId,
+        defenderId: model.selectedTargetId,
+        mode,
+        weaponId,
+      },
+    ]);
+  };
   // Get learned spells
   const learnedSpells = catalogs ? getLearnedSpells(save, save.party.activeActorId, catalogs) : [];
   const hasLearnedSpells = learnedSpells.length > 0;
@@ -268,14 +338,13 @@ export function CombatControl({
                         ]}
                         onPress={() => {
                           if (!model.meleeDisabled && model.selectedTargetId) {
-                            applySystemEffects([
-                              {
-                                op: "combatRequestAttack",
-                                attackerId: save.party.activeActorId,
-                                defenderId: model.selectedTargetId,
-                                mode: "MELEE",
-                              },
-                            ]);
+                            const options = getWeaponOptionsForMode("MELEE");
+                            if (!hasTwoWeaponWielder && options.length > 1) {
+                              openWeaponPicker("melee", "MELEE");
+                            } else {
+                              const chosen = options[0]?.id ?? null;
+                              applyAttackWithWeapon("melee", "MELEE", chosen);
+                            }
                           }
                         }}
                         disabled={model.meleeDisabled || !model.selectedTargetId}
@@ -349,13 +418,13 @@ export function CombatControl({
                         ]}
                         onPress={() => {
                           if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
-                            applySystemEffects([
-                              {
-                                op: "combatSwiftAttack",
-                                attackerId: save.party.activeActorId,
-                                defenderId: model.selectedTargetId,
-                              },
-                            ]);
+                            const options = getWeaponOptionsForMode("MELEE");
+                            if (!hasTwoWeaponWielder && options.length > 1) {
+                              openWeaponPicker("swift", "MELEE");
+                            } else {
+                              const chosen = options[0]?.id ?? null;
+                              applyAttackWithWeapon("swift", "MELEE", chosen);
+                            }
                           }
                         }}
                         disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
@@ -433,8 +502,15 @@ export function CombatControl({
                         ]}
                         onPress={() => {
                           if (model.actionAvailable && model.canMelee && model.selectedTargetId) {
-                            setPendingCalledShotMode("MELEE");
-                            setCalledShotPickerVisible(true);
+                            const options = getWeaponOptionsForMode("MELEE");
+                            if (!hasTwoWeaponWielder && options.length > 1) {
+                              openWeaponPicker("calledShot", "MELEE");
+                            } else {
+                              const chosen = options[0]?.id ?? null;
+                              setCalledShotWeaponId(chosen);
+                              setPendingCalledShotMode("MELEE");
+                              setCalledShotPickerVisible(true);
+                            }
                           }
                         }}
                         disabled={!model.actionAvailable || !model.canMelee || !model.selectedTargetId}
@@ -465,14 +541,13 @@ export function CombatControl({
                       ]}
                       onPress={() => {
                         if (!model.rangedDisabled && model.selectedTargetId) {
-                          applySystemEffects([
-                            {
-                              op: "combatRequestAttack",
-                              attackerId: save.party.activeActorId,
-                              defenderId: model.selectedTargetId,
-                              mode: "RANGED",
-                            },
-                          ]);
+                          const options = getWeaponOptionsForMode("RANGED");
+                          if (!hasTwoWeaponWielder && options.length > 1) {
+                            openWeaponPicker("ranged", "RANGED");
+                          } else {
+                            const chosen = options[0]?.id ?? null;
+                            applyAttackWithWeapon("ranged", "RANGED", chosen);
+                          }
                         }
                       }}
                       disabled={model.rangedDisabled || !model.selectedTargetId}
@@ -501,8 +576,15 @@ export function CombatControl({
                         ]}
                         onPress={() => {
                           if (model.actionAvailable && model.selectedTargetId) {
-                            setPendingCalledShotMode("RANGED");
-                            setCalledShotPickerVisible(true);
+                            const options = getWeaponOptionsForMode("RANGED");
+                            if (!hasTwoWeaponWielder && options.length > 1) {
+                              openWeaponPicker("calledShot", "RANGED");
+                            } else {
+                              const chosen = options[0]?.id ?? null;
+                              setCalledShotWeaponId(chosen);
+                              setPendingCalledShotMode("RANGED");
+                              setCalledShotPickerVisible(true);
+                            }
                           }
                         }}
                         disabled={!model.actionAvailable || !model.selectedTargetId}
@@ -742,6 +824,51 @@ export function CombatControl({
         }}
       />
 
+      {/* Weapon Picker Modal */}
+      {weaponPickerVisible && weaponPickerContext && (
+        <View style={styles.calledShotModal}>
+          <View style={styles.calledShotModalContent}>
+            <Text style={styles.calledShotModalTitle}>Choose Weapon</Text>
+            <Text style={styles.calledShotModalSubtitle}>
+              {weaponPickerContext.mode === "MELEE" ? "Melee Attack" : "Ranged Attack"}
+            </Text>
+
+            <View style={styles.calledShotZones}>
+              {weaponPickerOptions.map((option) => (
+                <Pressable
+                  key={option.id ?? "unarmed"}
+                  style={styles.calledShotZoneButton}
+                  onPress={() => {
+                    const weaponId = option.id ?? null;
+                    if (weaponPickerContext.kind === "calledShot") {
+                      setCalledShotWeaponId(weaponId);
+                      setPendingCalledShotMode(weaponPickerContext.mode);
+                      setCalledShotPickerVisible(true);
+                    } else {
+                      applyAttackWithWeapon(weaponPickerContext.kind, weaponPickerContext.mode, weaponId);
+                    }
+                    setWeaponPickerVisible(false);
+                    setWeaponPickerContext(null);
+                  }}
+                >
+                  <Text style={styles.calledShotZoneLabel}>{option.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable
+              style={styles.calledShotCancelButton}
+              onPress={() => {
+                setWeaponPickerVisible(false);
+                setWeaponPickerContext(null);
+              }}
+            >
+              <Text style={styles.calledShotCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {/* Called Shot Zone Picker Modal */}
       {calledShotPickerVisible && (
         <View style={styles.calledShotModal}>
@@ -772,6 +899,7 @@ export function CombatControl({
                             attackerId: save.party.activeActorId,
                             defenderId: model.selectedTargetId,
                             mode: pendingCalledShotMode,
+                            weaponId: calledShotWeaponId,
                             modifiers: {
                               calledShot: true,
                               calledShotZone: zone,
@@ -781,6 +909,7 @@ export function CombatControl({
                       }
                       setCalledShotPickerVisible(false);
                       setPendingCalledShotMode(null);
+                      setCalledShotWeaponId(null);
                     }}
                   >
                     <Text style={styles.calledShotZoneLabel}>{info.label}</Text>
@@ -796,6 +925,7 @@ export function CombatControl({
               onPress={() => {
                 setCalledShotPickerVisible(false);
                 setPendingCalledShotMode(null);
+                setCalledShotWeaponId(null);
               }}
             >
               <Text style={styles.calledShotCancelText}>Cancel</Text>

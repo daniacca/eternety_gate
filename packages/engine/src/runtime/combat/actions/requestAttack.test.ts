@@ -157,4 +157,64 @@ describe("combatRequestAttack ammo consumption", () => {
     const lastLog = result.save.runtime.combatLog?.slice(-1)[0];
     expect(lastLog).toBe("No ammo.");
   });
+
+  it("consumes ammo twice when dual-wielding two ranged weapons", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeActor({
+      id: "PC_1",
+      equipment: {
+        mainHand: { kind: "weapon", id: "bow" },
+        offHand: { kind: "weapon", id: "bow2" },
+      },
+      inventory: [{ kind: "item", id: "ammo:arrow", qty: 3 }],
+      talents: { "talent:two_weapon_wielder": 1 },
+    });
+    const defender = makeActor({ id: "NPC_1", kind: "NPC" });
+    let save = prepareCombatSave(storyPack, attacker, defender);
+    save = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [attacker.id]: {
+          ...save.actorsById[attacker.id],
+          talents: { ...(save.actorsById[attacker.id].talents || {}), "talent:two_weapon_wielder": 1 },
+          equipment: {
+            ...save.actorsById[attacker.id].equipment,
+            offHand: { kind: "weapon", id: "bow2" },
+          },
+        },
+      },
+    };
+    save = {
+      ...save,
+      weaponsById: {
+        ...save.weaponsById,
+        bow2: {
+          id: "bow2",
+          name: "Bow 2",
+          kind: "RANGED",
+          damage: { tier: "single", add: 0 },
+          damageType: "piercing",
+          penetration: 0,
+          range: { short: 4, long: 8 },
+          ammo: { itemId: "ammo:arrow", consumedPerAttack: 1 },
+        },
+      },
+    };
+    expect(save.actorsById[attacker.id].equipment?.offHand?.id).toBe("bow2");
+    expect(save.actorsById[attacker.id].talents["talent:two_weapon_wielder"]).toBe(1);
+    const rng = new FakeRng([50, 50, 50, 50, 50, 50]);
+
+    const effect: Effect = {
+      op: "combatRequestAttack",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      mode: "RANGED",
+    };
+
+    const result = combatRequestAttack(effect, storyPack, save, rng);
+    const updatedInventory = result.save.actorsById[attacker.id].inventory || [];
+    const ammoStack = updatedInventory.find((item) => item.id === "ammo:arrow");
+    expect(ammoStack?.qty).toBe(1);
+  });
 });

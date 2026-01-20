@@ -118,9 +118,25 @@ function resolveSlotForItem(
   resolved: ResolvedItemDefinition,
   targetSlot?: EquipmentSlot
 ): { slot?: EquipmentSlot; reason?: string } {
-  if (targetSlot) return { slot: targetSlot };
-
+  if (targetSlot && resolved.kind !== "weapon") {
+    if (resolved.kind === "item" && resolved.def.shield) {
+      return { slot: "offHand" };
+    }
+    return { slot: targetSlot };
+  }
   if (resolved.kind === "weapon") {
+    const handedness = resolved.def.handedness ?? "oneHand";
+    const mainHand = actor.equipment?.mainHand;
+    const offHand = actor.equipment?.offHand;
+    if (handedness === "twoHand") {
+      return { slot: "mainHand" };
+    }
+    if (!mainHand) {
+      return { slot: "mainHand" };
+    }
+    if (mainHand.kind === "weapon" && !offHand) {
+      return { slot: "offHand" };
+    }
     return { slot: "mainHand" };
   }
 
@@ -131,6 +147,9 @@ function resolveSlotForItem(
   if (resolved.kind === "item") {
     if (getItemCategory(resolved.def) !== "wearable" || !resolved.def.slot) {
       return { reason: "Item cannot be equipped." };
+    }
+    if (resolved.def.shield) {
+      return { slot: "offHand" };
     }
     if (resolved.def.slot === "ring") {
       const ring1 = actor.equipment?.ring1;
@@ -239,6 +258,9 @@ export function canEquipItem(
       if (mainHand?.kind === "weapon") {
         const mainWeapon = resolvedCatalogs.weaponsById[mainHand.id];
         if (mainWeapon?.handedness === "twoHand") {
+          if (handedness === "oneHand") {
+            return { ok: true, resolvedSlot: "mainHand" };
+          }
           return { ok: false, reason: "Two-handed weapon occupies offhand." };
         }
       }
@@ -302,8 +324,30 @@ export function equipItem(
   const removal = removeOneFromInventory(inventory, itemRef, resolvedCatalogs);
   if (!removal.removed) return save;
 
-  const slot = canEquip.resolvedSlot;
+  let slot = canEquip.resolvedSlot;
   const equippedRef = normalizeItemRefForEquip(removal.removed);
+
+  // Apply weapon/shield slot rules
+  if (resolved.kind === "weapon") {
+    const handedness = resolved.def.handedness ?? "oneHand";
+    const mainHand = actor.equipment?.mainHand;
+    const offHand = actor.equipment?.offHand;
+    const mainHandWeapon =
+      mainHand?.kind === "weapon" ? resolvedCatalogs.weaponsById[mainHand.id] : null;
+    if (handedness === "twoHand") {
+      slot = "mainHand";
+    } else if (mainHandWeapon?.handedness === "twoHand") {
+      slot = "mainHand";
+    } else if (!mainHand) {
+      slot = "mainHand";
+    } else if (mainHand.kind === "weapon" && !offHand) {
+      slot = "offHand";
+    } else {
+      slot = "mainHand";
+    }
+  } else if (resolved.kind === "item" && resolved.def.shield) {
+    slot = "offHand";
+  }
 
   let updatedActor = {
     ...actor,
@@ -322,28 +366,18 @@ export function equipItem(
     },
   };
 
+  const itemsToReturn: ItemRef[] = [];
   const currentlyEquipped = actor.equipment?.[slot] ?? null;
   if (currentlyEquipped) {
-    updatedActor = {
-      ...updatedActor,
-      inventory: addItemToInventory(updatedActor.inventory, currentlyEquipped, resolvedCatalogs),
-    };
-    updatedSave = {
-      ...updatedSave,
-      actorsById: {
-        ...updatedSave.actorsById,
-        [actorId]: updatedActor,
-      },
-    };
+    itemsToReturn.push(currentlyEquipped);
   }
 
-  if (resolved.kind === "weapon" && resolved.def.handedness === "twoHand" && slot === "mainHand") {
+  if (resolved.kind === "weapon" && (resolved.def.handedness ?? "oneHand") === "twoHand" && slot === "mainHand") {
     const offHand = actor.equipment?.offHand ?? null;
     if (offHand) {
-      const inventoryWithOffhand = addItemToInventory(updatedActor.inventory, offHand, resolvedCatalogs);
+      itemsToReturn.push(offHand);
       updatedActor = {
         ...updatedActor,
-        inventory: inventoryWithOffhand,
         equipment: {
           ...updatedActor.equipment,
           offHand: null,
@@ -361,6 +395,46 @@ export function equipItem(
         "Off-hand item was unequipped because the weapon requires two hands."
       );
     }
+  }
+
+  if (resolved.kind === "weapon" && (resolved.def.handedness ?? "oneHand") === "oneHand") {
+    const mainHand = actor.equipment?.mainHand;
+    const offHand = actor.equipment?.offHand;
+    if (mainHand?.kind === "weapon" && offHand?.kind === "weapon" && slot === "mainHand") {
+      itemsToReturn.push(offHand);
+      updatedActor = {
+        ...updatedActor,
+        equipment: {
+          ...updatedActor.equipment,
+          offHand: null,
+        },
+      };
+      updatedSave = {
+        ...updatedSave,
+        actorsById: {
+          ...updatedSave.actorsById,
+          [actorId]: updatedActor,
+        },
+      };
+    }
+  }
+
+  if (itemsToReturn.length > 0) {
+    let updatedInventory = updatedActor.inventory;
+    for (const entry of itemsToReturn) {
+      updatedInventory = addItemToInventory(updatedInventory, entry, resolvedCatalogs);
+    }
+    updatedActor = {
+      ...updatedActor,
+      inventory: updatedInventory,
+    };
+    updatedSave = {
+      ...updatedSave,
+      actorsById: {
+        ...updatedSave.actorsById,
+        [actorId]: updatedActor,
+      },
+    };
   }
 
   return updatedSave;

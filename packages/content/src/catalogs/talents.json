@@ -149,6 +149,44 @@
     "maxRank": 1
   },
   {
+    "id": "talent:two_weapon_wielder",
+    "name": "Combattente a Due Armi",
+    "description": "When dual-wielding, you can attack with both weapons but suffer a -20 penalty to each attack.",
+    "tier": 1,
+    "xpCost": 500,
+    "prerequisites": [],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:ambidextrous",
+    "name": "Ambidestro",
+    "description": "Reduces the dual-wield penalty from -20 to -10.",
+    "tier": 2,
+    "xpCost": 1000,
+    "prerequisites": [
+      { "type": "statAtLeast", "stat": "AGI", "value": 30 },
+      { "type": "hasTalent", "talentId": "talent:two_weapon_wielder" }
+    ],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
+    "id": "talent:two_weapon_master",
+    "name": "Maestro a Due Armi",
+    "description": "Removes the dual-wield penalty when attacking with both weapons.",
+    "tier": 3,
+    "xpCost": 2000,
+    "prerequisites": [
+      { "type": "statAtLeast", "stat": "AGI", "value": 45 },
+      { "type": "statAtLeast", "stat": "BS", "value": 40 },
+      { "type": "statAtLeast", "stat": "WS", "value": 40 },
+      { "type": "hasTalent", "talentId": "talent:ambidextrous" }
+    ],
+    "grants": [],
+    "maxRank": 1
+  },
+  {
     "id": "talent:sound_constitution",
     "name": "Costituzione Solida",
     "description": "Increases maximum HP by 2 per rank.",

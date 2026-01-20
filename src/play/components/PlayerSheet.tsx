@@ -92,6 +92,9 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
   // Get inventory from actor (new structure)
   const inventory = activeActor.inventory || [];
 
+  const getCharacteristicBonusBase = (value: number): number => Math.floor(value / 10);
+  const armorAgiMax = getActorArmor(save, activeActor).armor?.agiMax;
+
   // Helper to get item name
   const getItemName = (itemRef: ItemRef | null | undefined): string => {
     if (!itemRef) return "Nessuno";
@@ -149,17 +152,47 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
               <Text style={styles.sectionTitle}>Statistiche</Text>
               <View style={[styles.statsGrid, isNarrow && styles.statsGridNarrow]}>
                 {Object.entries(activeActor.stats).map(([key, value]) => {
-                  const bonus = getCharacteristicBonus(save, activeActor.id, key as StatKey, catalogs);
-                  const baseBonus = Math.floor((value as number) / 10);
-                  const isBoosted = bonus > baseBonus;
+                  const statKey = key as StatKey;
+                  const rawValue = value as number;
+                  const rawBonus = getCharacteristicBonus(save, activeActor.id, statKey, catalogs);
+                  const baseBonus = Math.floor(rawValue / 10);
+                  const isBoosted = rawBonus > baseBonus;
+                  const hasAgiCap = statKey === "AGI";
+                  const cappedValue = hasAgiCap && armorAgiMax !== undefined ? Math.min(rawValue, armorAgiMax) : rawValue;
+                  const cappedBonus = hasAgiCap ? getCharacteristicBonusBase(cappedValue) : rawBonus;
+                  const isCapped = hasAgiCap && cappedValue < rawValue;
+                  const showCappedBonus = hasAgiCap && cappedBonus !== rawBonus;
                   return (
                     <View key={key} style={[styles.statRow, isNarrow && styles.statRowNarrow]}>
                       <Text style={styles.statLabel}>{statLabels[key] || key}:</Text>
                       <View style={styles.statValueContainer}>
-                        <Text style={styles.statValue}>{value}</Text>
+                        {isCapped ? (
+                          <>
+                            <Text style={[styles.statValue, styles.statValueLimited]}>{cappedValue}</Text>
+                            <Text style={styles.statValueMuted}> ({rawValue})</Text>
+                          </>
+                        ) : (
+                          <Text style={styles.statValue}>{rawValue}</Text>
+                        )}
                         <Text style={[styles.statBonus, isBoosted && styles.statBonusBoosted]}>
-                          ({bonus >= 0 ? "+" : ""}
-                          {bonus})
+                          {isCapped && showCappedBonus ? (
+                            <>
+                              <Text style={styles.statBonusLimited}>
+                                ({cappedBonus >= 0 ? "+" : ""}
+                                {cappedBonus})
+                              </Text>
+                              <Text style={styles.statValueMuted}>
+                                {" "}
+                                ({rawBonus >= 0 ? "+" : ""}
+                                {rawBonus})
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              ({rawBonus >= 0 ? "+" : ""}
+                              {rawBonus})
+                            </>
+                          )}
                         </Text>
                       </View>
                     </View>
@@ -692,10 +725,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
+  statValueLimited: {
+    color: "#dc2626",
+  },
+  statValueMuted: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
   statBonus: {
     fontSize: 12,
     color: "#666",
     fontStyle: "italic",
+  },
+  statBonusLimited: {
+    color: "#dc2626",
+    fontStyle: "normal",
+    fontWeight: "700",
   },
   statBonusBoosted: {
     color: "#16a34a",

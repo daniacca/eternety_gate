@@ -110,7 +110,8 @@ export function PlayScreen() {
         "spell:regenerate_minor": true,
       },
       equipment: {
-        mainHand: { kind: "weapon" as const, id: "shortbow" }, // Test weapon: ranged
+        mainHand: { kind: "weapon" as const, id: "force_sword" },
+        offHand: { kind: "weapon" as const, id: "eldritch_gauntlet" },
         armor: { kind: "armor" as const, id: "plate" },
       },
       status: {
@@ -119,6 +120,7 @@ export function PlayScreen() {
       },
       inventory: [
         { kind: "weapon" as const, id: "club" },
+        { kind: "weapon" as const, id: "longbow" },
         { kind: "item" as const, id: "shield:wooden" },
         { kind: "item" as const, id: "helmet:leather" },
         { kind: "item" as const, id: "boots:leather" },
