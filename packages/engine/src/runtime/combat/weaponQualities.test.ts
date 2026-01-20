@@ -6,6 +6,7 @@ import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { FakeRng } from "../test-helpers/fakeRng";
 import { computeAttackTarget, performCombatAttackCheck } from "../checks/combat";
 import { applyCombatDamageIfHit } from "./damage";
+import { calculateWeaponDamage } from "./equipment";
 
 function makeCombatState(participants: ActorId[], stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">): CombatState {
   const positions = participants.reduce<Record<ActorId, { x: number; y: number }>>((acc, id, index) => {
@@ -114,7 +115,7 @@ describe("weapon qualities", () => {
       ...save,
       actorsById: {
         ...save.actorsById,
-        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon", id: "sword" } } },
+        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "sword" } } },
       },
       weaponsById: { whip: flexibleWeapon, sword: parryWeapon },
       runtime: {
@@ -155,7 +156,7 @@ describe("weapon qualities", () => {
       ...save,
       actorsById: {
         ...save.actorsById,
-        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon", id: "maul" } } },
+        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "maul" } } },
       },
       weaponsById: { maul: unwieldyWeapon },
       runtime: {
@@ -292,5 +293,196 @@ describe("weapon qualities", () => {
     expect(afterCheck.actorsById[attacker.id].equipment?.mainHand).toBeNull();
     const runtimeLog = afterCheck.runtime.runtimeLog ?? [];
     expect(runtimeLog.some((entry) => entry.kind === "system" && entry.tags?.includes("weapon:magicField"))).toBe(true);
+  });
+
+  it("primitive caps damage dice roll before bonuses", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker" });
+    const primitiveWeapon: Weapon = {
+      id: "rusty_rifle",
+      name: "Rusty Rifle",
+      kind: "RANGED",
+      damage: { tier: "single", add: 2 },
+      damageType: "piercing",
+      penetration: 0,
+      qualities: [{ id: "primitive", rank: 7 }],
+    };
+    const save = makeTestSave(storyPack, attacker);
+    const saveWithWeapon = {
+      ...save,
+      weaponsById: { rusty_rifle: primitiveWeapon },
+    };
+    const roll9 = FakeRng.d100ForNextInt(9, 1, 10);
+    const rng = new FakeRng([roll9]);
+    const damage = calculateWeaponDamage(saveWithWeapon, attacker, "rusty_rifle", rng, "RANGED");
+    expect(damage.rawDamage).toBe(9); // clamped to 7 + add 2
+  });
+
+  it("proven raises damage dice roll floor before bonuses", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker" });
+    const provenWeapon: Weapon = {
+      id: "master_rifle",
+      name: "Master Rifle",
+      kind: "RANGED",
+      damage: { tier: "single", add: 2 },
+      damageType: "piercing",
+      penetration: 0,
+      qualities: [{ id: "proven", rank: 3 }],
+    };
+    const save = makeTestSave(storyPack, attacker);
+    const saveWithWeapon = {
+      ...save,
+      weaponsById: { master_rifle: provenWeapon },
+    };
+    const roll1 = FakeRng.d100ForNextInt(1, 1, 10);
+    const rng = new FakeRng([roll1]);
+    const damage = calculateWeaponDamage(saveWithWeapon, attacker, "master_rifle", rng, "RANGED");
+    expect(damage.rawDamage).toBe(5); // floor to 3 + add 2
+  });
+});
+
+describe("defense selection", () => {
+  const baseWeapon: Weapon = {
+    id: "club",
+    name: "Club",
+    kind: "MELEE",
+    damage: { tier: "single", add: 0, bonus: "SB" },
+    damageType: "impact",
+    penetration: 0,
+  };
+
+  const flexibleWeapon: Weapon = {
+    id: "whip",
+    name: "Whip",
+    kind: "MELEE",
+    damage: { tier: "single", add: 0, bonus: "SB" },
+    damageType: "impact",
+    penetration: 0,
+    qualities: [{ id: "flexible" }],
+  };
+
+  const buildSave = (storyPack: any, attacker: any, defender: any, weaponsById: Record<string, Weapon>) => {
+    const save = makeTestSave(storyPack, attacker);
+    return {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [defender.id]: defender,
+      },
+      weaponsById,
+      runtime: {
+        ...save.runtime,
+        combat: makeCombatState([attacker.id, defender.id]),
+      },
+    };
+  };
+
+  it("prefers parry when parry chance is higher", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WS: 70 } });
+    const defender = makeTestActor({
+      id: "defender",
+      stats: { WS: 60, AGI: 30 },
+      skills: { "skill:parry": 2, "skill:dodge": 1 },
+      equipment: { mainHand: { kind: "weapon", id: "club" } },
+    });
+    const save = buildSave(storyPack, attacker, defender, { club: baseWeapon });
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "club" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+    const rng = new FakeRng([10, 10]);
+    const { result } = performCombatAttackCheck(check, storyPack, save, rng);
+    expect(result?.tags).toContain("combat:defense=parry");
+  });
+
+  it("prefers dodge when dodge chance is higher", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WS: 70 } });
+    const defender = makeTestActor({
+      id: "defender",
+      stats: { WS: 30, AGI: 70 },
+      skills: { "skill:parry": 1, "skill:dodge": 2 },
+      equipment: { mainHand: { kind: "weapon", id: "club" } },
+    });
+    const save = buildSave(storyPack, attacker, defender, { club: baseWeapon });
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "club" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+    const rng = new FakeRng([10, 10]);
+    const { result } = performCombatAttackCheck(check, storyPack, save, rng);
+    expect(result?.tags).toContain("combat:defense=dodge");
+  });
+
+  it("takes damage when both parry and dodge are unavailable", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WS: 70 } });
+    const defender = makeTestActor({ id: "defender", resources: { wounds: 0, rf: 0 } });
+    const save = buildSave(storyPack, attacker, defender, { club: baseWeapon });
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "club" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+    };
+    const attackRng = new FakeRng([10]);
+    const { result } = performCombatAttackCheck(check, storyPack, save, attackRng);
+    expect(result?.tags).toContain("combat:defense=none");
+    const damageRng = new FakeRng([50]);
+    const { save: afterDamage } = applyCombatDamageIfHit(check, result, save, damageRng, storyPack);
+    expect(afterDamage.actorsById[defender.id].resources.wounds).toBeGreaterThan(0);
+  });
+
+  it("tries to dodge when parry is not possible but dodge is available", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WS: 70 } });
+    const defender = makeTestActor({
+      id: "defender",
+      stats: { AGI: 60 },
+      skills: { "skill:dodge": 1 },
+      equipment: { mainHand: { kind: "weapon", id: "club" } },
+    });
+    const save = buildSave(storyPack, attacker, defender, { club: baseWeapon, whip: flexibleWeapon });
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "whip" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+    const rng = new FakeRng([10, 10]);
+    const { result } = performCombatAttackCheck(check, storyPack, save, rng);
+    expect(result?.tags).toContain("combat:defense=dodge");
+  });
+
+  it("tries to parry when dodge is not available", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({ id: "attacker", stats: { WS: 70 } });
+    const defender = makeTestActor({
+      id: "defender",
+      stats: { WS: 60 },
+      skills: { "skill:parry": 1 },
+      equipment: { mainHand: { kind: "weapon", id: "club" } },
+    });
+    const save = buildSave(storyPack, attacker, defender, { club: baseWeapon });
+    const check: CombatAttackCheck = {
+      id: "test_attack",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "club" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: false, strategy: "autoBest" },
+    };
+    const rng = new FakeRng([10, 10]);
+    const { result } = performCombatAttackCheck(check, storyPack, save, rng);
+    expect(result?.tags).toContain("combat:defense=parry");
   });
 });

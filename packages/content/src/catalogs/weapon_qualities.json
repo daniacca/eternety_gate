@@ -129,29 +129,25 @@
   {
     "id": "primitive",
     "name": "Primitive",
-    "description": "Crude construction; special interactions are handled by higher-level rules.",
-    "paramsSchema": {},
+    "description": "Crude construction; the damage dice result is capped at X before bonuses.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
     "hooks": []
   },
   {
-    "id": "heavy",
-    "name": "Heavy",
-    "description": "Large and heavy weapon; special interactions are handled by higher-level rules.",
-    "paramsSchema": {},
-    "hooks": []
-  },
-  {
-    "id": "light",
-    "name": "Light",
-    "description": "Lightweight weapon; special interactions are handled by higher-level rules.",
-    "paramsSchema": {},
-    "hooks": []
-  },
-  {
-    "id": "slow",
-    "name": "Slow",
-    "description": "Slow to reload or swing; special interactions are handled by higher-level rules.",
-    "paramsSchema": {},
+    "id": "proven",
+    "name": "Proven",
+    "description": "Masterwork; the damage dice result has a minimum of X before bonuses.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
     "hooks": []
   }
 ]

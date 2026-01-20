@@ -86,7 +86,7 @@
     "penetration": 2,
     "weight": 6,
     "handedness": "twoHand",
-    "qualities": [{ "id": "heavy" }, { "id": "balanced" }]
+    "qualities": [{ "id": "balanced" }]
   },
   {
     "id": "dagger",
@@ -101,7 +101,7 @@
     "penetration": 0,
     "weight": 1,
     "handedness": "oneHand",
-    "qualities": [{ "id": "light" }]
+    "qualities": []
   },
   {
     "id": "crossbow",
@@ -123,7 +123,7 @@
       "itemId": "ammo:bolt",
       "consumedPerAttack": 1
     },
-    "qualities": [{ "id": "slow" }]
+    "qualities": []
   },
   {
     "id": "venom_whip",
@@ -233,6 +233,6 @@
     "penetration": 3,
     "weight": 6,
     "handedness": "twoHand",
-    "qualities": [{ "id": "heavy" }, { "id": "unwieldy" }, { "id": "shocking" }]
+    "qualities": [{ "id": "unwieldy" }, { "id": "shocking" }]
   }
 ]

@@ -13,6 +13,7 @@ import { getEquippedWeaponId, getEquippedArmorId } from "../characters/inventory
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 import { getMeleeDamageBonusFromTalents, getRangedDamageBonusFromTalents } from "../characters/talentModifiers";
+import { getWeaponQualityRank } from "../weaponQualities";
 
 export type EquipmentCatalogs = {
   itemsById: Record<ItemId, ItemDefinition>;
@@ -216,6 +217,8 @@ export function calculateWeaponDamage(
 
   const extraDice = Math.max(0, options?.extraDice ?? 0);
   const tearing = options?.tearing ?? false;
+  const primitiveRank = getWeaponQualityRank(weapon, "primitive");
+  const provenRank = getWeaponQualityRank(weapon, "proven");
 
   for (let i = 0; i < rollsCount; i++) {
     // Calculate damage based on weapon damage tier
@@ -286,6 +289,12 @@ export function calculateWeaponDamage(
             rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10) + rng.nextInt(1, 10); // 5d10
         }
         break;
+    }
+
+    if (primitiveRank || provenRank) {
+      const minClamp = provenRank ?? Number.NEGATIVE_INFINITY;
+      const maxClamp = primitiveRank ?? Number.POSITIVE_INFINITY;
+      dieRoll = Math.min(maxClamp, Math.max(minClamp, dieRoll));
     }
 
     let rollDamage = dieRoll + weapon.damage.add;
