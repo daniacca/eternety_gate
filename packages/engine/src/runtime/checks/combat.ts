@@ -7,12 +7,13 @@ import { evaluateRoll } from "./evaluation";
 import { computeCombatModifiersFromConditions } from "../conditions";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
-import { appendRuntimeLog } from "../combat/narration";
+import { appendCombatLog, appendRuntimeLog } from "../combat/narration";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
 import { getUntouchableAuraImpact } from "../combat/untouchableAura";
 import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
+import { resolveForceFieldBlock } from "../combat/forceField";
 import { hasWeaponQuality } from "../weaponQualities";
 import {
   getCombatMasterPenalty,
@@ -382,6 +383,49 @@ export function performCombatAttackCheck(
   // Check if defender can parry (based on parryDisabledUntilTurnCounterByActorId)
   const combat = save.runtime.combat;
   const turnCounter = combat?.turnCounter ?? 0;
+
+  // Force Field: block attack before any evasion roll
+  const forceFieldResult = resolveForceFieldBlock(save, defender, rng, turnCounter, catalogs);
+  if (forceFieldResult.blocked) {
+    const defenderName = defender.name || defender.id;
+    const overloadText = forceFieldResult.overloaded
+      ? ` Un lampo accecante esplode, scariche eldritiche avvolgono l'aria e il bagliore si spegne per ${
+          forceFieldResult.overloadDuration ?? 0
+        } turni.`
+      : "";
+    const fatigueText = forceFieldResult.fatigue ? ` (${forceFieldResult.fatigue} Fatigue)` : "";
+    const blockLog = `${defenderName}: il Campo di Forza si illumina e annulla l'attacco.${overloadText}${fatigueText}`;
+    let updatedSaveForLog = forceFieldResult.save;
+    updatedSaveForLog = appendCombatLog(updatedSaveForLog, blockLog);
+    const forceFieldTags = [
+      "combat:blocked=forceField",
+      ...(forceFieldResult.roll !== undefined ? [`combat:forceField:roll=${forceFieldResult.roll}`] : []),
+      ...(forceFieldResult.protection !== undefined
+        ? [`combat:forceField:protection=${forceFieldResult.protection}`]
+        : []),
+      ...(forceFieldResult.overload !== undefined ? [`combat:forceField:overload=${forceFieldResult.overload}`] : []),
+      ...(forceFieldResult.overloaded ? ["combat:forceField:overloaded=1"] : []),
+      ...(forceFieldResult.overloadDuration !== undefined
+        ? [`combat:forceField:down=${forceFieldResult.overloadDuration}`]
+        : []),
+      ...(forceFieldResult.fatigue !== undefined ? [`combat:forceField:fatigue=${forceFieldResult.fatigue}`] : []),
+    ];
+    return {
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: attackRoll,
+        target: attackTarget,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: attackResult.critical,
+        tags: [...tags, ...forceFieldTags],
+      },
+      save: updatedSaveForLog,
+    };
+  }
+
   const disabledUntil = combat?.parryDisabledUntilTurnCounterByActorId?.[defender.id] ?? -1;
   const defenderWeapon = getEquippedWeapon(save, defender.id);
   const parryWeapon = defenderWeapon?.kind === "MELEE" ? defenderWeapon : null;

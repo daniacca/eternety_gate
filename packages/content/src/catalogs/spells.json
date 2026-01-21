@@ -144,6 +144,22 @@
     ]
   },
   {
+    "id": "spell:corpus_dragon_skin",
+    "name": "Pelle di Drago",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_dragon_skin",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Grants temporary NaturalArmor",
+    "xpCost": 700,
+    "prerequisites": [{
+      "type": "hasTrait",
+      "traitId": "trait:weaver"
+    }]
+  },
+  {
     "id": "spell:pyra_explosion",
     "name": "Esplosione di Fuoco",
     "discipline": "PYRA",
@@ -210,7 +226,7 @@
     "baseCN": 1,
     "rangeMode": "self",
     "targetShape": "self",
-    "notes": "Grants temporary NaturalArmor",
+    "notes": "Grants temporary Force Field",
     "xpCost": 700,
     "prerequisites": [
       {

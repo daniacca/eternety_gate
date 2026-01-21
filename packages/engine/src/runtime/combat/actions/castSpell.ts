@@ -32,6 +32,7 @@ import { getResistanceBonus } from "../../characters/talentModifiers";
 import { getMagicResistanceAgainstSpell } from "../../magic/resistance";
 import { getUntouchableDenyBonus } from "../../characters/untouchable";
 import { hasTrait } from "../../characters/prerequisites";
+import { resolveForceFieldBlock } from "../forceField";
 import { trackCombatDamage } from "../damageTracking";
 import { getUntouchableAuraImpact } from "../untouchableAura";
 
@@ -718,6 +719,33 @@ export function combatCastSpell(
       validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
     }
 
+    // Force Field: block hostile spell effects before applying conditions or damage
+    const shouldCheckForceField =
+      effectDef.kind === "damage" || effectDef.kind === "fatigue" || effectDef.kind === "malediction";
+    if (shouldCheckForceField && validTargetActors.length > 0) {
+      const remainingTargets: typeof validTargetActors = [];
+      for (const target of validTargetActors) {
+        const forceFieldResult = resolveForceFieldBlock(updatedSave, target.actor, rng, combat.turnCounter, catalogs);
+        updatedSave = forceFieldResult.save;
+
+        if (forceFieldResult.blocked) {
+          const targetName = target.actor.name || target.actorId;
+          const overloadText = forceFieldResult.overloaded
+            ? ` Un lampo accecante esplode, scariche eldritiche avvolgono l'aria e il bagliore si spegne per ${
+                forceFieldResult.overloadDuration ?? 0
+              } turni.`
+            : "";
+          const fatigueText = forceFieldResult.fatigue ? ` (${forceFieldResult.fatigue} Fatigue)` : "";
+          const blockLog = `${targetName}: il Campo di Forza si illumina e annulla l'attacco.${overloadText}${fatigueText}`;
+          updatedSave = appendCombatLog(updatedSave, blockLog);
+          continue;
+        }
+
+        remainingTargets.push(target);
+      }
+      validTargetActors = remainingTargets;
+    }
+
     // Apply damage/heal if effect has baseDamageDice
     // Skip if kind is "fatigue" (handled separately)
     // "blessing" and "malediction" effects should not have baseDamageDice (they use conditions/modifiers)
@@ -1064,7 +1092,12 @@ export function combatCastSpell(
           let finalStacks: number;
           let finalDuration: number;
 
-          if (conditionSpec.conditionId === "force_shield") {
+          if (conditionSpec.conditionId === "force_field") {
+            // Force Field: protection/overload scale by overcast, duration = base + overcast
+            const baseDuration = conditionSpec.durationRounds ?? 1;
+            finalStacks = 1;
+            finalDuration = baseDuration + targetOvercast;
+          } else if (conditionSpec.conditionId === "force_shield") {
             // Force Shield: stacks = cnBase + overcast, duration = cnBase + overcast
             finalStacks = cnBase + targetOvercast;
             finalDuration = cnBase + targetOvercast;
@@ -1089,7 +1122,13 @@ export function combatCastSpell(
             conditionSpec.conditionId as any,
             finalStacks,
             untilTurnCounter,
-            spellSource
+            spellSource,
+            conditionSpec.conditionId === "force_field"
+              ? {
+                  x: 35 + targetOvercast * 5,
+                  y: Math.max(0, 20 - targetOvercast * 2),
+                }
+              : undefined
           );
 
           // For steel_body and warp_speed, also add characteristics to the trait

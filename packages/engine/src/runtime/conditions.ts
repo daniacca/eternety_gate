@@ -77,7 +77,8 @@ export function addConditionToActor(
   condition: ConditionId,
   stacks?: number,
   untilTurnCounter?: number,
-  source?: string
+  source?: string,
+  params?: Record<string, any>
 ): Actor {
   if (
     condition === "bleeding" &&
@@ -91,6 +92,7 @@ export function addConditionToActor(
     stacks: stacks ?? existingInstance?.stacks ?? 1,
     untilTurnCounter,
     source: source ?? existingInstance?.source,
+    params: params ?? existingInstance?.params,
   };
 
   return {

@@ -18,10 +18,6 @@ describe("modifiers", () => {
         params: {
           characteristics: {
             type: "array",
-            items: {
-              stat: { type: "string", required: true },
-              bonusX: { type: "number", required: true },
-            },
           },
         },
         grants: [
@@ -30,6 +26,7 @@ describe("modifiers", () => {
             key: "stat.<stat>.bonusAdd",
             op: "add",
             valueRef: "bonusX",
+            value: 0,
           },
           {
             type: "modifier",
@@ -169,10 +166,6 @@ describe("modifiers", () => {
             params: {
               characteristics: {
                 type: "array",
-                items: {
-                  stat: { type: "string", required: true },
-                  bonusX: { type: "number", required: true },
-                },
               },
             },
             grants: [
@@ -181,6 +174,7 @@ describe("modifiers", () => {
                 key: "stat.<stat>.bonusAdd",
                 op: "add",
                 valueRef: "bonusX",
+                value: 0,
               },
               {
                 type: "modifier",
@@ -263,6 +257,42 @@ describe("modifiers", () => {
       expect(touBonusAdd).toBe(1);
       expect(touTestAdd).toBe(0); // floor(1/2)*10 = 0
     });
+  });
+
+  it("applies Force Field stealth penalty", () => {
+    const storyPack = makeTestStoryPack();
+    const catalogs: CharacterCatalogs = {
+      skills: [],
+      talents: [],
+      traits: [
+        {
+          id: "trait:force_field",
+          name: "Campo di Forza",
+          params: {
+            x: { type: "number", required: true },
+            y: { type: "number", required: true },
+          },
+          grants: [
+            {
+              type: "modifier",
+              key: "skill.stealth.mod",
+              op: "add",
+              value: -20,
+            },
+          ],
+        },
+      ],
+    };
+
+    const actor = makeTestActor({
+      traits: {
+        "trait:force_field": { x: 35, y: 20 },
+      },
+    });
+    const save = makeTestSave(storyPack, actor);
+
+    const stealthMod = getModifierTotal(save, catalogs, actor.id, "skill.stealth.mod");
+    expect(stealthMod).toBe(-20);
   });
 });
 

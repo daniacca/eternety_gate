@@ -159,6 +159,28 @@
     ]
   },
   {
+    "id": "trait:force_field",
+    "name": "Campo di Forza",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      },
+      "y": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "skill.stealth.mod",
+        "op": "add",
+        "value": -20
+      }
+    ]
+  },
+  {
     "id": "trait:untouchable",
     "name": "Intoccabile",
     "grants": []

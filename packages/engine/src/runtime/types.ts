@@ -59,6 +59,8 @@ export type ConditionId =
   | "unconscious"
   | "halvedMovement"
   | "bound"
+  | "force_field"
+  | "force_field_overload"
   | "force_shield"
   | "steel_body"
   | "warp_speed";
@@ -67,6 +69,7 @@ export type ConditionInstance = {
   stacks?: number;
   untilTurnCounter?: number;
   source?: string;
+  params?: Record<string, any>;
 };
 
 /* ---------------------------------- */

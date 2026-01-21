@@ -141,6 +141,20 @@
     "kind": "blessing",
     "applyConditions": [
       {
+        "conditionId": "force_field",
+        "durationRounds": 1
+      }
+    ],
+    "description": "Grants temporary Force Field (Campo di Forza) based on overcast"
+  },
+  {
+    "id": "effect:corpus_dragon_skin",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "baseCN": 1,
+    "kind": "blessing",
+    "applyConditions": [
+      {
         "conditionId": "force_shield"
       }
     ],
