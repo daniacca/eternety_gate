@@ -126,7 +126,13 @@ export function PlayScreen() {
         { kind: "item" as const, id: "boots:leather" },
         { kind: "item" as const, id: "cloak:traveler" },
         { kind: "item" as const, id: "necklace:iron" },
-        { kind: "item" as const, id: "ring:agility" },
+        { kind: "item" as const, id: "ring:clarity" },
+        { kind: "item" as const, id: "ring:aegis" },
+        { kind: "item" as const, id: "necklace:focus" },
+        { kind: "item" as const, id: "cloak:shadow" },
+        { kind: "item" as const, id: "helmet:spiked" },
+        { kind: "item" as const, id: "boots:agility" },
+        { kind: "item" as const, id: "robe:wraithbone" },
         { kind: "item" as const, id: "ammo:arrow", qty: 10 },
         { kind: "item" as const, id: "potion:healing", qty: 2 },
         { kind: "item" as const, id: "potion:fatigue", qty: 2 },
@@ -365,7 +371,13 @@ export function PlayScreen() {
       addIfMissing({ kind: "weapon", id: "shortbow" });
       addIfMissing({ kind: "armor", id: "leather" });
       addIfMissing({ kind: "armor", id: "fullplate" });
-      addIfMissing({ kind: "item", id: "ring:agility" });
+      addIfMissing({ kind: "item", id: "ring:clarity" });
+      addIfMissing({ kind: "item", id: "ring:aegis" });
+      addIfMissing({ kind: "item", id: "necklace:focus" });
+      addIfMissing({ kind: "item", id: "cloak:shadow" });
+      addIfMissing({ kind: "item", id: "helmet:spiked" });
+      addIfMissing({ kind: "item", id: "boots:agility" });
+      addIfMissing({ kind: "item", id: "robe:wraithbone" });
       addIfMissing({ kind: "item", id: "necklace:iron" });
       addIfMissing({ kind: "item", id: "cloak:traveler" });
       addIfMissing({ kind: "item", id: "boots:leather" });

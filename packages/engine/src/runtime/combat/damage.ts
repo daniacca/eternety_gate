@@ -130,11 +130,11 @@ export function applyCombatDamageIfHit(
     const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
     const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
     const forceBonus =
-      hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver")
+      hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver", save)
         ? getMagicPower(save, attacker.id, catalogs)
         : 0;
     const magicFueledBonus =
-      hasMagicFueled && hasTrait(attacker, "trait:weaver") ? getMagicPower(save, attacker.id, catalogs) : 0;
+      hasMagicFueled && hasTrait(attacker, "trait:weaver", save) ? getMagicPower(save, attacker.id, catalogs) : 0;
 
     const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
       tearing: hasTearing,
@@ -226,13 +226,13 @@ export function applyCombatDamageIfHit(
   const weaponForPenetration =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
   const forcePenBonus =
-    weaponForPenetration && hasWeaponQuality(weaponForPenetration, "force") && hasTrait(attacker, "trait:weaver")
+    weaponForPenetration && hasWeaponQuality(weaponForPenetration, "force") && hasTrait(attacker, "trait:weaver", save)
       ? getMagicPower(save, attacker.id, catalogs)
       : 0;
   const magicFueledPenBonus =
     weaponForPenetration &&
     hasWeaponQuality(weaponForPenetration, "magic_fueled") &&
-    hasTrait(attacker, "trait:weaver")
+    hasTrait(attacker, "trait:weaver", save)
       ? getMagicPower(save, attacker.id, catalogs)
       : 0;
   const razorSharpActive =

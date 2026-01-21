@@ -43,8 +43,8 @@ export function evaluatePrerequisites(
         };
       }
     } else if (prereq.type === "hasTrait") {
-      const hasTrait = actor.traits[prereq.traitId] !== undefined;
-      if (!hasTrait) {
+      const hasTraitResult = hasTrait(actor, prereq.traitId, save);
+      if (!hasTraitResult) {
         return {
           valid: false,
           reason: `Requires trait ${prereq.traitId}`,
@@ -114,8 +114,31 @@ export function resolveTalentUniquenessKey(
 /**
  * Checks if actor has a trait
  */
-export function hasTrait(actor: Actor, traitId: string): boolean {
-  return actor.traits[traitId] !== undefined;
+export function hasTrait(actor: Actor, traitId: string, save?: GameSave): boolean {
+  if (actor.traits[traitId] !== undefined) return true;
+  if (!save || !actor.equipment || !save.itemsById) return false;
+  const equippedItems = [
+    actor.equipment.mainHand,
+    actor.equipment.offHand,
+    actor.equipment.armor,
+    actor.equipment.helmet,
+    actor.equipment.boots,
+    actor.equipment.cloak,
+    actor.equipment.necklace,
+    actor.equipment.ring1,
+    actor.equipment.ring2,
+  ];
+  for (const itemRef of equippedItems) {
+    if (!itemRef || (itemRef.kind !== "item" && itemRef.kind !== "misc")) continue;
+    const item = save.itemsById[itemRef.id];
+    if (!item?.grants) continue;
+    for (const grant of item.grants) {
+      if (grant.type === "trait" && grant.traitId === traitId) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

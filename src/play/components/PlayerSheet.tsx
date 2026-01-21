@@ -60,6 +60,17 @@ const statLabels: Record<string, string> = {
   PER: "Percezione",
 };
 
+type EquipmentSlot =
+  | "mainHand"
+  | "offHand"
+  | "armor"
+  | "helmet"
+  | "boots"
+  | "cloak"
+  | "necklace"
+  | "ring1"
+  | "ring2";
+
 export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseItem, onDebugSpawnGear }: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
   const [showTalentShop, setShowTalentShop] = useState(false);
@@ -84,6 +95,12 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
   const mainHand = activeActor.equipment?.mainHand;
   const offHand = activeActor.equipment?.offHand;
   const equippedArmor = activeActor.equipment?.armor;
+  const equippedHelmet = activeActor.equipment?.helmet;
+  const equippedBoots = activeActor.equipment?.boots;
+  const equippedCloak = activeActor.equipment?.cloak;
+  const equippedNecklace = activeActor.equipment?.necklace;
+  const equippedRing1 = activeActor.equipment?.ring1;
+  const equippedRing2 = activeActor.equipment?.ring2;
 
   // Get conditions
   const conditions = activeActor.conditions || {};
@@ -93,6 +110,32 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
 
   // Get inventory from actor (new structure)
   const inventory = activeActor.inventory || [];
+
+  const equippedTraits: Record<string, any> = {};
+  if (save.itemsById && activeActor.equipment) {
+    const equippedItems = [
+      activeActor.equipment.mainHand,
+      activeActor.equipment.offHand,
+      activeActor.equipment.armor,
+      activeActor.equipment.helmet,
+      activeActor.equipment.boots,
+      activeActor.equipment.cloak,
+      activeActor.equipment.necklace,
+      activeActor.equipment.ring1,
+      activeActor.equipment.ring2,
+    ];
+    for (const itemRef of equippedItems) {
+      if (!itemRef || (itemRef.kind !== "item" && itemRef.kind !== "misc")) continue;
+      const item = save.itemsById[itemRef.id];
+      if (!item?.grants) continue;
+      for (const grant of item.grants) {
+        if (grant.type === "trait" && activeActor.traits[grant.traitId] === undefined) {
+          equippedTraits[grant.traitId] = grant.params ?? true;
+        }
+      }
+    }
+  }
+  const combinedTraits = { ...equippedTraits, ...activeActor.traits };
 
   const getCharacteristicBonusBase = (value: number): number => Math.floor(value / 10);
   const armorAgiMax = getActorArmor(save, activeActor).armor?.agiMax;
@@ -109,20 +152,31 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
     return save.itemsById?.[itemRef.id]?.name || itemRef.id;
   };
 
+  const resolveEquipSlot = (itemRef: ItemRef): EquipmentSlot | null => {
+    if (itemRef.kind === "armor") return "armor";
+    if (itemRef.kind === "weapon") return "mainHand";
+    if (itemRef.kind !== "item" && itemRef.kind !== "misc") return null;
+    const itemDef = save.itemsById?.[itemRef.id];
+    if (!itemDef || (itemDef.kind ?? itemDef.type) !== "wearable" || !itemDef.slot) return null;
+    if (itemDef.shield) return "offHand";
+    if (itemDef.slot === "ring") {
+      if (!activeActor.equipment?.ring1) return "ring1";
+      if (!activeActor.equipment?.ring2) return "ring2";
+      return "ring1";
+    }
+    return itemDef.slot;
+  };
+
   // Helper to handle equip action
   const handleEquip = (itemRef: ItemRef, inventoryIndex: number) => {
     if (!applySystemEffects) return;
-    let slot: "mainHand" | "offHand" | "armor" = "mainHand";
-    if (itemRef.kind === "armor") {
-      slot = "armor";
-    } else if (itemRef.kind === "weapon") {
-      slot = "mainHand";
-    }
+    const slot = resolveEquipSlot(itemRef);
+    if (!slot) return;
     applySystemEffects([{ op: "combatEquipItem", actorId: activeActor.id, itemRef, slot, inventoryIndex }]);
   };
 
   // Helper to handle unequip action
-  const handleUnequip = (slot: "mainHand" | "offHand" | "armor") => {
+  const handleUnequip = (slot: EquipmentSlot) => {
     if (!applySystemEffects) return;
     applySystemEffects([{ op: "combatUnequipItem", actorId: activeActor.id, slot }]);
   };
@@ -130,12 +184,24 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
   // Helper to handle drop action
   const handleDrop = (
     itemRef: ItemRef | null,
-    fromSlot?: "mainHand" | "offHand" | "armor" | "inventory",
+    fromSlot?: EquipmentSlot | "inventory",
     inventoryIndex?: number
   ) => {
     if (!applySystemEffects || !itemRef) return;
     applySystemEffects([{ op: "combatDrop", actorId: activeActor.id, itemRef, fromSlot, inventoryIndex }]);
   };
+
+  const equipmentRows: Array<{ label: string; slot: EquipmentSlot; item: ItemRef | null | undefined }> = [
+    { label: "Mano principale", slot: "mainHand", item: mainHand },
+    { label: "Mano secondaria", slot: "offHand", item: offHand },
+    { label: "Armatura", slot: "armor", item: equippedArmor },
+    { label: "Elmo", slot: "helmet", item: equippedHelmet },
+    { label: "Stivali", slot: "boots", item: equippedBoots },
+    { label: "Mantello", slot: "cloak", item: equippedCloak },
+    { label: "Collana", slot: "necklace", item: equippedNecklace },
+    { label: "Anello 1", slot: "ring1", item: equippedRing1 },
+    { label: "Anello 2", slot: "ring2", item: equippedRing2 },
+  ];
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -314,17 +380,21 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
             {/* Traits */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Tratti</Text>
-              {Object.keys(activeActor.traits).length === 0 ? (
+              {Object.keys(combinedTraits).length === 0 ? (
                 <Text style={styles.emptyText}>Nessun tratto</Text>
               ) : (
-                Object.entries(activeActor.traits).map(([traitId, params]) => {
+                Object.entries(combinedTraits).map(([traitId, params]) => {
+                  const isEquippedTrait = activeActor.traits[traitId] === undefined;
                   // Special handling for unnatural_characteristic trait
                   if (traitId === "trait:unnatural_characteristic" && params && typeof params === "object") {
                     const characteristics = (params as any).characteristics;
                     if (Array.isArray(characteristics)) {
                       return (
                         <View key={traitId} style={styles.traitRow}>
-                          <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
+                          <Text style={styles.traitName}>
+                            {traitId.replace("trait:", "")}
+                            {isEquippedTrait ? " (equip)" : ""}
+                          </Text>
                           <View style={styles.traitParamsContainer}>
                             {characteristics.map((char: any, index: number) => {
                               if (char && typeof char === "object" && char.stat && typeof char.bonusX === "number") {
@@ -346,7 +416,10 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
                   // Default rendering for other traits
                   return (
                     <View key={traitId} style={styles.traitRow}>
-                      <Text style={styles.traitName}>{traitId.replace("trait:", "")}</Text>
+                          <Text style={styles.traitName}>
+                            {traitId.replace("trait:", "")}
+                            {isEquippedTrait ? " (equip)" : ""}
+                          </Text>
                       {params && typeof params === "object" && Object.keys(params).length > 0 && (
                         <Text style={styles.traitParams}>
                           {Object.entries(params)
@@ -518,69 +591,27 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
             {/* Equipment */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Equipaggiamento</Text>
-
-              {/* Main Hand */}
-              <View style={styles.equipmentSlotRow}>
-                <View style={styles.equipmentSlotInfo}>
-                  <Text style={styles.equipmentLabel}>Mano principale:</Text>
-                  <Text style={styles.equipmentValue}>{getItemName(mainHand)}</Text>
-                </View>
-                {mainHand && applySystemEffects && (
-                  <View style={styles.equipmentActions}>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("mainHand")}>
-                      <Text style={styles.actionButtonText}>Rimuovi</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.dropButton]}
-                      onPress={() => handleDrop(mainHand, "mainHand")}
-                    >
-                      <Text style={styles.actionButtonText}>Lascia</Text>
-                    </TouchableOpacity>
+              {equipmentRows.map(({ label, slot, item }) => (
+                <View key={slot} style={styles.equipmentSlotRow}>
+                  <View style={styles.equipmentSlotInfo}>
+                    <Text style={styles.equipmentLabel}>{label}:</Text>
+                    <Text style={styles.equipmentValue}>{getItemName(item)}</Text>
                   </View>
-                )}
-              </View>
-
-              {/* Off Hand */}
-              <View style={styles.equipmentSlotRow}>
-                <View style={styles.equipmentSlotInfo}>
-                  <Text style={styles.equipmentLabel}>Mano secondaria:</Text>
-                  <Text style={styles.equipmentValue}>{getItemName(offHand)}</Text>
+                  {item && applySystemEffects && (
+                    <View style={styles.equipmentActions}>
+                      <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip(slot)}>
+                        <Text style={styles.actionButtonText}>Rimuovi</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.dropButton]}
+                        onPress={() => handleDrop(item, slot)}
+                      >
+                        <Text style={styles.actionButtonText}>Lascia</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-                {offHand && applySystemEffects && (
-                  <View style={styles.equipmentActions}>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("offHand")}>
-                      <Text style={styles.actionButtonText}>Rimuovi</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.dropButton]}
-                      onPress={() => handleDrop(offHand, "offHand")}
-                    >
-                      <Text style={styles.actionButtonText}>Lascia</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-
-              {/* Armor */}
-              <View style={styles.equipmentSlotRow}>
-                <View style={styles.equipmentSlotInfo}>
-                  <Text style={styles.equipmentLabel}>Armatura:</Text>
-                  <Text style={styles.equipmentValue}>{getItemName(equippedArmor)}</Text>
-                </View>
-                {equippedArmor && applySystemEffects && (
-                  <View style={styles.equipmentActions}>
-                    <TouchableOpacity style={styles.actionButton} onPress={() => handleUnequip("armor")}>
-                      <Text style={styles.actionButtonText}>Rimuovi</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.dropButton]}
-                      onPress={() => handleDrop(equippedArmor, "armor")}
-                    >
-                      <Text style={styles.actionButtonText}>Lascia</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+              ))}
             </View>
 
             {/* Inventory */}
@@ -592,6 +623,7 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
                 inventory.map((itemRef, index) => {
                   const itemDef = itemRef.kind === "item" || itemRef.kind === "misc" ? save.itemsById?.[itemRef.id] : null;
                   const isConsumable = Boolean(itemDef?.consumable?.actionId);
+                  const isWearable = Boolean(itemDef && (itemDef.kind ?? itemDef.type) === "wearable");
                   const canUse = isConsumable ? canUseItem(save, activeActor.id, itemRef) : { ok: false };
                   return (
                     <View key={index} style={styles.inventoryRow}>
@@ -607,7 +639,7 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
                               <Text style={[styles.actionButtonText, !canUse.ok && styles.actionButtonTextDisabled]}>Usa</Text>
                             </TouchableOpacity>
                           )}
-                          {(itemRef.kind === "weapon" || itemRef.kind === "armor") && (
+                          {(itemRef.kind === "weapon" || itemRef.kind === "armor" || isWearable) && (
                             <TouchableOpacity style={styles.actionButton} onPress={() => handleEquip(itemRef, index)}>
                               <Text style={styles.actionButtonText}>
                                 {itemRef.kind === "weapon" ? "Equipaggia" : "Indossa"}

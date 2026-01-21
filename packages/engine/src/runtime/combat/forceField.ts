@@ -20,8 +20,33 @@ type ForceFieldParams = {
   overload: number;
 };
 
-function getForceFieldParams(actor: Actor): ForceFieldParams | null {
-  const traitParams = actor.traits?.["trait:force_field"];
+function getForceFieldParams(save: GameSave, actor: Actor): ForceFieldParams | null {
+  let traitParams = actor.traits?.["trait:force_field"];
+  if (!traitParams && actor.equipment && save.itemsById) {
+    const equippedItems = [
+      actor.equipment.mainHand,
+      actor.equipment.offHand,
+      actor.equipment.armor,
+      actor.equipment.helmet,
+      actor.equipment.boots,
+      actor.equipment.cloak,
+      actor.equipment.necklace,
+      actor.equipment.ring1,
+      actor.equipment.ring2,
+    ];
+    for (const itemRef of equippedItems) {
+      if (!itemRef || (itemRef.kind !== "item" && itemRef.kind !== "misc")) continue;
+      const item = save.itemsById[itemRef.id];
+      if (!item?.grants) continue;
+      for (const grant of item.grants) {
+        if (grant.type === "trait" && grant.traitId === "trait:force_field") {
+          traitParams = grant.params ?? true;
+          break;
+        }
+      }
+      if (traitParams) break;
+    }
+  }
   const traitProtection = typeof traitParams?.x === "number" ? traitParams.x : null;
   const traitOverload = typeof traitParams?.y === "number" ? traitParams.y : null;
 
@@ -60,7 +85,7 @@ export function resolveForceFieldBlock(
   turnCounter: number,
   catalogs?: CharacterCatalogs
 ): ForceFieldBlockResult {
-  const params = getForceFieldParams(defender);
+  const params = getForceFieldParams(save, defender);
   if (!params) {
     return { save, blocked: false };
   }

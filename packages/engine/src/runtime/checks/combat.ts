@@ -64,7 +64,7 @@ export function computeAttackTarget(
   const attackerHasDeadeye = catalogs && hasDeadeyeTalent(save, catalogs, attacker.id);
 
   // Magic Fueled: non-weavers suffer -10 penalty to fire
-  if (isMagicFueled && !hasTrait(attacker, "trait:weaver")) {
+  if (isMagicFueled && !hasTrait(attacker, "trait:weaver", save)) {
     combatModifier -= 10;
     modifierTags.push("combat:mod:magicFueled=nonWeaver:-10");
   }
@@ -206,7 +206,7 @@ export function computeAttackTarget(
         combatModifier -= 20;
         modifierTags.push("combat:mod:untouchable=-20");
 
-        if (hasTrait(attacker, "trait:weaver")) {
+        if (hasTrait(attacker, "trait:weaver", save)) {
           const wilBonus = getUntouchableEffectiveWilBonus(save, defender.id, catalogs);
           const extraPenalty = -(5 * wilBonus);
           if (extraPenalty !== 0) {

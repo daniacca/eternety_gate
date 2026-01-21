@@ -482,7 +482,8 @@ export type Equipment = {
 
 export type ItemGrant =
   | { type: "modifier"; key: string; op: "add"; value: number; valueRef?: string }
-  | { type: "unlockAction"; actionId: string };
+  | { type: "unlockAction"; actionId: string }
+  | { type: "trait"; traitId: string; params?: Record<string, any> };
 
 export type ItemDefinition = {
   id: ItemId;

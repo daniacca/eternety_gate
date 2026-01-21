@@ -43,18 +43,126 @@
     "tags": ["jewelry"]
   },
   {
-    "id": "ring:agility",
-    "name": "Ring of Agility",
+    "id": "helmet:spiked",
+    "name": "Spiked Helm",
     "type": "wearable",
-    "slot": "ring",
-    "weight": 0.1,
-    "tags": ["jewelry"],
+    "slot": "helmet",
+    "weight": 2,
+    "tags": ["metal"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "skill.skill:intimidate.mod",
+        "op": "add",
+        "value": 10
+      }
+    ]
+  },
+  {
+    "id": "cloak:shadow",
+    "name": "Shadow Cloak",
+    "type": "wearable",
+    "slot": "cloak",
+    "weight": 1,
+    "tags": ["cloth", "magic"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "skill.skill:stealth.mod",
+        "op": "add",
+        "value": 10
+      }
+    ]
+  },
+  {
+    "id": "boots:agility",
+    "name": "Boots of Agility",
+    "type": "wearable",
+    "slot": "boots",
+    "weight": 1,
+    "tags": ["light", "magic"],
     "grants": [
       {
         "type": "modifier",
         "key": "stat.AGI.testAdd",
         "op": "add",
         "value": 5
+      }
+    ]
+  },
+  {
+    "id": "ring:clarity",
+    "name": "Ring of Clarity",
+    "type": "wearable",
+    "slot": "ring",
+    "weight": 0.1,
+    "tags": ["jewelry", "magic"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "stat.INT.testAdd",
+        "op": "add",
+        "value": 5
+      },
+      {
+        "type": "modifier",
+        "key": "stat.INI.testAdd",
+        "op": "add",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "id": "necklace:focus",
+    "name": "Necklace of Magic Focus",
+    "type": "wearable",
+    "slot": "necklace",
+    "weight": 0.2,
+    "tags": ["jewelry", "magic"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.channelBonus",
+        "op": "add",
+        "value": 10
+      },
+      {
+        "type": "modifier",
+        "key": "magic.castBonus",
+        "op": "add",
+        "value": 10
+      }
+    ]
+  },
+  {
+    "id": "ring:aegis",
+    "name": "Ring of Aegis",
+    "type": "wearable",
+    "slot": "ring",
+    "weight": 0.1,
+    "tags": ["jewelry", "magic"],
+    "grants": [
+      {
+        "type": "trait",
+        "traitId": "trait:force_field",
+        "params": { "x": 40, "y": 10 }
+      }
+    ]
+  },
+  {
+    "id": "robe:wraithbone",
+    "name": "Wraithbone Robe",
+    "type": "wearable",
+    "slot": "armor",
+    "weight": 2,
+    "tags": ["cloth", "magic"],
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "combat.naturalArmor",
+        "op": "add",
+        "value": 0,
+        "valueRef": "magic.pm"
       }
     ]
   },

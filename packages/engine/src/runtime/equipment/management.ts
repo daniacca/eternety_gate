@@ -209,11 +209,17 @@ export function getItemDisplaySummary(resolved: ResolvedItemDefinition): string 
     if (resolved.def.grants && resolved.def.grants.length > 0) {
       const grant = resolved.def.grants[0];
       if (grant.type === "modifier") {
+        if (grant.valueRef) {
+          return `${grant.key} +${grant.valueRef}`;
+        }
         const valueLabel = `${grant.value >= 0 ? "+" : ""}${grant.value}`;
         return `${grant.key} ${valueLabel}`;
       }
       if (grant.type === "unlockAction") {
         return `Unlock ${grant.actionId}`;
+      }
+      if (grant.type === "trait") {
+        return `Trait ${grant.traitId}`;
       }
     }
     if (resolved.def.slot) {

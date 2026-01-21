@@ -60,12 +60,14 @@
       "required": ["type"],
       "additionalProperties": false,
       "properties": {
-        "type": { "type": "string", "enum": ["modifier", "unlockAction"] },
+        "type": { "type": "string", "enum": ["modifier", "unlockAction", "trait"] },
         "key": { "type": "string" },
         "op": { "type": "string", "enum": ["add"] },
         "value": { "type": "number" },
         "valueRef": { "type": "string" },
-        "actionId": { "type": "string" }
+        "actionId": { "type": "string" },
+        "traitId": { "type": "string" },
+        "params": { "type": "object" }
       }
     }
   }

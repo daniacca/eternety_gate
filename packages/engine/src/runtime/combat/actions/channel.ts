@@ -94,7 +94,7 @@ export function combatChannel(
 
   // Untouchable aura penalty applies when a weaver channels within the aura
   let auraPenalty = 0;
-  if (hasTrait(actor, "trait:weaver") && catalogs) {
+  if (hasTrait(actor, "trait:weaver", save) && catalogs) {
     const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
     if (impact) {
       auraPenalty = impact.penalty;

@@ -11,9 +11,10 @@ import { hasTrait } from "../characters/prerequisites";
  */
 export function hasDenyTheWitch(
   actor: Actor,
-  catalogs: CharacterCatalogs
+  catalogs: CharacterCatalogs,
+  save?: GameSave
 ): boolean {
-  return hasTalentHook(actor, catalogs, "denyTheWitch") || hasTrait(actor, "trait:untouchable");
+  return hasTalentHook(actor, catalogs, "denyTheWitch") || hasTrait(actor, "trait:untouchable", save);
 }
 
 /**
@@ -26,7 +27,7 @@ export function getBestResistStat(
   save: GameSave,
   catalogs: CharacterCatalogs
 ): StatKey {
-  if (!hasDenyTheWitch(actor, catalogs)) {
+  if (!hasDenyTheWitch(actor, catalogs, save)) {
     return defaultStat;
   }
 
@@ -41,8 +42,8 @@ export function getBestResistStat(
 /**
  * Checks if actor is a Weaver (has magic trait)
  */
-export function isWeaver(actor: Actor): boolean {
-  return hasTrait(actor, "trait:weaver");
+export function isWeaver(actor: Actor, save?: GameSave): boolean {
+  return hasTrait(actor, "trait:weaver", save);
 }
 
 /**
@@ -80,12 +81,12 @@ export function performDenyTheWitchCheck(
   checkResult: CheckResult | null;
 } {
   // Only defenders with Deny the Witch can attempt this
-  if (!hasDenyTheWitch(defender, catalogs)) {
+  if (!hasDenyTheWitch(defender, catalogs, save)) {
     return { success: false, save, checkResult: null };
   }
 
   // Non-Weavers suffer -10 penalty (specific to Deny the Witch talent)
-  const defenderIsWeaver = isWeaver(defender);
+  const defenderIsWeaver = isWeaver(defender, save);
   const nonWeaverPenalty = defenderIsWeaver ? 0 : -10;
 
   // Total modifier = non-weaver penalty + any additional modifiers (e.g., Resistance Magic)

@@ -3,6 +3,7 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById, getTraitById } from "../../content/loadCatalogs";
 import { resolveGrantValueRef } from "./grants";
 import { getUntouchableEffectiveWilBonus } from "./untouchable";
+import { getMagicPower } from "../magic/pm";
 
 export type ModifierKey =
   | `magic.${string}`
@@ -42,8 +43,34 @@ function getModifierTotalBase(
     }
   }
 
-  // Check traits
-  for (const [traitId, params] of Object.entries(actor.traits)) {
+  const equippedTraitParams: Record<string, any> = {};
+  if (actor.equipment && save.itemsById) {
+    const equippedItems = [
+      actor.equipment.mainHand,
+      actor.equipment.offHand,
+      actor.equipment.armor,
+      actor.equipment.helmet,
+      actor.equipment.boots,
+      actor.equipment.cloak,
+      actor.equipment.necklace,
+      actor.equipment.ring1,
+      actor.equipment.ring2,
+    ];
+    for (const itemRef of equippedItems) {
+      if (!itemRef || (itemRef.kind !== "item" && itemRef.kind !== "misc")) continue;
+      const item = save.itemsById[itemRef.id];
+      if (!item?.grants) continue;
+      for (const grant of item.grants) {
+        if (grant.type === "trait" && actor.traits[grant.traitId] === undefined) {
+          equippedTraitParams[grant.traitId] = grant.params ?? true;
+        }
+      }
+    }
+  }
+
+  // Check traits (including equipment-granted traits)
+  const combinedTraits = { ...equippedTraitParams, ...actor.traits };
+  for (const [traitId, params] of Object.entries(combinedTraits)) {
     const trait = getTraitById(catalogs, traitId);
     if (!trait) continue;
 
@@ -174,7 +201,11 @@ function getModifierTotalBase(
       if (!item || !item.grants) continue;
       for (const grant of item.grants) {
         if (grant.type === "modifier" && grant.key === key) {
-          total += grant.value;
+          let value = grant.value;
+          if (grant.valueRef === "magic.pm") {
+            value = getMagicPower(save, actorId, catalogs);
+          }
+          total += value;
         }
       }
       continue;

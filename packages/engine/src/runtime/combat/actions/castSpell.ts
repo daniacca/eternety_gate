@@ -249,7 +249,7 @@ export function combatCastSpell(
 
   // Untouchable aura penalty applies when a weaver casts within the aura
   let auraPenalty = 0;
-  if (catalogs && hasTrait(actor, "trait:weaver")) {
+  if (catalogs && hasTrait(actor, "trait:weaver", save)) {
     const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
     if (impact) {
       auraPenalty = impact.penalty;
@@ -648,7 +648,7 @@ export function combatCastSpell(
 
         // Check if Deny the Witch was used (defender used WIL instead of default stat)
         const usedDenyTheWitch = catalogs && opposedStat === "WIL" && baseOpposedStat !== "WIL" && 
-          hasDenyTheWitch(target.actor, catalogs);
+          hasDenyTheWitch(target.actor, catalogs, save);
 
         if (attackerDoS > defenderDoS) {
           // Attacker wins - target is valid for effect application
@@ -680,7 +680,7 @@ export function combatCastSpell(
 
       for (const target of validTargetActors) {
         // Only check if target has Deny the Witch talent
-        if (!hasDenyTheWitch(target.actor, catalogs)) {
+        if (!hasDenyTheWitch(target.actor, catalogs, save)) {
           continue;
         }
 
