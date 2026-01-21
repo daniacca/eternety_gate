@@ -124,6 +124,7 @@ export function createNewGame(
       magic: {
         accumulatedDoS: 0,
       },
+      choiceCheckResults: {},
     },
   };
 
@@ -193,6 +194,18 @@ export function applyChoice(
         },
       };
     }
+  }
+
+  const cachedCheck = save.runtime.choiceCheckResults?.[choiceId];
+  if (cachedCheck && choice.checks && choice.checks.length > 0) {
+    return {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        lastCheck: cachedCheck,
+        lastPlayerCheck: cachedCheck,
+      },
+    };
   }
 
   // Create RNG from save state

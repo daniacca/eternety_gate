@@ -108,8 +108,42 @@
         "onEnter": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
         "checks": { "type": "array", "items": { "$ref": "#/$defs/check" } },
         "choices": { "type": "array", "items": { "$ref": "#/$defs/choice" } },
+        "backgroundImage": { "$ref": "#/$defs/sceneBackground" },
+        "combatEnd": { "$ref": "#/$defs/combatEnd" },
         "rewards": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
         "persistentConsequences": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+      }
+    },
+    "sceneBackground": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "storyAsset" },
+            "assetId": { "type": "string" },
+            "ext": { "type": "string", "enum": ["png", "jpg"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "uri"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "remote" },
+            "uri": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "combatEnd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "onVictory": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
+        "onDefeat": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
+        "onAny": { "type": "array", "items": { "$ref": "#/$defs/effect" } }
       }
     },
     "textBlock": {
@@ -140,7 +174,8 @@
           ]
         },
         "checks": { "type": "array", "items": { "$ref": "#/$defs/check" } },
-        "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } }
+        "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
+        "feedbackText": { "type": "array", "items": { "type": "string" } }
       }
     },
     "condition": {
@@ -264,8 +299,9 @@
         "id": { "type": "string" },
         "kind": {
           "type": "string",
-          "enum": ["single", "multi", "opposed", "sequence", "magicChannel", "magicEffect", "combatAttack"]
+          "enum": ["single", "multi", "condition", "opposed", "sequence", "magicChannel", "magicEffect", "combatAttack"]
         },
+        "condition": { "$ref": "#/$defs/condition" },
         "actorRef": { "$ref": "#/$defs/actorRef" },
         "difficulty": { "type": "string" },
         "modifier": { "type": "integer", "description": "Optional flat modifier to apply to the check target" },
@@ -274,6 +310,8 @@
         "powerMode": { "type": "string", "enum": ["CONTROLLED", "FORCED"] },
         "onSuccess": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
         "onFailure": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
+        "successText": { "type": "array", "items": { "type": "string" } },
+        "failureText": { "type": "array", "items": { "type": "string" } },
         "key": { "type": "string" }
       }
     },

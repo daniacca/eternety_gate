@@ -37,7 +37,9 @@
       "thirdWayUnlocked": "boolean",
       "eventDaySlips": "boolean",
       "eventBellsOutOfTime": "boolean",
-      "eventGrainRot": "boolean"
+      "eventGrainRot": "boolean",
+      "heardClosedHouseBreathing": "boolean",
+      "debugCombatCleared": "boolean"
     },
     "counters": {
       "loopCount": "number",
@@ -78,7 +80,9 @@
       "thirdWayUnlocked": false,
       "eventDaySlips": false,
       "eventBellsOutOfTime": false,
-      "eventGrainRot": false
+      "eventGrainRot": false,
+      "heardClosedHouseBreathing": false,
+      "debugCombatCleared": false
     },
     "counters": {
       "loopCount": 0,
@@ -385,6 +389,7 @@
       "id": "S0_BRIEFING",
       "type": "dialogue",
       "title": "Briefing alla Soglia dell'Infinito",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Un Osservatore parla senza muovere le labbra.",
         "“Anomalia ciclica. Un villaggio ripete lo stesso giorno. Nessuna contaminazione apparente.”",
@@ -422,6 +427,7 @@
       "id": "S1_ARRIVAL",
       "type": "narration",
       "title": "L'Arrivo a Brùnholt",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Alba. Campi di grano maturi. Il cielo è coperto, ma non c'è vento.",
         "Un silenzio innaturale abbraccia la valle. Il villaggio è poco distante."
@@ -460,6 +466,13 @@
               "id": "CHK_PER_STILL_AIR",
               "kind": "single",
               "difficulty": "Routine",
+              "successText": [
+                "Noti l’assenza totale di vento: il raccolto non si muove, come se l’aria fosse immobile.",
+                "Il silenzio ti mette a disagio."
+              ],
+              "failureText": [
+                "Non cogli nulla di particolare. Il villaggio sembra calmo, fin troppo."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -476,12 +489,7 @@
               "key": "PER"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S1B_VILLAGE_EDGE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C1_GO_VILLAGE",
@@ -499,9 +507,11 @@
       "id": "S1A_FARMERS",
       "type": "dialogue",
       "title": "I contadini",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
+        "Raggiungi alcuni contadini che stanno lavorando nel campo.",
         "Sono gentili, troppo gentili. Ripetono formule di saluto con la precisione di una recita.",
-        "Parlano del raccolto come se fosse il giorno più importante dell’anno."
+        "Parlano del raccolto come se fosse il giorno più importante dell'anno."
       ],
       "choices": [
         {
@@ -511,6 +521,14 @@
             {
               "id": "CHK_CAR_OR_SAG",
               "kind": "multi",
+              "successText": [
+                "I contadini spiegano che oggi è il giorno più importante dell'anno e mostrano il raccolto con orgoglio, ma le parole suonano ripetute.",
+                "Non una parola fuori tema, né una sulla valle, è come se il mondo al di fuori del villaggio non esistesse.",
+                "Citi un dettaglio fuori posto e noti un'esitazione, una strana espressione sui loro volti."
+              ],
+              "failureText": [
+                "Risposte cortesi, troppo perfette. Non ottieni nulla di utile."
+              ],
               "options": [
                 {
                   "difficulty": "Challenging",
@@ -536,25 +554,19 @@
               "onFailure": []
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S1B_VILLAGE_EDGE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C1A_ASK_HARL",
-          "label": "Chiedi chi guida il villaggio (Harl)",
+          "label": "Chiedi chi guida il villaggio",
+          "feedbackText": [
+            "Ti indicano il capo villaggio: Harl, lo puoi trovare sempre in piazza a sovrintendere il raccolto."
+          ],
           "effects": [
             {
               "op": "setFlag",
               "path": "flags.metHarl",
               "value": true
-            },
-            {
-              "op": "goto",
-              "sceneId": "S1B_VILLAGE_EDGE"
             }
           ]
         },
@@ -574,6 +586,7 @@
       "id": "S1B_VILLAGE_EDGE",
       "type": "narration",
       "title": "Il margine del villaggio",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Case basse. Strade di terra. Tutto è in ordine, come lucidato dalla ripetizione.",
         "Noti una casa chiusa con assi inchiodate. E un pozzo al centro della piazza.",
@@ -641,6 +654,7 @@
       "id": "S2_GRANARY",
       "type": "dialogue",
       "title": "Il granaio comune",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Sacco dopo sacco, tutti identici, ordinati come in un inventario perfetto.",
         "Un odore dolciastro si mescola alla polvere. Signe, la mugnaia, ti osserva da lontano."
@@ -661,6 +675,14 @@
               "id": "CHK_PER_GRANARY",
               "kind": "single",
               "difficulty": "Hard",
+              "successText": [
+                "Un sacco emana un odore dolciastro anomalo, lo sposti.",
+                "Tra la polvere trovi un segno inciso su una trave: un nodo della Trama, recente.",
+                "Percepisci l'effetto di un anomalia, che però non sembra originarsi in questo preciso punto dello spazio."
+              ],
+              "failureText": [
+                "Solo polvere e sacchi identici. Nessun indizio evidente."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -683,12 +705,7 @@
               "key": "PER"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2G_TALK_SIGNE",
@@ -698,6 +715,14 @@
               "id": "CHK_SIGNE",
               "kind": "single",
               "difficulty": "Routine",
+              "successText": [
+                "\"Hey, scusami ma come vedi sono molto occupata, se hai bisogno di un posto per la notte\"",
+                "\"Ti conviene cercare e parlare con Harl, lo trovi in piazza a sovrintendere il raccolto\"",
+                "Dopo queste parole, Signe ti scruta con attenzione insolita. Per un attimo sembra volerti dire di più."
+              ],
+              "failureText": [
+                "Signe ti fa' un cenno con la mano e torna ai sacchi, senza rispondere a nessuna tua domanda."
+              ],
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -709,6 +734,11 @@
               "key": "CHA"
             }
           ],
+          "effects": []
+        },
+        {
+          "id": "C2G_BACK",
+          "label": "Torna alla piazza del villaggio",
           "effects": [
             {
               "op": "goto",
@@ -723,7 +753,7 @@
       "type": "narration",
       "title": "Il sentiero nel bosco",
       "text": [
-        "Sotto gli alberi, l’aria sembra più fredda. Ogni passo suona troppo forte.",
+        "Sotto gli alberi, l'aria sembra più fredda. Ogni passo suona troppo forte.",
         "Come se il bosco non fosse abituato al tempo."
       ],
       "onEnter": [
@@ -740,11 +770,21 @@
               "id": "CHK_PER_WOODS",
               "kind": "single",
               "difficulty": "Hard",
+              "successText": [
+                "Scorgi un simbolo inciso tra le radici: il bosco conserva tracce di un rituale."
+              ],
+              "failureText": [
+                "Il bosco ti confonde. Perdi l'orientamento per un momento."
+              ],
               "onSuccess": [
                 {
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 2
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S3_WOODS_CREAK"
                 }
               ],
               "onFailure": [
@@ -757,12 +797,7 @@
               "key": "PER"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S3_WOODS_CREAK"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2W_BACK",
@@ -796,6 +831,41 @@
           ]
         },
         {
+          "id": "C3W_SENSE_ANOMALY",
+          "label": "Cerca di decifrare il simbolo",
+          "checks": [
+            {
+              "id": "CHK_SENSE_ANOMALY",
+              "kind": "single",
+              "difficulty": "Routine",
+              "successText": [
+                "Il simbolo sembra essere una runa antica, di un alfabeto che non conosci.",
+                "Tuttavia, è molto simile a due rune che conosci: una parte indica la chiusura, viene tipicamente utilizzata nei cerchi magici per ereggere barriere di protezione.",
+                "L'altra parte sembra indicare il caos, il disordine in aumento."
+              ],
+              "failureText": [
+                "Il simbolo sembra essere un codice, ma non riesci a decifrarlo."
+              ],
+              "onSuccess": [
+                {
+                  "op": "addCounter",
+                  "path": "counters.suspicion",
+                  "value": 2
+                }
+              ],
+              "onFailure": [
+                {
+                  "op": "addCounter",
+                  "path": "counters.suspicion",
+                  "value": 1
+                }
+              ],
+              "key": "INT"
+            }
+          ],
+          "effects": []
+        },
+        {
           "id": "C3W_BACK",
           "label": "Torna indietro",
           "effects": [
@@ -813,7 +883,7 @@
       "title": "La casa chiusa",
       "text": [
         "Le assi sono vecchie ma solide. Senti odore di resina, come se fossero state inchiodate ieri.",
-        "Qualcuno, da dentro, respira?"
+        "Ti avvicini alle assi. Senti uno strano rumore, come se qualcuno, da dentro, respirasse?!"
       ],
       "choices": [
         {
@@ -824,10 +894,22 @@
               "id": "CHK_PER_HOUSE",
               "kind": "single",
               "difficulty": "Hard",
+              "successText": [
+                "Sei sicuro: c'è effettivamente un respiro leggero dietro le assi. La casa non è davvero vuota."
+              ],
+              "failureText": [
+                "Accosti l'orecchio e ti Probabilmente, hai immaginato il suono.",
+                "Solo il silenzio. Le assi sembrano impenetrabili."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
                   "path": "flags.sawClosedHouse",
+                  "value": true
+                },
+                {
+                  "op": "setFlag",
+                  "path": "flags.heardClosedHouseBreathing",
                   "value": true
                 },
                 {
@@ -846,21 +928,29 @@
               "key": "PER"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2_HOUSE_FORCE",
           "label": "Forza le assi per entrare",
+          "conditions": [
+            {
+              "op": "flag",
+              "path": "flags.heardClosedHouseBreathing",
+              "value": true
+            }
+          ],
           "checks": [
             {
               "id": "CHK_FOR_FORCE",
               "kind": "single",
-              "difficulty": "Arduous",
+              "difficulty": "Hard",
+              "successText": [
+                "Le assi cedono con uno scricchiolio secco. L'aria dentro è fredda e immobile."
+              ],
+              "failureText": [
+                "Le assi resistono; il legno vibra come se fosse protetto."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -871,6 +961,10 @@
                   "op": "addCounter",
                   "path": "counters.instability",
                   "value": 1
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_CLOSED_HOUSE_INSIDE"
                 }
               ],
               "onFailure": [
@@ -883,12 +977,7 @@
               "key": "STR"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_CLOSED_HOUSE_INSIDE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2_HOUSE_BACK",
@@ -958,6 +1047,12 @@
               "kind": "magicEffect",
               "effectId": "VATES_DETECT_MAGIC",
               "castingNumberDoS": 1,
+              "successText": [
+                "La Trama vibra sotto la superficie: il pozzo riflette un cielo che non esiste."
+              ],
+              "failureText": [
+                "La Trama ti respinge. Un brivido attraversa l'acqua."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -968,6 +1063,10 @@
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 2
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_RETURN_SQUARE"
                 }
               ],
               "onFailure": [
@@ -980,12 +1079,7 @@
               "key": "WIL"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2_WELL_VISION",
@@ -1003,6 +1097,12 @@
               "kind": "magicEffect",
               "effectId": "VATES_WELL_VISION",
               "castingNumberDoS": 2,
+              "successText": [
+                "Un futuro possibile si sovrappone all'acqua: un bambino che non dovrebbe esistere."
+              ],
+              "failureText": [
+                "La visione si spezza in frammenti. La Trama si irrigidisce."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1013,6 +1113,10 @@
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 2
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_RETURN_SQUARE"
                 }
               ],
               "onFailure": [
@@ -1025,12 +1129,7 @@
               "key": "WIL"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2_WELL_BACK",
@@ -1048,6 +1147,7 @@
       "id": "S2_RETURN_SQUARE",
       "type": "narration",
       "title": "Di nuovo in piazza",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Il villaggio procede la sua giornata come un meccanismo perfetto.",
         "Un bambino si ferma. Ti guarda. Per un istante, sembra riconoscerti."
@@ -1066,6 +1166,12 @@
               "id": "CHK_SAG_CHILD",
               "kind": "single",
               "difficulty": "Routine",
+              "successText": [
+                "Il bambino non distoglie lo sguardo. Sembra riconoscerti."
+              ],
+              "failureText": [
+                "Ti sfugge tra la folla, come se non ti avesse visto."
+              ],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1076,18 +1182,17 @@
                   "op": "addCounter",
                   "path": "counters.instability",
                   "value": 1
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_EIRIK_THREAD"
                 }
               ],
               "onFailure": [],
               "key": "WIL"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_EIRIK_THREAD"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2_TALK_HARL",
@@ -1133,11 +1238,21 @@
               "id": "CHK_SAG_HARL",
               "kind": "single",
               "difficulty": "Hard",
+              "successText": [
+                "Per un attimo Harl si blocca, come se il copione si fosse spezzato."
+              ],
+              "failureText": [
+                "Harl risponde senza esitazione, sempre con lo stesso sorriso."
+              ],
               "onSuccess": [
                 {
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 2
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_RETURN_SQUARE"
                 }
               ],
               "onFailure": [
@@ -1150,12 +1265,7 @@
               "key": "WIL"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2H_BACK",
@@ -1173,6 +1283,7 @@
       "id": "S2_EIRIK_THREAD",
       "type": "dialogue",
       "title": "Eirik",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Il bambino non scappa. Ti guarda come si guarda qualcosa che non dovrebbe esistere qui.",
         "Per un istante, sembra sul punto di dire il tuo nome."
@@ -1221,23 +1332,28 @@
               "id": "CHK_CAR_EIRIK",
               "kind": "single",
               "difficulty": "Routine",
+              "successText": [
+                "Eirik si avvicina e ti sussurra: \"Sei venuto per salvarci?\""
+              ],
+              "failureText": [
+                "Eirik abbassa lo sguardo e resta in silenzio."
+              ],
               "onSuccess": [
                 {
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 1
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S2_NIGHTFALL"
                 }
               ],
               "onFailure": [],
               "key": "CHA"
             }
           ],
-          "effects": [
-            {
-              "op": "goto",
-              "sceneId": "S2_NIGHTFALL"
-            }
-          ]
+          "effects": []
         },
         {
           "id": "C2E_BACK",
@@ -1409,7 +1525,7 @@
       "title": "Il Santuario Dimenticato",
       "text": [
         "Un santuario più antico di Brùnholt. Incisioni consumate parlano di ‘realtà minori’ e ‘nodi’.",
-        "Capisci che qualcuno, molto tempo fa, sapeva isolare un luogo dal flusso causale."
+        "Capisci che qualcuno, molto tempo fa, sapeva isolare un luogo dal flusso causale, creando uno spazio separato."
       ],
       "onEnter": [
         {
@@ -1494,38 +1610,56 @@
         },
         {
           "id": "C6_UNLOCK_THIRD",
-          "label": "Sonda la Trama: cercare una deviazione (Terza Via)",
-          "conditions": [
+          "label": "Sonda la Trama: cerca una deviazione controllata",
+          "checks": [
             {
-              "op": "or",
-              "clauses": [
+              "id": "CHK_UNLOCK_THIRD",
+              "kind": "condition",
+              "condition": {
+                "op": "or",
+                "clauses": [
+                  {
+                    "op": "flag",
+                    "path": "flags.foundChildBed",
+                    "value": true
+                  },
+                  {
+                    "op": "flag",
+                    "path": "flags.foundGranaryClue",
+                    "value": true
+                  },
+                  {
+                    "op": "counterGte",
+                    "path": "counters.suspicion",
+                    "value": 6
+                  }
+                ]
+              },
+              "successText": [
+                "Riesci a intravedere una deviazione della Trama: agendo insieme all'origine del rituale, è possibile riuscire a deviare la trama in modo controllato."
+              ],
+              "failureText": [
+                "Non riesci ancora a vedere un modo per deviare la Trama."
+              ],
+              "onSuccess": [
                 {
-                  "op": "flag",
-                  "path": "flags.foundChildBed",
+                  "op": "setFlag",
+                  "path": "flags.thirdWayUnlocked",
                   "value": true
-                },
-                {
-                  "op": "flag",
-                  "path": "flags.foundGranaryClue",
-                  "value": true
-                },
-                {
-                  "op": "counterGte",
-                  "path": "counters.suspicion",
-                  "value": 6
                 }
-              ]
+              ],
+              "onFailure": []
             }
           ],
+          "effects": []
+        },
+        {
+          "id": "C6_BACK",
+          "label": "Torna alla piazza del villaggio",
           "effects": [
             {
-              "op": "setFlag",
-              "path": "flags.thirdWayUnlocked",
-              "value": true
-            },
-            {
               "op": "goto",
-              "sceneId": "S7_WITCH"
+              "sceneId": "S2_RETURN_SQUARE"
             }
           ]
         }
@@ -1584,7 +1718,7 @@
       "choices": [
         {
           "id": "C7_BREAK",
-          "label": "Spezzare il rituale (ripristinare il tempo)",
+          "label": "Spezzare il rituale, ripristinando lo scorrere del tempo",
           "conditions": [
             {
               "op": "flag",
@@ -1601,7 +1735,7 @@
         },
         {
           "id": "C7_STABILIZE",
-          "label": "Stabilizzare il loop (accettare l’eccezione)",
+          "label": "Stabilizzare il loop, accettando l'eccezione",
           "conditions": [
             {
               "op": "flag",
@@ -1618,7 +1752,7 @@
         },
         {
           "id": "C7_THIRD",
-          "label": "Tentare la terza via (deviazione controllata)",
+          "label": "Tentare la terza via: aggiungire al rituale una deviazione controllata dello spazio e del tempo",
           "conditions": [
             {
               "op": "flag",
@@ -1632,67 +1766,83 @@
               "sceneId": "S8_THIRD_WAY"
             }
           ]
+        },
+        {
+          "id": "C7_BACK",
+          "label": "Aspetta la notte per ricominciare il loop",
+          "effects": [
+            {
+              "op": "goto",
+              "sceneId": "S3_RESET"
+            }
+          ]
         }
       ]
     },
     {
       "id": "S8_THIRD_WAY",
       "type": "challenge",
-      "title": "Terza via",
+      "title": "La Terza Via",
       "text": [
         "Vuoi deviare il rituale: liberare Brùnholt senza ucciderla.",
         "È un’operazione sulla Trama: se sbagli, la valle collassa."
-      ],
-      "checks": [
-        {
-          "id": "CHK_THIRD_WAY_MASTER",
-          "kind": "sequence",
-          "steps": [
-            {
-              "label": "Canalizzazione",
-              "kind": "magicChannel",
-              "targetDoS": 4,
-              "onStepFailure": [
-                {
-                  "op": "addCounter",
-                  "path": "counters.instability",
-                  "value": 2
-                }
-              ],
-              "key": "WIL"
-            },
-            {
-              "label": "Intaglio del destino",
-              "kind": "single",
-              "difficulty": "Arduous",
-              "onFailure": [
-                {
-                  "op": "addCounter",
-                  "path": "counters.instability",
-                  "value": 3
-                }
-              ],
-              "key": "INT"
-            }
-          ],
-          "onSuccess": [
-            {
-              "op": "goto",
-              "sceneId": "END_THIRD_SUCCESS"
-            }
-          ],
-          "onFailure": [
-            {
-              "op": "goto",
-              "sceneId": "END_THIRD_FAIL"
-            }
-          ]
-        }
       ],
       "choices": [
         {
           "id": "C8_ATTEMPT",
           "label": "Procedi",
+          "checks": [
+            {
+              "id": "CHK_THIRD_WAY_MASTER",
+              "kind": "sequence",
+              "successText": [
+                "La Trama si tende come una corda. Riesci a incidere la deviazione senza spezzarla."
+              ],
+              "failureText": [
+                "La Trama oppone resistenza. Senti il nodo vibrare in modo instabile."
+              ],
+              "steps": [
+                {
+                  "label": "Canalizzazione",
+                  "kind": "magicChannel",
+                  "targetDoS": 4,
+                  "onStepFailure": [
+                    {
+                      "op": "addCounter",
+                      "path": "counters.instability",
+                      "value": 2
+                    }
+                  ],
+                  "key": "WIL"
+                },
+                {
+                  "label": "Intaglio del destino",
+                  "kind": "single",
+                  "difficulty": "Arduous",
+                  "onFailure": [
+                    {
+                      "op": "addCounter",
+                      "path": "counters.instability",
+                      "value": 3
+                    }
+                  ],
+                  "key": "WIL"
+                }
+              ],
+              "onSuccess": [
+                {
+                  "op": "goto",
+                  "sceneId": "END_THIRD_SUCCESS"
+                }
+              ],
+              "onFailure": [
+                {
+                  "op": "goto",
+                  "sceneId": "END_THIRD_FAIL"
+                }
+              ]
+            }
+          ],
           "effects": []
         }
       ]
@@ -1704,7 +1854,8 @@
       "text": [
         "Il rituale si spezza. Il vento torna. Il cielo cambia.",
         "Brùnholt invecchia di colpo. La valle paga il conto degli anni negati.",
-        "Harl ti sorride una volta sola, come se finalmente fosse libero."
+        "Harl ti sorride una volta sola, come se finalmente fosse libero.",
+        "Piano piano, vedi i cittadini, ormai liberi dalla maledizione, ritornare ad essere polvere"
       ],
       "rewards": [
         {
@@ -1758,7 +1909,9 @@
       "title": "Finale: Deviazione",
       "text": [
         "Il rituale cambia forma. Brùnholt riparte lentamente, come un cuore che ricomincia a battere.",
-        "Il villaggio vive… ma porta una cicatrice nella Trama.",
+        "Il tempo riprende il suo corso, ma il villaggio riprende a vivere esattamente da dove si era fermato, senza invecchiare di colpo e morire.",
+        "La trama si è aperta, il tempo mancante è stato ricucito, creando un nuovo percorso temporale.",
+        "Il villaggio vive… ma porta una cicatrice nella Trama: una deviazione controllata che non può essere ripristinata.",
         "Per un attimo, senti qualcuno—altrove—pronunciare il tuo nome."
       ],
       "rewards": [
@@ -1813,6 +1966,19 @@
         "Un manichino d'allenamento — e un bersaglio di paglia più in là — ti aspettano.",
         "Questa scena è solo per testare il motore di combattimento."
       ],
+      "textBlocks": [
+        {
+          "conditions": { "op": "flag", "path": "flags.debugCombatCleared", "value": true },
+          "text": ["Il test è concluso. Recuperi qualche risorsa e ti senti più esperto."]
+        }
+      ],
+      "combatEnd": {
+        "onVictory": [
+          { "op": "grantXp", "actorId": "PC_1", "amount": 1 },
+          { "op": "addItem", "actorId": "PC_1", "itemId": "potion:healing", "qty": 1 },
+          { "op": "setFlag", "path": "flags.debugCombatCleared", "value": true }
+        ]
+      },
       "onEnter": [
         {
           "op": "conditionalEffects",
@@ -1848,6 +2014,12 @@
         }
       ],
       "choices": [
+        {
+          "id": "back_to_hub_rewarded",
+          "label": "Raccogli la ricompensa e torna al briefing",
+          "conditions": [{ "op": "flag", "path": "flags.debugCombatCleared", "value": true }],
+          "effects": [{ "op": "goto", "sceneId": "S0_BRIEFING" }]
+        },
         {
           "id": "back_to_hub",
           "label": "Torna indietro",

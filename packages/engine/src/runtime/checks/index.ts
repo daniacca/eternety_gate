@@ -2,6 +2,7 @@ import type { Check, CheckResult, StoryPack, GameSave } from "../types";
 import { type IRNG } from "../rng";
 import { performSingleCheck } from "./single";
 import { performMultiCheck } from "./multi";
+import { performConditionCheck } from "./condition";
 import { performOpposedCheck } from "./opposed";
 import { performSequenceCheck } from "./sequence";
 import { performMagicChannelCheck, performMagicEffectCheck } from "./magic";
@@ -35,6 +36,11 @@ export function performCheckWithSave(
     }
     case "multi": {
       const result = performMultiCheck(check, storyPack, save, rng);
+      outcome = { result, save };
+      break;
+    }
+    case "condition": {
+      const result = performConditionCheck(check, storyPack, save);
       outcome = { result, save };
       break;
     }

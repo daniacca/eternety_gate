@@ -2,6 +2,7 @@ import type { Effect, GameSave, StoryPack } from "../types";
 import { IRNG } from "../rng";
 import type { ContentPack } from "../../content/types";
 import { finalizeCombatIfEnded } from "../combat/combat";
+import { getCombatEndEffects } from "../combat/combatEndHooks";
 import {
   combatStart,
   combatMove,
@@ -139,6 +140,29 @@ export function applyEffect(
   return { save };
 }
 
+function applyEffectsQueue(
+  effects: Effect[],
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: IRNG,
+  contentPack?: ContentPack
+): GameSave {
+  const queue: Effect[] = [...effects];
+  let currentSave = save;
+
+  while (queue.length > 0) {
+    const effect = queue.shift()!;
+    const result = applyEffect(effect, storyPack, currentSave, rng, contentPack);
+    currentSave = result.save;
+
+    if (result.emittedEffects && result.emittedEffects.length > 0) {
+      queue.push(...result.emittedEffects);
+    }
+  }
+
+  return currentSave;
+}
+
 /**
  * Applies multiple effects in sequence using a deterministic queue
  * Effects can emit other effects which are processed in order
@@ -150,22 +174,21 @@ export function applyEffects(
   rng: IRNG,
   contentPack?: ContentPack
 ): GameSave {
-  // Queue of effects to process
-  const queue: Effect[] = [...effects];
-  let currentSave = save;
-
-  // Process queue deterministically
-  while (queue.length > 0) {
-    const effect = queue.shift()!;
-    const result = applyEffect(effect, storyPack, currentSave, rng, contentPack);
-    currentSave = result.save;
-
-    // Add emitted effects to queue (processed in order)
-    if (result.emittedEffects && result.emittedEffects.length > 0) {
-      queue.push(...result.emittedEffects);
-    }
-  }
+  const currentSave = applyEffectsQueue(effects, storyPack, save, rng, contentPack);
+  const hadCombatActive = Boolean(currentSave.runtime.combat?.active);
 
   // Ensure combat end state is applied consistently regardless of which effect caused deaths.
-  return finalizeCombatIfEnded(currentSave);
+  const finalizedSave = finalizeCombatIfEnded(currentSave);
+  const combatEnded = hadCombatActive && !finalizedSave.runtime.combat?.active;
+
+  if (!combatEnded) {
+    return finalizedSave;
+  }
+
+  const combatEndEffects = getCombatEndEffects(storyPack, finalizedSave);
+  if (combatEndEffects.length === 0) {
+    return finalizedSave;
+  }
+
+  return applyEffectsQueue(combatEndEffects, storyPack, finalizedSave, rng, contentPack);
 }

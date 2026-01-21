@@ -11,6 +11,16 @@ import { combatRequestAttack } from "./actions/requestAttack";
 import { combatStandUp } from "./actions/standUp";
 import { applyAddCondition, applyRemoveCondition } from "../effects/actorConditions";
 import { finalizeCombatIfEnded } from "./combat";
+import { getCombatEndEffects } from "./combatEndHooks";
+import { applySetFlag, applyAddCounter } from "../effects/state";
+import { applyAddItem, applyRemoveItem } from "../effects/items";
+import { applyGoto } from "../effects/navigation";
+import { applyConditionalEffects } from "../effects/conditional";
+import { applyChooseRunVariant, applyVariantStartEffects } from "../effects/variants";
+import { applyFireWorldEvents } from "../effects/worldEvents";
+import { handleLearnSpell } from "../effects/learnSpell";
+import { handleNarrativeSpell } from "../effects/narrativeSpell";
+import { handleAcquireTalent, handleGrantXp, handleGrantFatePoint } from "../effects/acquireTalent";
 
 /**
  * Runs an NPC turn (auto-attack or move)
@@ -205,13 +215,6 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
   return applyNpcEffects(effects, storyPack, save, rng, contentPack);
 }
 
-/**
- * NPC turns need to apply effects, but importing the generic `applyEffects` creates a require-cycle:
- * npcAi -> effects/index -> combat/actions/* -> npcAi.
- *
- * So we use a minimal local applier that supports the subset of effects NPC AI emits
- * plus the emitted effects from those combat actions (currently add/remove condition).
- */
 function applyNpcEffects(
   effects: Effect[],
   storyPack: StoryPack,
@@ -219,6 +222,7 @@ function applyNpcEffects(
   rng: RNG,
   contentPack?: ContentPack
 ): GameSave {
+  const hadCombatActive = Boolean(save.runtime.combat?.active);
   const queue: Effect[] = [...effects];
   let currentSave = save;
 
@@ -255,5 +259,92 @@ function applyNpcEffects(
     }
   }
 
-  return finalizeCombatIfEnded(currentSave);
+  const finalizedSave = finalizeCombatIfEnded(currentSave);
+  const combatEnded = hadCombatActive && !finalizedSave.runtime.combat?.active;
+  if (!combatEnded) {
+    return finalizedSave;
+  }
+
+  const combatEndEffects = getCombatEndEffects(storyPack, finalizedSave);
+  if (combatEndEffects.length === 0) {
+    return finalizedSave;
+  }
+
+  return applyStoryEffectsQueue(combatEndEffects, storyPack, finalizedSave, rng);
+}
+
+function applyStoryEffectsQueue(
+  effects: Effect[],
+  storyPack: StoryPack,
+  save: GameSave,
+  rng: RNG
+): GameSave {
+  const queue: Effect[] = [...effects];
+  let currentSave = save;
+
+  while (queue.length > 0) {
+    const effect = queue.shift()!;
+    let result: { save: GameSave; emittedEffects?: Effect[] } = { save: currentSave };
+
+    switch (effect.op) {
+      case "setFlag":
+        result = { save: applySetFlag(effect as Extract<Effect, { op: "setFlag" }>, currentSave) };
+        break;
+      case "addCounter":
+        result = { save: applyAddCounter(effect as Extract<Effect, { op: "addCounter" }>, currentSave) };
+        break;
+      case "addItem":
+        result = { save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, currentSave) };
+        break;
+      case "removeItem":
+        result = { save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, currentSave) };
+        break;
+      case "goto":
+        result = { save: applyGoto(effect as Extract<Effect, { op: "goto" }>, currentSave) };
+        break;
+      case "conditionalEffects":
+        result = applyConditionalEffects(effect as Extract<Effect, { op: "conditionalEffects" }>, storyPack, currentSave, rng);
+        break;
+      case "chooseRunVariant":
+        result = applyChooseRunVariant(effect as Extract<Effect, { op: "chooseRunVariant" }>, storyPack, currentSave, rng);
+        break;
+      case "applyVariantStartEffects":
+        result = applyVariantStartEffects(storyPack, currentSave, rng);
+        break;
+      case "fireWorldEvents":
+        result = applyFireWorldEvents(storyPack, currentSave, rng);
+        break;
+      case "learnSpell":
+        result = handleLearnSpell(effect as Extract<Effect, { op: "learnSpell" }>, storyPack, currentSave);
+        break;
+      case "narrativeSpell":
+        result = handleNarrativeSpell(effect as Extract<Effect, { op: "narrativeSpell" }>, storyPack, currentSave, rng);
+        break;
+      case "acquireTalent":
+        result = handleAcquireTalent(effect as Extract<Effect, { op: "acquireTalent" }>, storyPack, currentSave);
+        break;
+      case "grantXp":
+        result = handleGrantXp(effect as Extract<Effect, { op: "grantXp" }>, currentSave);
+        break;
+      case "grantFatePoint":
+        result = handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, currentSave);
+        break;
+      case "addCondition":
+        result = { save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave) };
+        break;
+      case "removeCondition":
+        result = { save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, currentSave) };
+        break;
+      default:
+        result = { save: currentSave };
+        break;
+    }
+
+    currentSave = result.save;
+    if (result.emittedEffects && result.emittedEffects.length > 0) {
+      queue.push(...result.emittedEffects);
+    }
+  }
+
+  return currentSave;
 }

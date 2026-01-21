@@ -246,6 +246,8 @@ export type SingleCheck = {
   modifier?: number;
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type MultiCheck = {
@@ -255,6 +257,19 @@ export type MultiCheck = {
   options: Array<{ key: StatOrSkillKey; difficulty: string }>;
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
+};
+
+export type ConditionCheck = {
+  id: string;
+  kind: "condition";
+  actorRef?: ActorRef;
+  condition: Condition;
+  onSuccess?: Effect[];
+  onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type OpposedCheck = {
@@ -264,6 +279,8 @@ export type OpposedCheck = {
   defender: { actorRef?: ActorRef; key: StatOrSkillKey; difficulty?: string };
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type SequenceCheck = {
@@ -272,6 +289,8 @@ export type SequenceCheck = {
   steps: Check[];
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 /**
@@ -291,6 +310,8 @@ export type MagicChannelCheck = {
   powerMode?: "CONTROLLED" | "FORCED";
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type MagicEffectCheck = {
@@ -305,6 +326,8 @@ export type MagicEffectCheck = {
   powerMode?: "CONTROLLED" | "FORCED";
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type CombatMode = "MELEE" | "RANGED";
@@ -328,11 +351,14 @@ export type CombatAttackCheck = {
   };
   onSuccess?: Effect[];
   onFailure?: Effect[];
+  successText?: string[];
+  failureText?: string[];
 };
 
 export type Check =
   | SingleCheck
   | MultiCheck
+  | ConditionCheck
   | OpposedCheck
   | SequenceCheck
   | MagicChannelCheck
@@ -347,11 +373,29 @@ export type Choice = {
   conditions?: Condition | Condition[];
   checks?: Check[];
   effects: Effect[];
+  feedbackText?: string[];
 };
 
 export type TextBlock = {
   conditions: Condition | Condition[];
   text: string[];
+};
+
+export type SceneBackground =
+  | {
+      kind: "storyAsset";
+      assetId?: string;
+      ext?: "png" | "jpg";
+    }
+  | {
+      kind: "remote";
+      uri: string;
+    };
+
+export type CombatEndHooks = {
+  onVictory?: Effect[];
+  onDefeat?: Effect[];
+  onAny?: Effect[];
 };
 
 export type Scene = {
@@ -363,6 +407,8 @@ export type Scene = {
   onEnter?: Effect[];
   checks?: Check[];
   choices: Choice[];
+  backgroundImage?: SceneBackground;
+  combatEnd?: CombatEndHooks;
   rewards?: any[];
   persistentConsequences?: any[];
 };
@@ -752,6 +798,11 @@ export type GameRuntime = {
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
   combatCycleStartIndex?: number;
+
+  /**
+   * Cached check results per choice, to avoid rerolling on repeated clicks.
+   */
+  choiceCheckResults?: Record<ChoiceId, CheckResult>;
 
   /**
    * Extended log entries for initiative, damage rolls, and other combat events

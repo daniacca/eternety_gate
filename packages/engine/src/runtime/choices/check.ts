@@ -91,6 +91,7 @@ export const handleCheckChoice: ChoiceHandler = (
 
   // Execute choice checks if any
   // Stop on first failure (after applying onFailure effects)
+  let choiceCheckResult: ReturnType<typeof performCheck> = null;
   if (choice.checks) {
     for (const check of choice.checks) {
       const result = performCheck(check, storyPack, currentSave, rng);
@@ -108,6 +109,7 @@ export const handleCheckChoice: ChoiceHandler = (
           rngCounter: rng.getCounter(),
         },
       };
+      choiceCheckResult = result;
 
       // Update magic state if needed
       currentSave = updateMagicState(check, result, currentSave);
@@ -124,6 +126,19 @@ export const handleCheckChoice: ChoiceHandler = (
         break;
       }
     }
+  }
+
+  if (choiceCheckResult) {
+    currentSave = {
+      ...currentSave,
+      runtime: {
+        ...currentSave.runtime,
+        choiceCheckResults: {
+          ...(currentSave.runtime.choiceCheckResults ?? {}),
+          [choiceId]: choiceCheckResult,
+        },
+      },
+    };
   }
 
   // Track visited scenes before applying effects (to check if we're entering a new scene)

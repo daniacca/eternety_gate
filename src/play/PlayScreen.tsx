@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable, ImageBackground, Modal } from "react-native";
 import {
   createNewGame,
   getCurrentScene,
@@ -40,6 +40,7 @@ import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
 import { EquipmentModal } from "./components/EquipmentModal";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
+import { resolveSceneBackground, type BackgroundSourceConfig } from "./story/sceneBackgrounds";
 
 export function PlayScreen() {
   // Create a minimal 1-player party with fixed seed
@@ -219,12 +220,18 @@ export function PlayScreen() {
     preview: TargetPreview;
   };
   type EquipmentSlot = "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring1" | "ring2";
+  type ChoiceResolution = {
+    title: string;
+    lines: string[];
+    pendingSave: GameSave;
+  };
 
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
   const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<ChoiceResolution | null>(null);
   const { width, height } = useWindowDimensions();
 
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
@@ -241,9 +248,101 @@ export function PlayScreen() {
 
   const styles = useMemo(() => createStyles({ width, height, isNarrow, isPhone }), [width, height, isNarrow, isPhone]);
 
+  const backgroundConfig: BackgroundSourceConfig = useMemo(
+    () => ({
+      mode: "asset",
+    }),
+    []
+  );
+
   const handleChoice = (choiceId: string) => {
+    if (pendingChoice) return;
+    const activeScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === save.runtime.currentSceneId);
+    const activeChoice = activeScene?.choices.find((entry) => entry.id === choiceId);
+    const hasChecks = Boolean(activeChoice?.checks && activeChoice.checks.length > 0);
+
+    if (hasChecks) {
+      const cachedCheck = save.runtime.choiceCheckResults?.[choiceId];
+      if (cachedCheck) {
+        const choiceLabel = choices.find((entry) => entry.id === choiceId)?.label ?? choiceId;
+        const lines: string[] = [`Hai scelto: ${choiceLabel}`];
+        const matchingCheck = activeChoice?.checks?.find((check) => check.id === cachedCheck.checkId);
+        const outcome = cachedCheck.success ? "riuscita" : "fallita";
+        const checkLabel = matchingCheck?.id ?? cachedCheck.checkId;
+
+        lines.push(`Prova (${checkLabel}) ${outcome}: d100 ${cachedCheck.roll} contro ${cachedCheck.target}.`);
+
+        const detailLines = cachedCheck.success ? matchingCheck?.successText : matchingCheck?.failureText;
+        if (detailLines && detailLines.length > 0) {
+          lines.push(...detailLines);
+        }
+        if (activeChoice?.feedbackText && activeChoice.feedbackText.length > 0) {
+          lines.push(...activeChoice.feedbackText);
+        }
+
+        setPendingChoice({
+          title: "Esito della scelta",
+          lines,
+          pendingSave: save,
+        });
+        return;
+      }
+    }
+
     const newSave = applyChoice(storyPackWithCatalogs, save, choiceId, sigilContentPack);
-    setSave(newSave);
+    const choiceLabel = choices.find((entry) => entry.id === choiceId)?.label ?? choiceId;
+
+    const lines: string[] = [`Hai scelto: ${choiceLabel}`];
+    const nextSceneId = newSave.runtime.currentSceneId;
+    const previousSceneId = save.runtime.currentSceneId;
+    const nextScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === nextSceneId);
+
+    const resolvedCheck =
+      newSave.runtime.choiceCheckResults?.[choiceId] ?? newSave.runtime.lastPlayerCheck ?? newSave.runtime.lastCheck;
+
+    if (resolvedCheck) {
+      const outcome = resolvedCheck.success ? "riuscita" : "fallita";
+      const previousScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === previousSceneId);
+      const previousChoice = previousScene?.choices.find((entry) => entry.id === choiceId);
+      const matchingCheck = previousChoice?.checks?.find((check) => check.id === resolvedCheck.checkId);
+      const checkLabel = matchingCheck?.id ?? resolvedCheck.checkId;
+
+      lines.push(`Prova (${checkLabel}) ${outcome}: d100 ${resolvedCheck.roll} contro ${resolvedCheck.target}.`);
+
+      const detailLines = resolvedCheck.success ? matchingCheck?.successText : matchingCheck?.failureText;
+      if (detailLines && detailLines.length > 0) {
+        lines.push(...detailLines);
+      }
+    }
+
+    if (activeChoice?.feedbackText && activeChoice.feedbackText.length > 0) {
+      lines.push(...activeChoice.feedbackText);
+    }
+
+    if (!save.runtime.combat?.active && newSave.runtime.combat?.active) {
+      lines.push("Inizia un combattimento.");
+    }
+
+    if (!hasChecks) {
+      const gotoEffect = activeChoice?.effects?.find((effect) => effect.op === "goto");
+      if (gotoEffect && "sceneId" in gotoEffect) {
+        const targetSceneId = gotoEffect.sceneId;
+        const targetScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === targetSceneId);
+        lines.push(`Ti dirigi verso ${targetScene?.title ?? targetSceneId}.`);
+      }
+    }
+
+    if (nextSceneId !== previousSceneId) {
+      lines.push(`Si passa a: ${nextScene?.title ?? nextSceneId}.`);
+    } else if (lines.length === 1) {
+      lines.push("Azione registrata.");
+    }
+
+    setPendingChoice({
+      title: "Esito della scelta",
+      lines,
+      pendingSave: newSave,
+    });
   };
 
   const applySystemEffects = (effects: Effect[]) => {
@@ -574,18 +673,34 @@ export function PlayScreen() {
       setDimensions({ width, height });
     }, []);
 
+    const background = resolveSceneBackground(storyPackWithCatalogs.id, scene, backgroundConfig);
+
     return (
       <View style={styles.gameAreaContainer} onLayout={onLayout}>
         {dimensions.width > 0 && dimensions.height > 0 ? (
-          <CombatGrid
-            containerWidth={dimensions.width}
-            containerHeight={dimensions.height}
-            combat={combat}
-            save={save}
-            styles={styles}
-            targetingPreview={actionTargeting?.preview}
-            onCellPress={actionTargeting ? handleCellTarget : undefined}
-          />
+          combat?.active ? (
+            <CombatGrid
+              containerWidth={dimensions.width}
+              containerHeight={dimensions.height}
+              combat={combat}
+              save={save}
+              styles={styles}
+              targetingPreview={actionTargeting?.preview}
+              onCellPress={actionTargeting ? handleCellTarget : undefined}
+            />
+          ) : (
+            <ImageBackground
+              source={background.source}
+              style={styles.sceneBackground}
+              imageStyle={styles.sceneBackgroundImage}
+              resizeMode="stretch"
+            >
+              <View style={styles.sceneBackgroundOverlay}>
+                <Text style={styles.sceneBackgroundLabel}>Scena</Text>
+                <Text style={styles.sceneBackgroundTitle}>{scene.title}</Text>
+              </View>
+            </ImageBackground>
+          )
         ) : (
           <View style={styles.gameArea}>
             <Text style={styles.gameAreaTitle}>Game Area</Text>
@@ -667,7 +782,7 @@ export function PlayScreen() {
       )}
 
       {/* Non-combat choices only */}
-      <ChoiceList choices={nonCombatChoices} handleChoice={handleChoice} styles={styles} />
+      <ChoiceList choices={nonCombatChoices} handleChoice={handleChoice} styles={styles} disabled={Boolean(pendingChoice)} />
     </View>
   );
 
@@ -772,6 +887,31 @@ export function PlayScreen() {
         onEquip={handleEquipItem}
         onUnequip={handleUnequipItem}
       />
+
+      {/* Choice Resolution Modal */}
+      {pendingChoice && (
+        <Modal visible transparent animationType="fade">
+          <View style={styles.choiceModalOverlay}>
+            <View style={styles.choiceModalContent}>
+              <Text style={styles.choiceModalTitle}>{pendingChoice.title}</Text>
+              {pendingChoice.lines.map((line, index) => (
+                <Text key={`${line}-${index}`} style={styles.choiceModalText}>
+                  {line}
+                </Text>
+              ))}
+              <Pressable
+                style={styles.choiceModalButton}
+                onPress={() => {
+                  setSave(pendingChoice.pendingSave);
+                  setPendingChoice(null);
+                }}
+              >
+                <Text style={styles.choiceModalButtonText}>Continua</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -826,6 +966,32 @@ const createStyles = ({
     gameAreaContainer: {
       flex: 1,
       width: "100%",
+    },
+    sceneBackground: {
+      flex: 1,
+      width: "100%",
+      justifyContent: "flex-end",
+    },
+    sceneBackgroundImage: {
+      borderRadius: 8,
+    },
+    sceneBackgroundOverlay: {
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+      padding: 12,
+      borderBottomLeftRadius: 8,
+      borderBottomRightRadius: 8,
+    },
+    sceneBackgroundLabel: {
+      fontSize: 12,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+      color: "#e5e7eb",
+      marginBottom: 4,
+    },
+    sceneBackgroundTitle: {
+      fontSize: isPhone ? 18 : 20,
+      fontWeight: "700",
+      color: "#fff",
     },
     gameArea: {
       flex: 1,
@@ -1608,6 +1774,46 @@ const createStyles = ({
       color: "#FFFFFF",
       fontSize: 16,
       fontWeight: "600",
+    },
+    choiceModalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    choiceModalContent: {
+      width: "100%",
+      maxWidth: 420,
+      backgroundColor: "#ffffff",
+      borderRadius: 12,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: "#e5e7eb",
+      gap: 8,
+    },
+    choiceModalTitle: {
+      fontSize: isPhone ? 18 : 20,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    choiceModalText: {
+      fontSize: 14,
+      color: "#374151",
+      lineHeight: 20,
+    },
+    choiceModalButton: {
+      marginTop: 12,
+      backgroundColor: "#2563eb",
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    choiceModalButtonText: {
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "700",
     },
   });
 };
