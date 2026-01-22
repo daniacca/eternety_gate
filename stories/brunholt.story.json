@@ -1408,6 +1408,10 @@
           "value": 1
         },
         {
+          "op": "clearChoiceCheckResults",
+          "onlyFailed": true
+        },
+        {
           "op": "fireWorldEvents"
         }
       ],

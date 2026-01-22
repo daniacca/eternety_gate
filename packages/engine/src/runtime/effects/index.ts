@@ -28,6 +28,7 @@ import { handleNarrativeSpell } from "./narrativeSpell";
 import { handleAcquireTalent, handleGrantXp, handleGrantFatePoint } from "./acquireTalent";
 import { applySetFlag, applyAddCounter } from "./state";
 import { applyAddItem, applyRemoveItem } from "./items";
+import { applyClearChoiceCheckResults } from "./choiceChecks";
 import { applyGoto } from "./navigation";
 import { applyConditionalEffects } from "./conditional";
 import { applyChooseRunVariant, applyVariantStartEffects } from "./variants";
@@ -61,6 +62,9 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   }),
   removeItem: (effect, _storyPack, save, _rng) => ({
     save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, save),
+  }),
+  clearChoiceCheckResults: (effect, _storyPack, save, _rng) => ({
+    save: applyClearChoiceCheckResults(effect as Extract<Effect, { op: "clearChoiceCheckResults" }>, save),
   }),
   goto: (effect, _storyPack, save, _rng) => ({
     save: applyGoto(effect as Extract<Effect, { op: "goto" }>, save),

@@ -257,6 +257,7 @@
             "addCounter",
             "addItem",
             "removeItem",
+            "clearChoiceCheckResults",
             "goto",
             "conditionalEffects",
             "chooseRunVariant",

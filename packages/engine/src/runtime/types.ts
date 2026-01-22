@@ -95,6 +95,7 @@ export type Effect =
   | { op: "addCounter"; path: string; value: number }
   | { op: "addItem"; actorId: ActorId; itemId: ItemId; qty?: number }
   | { op: "removeItem"; actorId: ActorId; itemId: ItemId; qty?: number }
+  | { op: "clearChoiceCheckResults"; onlyFailed?: boolean; choiceIds?: ChoiceId[] }
   | { op: "goto"; sceneId: SceneId }
   | { op: "conditionalEffects"; cases: Array<{ when: Condition; then: Effect[] }> }
   | { op: "chooseRunVariant"; source: string; strategy: "randomOrDefault" | "random" | "defaultOnly" }
