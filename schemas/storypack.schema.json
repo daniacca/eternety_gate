@@ -23,7 +23,16 @@
     "initialState": { "$ref": "#/$defs/initialState" },
     "systems": { "$ref": "#/$defs/systems" },
     "startSceneId": { "type": "string", "minLength": 1 },
-    "cast": { "type": "object", "additionalProperties": true },
+    "cast": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "npcs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actor" }
+        }
+      }
+    },
     "effectsCatalog": { "type": "object", "additionalProperties": true },
 
     "weapons": {
@@ -305,6 +314,26 @@
         "condition": { "$ref": "#/$defs/condition" },
         "actorRef": { "$ref": "#/$defs/actorRef" },
         "difficulty": { "type": "string" },
+        "difficultyByCondition": {
+          "type": "object",
+          "required": ["default", "rules"],
+          "additionalProperties": false,
+          "properties": {
+            "default": { "type": "string" },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["when", "difficulty"],
+                "additionalProperties": false,
+                "properties": {
+                  "when": { "$ref": "#/$defs/condition" },
+                  "difficulty": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "modifier": { "type": "integer", "description": "Optional flat modifier to apply to the check target" },
         "targetDoS": { "type": "integer", "minimum": 1, "description": "DoS to accumulate via channeling" },
         "castingNumberDoS": { "type": "integer", "minimum": 1, "description": "DoS required to manifest the effect" },
@@ -323,6 +352,35 @@
         "mode": { "type": "string", "enum": ["active", "byId", "bestOfParty", "askPlayer"] },
         "actorId": { "type": "string" },
         "key": { "type": "string" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "kind": { "type": "string", "enum": ["PC", "NPC"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "stats": { "type": "object", "additionalProperties": { "type": "number" } },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "wounds": { "type": "number" },
+            "rf": { "type": "number" },
+            "fatePoints": { "type": "number" },
+            "criticalDamage": { "type": "number" },
+            "criticalTierApplied": { "type": "number" },
+            "isDead": { "type": "boolean" },
+            "xp": { "type": "number" }
+          }
+        },
+        "skills": { "type": "object", "additionalProperties": { "type": "number" } },
+        "talents": { "type": "object", "additionalProperties": { "type": "number" } },
+        "traits": { "type": "object", "additionalProperties": true },
+        "equipment": { "type": "object", "additionalProperties": true },
+        "status": { "type": "object", "additionalProperties": true }
       }
     },
     "weapon": {

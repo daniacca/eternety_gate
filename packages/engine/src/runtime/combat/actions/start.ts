@@ -10,10 +10,12 @@ export function combatStart(
   storyPack: StoryPack,
   save: GameSave
 ): { save: GameSave; emittedEffects?: Effect[] } {
+  const partyIds = save.party?.actors ?? [];
+  const participantIds = Array.from(new Set([...partyIds, ...effect.participantIds]));
   let combatSave = startCombat(
     storyPack,
     save,
-    effect.participantIds,
+    participantIds,
     save.runtime.currentSceneId,
     effect.grid,
     effect.placements,

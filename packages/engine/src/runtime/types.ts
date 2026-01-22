@@ -243,6 +243,10 @@ export type SingleCheck = {
   actorRef?: ActorRef;
   key: StatOrSkillKey;
   difficulty: string;
+  difficultyByCondition?: {
+    default: string;
+    rules: Array<{ when: Condition; difficulty: string }>;
+  };
   /** Optional flat modifier to apply to the check target (e.g., -10 for non-Weaver Deny the Witch) */
   modifier?: number;
   onSuccess?: Effect[];
@@ -799,6 +803,11 @@ export type GameRuntime = {
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
   combatCycleStartIndex?: number;
+  storyEnded?: {
+    sceneId: SceneId;
+    storyId: StoryId;
+    endedAt: string;
+  };
 
   /**
    * Cached check results per choice, to avoid rerolling on repeated clicks.

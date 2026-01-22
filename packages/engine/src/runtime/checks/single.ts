@@ -1,6 +1,7 @@
 import type { SingleCheck, CheckResult, StoryPack, GameSave } from "../types";
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
+import { evaluateCondition } from "../conditions";
 import { computeTargetBreakdown } from "./target";
 import { rollD100Check } from "./evaluation";
 
@@ -13,7 +14,8 @@ export function performSingleCheck(
   const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
 
-  const breakdown = computeTargetBreakdown(actor, check.key, check.difficulty, save, storyPack);
+  const resolvedDifficulty = resolveDifficulty(check, save);
+  const breakdown = computeTargetBreakdown(actor, check.key, resolvedDifficulty, save, storyPack);
 
   // Apply optional modifier from check (e.g., -10 for non-Weaver Deny the Witch)
   const checkModifier = check.modifier ?? 0;
@@ -30,7 +32,22 @@ export function performSingleCheck(
       result.tags.push(`calc:checkMod=${checkModifier}`);
     }
     result.tags.push(`calc:target=${finalTarget}`);
+    if (resolvedDifficulty !== check.difficulty) {
+      result.tags.push(`calc:diffLabel=${resolvedDifficulty}`);
+    }
   }
 
   return result;
+}
+
+function resolveDifficulty(check: SingleCheck, save: GameSave): string {
+  if (!check.difficultyByCondition) {
+    return check.difficulty;
+  }
+  for (const rule of check.difficultyByCondition.rules) {
+    if (evaluateCondition(rule.when, save)) {
+      return rule.difficulty;
+    }
+  }
+  return check.difficultyByCondition.default ?? check.difficulty;
 }

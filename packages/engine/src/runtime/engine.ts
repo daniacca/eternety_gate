@@ -125,6 +125,7 @@ export function createNewGame(
         accumulatedDoS: 0,
       },
       choiceCheckResults: {},
+      storyEnded: undefined,
     },
   };
 
@@ -137,7 +138,8 @@ export function createNewGame(
 export function listAvailableChoices(storyPack: StoryPack, save: GameSave): Choice[] {
   const { scene } = getCurrentScene(storyPack, save);
 
-  return scene.choices.filter((choice) => {
+  const choices = scene.choices ?? [];
+  return choices.filter((choice) => {
     if (!choice.conditions) {
       return true;
     }
@@ -212,5 +214,23 @@ export function applyChoice(
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
 
   // Route to appropriate handler based on choice kind
-  return handleChoice(choice, choiceId, storyPack, save, rng, contentPack);
+  const updatedSave = handleChoice(choice, choiceId, storyPack, save, rng, contentPack);
+  const currentScene = storyPack.scenes.find((scene) => scene.id === updatedSave.runtime.currentSceneId);
+  if (currentScene?.type === "ending") {
+    const existing = updatedSave.runtime.storyEnded;
+    if (!existing || existing.sceneId !== currentScene.id) {
+      return {
+        ...updatedSave,
+        runtime: {
+          ...updatedSave.runtime,
+          storyEnded: {
+            sceneId: currentScene.id,
+            storyId: storyPack.id,
+            endedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }
+  }
+  return updatedSave;
 }

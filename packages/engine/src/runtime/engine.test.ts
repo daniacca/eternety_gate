@@ -137,6 +137,68 @@ describe("applyChoice", () => {
     expect(scene.title).toBe("Scene 2");
   });
 
+  it("marks storyEnded when arriving at an ending scene", () => {
+    const storyPack: StoryPack = {
+      id: "test_story",
+      title: "Test Story",
+      version: "1.0.0",
+      startSceneId: "scene1",
+      stateSchema: {},
+      initialState: {
+        flags: {},
+        counters: {},
+        inventory: { items: [] },
+      },
+      systems: {
+        checks: {
+          difficultyBands: {},
+          criticals: {
+            autoSuccess: [1, 2, 3],
+            autoFail: [98, 99, 100],
+          },
+        },
+      },
+      scenes: [
+        {
+          id: "scene1",
+          type: "narration",
+          title: "Scene 1",
+          text: ["You are at the start."],
+          choices: [
+            {
+              id: "choice1",
+              label: "Go to ending",
+              effects: [
+                {
+                  op: "goto",
+                  sceneId: "ending",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "ending",
+          type: "ending",
+          title: "Ending",
+          text: ["The end."],
+          choices: [],
+        },
+      ],
+    };
+
+    const actor = makeTestActor();
+    const party: Party = { actors: [actor.id], activeActorId: actor.id };
+    const save = createNewGame(storyPack, 123, party, { [actor.id]: actor }, { id: "test", items: [], weapons: [], armors: [] });
+
+    const updatedSave = applyChoice(storyPack, save, "choice1");
+
+    expect(updatedSave.runtime.currentSceneId).toBe("ending");
+    expect(updatedSave.runtime.storyEnded?.sceneId).toBe("ending");
+    expect(updatedSave.runtime.storyEnded?.storyId).toBe("test_story");
+    expect(updatedSave.runtime.storyEnded?.endedAt).toBeTruthy();
+  });
+
   it("runs choice checks and applies onSuccess/onFailure effects correctly", () => {
     const storyPack: StoryPack = {
       id: "test_story",

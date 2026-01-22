@@ -15,6 +15,51 @@ const makeItem = (id: string, name: string) => ({
 
 describe("effects", () => {
   describe("applyEffect", () => {
+    describe("clearChoiceCheckResults", () => {
+      it("should remove only failed checks when onlyFailed is true", () => {
+        const storyPack = makeTestStoryPack();
+        const actor = makeTestActor();
+        const baseSave = makeTestSave(storyPack, actor);
+        const rng = new FakeRng([]);
+
+        const save = {
+          ...baseSave,
+          runtime: {
+            ...baseSave.runtime,
+            choiceCheckResults: {
+              C_SUCCESS: {
+                checkId: "CHK_SUCCESS",
+                actorId: actor.id,
+                roll: 10,
+                target: 50,
+                success: true,
+                dos: 4,
+                dof: 0,
+                critical: "none",
+                tags: [],
+              },
+              C_FAIL: {
+                checkId: "CHK_FAIL",
+                actorId: actor.id,
+                roll: 90,
+                target: 40,
+                success: false,
+                dos: 0,
+                dof: 5,
+                critical: "none",
+                tags: [],
+              },
+            },
+          },
+        };
+
+        const effect: Effect = { op: "clearChoiceCheckResults", onlyFailed: true };
+        const result = applyEffect(effect, storyPack, save, rng);
+
+        expect(result.save.runtime.choiceCheckResults?.C_SUCCESS).toBeTruthy();
+        expect(result.save.runtime.choiceCheckResults?.C_FAIL).toBeUndefined();
+      });
+    });
     describe("setFlag", () => {
       it("should set a flag to true", () => {
         const storyPack = makeTestStoryPack();

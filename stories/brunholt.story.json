@@ -39,6 +39,7 @@
       "eventBellsOutOfTime": "boolean",
       "eventGrainRot": "boolean",
       "heardClosedHouseBreathing": "boolean",
+      "temporalFilchersDefeated": "boolean",
       "debugCombatCleared": "boolean"
     },
     "counters": {
@@ -82,6 +83,7 @@
       "eventBellsOutOfTime": false,
       "eventGrainRot": false,
       "heardClosedHouseBreathing": false,
+      "temporalFilchersDefeated": false,
       "debugCombatCleared": false
     },
     "counters": {
@@ -322,11 +324,132 @@
           "INI": 30,
           "PER": 30
         },
-        "resources": { "hp": 10, "rf": 0, "peq": 0 },
+        "resources": { "wounds": 0, "rf": 0 },
         "skills": {},
-        "talents": [],
-        "traits": [],
-        "equipment": { "equipped": { "weaponMainId": null, "weaponOffId": null, "armorId": null, "accessoryIds": [] } },
+        "talents": {},
+        "traits": {},
+        "equipment": {
+          "mainHand": null,
+          "offHand": null,
+          "armor": null,
+          "helmet": null,
+          "boots": null,
+          "cloak": null,
+          "necklace": null,
+          "ring1": null,
+          "ring2": null
+        },
+        "status": { "conditions": [], "tempModifiers": [] }
+      },
+      {
+        "id": "NPC_TEMPORAL_FILCHER_1",
+        "name": "Temporal Filcher",
+        "kind": "NPC",
+        "tags": ["ai:ranged=0", "monster"],
+        "stats": {
+          "STR": 35,
+          "TOU": 35,
+          "AGI": 45,
+          "INT": 20,
+          "WIL": 30,
+          "CHA": 10,
+          "WS": 40,
+          "BS": 20,
+          "INI": 40,
+          "PER": 30
+        },
+        "resources": { "wounds": 0, "rf": 0 },
+        "skills": {},
+        "talents": {},
+        "traits": {
+          "trait:natural_weapons": true,
+          "trait:size": { "size": 4 }
+        },
+        "equipment": {
+          "mainHand": null,
+          "offHand": null,
+          "armor": null,
+          "helmet": null,
+          "boots": null,
+          "cloak": null,
+          "necklace": null,
+          "ring1": null,
+          "ring2": null
+        },
+        "status": { "conditions": [], "tempModifiers": [] }
+      },
+      {
+        "id": "NPC_TEMPORAL_FILCHER_2",
+        "name": "Temporal Filcher",
+        "kind": "NPC",
+        "tags": ["ai:ranged=0", "monster"],
+        "stats": {
+          "STR": 35,
+          "TOU": 35,
+          "AGI": 45,
+          "INT": 20,
+          "WIL": 30,
+          "CHA": 10,
+          "WS": 40,
+          "BS": 20,
+          "INI": 40,
+          "PER": 30
+        },
+        "resources": { "wounds": 0, "rf": 0 },
+        "skills": {},
+        "talents": {},
+        "traits": {
+          "trait:natural_weapons": true,
+          "trait:size": { "size": 4 }
+        },
+        "equipment": {
+          "mainHand": null,
+          "offHand": null,
+          "armor": null,
+          "helmet": null,
+          "boots": null,
+          "cloak": null,
+          "necklace": null,
+          "ring1": null,
+          "ring2": null
+        },
+        "status": { "conditions": [], "tempModifiers": [] }
+      },
+      {
+        "id": "NPC_TEMPORAL_FILCHER_3",
+        "name": "Temporal Filcher Antico",
+        "kind": "NPC",
+        "tags": ["ai:ranged=0", "monster"],
+        "stats": {
+          "STR": 45,
+          "TOU": 45,
+          "AGI": 40,
+          "INT": 25,
+          "WIL": 40,
+          "CHA": 10,
+          "WS": 50,
+          "BS": 20,
+          "INI": 45,
+          "PER": 35
+        },
+        "resources": { "wounds": 0, "rf": 0 },
+        "skills": {},
+        "talents": {},
+        "traits": {
+          "trait:natural_weapons": true,
+          "trait:size": { "size": 6 }
+        },
+        "equipment": {
+          "mainHand": null,
+          "offHand": null,
+          "armor": null,
+          "helmet": null,
+          "boots": null,
+          "cloak": null,
+          "necklace": null,
+          "ring1": null,
+          "ring2": null
+        },
         "status": { "conditions": [], "tempModifiers": [] }
       }
     ]
@@ -383,6 +506,31 @@
       }
     ]
   },
+  "grids": [
+    {
+      "id": "woods_underbrush",
+      "width": 13,
+      "height": 11,
+      "defaults": {
+        "walkable": true,
+        "cover": "light",
+        "tileId": "grass"
+      },
+      "cells": {
+        "0,0": { "walkable": false, "tileId": "rock" },
+        "1,0": { "walkable": false, "tileId": "rock" },
+        "11,0": { "walkable": false, "tileId": "rock" },
+        "12,0": { "walkable": false, "tileId": "rock" },
+        "0,10": { "walkable": false, "tileId": "rock" },
+        "1,10": { "walkable": false, "tileId": "rock" },
+        "11,10": { "walkable": false, "tileId": "rock" },
+        "12,10": { "walkable": false, "tileId": "rock" },
+        "4,4": { "walkable": true, "tileId": "forest", "cover": "heavy" },
+        "8,5": { "walkable": true, "tileId": "forest", "cover": "heavy" },
+        "6,7": { "walkable": true, "tileId": "forest", "cover": "heavy" }
+      }
+    }
+  ],
   "startSceneId": "S0_BRIEFING",
   "scenes": [
     {
@@ -769,7 +917,32 @@
             {
               "id": "CHK_PER_WOODS",
               "kind": "single",
-              "difficulty": "Hard",
+              "difficulty": "Hellish",
+              "difficultyByCondition": {
+                "default": "Hellish",
+                "rules": [
+                  {
+                    "when": { "op": "counterGte", "path": "counters.loopCount", "value": 5 },
+                    "difficulty": "Challenging"
+                  },
+                  {
+                    "when": { "op": "counterGte", "path": "counters.loopCount", "value": 4 },
+                    "difficulty": "Hard"
+                  },
+                  {
+                    "when": { "op": "counterGte", "path": "counters.loopCount", "value": 3 },
+                    "difficulty": "Very Hard"
+                  },
+                  {
+                    "when": { "op": "counterGte", "path": "counters.loopCount", "value": 2 },
+                    "difficulty": "Arduous"
+                  },
+                  {
+                    "when": { "op": "counterGte", "path": "counters.loopCount", "value": 1 },
+                    "difficulty": "Punishing"
+                  }
+                ]
+              },
               "successText": [
                 "Scorgi un simbolo inciso tra le radici: il bosco conserva tracce di un rituale."
               ],
@@ -792,6 +965,10 @@
                   "op": "addCounter",
                   "path": "counters.instability",
                   "value": 1
+                },
+                {
+                  "op": "goto",
+                  "sceneId": "S3_WOODS_AMBUSH"
                 }
               ],
               "key": "PER"
@@ -815,6 +992,7 @@
       "id": "S3_WOODS_CREAK",
       "type": "narration",
       "title": "Dove il tempo scricchiola",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Tra le radici trovi una pietra incisa: un simbolo antico, più vecchio del villaggio.",
         "Il sentiero continua verso un santuario dimenticato."
@@ -878,9 +1056,45 @@
       ]
     },
     {
+      "id": "S3_WOODS_AMBUSH",
+      "type": "challenge",
+      "title": "Agguato nel Bosco",
+      "text": [
+        "Dal nulla emergono creature fuori tempo: filamenti di ombre che si avventano su di te.",
+        "Il bosco sembra trattenere il respiro mentre l'aria si fa più fredda."
+      ],
+      "combatEnd": {
+        "onVictory": [
+          { "op": "grantXp", "actorId": "PC_1", "amount": 1 },
+          { "op": "setFlag", "path": "flags.temporalFilchersDefeated", "value": true }
+        ]
+      },
+      "onEnter": [
+        {
+          "op": "combatStart",
+          "participantIds": ["NPC_TEMPORAL_FILCHER_1", "NPC_TEMPORAL_FILCHER_2", "NPC_TEMPORAL_FILCHER_3"],
+          "gridId": "woods_underbrush",
+          "placements": [
+            { "actorId": "NPC_TEMPORAL_FILCHER_1", "x": 10, "y": 6 },
+            { "actorId": "NPC_TEMPORAL_FILCHER_2", "x": 10, "y": 8 },
+            { "actorId": "NPC_TEMPORAL_FILCHER_3", "x": 7, "y": 7 }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "C3A_RETURN_PATH",
+          "label": "Ritrova il sentiero nel bosco",
+          "conditions": [{ "op": "flag", "path": "flags.temporalFilchersDefeated", "value": true }],
+          "effects": [{ "op": "goto", "sceneId": "S2_WOODS_PATH" }]
+        }
+      ]
+    },
+    {
       "id": "S2_CLOSED_HOUSE",
       "type": "narration",
       "title": "La casa chiusa",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Le assi sono vecchie ma solide. Senti odore di resina, come se fossero state inchiodate ieri.",
         "Ti avvicini alle assi. Senti uno strano rumore, come se qualcuno, da dentro, respirasse?!"
@@ -995,6 +1209,7 @@
       "id": "S2_CLOSED_HOUSE_INSIDE",
       "type": "narration",
       "title": "Dentro la casa chiusa",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Odore di polvere e simboli protettivi. Una stanza vuota. Poi lo vedi: un letto da bambino.",
         "È come se qualcuno avesse provato a preservare un futuro che non doveva esistere."
@@ -1033,6 +1248,7 @@
       "id": "S2_WELL",
       "type": "narration",
       "title": "Il pozzo",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Ti affacci. L’acqua è scura, immobile. Ma non riflette il cielo.",
         "Riflette... un’alba più vecchia, come un ricordo."
@@ -1225,6 +1441,7 @@
       "id": "S2_HARL",
       "type": "dialogue",
       "title": "Harl",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Harl ti accoglie con una frase precisa, come letta da un registro.",
         "“Hey avventuriero, benvenuto in Brùnholt. Sei venuto per darci una mano nel raccolto?”",
@@ -1369,6 +1586,7 @@
       "id": "S2_NIGHTFALL",
       "type": "narration",
       "title": "Tramonto",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Le campane suonano. Il sole cala. Il villaggio sembra trattenere il respiro.",
         "La notte arriva… e poi, buio assoluto."
@@ -1378,6 +1596,28 @@
           "id": "C2_END_DAY",
           "label": "…",
           "effects": [
+            {
+              "op": "setFlag",
+              "path": "flags.loopAware",
+              "value": true
+            },
+            {
+              "op": "addCounter",
+              "path": "counters.loopCount",
+              "value": 1
+            },
+            {
+              "op": "addCounter",
+              "path": "counters.instability",
+              "value": 1
+            },
+            {
+              "op": "clearChoiceCheckResults",
+              "onlyFailed": true
+            },
+            {
+              "op": "fireWorldEvents"
+            },
             {
               "op": "goto",
               "sceneId": "S3_RESET"
@@ -1390,31 +1630,8 @@
       "id": "S3_RESET",
       "type": "system",
       "title": "Reset",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": ["Ti risvegli all’alba. Nello stesso punto. Stesso cielo. Stesse persone.", "Questa volta, tu ricordi."],
-      "onEnter": [
-        {
-          "op": "setFlag",
-          "path": "flags.loopAware",
-          "value": true
-        },
-        {
-          "op": "addCounter",
-          "path": "counters.loopCount",
-          "value": 1
-        },
-        {
-          "op": "addCounter",
-          "path": "counters.instability",
-          "value": 1
-        },
-        {
-          "op": "clearChoiceCheckResults",
-          "onlyFailed": true
-        },
-        {
-          "op": "fireWorldEvents"
-        }
-      ],
       "choices": [
         {
           "id": "C3_LOOP_PLAN",
@@ -1432,6 +1649,7 @@
       "id": "S4_INVESTIGATION_HUB",
       "type": "hub",
       "title": "Le Crepe",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Ogni giorno ripetuto ti permette di provare strade nuove. Ma la Trama si irrita.",
         "Scegli dove colpire il loop: casa chiusa, pozzo, granaio, bosco, o santuario."
@@ -1525,6 +1743,7 @@
       "id": "S6_SHRINE",
       "type": "narration",
       "title": "Il Santuario Dimenticato",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Un santuario più antico di Brùnholt. Incisioni consumate parlano di ‘realtà minori’ e ‘nodi’.",
         "Capisci che qualcuno, molto tempo fa, sapeva isolare un luogo dal flusso causale, creando uno spazio separato."
@@ -1573,6 +1792,7 @@
       "id": "S6_RITUAL_SITE",
       "type": "narration",
       "title": "Il Cuore del Loop",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Sotto radici contorte e pietre antiche, trovi un cerchio di rune consumate.",
         "La Trama qui è tesa come una corda. Qualcosa la tiene ferma."
@@ -1671,6 +1891,7 @@
       "id": "S7_WITCH",
       "type": "dialogue",
       "title": "Hroth, la Strega della Valle",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "La trovi: viva e morta, occhi lucidi di stanchezza. Lei ti aspettava.",
         "“Se il tempo riparte, moriremo tutti. Se resta fermo, almeno esistiamo.”",
@@ -1785,6 +2006,7 @@
       "id": "S8_THIRD_WAY",
       "type": "challenge",
       "title": "La Terza Via",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Vuoi deviare il rituale: liberare Brùnholt senza ucciderla.",
         "È un’operazione sulla Trama: se sbagli, la valle collassa."
@@ -1853,6 +2075,7 @@
       "id": "END_BREAK",
       "type": "ending",
       "title": "Finale: Il Tempo Riparte",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Il rituale si spezza. Il vento torna. Il cielo cambia.",
         "Brùnholt invecchia di colpo. La valle paga il conto degli anni negati.",
@@ -1861,7 +2084,7 @@
       ],
       "rewards": [
         {
-          "type": "peq",
+          "type": "fatePoint",
           "amount": 1
         },
         {
@@ -1882,6 +2105,7 @@
       "id": "END_STABILIZE",
       "type": "ending",
       "title": "Finale: L’Eccezione Accettata",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Stabilizzi il nodo. Hroth si spegne come una candela serena.",
         "Brùnholt resta fuori dal tempo: un santuario vivente, isolato e integro.",
@@ -1909,6 +2133,7 @@
       "id": "END_THIRD_SUCCESS",
       "type": "ending",
       "title": "Finale: Deviazione",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "Il rituale cambia forma. Brùnholt riparte lentamente, come un cuore che ricomincia a battere.",
         "Il tempo riprende il suo corso, ma il villaggio riprende a vivere esattamente da dove si era fermato, senza invecchiare di colpo e morire.",
@@ -1939,6 +2164,7 @@
       "id": "END_THIRD_FAIL",
       "type": "ending",
       "title": "Finale: Collasso",
+      "backgroundImage": { "kind": "storyAsset" },
       "text": [
         "La Trama si lacera. Il villaggio svanisce come un pensiero dimenticato.",
         "Resta solo grano morto e silenzio. Torni alla Soglia con un peso addosso.",
@@ -2002,10 +2228,9 @@
                 },
                 {
                   "op": "combatStart",
-                  "participantIds": ["PC_1", "NPC_DUMMY", "NPC_DUMMY_2"],
+                  "participantIds": ["NPC_DUMMY", "NPC_DUMMY_2"],
                   "gridId": "arena_01",
                   "placements": [
-                    { "actorId": "PC_1", "x": 2, "y": 7 },
                     { "actorId": "NPC_DUMMY", "x": 9, "y": 6 },
                     { "actorId": "NPC_DUMMY_2", "x": 9, "y": 8 }
                   ]
