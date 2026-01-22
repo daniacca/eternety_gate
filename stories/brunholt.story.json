@@ -871,7 +871,7 @@
           "effects": [
             {
               "op": "goto",
-              "sceneId": "S2_RETURN_SQUARE"
+              "sceneId": "S2_WOODS_PATH"
             }
           ]
         }
