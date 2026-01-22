@@ -1227,7 +1227,9 @@
       "title": "Harl",
       "text": [
         "Harl ti accoglie con una frase precisa, come letta da un registro.",
-        "Parla del raccolto, della valle, e del fatto che oggi “andrà tutto bene”."
+        "“Hey avventuriero, benvenuto in Brùnholt. Sei venuto per darci una mano nel raccolto?”",
+        "“Vedi, quest'anno il tempo non ci è stato d'aiuto all'inizio, ma poi, sembra proprio che tutto si sia aggiustato!”",
+        "“Nei nostri campi e in tutta la valle, la pioggia e il sole hanno giocato a nostro favore!”"
       ],
       "choices": [
         {
@@ -1249,10 +1251,6 @@
                   "op": "addCounter",
                   "path": "counters.suspicion",
                   "value": 2
-                },
-                {
-                  "op": "goto",
-                  "sceneId": "S2_RETURN_SQUARE"
                 }
               ],
               "onFailure": [
