@@ -2,6 +2,7 @@ import type { StoryPack, GameSave, ActorId, Effect } from "../types";
 import { RNG } from "../rng";
 import { distanceChebyshev } from "./movement";
 import { getActorWeapon } from "./equipment";
+import { isNaturalWeaponId } from "../characters/naturalWeapons";
 import { hasCondition } from "../conditions";
 import { isActorAlive } from "../characters/actors";
 import type { ContentPack } from "../../content/types";
@@ -69,6 +70,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
 
   // Get NPC weapon to determine attack mode and range
   const { weapon, weaponId: npcWeaponId } = getActorWeapon(save, npc);
+  const npcWeaponIdForAttack = isNaturalWeaponId(npcWeaponId) ? null : npcWeaponId;
   const npcHasRanged = weapon?.kind === "RANGED";
   const weaponRange = weapon?.range;
 
@@ -86,7 +88,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
       attackerId: npcId,
       defenderId: targetId,
       mode: "MELEE",
-      weaponId: npcWeaponId === "unarmed" ? null : npcWeaponId,
+      weaponId: npcWeaponIdForAttack === "unarmed" ? null : npcWeaponIdForAttack,
       defense: {
         allowParry: true,
         allowDodge: true,
@@ -102,7 +104,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
       attackerId: npcId,
       defenderId: targetId,
       mode: "RANGED",
-      weaponId: npcWeaponId === "unarmed" ? null : npcWeaponId,
+      weaponId: npcWeaponIdForAttack === "unarmed" ? null : npcWeaponIdForAttack,
       modifiers: {
         rangeBand: rangeBand as any,
       },

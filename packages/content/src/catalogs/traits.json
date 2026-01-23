@@ -125,6 +125,22 @@
     ]
   },
   {
+    "id": "trait:deadly_natural_weapons",
+    "name": "Deadly Natural Weapons",
+    "grants": [
+      {
+        "type": "unlockAction",
+        "actionId": "combat:naturalAttack"
+      },
+      {
+        "type": "modifier",
+        "key": "combat.hasNaturalWeapons",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
     "id": "trait:regeneration",
     "name": "Rigenerazione",
     "params": {

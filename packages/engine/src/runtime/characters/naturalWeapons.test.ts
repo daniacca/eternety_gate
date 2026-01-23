@@ -61,7 +61,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 0, sides: 0, flat: 1, pen: 0 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "fixed", add: 1, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 0,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should return profile for size <= 4", () => {
@@ -76,7 +85,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 1, sides: 5, flat: 0, pen: 1 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "half", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 1,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should return profile for size 5", () => {
@@ -91,7 +109,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 1, sides: 10, flat: 0, pen: 2 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 2,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should return profile for size <= 7", () => {
@@ -106,7 +133,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 2, sides: 10, flat: 0, pen: 4 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "double", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 4,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should return profile for size > 7", () => {
@@ -121,7 +157,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 3, sides: 10, flat: 0, pen: 6 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "triple", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 6,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should default to size 4 when no size trait is present", () => {
@@ -135,7 +180,16 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 1, sides: 5, flat: 0, pen: 1 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "half", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 1,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
     });
 
     it("should default to size 4 when size trait has invalid structure", () => {
@@ -150,7 +204,31 @@ describe("naturalWeapons", () => {
       const catalogs = createCatalogsWithNaturalWeapons();
 
       const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
-      expect(profile).toEqual({ diceCount: 1, sides: 5, flat: 0, pen: 1 });
+      expect(profile).toEqual({
+        id: "weapon:natural:PC_1",
+        name: "Natural Weapons",
+        kind: "MELEE",
+        damage: { tier: "half", add: 0, bonus: "SB" },
+        damageType: "rendering",
+        penetration: 1,
+        handedness: "oneHand",
+        qualities: [{ id: "primitive", rank: 7 }],
+      });
+    });
+
+    it("should omit primitive quality for deadly natural weapons", () => {
+      const actor = makeTestActor({
+        id: "PC_1",
+        traits: {
+          "trait:size": { size: 4 },
+          "trait:deadly_natural_weapons": {},
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const catalogs = createCatalogsWithNaturalWeapons();
+
+      const profile = getNaturalWeaponProfile(save, catalogs, "PC_1");
+      expect(profile?.qualities ?? []).toEqual([]);
     });
   });
 });

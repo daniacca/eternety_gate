@@ -9,6 +9,11 @@ import { getEquippedWeaponId } from "../../characters/inventory";
 import { hasWeaponQuality } from "../../weaponQualities";
 import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { hasUnlockedAction } from "../../characters/actions";
+import {
+  getNaturalWeaponProfile,
+  getNaturalWeaponProfileFromActor,
+  isNaturalWeaponId,
+} from "../../characters/naturalWeapons";
 
 const TALENT_TWO_WEAPON_WIELDER = "talent:two_weapon_wielder";
 const TALENT_AMBIDEXTROUS = "talent:ambidextrous";
@@ -173,6 +178,27 @@ export function combatSwiftAttack(
     : [effect.weaponId ?? mainWeaponId ?? offWeaponId ?? getEquippedWeaponId(attacker)];
   if (weaponIdsToUse.length === 0 || weaponIdsToUse[0] === undefined) {
     weaponIdsToUse = [null];
+  }
+  if (!canDualWield && !mainWeaponId && !offWeaponId && weaponIdsToUse.length === 1) {
+    const requestedWeaponId = weaponIdsToUse[0];
+    const shouldUseNatural =
+      !requestedWeaponId ||
+      isNaturalWeaponId(requestedWeaponId) ||
+      !currentSave.weaponsById?.[requestedWeaponId];
+    if (shouldUseNatural) {
+      const naturalWeapon =
+        catalogs ? getNaturalWeaponProfile(currentSave, catalogs, attacker.id) : getNaturalWeaponProfileFromActor(attacker);
+      if (naturalWeapon) {
+        currentSave = {
+          ...currentSave,
+          weaponsById: {
+            ...(currentSave.weaponsById || {}),
+            [naturalWeapon.id]: naturalWeapon,
+          },
+        };
+        weaponIdsToUse = [naturalWeapon.id];
+      }
+    }
   }
   const dualWieldPenalty = canDualWield ? dualPenalty ?? 0 : 0;
 

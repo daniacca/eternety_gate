@@ -13,6 +13,7 @@ import { hasTrait } from "../characters/prerequisites";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
 import { getUntouchableAuraImpact } from "../combat/untouchableAura";
 import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
+import { hasNaturalWeapons } from "../characters/naturalWeapons";
 import { resolveForceFieldBlock } from "../combat/forceField";
 import { hasWeaponQuality } from "../weaponQualities";
 import {
@@ -190,7 +191,8 @@ export function computeAttackTarget(
   const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
   const isAttackerUnarmed = !attackerWeaponId || attackerWeaponId === "unarmed";
   const defenderWeaponId = getEquippedWeaponId(defender);
-  const isDefenderArmed = defenderWeaponId && defenderWeaponId !== "unarmed";
+  const defenderHasNaturalWeapons = hasNaturalWeapons(save, catalogs, defender.id);
+  const isDefenderArmed = (defenderWeaponId && defenderWeaponId !== "unarmed") || defenderHasNaturalWeapons;
   if (isAttackerUnarmed && isDefenderArmed) {
     combatModifier -= 20;
     modifierTags.push("combat:mod:unarmed=-20");
@@ -431,7 +433,6 @@ export function performCombatAttackCheck(
   const parryWeapon = defenderWeapon?.kind === "MELEE" ? defenderWeapon : null;
   const hasMeleeWeapon = defenderWeapon?.kind === "MELEE";
   const hasShield = hasShieldEquipped(save, defender.id);
-  const hasNaturalWeapons = defender.tags?.includes("natural_weapon") || defender.traits?.["trait:natural_weapons"] !== undefined;
   const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
   const attackerWeapon =
     attackerWeaponId && attackerWeaponId !== "unarmed" ? save.weaponsById?.[attackerWeaponId] : null;
@@ -441,7 +442,7 @@ export function performCombatAttackCheck(
   const canParry =
     turnCounter >= disabledUntil &&
     check.defense.allowParry &&
-    (hasMeleeWeapon || hasShield || hasNaturalWeapons) &&
+    (hasMeleeWeapon || hasShield) &&
     !attackHasFlexible &&
     !parryBlockedByUnwieldy;
   const canDodge = check.defense.allowDodge;
@@ -662,8 +663,7 @@ export function performCombatAttackCheck(
     if (defenseType === "parry" && defenseResult.success) {
       const parryHasMagicField = hasWeaponQuality(parryWeapon, "magic_field") || hasWeaponQuality(parryWeapon, "force");
       if (parryHasMagicField) {
-        const attackerHasNaturalWeapons =
-          attacker.tags?.includes("natural_weapon") || attacker.traits?.["trait:natural_weapons"] !== undefined;
+        const attackerHasNaturalWeapons = hasNaturalWeapons(save, catalogs, attacker.id);
         const attackerWeaponIdForDestruction = attackerWeaponId ?? getEquippedWeaponId(attacker);
         const attackerWeaponForDestruction =
           attackerWeaponIdForDestruction && attackerWeaponIdForDestruction !== "unarmed"

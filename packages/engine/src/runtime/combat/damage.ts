@@ -12,6 +12,7 @@ import { applyDamageToActor } from "./criticalDamage";
 import { getModifierTotal } from "../characters/modifiers";
 import { trackCombatDamage } from "./damageTracking";
 import { hasTrait } from "../characters/prerequisites";
+import { hasNaturalWeapons } from "../characters/naturalWeapons";
 import { getMagicPower } from "../magic/pm";
 import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
 
@@ -244,8 +245,7 @@ export function applyCombatDamageIfHit(
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
   if (isUnarmed || useFallbackWeapon) {
-    const hasNaturalWeapon =
-      attacker.tags?.includes("natural_weapon") || (attacker.traits && "trait:natural_weapons" in attacker.traits);
+    const hasNaturalWeapon = hasNaturalWeapons(save, catalogs, attacker.id);
     if (!hasNaturalWeapon) {
       effectiveSoak = soak * 2;
     }

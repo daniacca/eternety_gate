@@ -1,13 +1,79 @@
-import type { GameSave, ActorId } from "../types";
+import type { GameSave, ActorId, Actor, Weapon, WeaponId, WeaponDamageTier } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getModifierTotal } from "./modifiers";
 
-export type NaturalWeaponProfile = {
-  diceCount: number;
-  sides: number;
-  flat: number;
-  pen: number;
-};
+export type NaturalWeaponProfile = Weapon;
+
+const NATURAL_WEAPON_TRAIT = "trait:natural_weapons";
+const DEADLY_NATURAL_WEAPON_TRAIT = "trait:deadly_natural_weapons";
+const NATURAL_WEAPON_ID_PREFIX = "weapon:natural:";
+
+export function getNaturalWeaponId(actorId: ActorId): WeaponId {
+  return `${NATURAL_WEAPON_ID_PREFIX}${actorId}`;
+}
+
+export function isNaturalWeaponId(weaponId: string | null | undefined): boolean {
+  return typeof weaponId === "string" && weaponId.startsWith(NATURAL_WEAPON_ID_PREFIX);
+}
+
+function hasNaturalWeaponsFlag(save: GameSave, catalogs: CharacterCatalogs | undefined, actor: Actor): boolean {
+  if (actor.tags?.includes("natural_weapon")) return true;
+  if (actor.traits?.[NATURAL_WEAPON_TRAIT] !== undefined || actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined) {
+    return true;
+  }
+  if (!catalogs) return false;
+  return getModifierTotal(save, catalogs, actor.id, "combat.hasNaturalWeapons" as any) > 0;
+}
+
+function hasDeadlyNaturalWeapons(actor: Actor): boolean {
+  return actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined;
+}
+
+function resolveNaturalWeaponSize(actor: Actor): number {
+  const sizeParams = actor.traits?.["trait:size"];
+  return typeof sizeParams === "object" && typeof sizeParams.size === "number" ? sizeParams.size : 4;
+}
+
+function tierFromSize(size: number): { tier: WeaponDamageTier; add: number; penetration: number } {
+  if (size <= 2) {
+    return { tier: "fixed", add: 1, penetration: 0 };
+  }
+  if (size <= 4) {
+    return { tier: "half", add: 0, penetration: 1 };
+  }
+  if (size === 5) {
+    return { tier: "single", add: 0, penetration: 2 };
+  }
+  if (size <= 7) {
+    return { tier: "double", add: 0, penetration: 4 };
+  }
+  return { tier: "triple", add: 0, penetration: 6 };
+}
+
+function buildNaturalWeapon(actor: Actor, weaponId: WeaponId, deadly: boolean): Weapon {
+  const size = resolveNaturalWeaponSize(actor);
+  const { tier, add, penetration } = tierFromSize(size);
+  return {
+    id: weaponId,
+    name: "Natural Weapons",
+    kind: "MELEE",
+    damage: {
+      tier,
+      add,
+      bonus: "SB",
+    },
+    damageType: "rendering",
+    penetration,
+    handedness: "oneHand",
+    qualities: deadly ? [] : [{ id: "primitive", rank: 7 }],
+  };
+}
+
+export function hasNaturalWeapons(save: GameSave, catalogs: CharacterCatalogs | undefined, actorId: ActorId): boolean {
+  const actor = save.actorsById[actorId];
+  if (!actor) return false;
+  return hasNaturalWeaponsFlag(save, catalogs, actor);
+}
 
 /**
  * Gets natural weapon profile based on actor's size trait
@@ -21,26 +87,21 @@ export function getNaturalWeaponProfile(
   const actor = save.actorsById[actorId];
   if (!actor) return null;
 
-  const hasNaturalWeapons = getModifierTotal(save, catalogs, actorId, "combat.hasNaturalWeapons" as any) > 0;
-  if (!hasNaturalWeapons) return null;
+  if (!hasNaturalWeaponsFlag(save, catalogs, actor)) return null;
 
-  // Get size from trait
-  const sizeParams = actor.traits["trait:size"];
-  const size = (sizeParams && typeof sizeParams === "object" && typeof sizeParams.size === "number")
-    ? sizeParams.size
-    : 4; // Default to Average
+  const weaponId = getNaturalWeaponId(actorId);
+  const deadly = hasDeadlyNaturalWeapons(actor);
+  return buildNaturalWeapon(actor, weaponId, deadly);
+}
 
-  // Determine profile based on size
-  if (size <= 2) {
-    return { diceCount: 0, sides: 0, flat: 1, pen: 0 };
-  } else if (size <= 4) {
-    return { diceCount: 1, sides: 5, flat: 0, pen: 1 };
-  } else if (size === 5) {
-    return { diceCount: 1, sides: 10, flat: 0, pen: 2 };
-  } else if (size <= 7) {
-    return { diceCount: 2, sides: 10, flat: 0, pen: 4 };
-  } else {
-    return { diceCount: 3, sides: 10, flat: 0, pen: 6 };
-  }
+export function getNaturalWeaponProfileFromActor(actor: Actor): NaturalWeaponProfile | null {
+  if (!actor) return null;
+  const hasNatural = actor.tags?.includes("natural_weapon") ||
+    actor.traits?.[NATURAL_WEAPON_TRAIT] !== undefined ||
+    actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined;
+  if (!hasNatural) return null;
+  const deadly = hasDeadlyNaturalWeapons(actor);
+  const weaponId = getNaturalWeaponId(actor.id);
+  return buildNaturalWeapon(actor, weaponId, deadly);
 }
 

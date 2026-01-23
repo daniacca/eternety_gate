@@ -55,6 +55,24 @@ describe("equipment", () => {
       expect(result.name).toBe("Sword");
     });
 
+    it("should return natural weapon when actor has natural weapons trait", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "PC_1",
+        traits: {
+          "trait:size": { size: 4 },
+          "trait:natural_weapons": {},
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const result = getActorWeapon(save, actor);
+
+      expect(result.weaponId).toBe("weapon:natural:PC_1");
+      expect(result.weapon?.damageType).toBe("rendering");
+      expect(result.weapon?.qualities).toEqual([{ id: "primitive", rank: 7 }]);
+    });
+
     it("should use mainHand from equipment when not explicitly provided", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {

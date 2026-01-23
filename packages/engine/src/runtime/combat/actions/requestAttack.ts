@@ -16,6 +16,7 @@ import {
 } from "../../characters/inventory";
 import { getWeaponQualityRank, hasWeaponQuality } from "../../weaponQualities";
 import { isUntouchable } from "../../characters/untouchable";
+import { getNaturalWeaponProfile, getNaturalWeaponProfileFromActor, isNaturalWeaponId } from "../../characters/naturalWeapons";
 
 const TALENT_TWO_WEAPON_WIELDER = "talent:two_weapon_wielder";
 const TALENT_AMBIDEXTROUS = "talent:ambidextrous";
@@ -269,6 +270,44 @@ export function combatRequestAttack(
     };
   };
 
+  // Load catalogs from storyPack (if available) or use empty catalogs
+  const catalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+
+  // If no equipped weapons and attacker has natural weapons, use them instead of unarmed
+  if (effect.mode === "MELEE" && !mainWeaponId && !offWeaponId && weaponIdsToUse.length === 1) {
+    const requestedWeaponId = weaponIdsToUse[0];
+    const shouldUseNatural =
+      !requestedWeaponId ||
+      isNaturalWeaponId(requestedWeaponId) ||
+      !currentSave.weaponsById?.[requestedWeaponId];
+    if (shouldUseNatural) {
+      const naturalWeapon =
+        catalogs ? getNaturalWeaponProfile(currentSave, catalogs, effect.attackerId) : getNaturalWeaponProfileFromActor(attacker);
+      if (naturalWeapon) {
+        const weaponsById = {
+          ...(currentSave.weaponsById || {}),
+          [naturalWeapon.id]: naturalWeapon,
+        };
+        currentSave = {
+          ...currentSave,
+          weaponsById,
+        };
+        weaponIdsToUse = [naturalWeapon.id];
+      }
+    }
+  }
+
   const primaryWeaponId = weaponIdsToUse[0] ?? null;
   const primaryCheck = buildCombatCheck(primaryWeaponId, "");
 
@@ -369,20 +408,6 @@ export function combatRequestAttack(
   const { save: saveWithSeq, seq } = nextRuntimeSeq(currentSave);
   const resolutionId = `res:${seq}`;
   currentSave = saveWithSeq;
-
-  // Load catalogs from storyPack (if available) or use empty catalogs
-  const catalogs =
-    storyPack?.skills || storyPack?.talents || storyPack?.traits
-      ? loadCharacterCatalogs({
-          id: storyPack.id,
-          items: storyPack.items || [],
-          weapons: storyPack.weapons || [],
-          armors: storyPack.armors || [],
-          skills: storyPack.skills || [],
-          talents: storyPack.talents || [],
-          traits: storyPack.traits || [],
-        })
-      : undefined;
 
   const emittedEffects: Effect[] = [];
   let aimConsumed = false;
