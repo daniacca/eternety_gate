@@ -618,9 +618,7 @@
                 "Noti l’assenza totale di vento: il raccolto non si muove, come se l’aria fosse immobile.",
                 "Il silenzio ti mette a disagio."
               ],
-              "failureText": [
-                "Non cogli nulla di particolare. Il villaggio sembra calmo, fin troppo."
-              ],
+              "failureText": ["Non cogli nulla di particolare. Il villaggio sembra calmo, fin troppo."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -674,9 +672,7 @@
                 "Non una parola fuori tema, né una sulla valle, è come se il mondo al di fuori del villaggio non esistesse.",
                 "Citi un dettaglio fuori posto e noti un'esitazione, una strana espressione sui loro volti."
               ],
-              "failureText": [
-                "Risposte cortesi, troppo perfette. Non ottieni nulla di utile."
-              ],
+              "failureText": ["Risposte cortesi, troppo perfette. Non ottieni nulla di utile."],
               "options": [
                 {
                   "difficulty": "Challenging",
@@ -828,9 +824,7 @@
                 "Tra la polvere trovi un segno inciso su una trave: un nodo della Trama, recente.",
                 "Percepisci l'effetto di un anomalia, che però non sembra originarsi in questo preciso punto dello spazio."
               ],
-              "failureText": [
-                "Solo polvere e sacchi identici. Nessun indizio evidente."
-              ],
+              "failureText": ["Solo polvere e sacchi identici. Nessun indizio evidente."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -943,12 +937,8 @@
                   }
                 ]
               },
-              "successText": [
-                "Scorgi un simbolo inciso tra le radici: il bosco conserva tracce di un rituale."
-              ],
-              "failureText": [
-                "Il bosco ti confonde. Perdi l'orientamento per un momento."
-              ],
+              "successText": ["Scorgi un simbolo inciso tra le radici: il bosco conserva tracce di un rituale."],
+              "failureText": ["Il bosco ti confonde. Perdi l'orientamento per un momento."],
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1021,9 +1011,7 @@
                 "Tuttavia, è molto simile a due rune che conosci: una parte indica la chiusura, viene tipicamente utilizzata nei cerchi magici per ereggere barriere di protezione.",
                 "L'altra parte sembra indicare il caos, il disordine in aumento."
               ],
-              "failureText": [
-                "Il simbolo sembra essere un codice, ma non riesci a decifrarlo."
-              ],
+              "failureText": ["Il simbolo sembra essere un codice, ma non riesci a decifrarlo."],
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1074,6 +1062,7 @@
           "op": "combatStart",
           "participantIds": ["NPC_TEMPORAL_FILCHER_1", "NPC_TEMPORAL_FILCHER_2", "NPC_TEMPORAL_FILCHER_3"],
           "gridId": "woods_underbrush",
+          "partyPlacement": { "kind": "area", "x": 1, "y": 1, "width": 2, "height": 2 },
           "placements": [
             { "actorId": "NPC_TEMPORAL_FILCHER_1", "x": 10, "y": 6 },
             { "actorId": "NPC_TEMPORAL_FILCHER_2", "x": 10, "y": 8 },
@@ -1159,12 +1148,8 @@
               "id": "CHK_FOR_FORCE",
               "kind": "single",
               "difficulty": "Hard",
-              "successText": [
-                "Le assi cedono con uno scricchiolio secco. L'aria dentro è fredda e immobile."
-              ],
-              "failureText": [
-                "Le assi resistono; il legno vibra come se fosse protetto."
-              ],
+              "successText": ["Le assi cedono con uno scricchiolio secco. L'aria dentro è fredda e immobile."],
+              "failureText": ["Le assi resistono; il legno vibra come se fosse protetto."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1263,12 +1248,8 @@
               "kind": "magicEffect",
               "effectId": "VATES_DETECT_MAGIC",
               "castingNumberDoS": 1,
-              "successText": [
-                "La Trama vibra sotto la superficie: il pozzo riflette un cielo che non esiste."
-              ],
-              "failureText": [
-                "La Trama ti respinge. Un brivido attraversa l'acqua."
-              ],
+              "successText": ["La Trama vibra sotto la superficie: il pozzo riflette un cielo che non esiste."],
+              "failureText": ["La Trama ti respinge. Un brivido attraversa l'acqua."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1313,12 +1294,8 @@
               "kind": "magicEffect",
               "effectId": "VATES_WELL_VISION",
               "castingNumberDoS": 2,
-              "successText": [
-                "Un futuro possibile si sovrappone all'acqua: un bambino che non dovrebbe esistere."
-              ],
-              "failureText": [
-                "La visione si spezza in frammenti. La Trama si irrigidisce."
-              ],
+              "successText": ["Un futuro possibile si sovrappone all'acqua: un bambino che non dovrebbe esistere."],
+              "failureText": ["La visione si spezza in frammenti. La Trama si irrigidisce."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1382,12 +1359,8 @@
               "id": "CHK_SAG_CHILD",
               "kind": "single",
               "difficulty": "Routine",
-              "successText": [
-                "Il bambino non distoglie lo sguardo. Sembra riconoscerti."
-              ],
-              "failureText": [
-                "Ti sfugge tra la folla, come se non ti avesse visto."
-              ],
+              "successText": ["Il bambino non distoglie lo sguardo. Sembra riconoscerti."],
+              "failureText": ["Ti sfugge tra la folla, come se non ti avesse visto."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -1457,12 +1430,8 @@
               "id": "CHK_SAG_HARL",
               "kind": "single",
               "difficulty": "Hard",
-              "successText": [
-                "Per un attimo Harl si blocca, come se il copione si fosse spezzato."
-              ],
-              "failureText": [
-                "Harl risponde senza esitazione, sempre con lo stesso sorriso."
-              ],
+              "successText": ["Per un attimo Harl si blocca, come se il copione si fosse spezzato."],
+              "failureText": ["Harl risponde senza esitazione, sempre con lo stesso sorriso."],
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1547,12 +1516,8 @@
               "id": "CHK_CAR_EIRIK",
               "kind": "single",
               "difficulty": "Routine",
-              "successText": [
-                "Eirik si avvicina e ti sussurra: \"Sei venuto per salvarci?\""
-              ],
-              "failureText": [
-                "Eirik abbassa lo sguardo e resta in silenzio."
-              ],
+              "successText": ["Eirik si avvicina e ti sussurra: \"Sei venuto per salvarci?\""],
+              "failureText": ["Eirik abbassa lo sguardo e resta in silenzio."],
               "onSuccess": [
                 {
                   "op": "addCounter",
@@ -1860,9 +1825,7 @@
               "successText": [
                 "Riesci a intravedere una deviazione della Trama: agendo insieme all'origine del rituale, è possibile riuscire a deviare la trama in modo controllato."
               ],
-              "failureText": [
-                "Non riesci ancora a vedere un modo per deviare la Trama."
-              ],
+              "failureText": ["Non riesci ancora a vedere un modo per deviare la Trama."],
               "onSuccess": [
                 {
                   "op": "setFlag",
@@ -2019,12 +1982,8 @@
             {
               "id": "CHK_THIRD_WAY_MASTER",
               "kind": "sequence",
-              "successText": [
-                "La Trama si tende come una corda. Riesci a incidere la deviazione senza spezzarla."
-              ],
-              "failureText": [
-                "La Trama oppone resistenza. Senti il nodo vibrare in modo instabile."
-              ],
+              "successText": ["La Trama si tende come una corda. Riesci a incidere la deviazione senza spezzarla."],
+              "failureText": ["La Trama oppone resistenza. Senti il nodo vibrare in modo instabile."],
               "steps": [
                 {
                   "label": "Canalizzazione",
@@ -2230,6 +2189,7 @@
                   "op": "combatStart",
                   "participantIds": ["NPC_DUMMY", "NPC_DUMMY_2"],
                   "gridId": "arena_01",
+                  "partyPlacement": { "kind": "area", "x": 3, "y": 7, "width": 2, "height": 2 },
                   "placements": [
                     { "actorId": "NPC_DUMMY", "x": 9, "y": 6 },
                     { "actorId": "NPC_DUMMY_2", "x": 9, "y": 8 }

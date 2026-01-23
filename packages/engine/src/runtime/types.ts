@@ -106,7 +106,8 @@ export type Effect =
       participantIds: ActorId[];
       grid?: Grid;
       gridId?: string;
-      placements: Array<{ actorId: ActorId; x: number; y: number }>;
+      placements?: Array<{ actorId: ActorId; x: number; y: number }>;
+      partyPlacement?: PartyPlacement;
     }
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; actorId?: ActorId }
   | { op: "combatEndTurn" }
@@ -340,6 +341,10 @@ export type CombatMode = "MELEE" | "RANGED";
 export type DefenseStrategy = "autoBest" | "preferParry" | "preferDodge";
 export type RangeBand = "POINT_BLANK" | "SHORT" | "NORMAL" | "LONG" | "EXTREME";
 export type Cover = "NONE" | "LIGHT" | "HEAVY";
+
+export type PartyPlacement =
+  | { kind: "point"; x: number; y: number }
+  | { kind: "area"; x: number; y: number; width: number; height: number };
 
 export type CombatAttackCheck = {
   id: string;

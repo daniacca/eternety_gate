@@ -26,6 +26,8 @@ import {
   trackCombatSelfDamage,
 } from "./damageTracking";
 import { getUntouchableAuraImpact } from "./untouchableAura";
+import { getActorSize, getFootprintCells, getFootprintRadius } from "./footprint";
+import { posKey } from "../items/posKey";
 
 /**
  * Checks if combat should end based on faction deaths
@@ -208,6 +210,7 @@ export function startCombat(
   startedBySceneId?: SceneId,
   grid?: Grid,
   placements?: Array<{ actorId: ActorId; x: number; y: number }>,
+  partyPlacement?: { kind: "point"; x: number; y: number } | { kind: "area"; x: number; y: number; width: number; height: number },
   gridId?: string
 ): GameSave {
   const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
@@ -294,6 +297,108 @@ export function startCombat(
       if (orderedIds.includes(placement.actorId)) {
         positions[placement.actorId] = clampToGrid({ x: placement.x, y: placement.y }, combatGrid);
       }
+    }
+  }
+
+  const terrainCatalogs = loadTerrainCatalogs(storyPack);
+  const terrainGridId = gridId || "arena_01";
+  const gridDef = terrainCatalogs.gridsById[terrainGridId];
+
+  const isCellWalkable = (pos: Position): boolean => {
+    if (!gridDef) return true;
+    const override = gridDef.cells?.[posKey(pos)];
+    return override?.walkable ?? gridDef.defaults?.walkable ?? true;
+  };
+
+  const occupiedCells = new Set<string>();
+  const markOccupied = (actorId: ActorId, center: Position) => {
+    const actor = save.actorsById[actorId];
+    const radius = getFootprintRadius(getActorSize(actor));
+    for (const cell of getFootprintCells(center, radius)) {
+      occupiedCells.add(posKey(cell));
+    }
+  };
+
+  for (const [actorId, pos] of Object.entries(positions)) {
+    markOccupied(actorId as ActorId, pos);
+  }
+
+  const canPlaceAt = (actorId: ActorId, center: Position): boolean => {
+    const actor = save.actorsById[actorId];
+    const radius = getFootprintRadius(getActorSize(actor));
+    for (const cell of getFootprintCells(center, radius)) {
+      if (cell.x < 0 || cell.y < 0 || cell.x >= combatGrid.width || cell.y >= combatGrid.height) {
+        return false;
+      }
+      if (!isCellWalkable(cell)) return false;
+      if (occupiedCells.has(posKey(cell))) return false;
+    }
+    return true;
+  };
+
+  const candidateCellsFromPlacement = (): Position[] => {
+    if (!partyPlacement) return [];
+    const cells: Position[] = [];
+    if (partyPlacement.kind === "area") {
+      const width = Math.max(1, partyPlacement.width);
+      const height = Math.max(1, partyPlacement.height);
+      for (let y = partyPlacement.y; y < partyPlacement.y + height; y++) {
+        for (let x = partyPlacement.x; x < partyPlacement.x + width; x++) {
+          if (x >= 0 && y >= 0 && x < combatGrid.width && y < combatGrid.height) {
+            cells.push({ x, y });
+          }
+        }
+      }
+      return cells;
+    }
+
+    const origin = { x: partyPlacement.x, y: partyPlacement.y };
+    if (origin.x >= 0 && origin.y >= 0 && origin.x < combatGrid.width && origin.y < combatGrid.height) {
+      cells.push(origin);
+    }
+    const maxRadius = Math.max(combatGrid.width, combatGrid.height);
+    for (let r = 1; r <= maxRadius; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = origin.x + dx;
+          const y = origin.y + dy;
+          if (x >= 0 && y >= 0 && x < combatGrid.width && y < combatGrid.height) {
+            cells.push({ x, y });
+          }
+        }
+      }
+      if (cells.length >= combatGrid.width * combatGrid.height) break;
+    }
+    return cells;
+  };
+
+  const allGridCells: Position[] = [];
+  for (let y = 0; y < combatGrid.height; y++) {
+    for (let x = 0; x < combatGrid.width; x++) {
+      allGridCells.push({ x, y });
+    }
+  }
+
+  const candidateCells = candidateCellsFromPlacement();
+  const partyMemberIds = save.party?.actors ?? [];
+  for (const partyId of partyMemberIds) {
+    if (!orderedIds.includes(partyId)) continue;
+    if (positions[partyId]) continue;
+    let placed = false;
+    const preferred = candidateCells.length > 0 ? candidateCells : allGridCells;
+    for (const cell of preferred) {
+      if (canPlaceAt(partyId, cell)) {
+        positions[partyId] = cell;
+        markOccupied(partyId, cell);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const fallback = { x: 0, y: 0 };
+      positions[partyId] = clampToGrid(fallback, combatGrid);
+      markOccupied(partyId, positions[partyId]);
     }
   }
 

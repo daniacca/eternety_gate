@@ -130,4 +130,37 @@ describe("combatStart", () => {
     expect(result.save.runtime.combatLog).toBeDefined();
     expect(result.save.runtime.combatLog?.length).toBeGreaterThan(0);
   });
+
+  it("should place party members using partyPlacement area", () => {
+    const storyPack = makeTestStoryPack();
+    const actor1 = makeTestActor({ id: "PC_1", stats: { INI: 50 } as any });
+    const actor2 = makeTestActor({ id: "PC_2", stats: { INI: 40 } as any });
+    const actor3 = makeTestActor({ id: "NPC_1", stats: { INI: 30 } as any });
+    const save = makeTestSave(storyPack, actor1);
+    const saveWithParty = {
+      ...save,
+      party: { actors: ["PC_1", "PC_2"], activeActorId: "PC_1" },
+      actorsById: {
+        ...save.actorsById,
+        [actor2.id]: actor2,
+        [actor3.id]: actor3,
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatStart",
+      participantIds: ["NPC_1"],
+      grid: { width: 6, height: 6 },
+      placements: [{ actorId: "NPC_1", x: 5, y: 5 }],
+      partyPlacement: { kind: "area", x: 1, y: 1, width: 2, height: 1 },
+    };
+    const result = combatStart(effect as Extract<Effect, { op: "combatStart" }>, storyPack, saveWithParty);
+
+    const positions = result.save.runtime.combat?.positions || {};
+    expect(positions["PC_1"]).toBeDefined();
+    expect(positions["PC_2"]).toBeDefined();
+    const allowedCells = new Set(["1,1", "2,1"]);
+    expect(allowedCells.has(`${positions["PC_1"]?.x},${positions["PC_1"]?.y}`)).toBe(true);
+    expect(allowedCells.has(`${positions["PC_2"]?.x},${positions["PC_2"]?.y}`)).toBe(true);
+  });
 });

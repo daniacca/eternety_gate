@@ -19,6 +19,7 @@ export function combatStart(
     save.runtime.currentSceneId,
     effect.grid,
     effect.placements,
+    effect.partyPlacement,
     effect.gridId
   );
 
