@@ -15,8 +15,7 @@ import { FakeRng } from "./test-helpers/fakeRng";
 import { makeTestActor } from "./test-helpers/makeTestActor";
 import { makeTestStoryPack } from "./test-helpers/makeTestStoryPack";
 import { makeTestSave } from "./test-helpers/makeTestSave";
-import { calculateMaxHp, getCurrentHp } from "./characters/hp";
-import type { StoryPack, Actor, Party, ActorId, ItemId, Item, GameSave } from "./types";
+import type { StoryPack, Actor, Party, ActorId, GameSave } from "./types";
 
 describe("applyChoice", () => {
   it("transitions scene and updates history when applying a goto choice", () => {
@@ -87,17 +86,20 @@ describe("applyChoice", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -115,7 +117,8 @@ describe("applyChoice", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
+      { PC_1: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
     );
 
     // Verify initial state
@@ -189,7 +192,13 @@ describe("applyChoice", () => {
 
     const actor = makeTestActor();
     const party: Party = { actors: [actor.id], activeActorId: actor.id };
-    const save = createNewGame(storyPack, 123, party, { [actor.id]: actor }, { id: "test", items: [], weapons: [], armors: [] });
+    const save = createNewGame(
+      storyPack,
+      123,
+      party,
+      { [actor.id]: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
+    );
 
     const updatedSave = applyChoice(storyPack, save, "choice1");
 
@@ -285,17 +294,20 @@ describe("applyChoice", () => {
         INI: 50,
         PER: 50, // PER = 50, so target = 50 + 0 (Challenging) = 50
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -312,7 +324,8 @@ describe("applyChoice", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
+      { PC_1: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
     );
 
     // Apply choice - result depends on roll, but effects should be applied
@@ -360,7 +373,6 @@ describe("RNG determinism", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party: {
         actors: ["PC_1"],
@@ -460,17 +472,20 @@ describe("Single check resolution", () => {
         INI: 50,
         PER: 60, // Base PER = 60
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -491,7 +506,6 @@ describe("Single check resolution", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party: {
         actors: ["PC_1"],
@@ -581,19 +595,22 @@ describe("Single check resolution", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {
         VATES: 1, // Rank 1 = +0 modifier, so target = INT (40) + 0 = 40
       },
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -607,7 +624,6 @@ describe("Single check resolution", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party: {
         actors: ["PC_1"],
@@ -712,17 +728,20 @@ describe("Flat state access", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -739,7 +758,8 @@ describe("Flat state access", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
+      { PC_1: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
     );
 
     // Apply choice with effects containing dots in keys
@@ -837,17 +857,20 @@ describe("Sequence check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -864,7 +887,8 @@ describe("Sequence check", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
+      { PC_1: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
     );
 
     // Apply choice with sequence check
@@ -953,17 +977,20 @@ describe("Sequence check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -980,7 +1007,8 @@ describe("Sequence check", () => {
       storyPack,
       123456,
       party,
-      { PC_1: actor }, { id: "test", items: [], weapons: [], armors: [] }
+      { PC_1: actor },
+      { id: "test", items: [], weapons: [], armors: [] },
     );
 
     // Apply choice with sequence check that will likely fail on step 2
@@ -1000,7 +1028,15 @@ describe("Sequence check", () => {
 
 describe("Magic checks", () => {
   it("magicChannel success produces DoS and magic:channel=1 tag", () => {
-    const storyPack = makeTestStoryPack();
+    const testWeapon = {
+      id: "test:sword",
+      name: "Test Sword",
+      kind: "MELEE",
+      damage: { tier: "single", add: 1 },
+      damageType: "rendering",
+      penetration: 0,
+    } as const;
+    const storyPack = makeTestStoryPack({ weapons: [testWeapon] });
     const actor = makeTestActor({ stats: { INT: 60 } });
     const save = makeTestSave(storyPack, actor);
 
@@ -1301,10 +1337,22 @@ describe("Combat attack check", () => {
       id: "NPC_1",
       stats: { WS: 60 },
       skills: { "skill:parry": 1 }, // Rank 1 = trained, +0 modifier
-      tags: ["natural_weapon"],
+      equipment: { offHand: { kind: "item", id: "shield:test" } },
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
+    save.itemsById = {
+      ...(save.itemsById || {}),
+      "shield:test": {
+        id: "shield:test",
+        name: "Test Shield",
+        type: "wearable",
+        slot: "offHand",
+        weight: 2,
+        tags: ["shield"],
+        shield: { soak: 1 },
+      },
+    };
 
     // Attack: Target = WS 50, roll 40 => DoS = floor((50-40)/10) = 1
     // Defense: Target = WS 60, roll 30 => DoS = floor((60-30)/10) = 3
@@ -1339,15 +1387,35 @@ describe("Combat attack check", () => {
   });
 
   it("melee hit with parry fail => HIT", () => {
-    const storyPack = makeTestStoryPack();
+    const testWeapon = {
+      id: "test:sword",
+      name: "Test Sword",
+      kind: "MELEE",
+      damage: { tier: "single", add: 1 },
+      damageType: "rendering",
+      penetration: 0,
+    } as const;
+    const storyPack = makeTestStoryPack({ weapons: [testWeapon] });
     const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });
     const defender = makeTestActor({
       id: "NPC_1",
       stats: { WS: 50 },
-      tags: ["natural_weapon"],
+      equipment: { offHand: { kind: "item", id: "shield:test" } },
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
+    save.itemsById = {
+      ...(save.itemsById || {}),
+      "shield:test": {
+        id: "shield:test",
+        name: "Test Shield",
+        type: "wearable",
+        slot: "offHand",
+        weight: 2,
+        tags: ["shield"],
+        shield: { soak: 1 },
+      },
+    };
 
     // Attack: Target = WS 50, roll 40 => DoS = floor((50-40)/10) = 1
     // Defense: Target = WS 50, roll 90 => fail
@@ -1381,7 +1449,15 @@ describe("Combat attack check", () => {
   });
 
   it("ranged with rangeBand LONG and cover HEAVY modifies target correctly", () => {
-    const storyPack = makeTestStoryPack();
+    const testWeapon = {
+      id: "test:sword",
+      name: "Test Sword",
+      kind: "MELEE",
+      damage: { tier: "single", add: 1 },
+      damageType: "rendering",
+      penetration: 0,
+    } as const;
+    const storyPack = makeTestStoryPack({ weapons: [testWeapon] });
     const attacker = makeTestActor({ id: "PC_1", stats: { BS: 50 } });
     const defender = makeTestActor({ id: "NPC_1" });
     const save = makeTestSave(storyPack, attacker);
@@ -1472,10 +1548,22 @@ describe("Combat attack check", () => {
       id: "NPC_1",
       stats: { WS: 50 },
       skills: { "skill:parry": 1 }, // Rank 1 = trained, +0 modifier
-      tags: ["natural_weapon"],
+      equipment: { offHand: { kind: "item", id: "shield:test" } },
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_1"] = defender;
+    save.itemsById = {
+      ...(save.itemsById || {}),
+      "shield:test": {
+        id: "shield:test",
+        name: "Test Shield",
+        type: "wearable",
+        slot: "offHand",
+        weight: 2,
+        tags: ["shield"],
+        shield: { soak: 1 },
+      },
+    };
 
     // Attack: Target = WS 50, roll 40 => DoS = floor((50-40)/10) = 1
     // Defense: Target = WS 50, roll 40 => DoS = floor((50-40)/10) = 1
@@ -1553,7 +1641,7 @@ describe("Combat damage application", () => {
     const defender = makeTestActor({
       id: "NPC_DUMMY",
       stats: { INI: 10 }, // Lower INI so PC goes first (default stats: STR=50, TOU=50, WIL=50)
-      resources: { wounds: 10, rf: 0, peq: 0 }, // maxHp=20, wounds=10 gives HP=10
+      resources: { wounds: 10, rf: 0, fatePoints: 0 }, // maxHp=20, wounds=10 gives HP=10
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_DUMMY"] = defender;
@@ -1565,7 +1653,7 @@ describe("Combat damage application", () => {
       { actorId: "NPC_DUMMY" as ActorId, x: 1, y: 0 },
     ];
     let combatSave = startCombat(storyPack, save, ["PC_1", "NPC_DUMMY"], undefined, grid, placements);
-    
+
     // Ensure it's PC's turn (if not, advance turn)
     if (getCurrentTurnActorId(combatSave) !== "PC_1") {
       combatSave = advanceCombatTurn(combatSave);
@@ -1671,7 +1759,7 @@ describe("Combat damage application", () => {
     const defender = makeTestActor({
       id: "NPC_DUMMY",
       stats: { INI: 10 }, // Lower INI so PC goes first (default stats: STR=50, TOU=50, WIL=50)
-      resources: { wounds: 0, rf: 0, peq: 0 },
+      resources: { wounds: 0, rf: 0, fatePoints: 0 },
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_DUMMY"] = defender;
@@ -1683,7 +1771,7 @@ describe("Combat damage application", () => {
       { actorId: "NPC_DUMMY" as ActorId, x: 1, y: 0 },
     ];
     let combatSave = startCombat(storyPack, save, ["PC_1", "NPC_DUMMY"], undefined, grid, placements);
-    
+
     // Ensure it's PC's turn (if not, advance turn)
     if (getCurrentTurnActorId(combatSave) !== "PC_1") {
       combatSave = advanceCombatTurn(combatSave);
@@ -1787,7 +1875,7 @@ describe("Combat damage application", () => {
     const defender = makeTestActor({
       id: "NPC_DUMMY",
       stats: { INI: 10 }, // Lower INI so PC goes first (default stats: STR=50, TOU=50, WIL=50)
-      resources: { wounds: 18, rf: 0, peq: 0 }, // maxHp=20, wounds=18 gives HP=2
+      resources: { wounds: 18, rf: 0, fatePoints: 0 }, // maxHp=20, wounds=18 gives HP=2
     });
     const save = makeTestSave(storyPack, attacker);
     save.actorsById["NPC_DUMMY"] = defender;
@@ -1799,7 +1887,7 @@ describe("Combat damage application", () => {
       { actorId: "NPC_DUMMY" as ActorId, x: 1, y: 0 },
     ];
     let combatSave = startCombat(storyPack, save, ["PC_1", "NPC_DUMMY"], undefined, grid, placements);
-    
+
     // Ensure it's PC's turn (if not, advance turn)
     if (getCurrentTurnActorId(combatSave) !== "PC_1") {
       combatSave = advanceCombatTurn(combatSave);
@@ -1897,7 +1985,7 @@ describe("Combat damage application", () => {
     const defender = makeTestActor({
       id: "NPC_DUMMY",
       stats: { INI: 10 }, // Lower INI so PC goes first
-      resources: { wounds: 99, rf: 0, peq: 0 }, // HP = 1 (maxHp=100 - wounds=99), any hit will down
+      resources: { wounds: 99, rf: 0, fatePoints: 0 }, // HP = 1 (maxHp=100 - wounds=99), any hit will down
       derived: { hpMax: 100 }, // Explicitly set maxHp for clarity
     });
     const save = makeTestSave(storyPack, attacker);
@@ -1910,7 +1998,7 @@ describe("Combat damage application", () => {
       { actorId: "NPC_DUMMY" as ActorId, x: 1, y: 0 },
     ];
     let combatSave = startCombat(storyPack, save, ["PC_1", "NPC_DUMMY"], undefined, grid, placements);
-    
+
     // Ensure it's PC's turn (if not, advance turn)
     if (getCurrentTurnActorId(combatSave) !== "PC_1") {
       combatSave = advanceCombatTurn(combatSave);
@@ -1992,7 +2080,7 @@ describe("Combat damage application", () => {
     const defender = makeTestActor({
       id: "NPC_DUMMY",
       stats: { WS: 60 }, // High WS for parry
-      resources: { wounds: 90, rf: 0, peq: 0 }, // Assuming maxHp=100, wounds=90 gives HP=10
+      resources: { wounds: 90, rf: 0, fatePoints: 0 }, // Assuming maxHp=100, wounds=90 gives HP=10
       derived: { hpMax: 100 }, // Explicitly set maxHp
     });
     const save = makeTestSave(storyPack, attacker);
@@ -2109,17 +2197,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
-      traits: [],
+      talents: {},
+      traits: {},
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2143,17 +2234,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2172,7 +2266,6 @@ describe("Opposed check", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
@@ -2299,17 +2392,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2333,17 +2429,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2362,7 +2461,6 @@ describe("Opposed check", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
@@ -2489,17 +2587,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2523,17 +2624,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2552,7 +2656,6 @@ describe("Opposed check", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
@@ -2688,17 +2791,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2722,17 +2828,20 @@ describe("Opposed check", () => {
         INI: 50,
         PER: 50,
       },
-      resources: { wounds: 0, rf: 100, peq: 100 },
+      resources: { wounds: 0, rf: 100, fatePoints: 100 },
       skills: {},
-      talents: [],
+      talents: {},
       traits: [],
       equipment: {
-        equipped: {
-          weaponMainId: null,
-          weaponOffId: null,
-          armorId: null,
-          accessoryIds: [],
-        },
+        mainHand: null,
+        offHand: null,
+        armor: null,
+        helmet: null,
+        boots: null,
+        cloak: null,
+        necklace: null,
+        ring1: null,
+        ring2: null,
       },
       status: {
         conditions: [],
@@ -2751,7 +2860,6 @@ describe("Opposed check", () => {
       state: {
         flags: {},
         counters: {},
-        inventory: { items: [] },
       },
       party,
       actorsById: { PC_1: attacker, NPC_1: defender },
@@ -2938,12 +3046,12 @@ describe("Combat system", () => {
     const pc = makeTestActor({
       id: "PC_1",
       stats: { INI: 30, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const npc = makeTestActor({
       id: "NPC_1",
       stats: { INI: 40, WS: 50 }, // Higher INI = goes first
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const save = makeTestSave(storyPack, pc);
     save.actorsById["NPC_1"] = npc;
@@ -3011,8 +3119,8 @@ describe("Combat system", () => {
 
   it("advanceCombatTurn removes KO participants and ends combat when one side remains", () => {
     const storyPack = makeTestStoryPack();
-    const pc = makeTestActor({ id: "PC_1", resources: { hp: 1, rf: 0, peq: 0 } });
-    const npc = makeTestActor({ id: "NPC_1", resources: { hp: 0, rf: 0, peq: 0, isDead: true } }); // Already dead
+    const pc = makeTestActor({ id: "PC_1", resources: { wounds: 1, rf: 0, fatePoints: 0 } });
+    const npc = makeTestActor({ id: "NPC_1", resources: { wounds: 0, rf: 0, fatePoints: 0, isDead: true } }); // Already dead
     const save = makeTestSave(storyPack, pc);
     save.actorsById["NPC_1"] = npc;
 
@@ -3063,6 +3171,16 @@ describe("Combat system", () => {
           participants: ["PC_1", "NPC_1"],
           currentIndex: 1, // Last in order
           round: 1,
+          grid: { width: 10, height: 10 },
+          positions: {
+            PC_1: { x: 0, y: 0 },
+            NPC_1: { x: 1, y: 1 },
+          },
+          turn: {
+            moveRemaining: 1,
+            actionAvailable: true,
+          },
+          turnCounter: 0,
         },
       },
     };
@@ -3115,17 +3233,17 @@ describe("Combat system", () => {
     const pc = makeTestActor({
       id: "PC_1",
       stats: { INI: 30, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const npc1 = makeTestActor({
       id: "NPC_1",
       stats: { INI: 40, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const npc2 = makeTestActor({
       id: "NPC_2",
       stats: { INI: 35, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const save = makeTestSave(storyPack, pc);
     save.actorsById["NPC_1"] = npc1;
@@ -3136,23 +3254,23 @@ describe("Combat system", () => {
       ...save,
       runtime: {
         ...save.runtime,
-          combat: {
-            active: true,
-            participants: ["NPC_1", "NPC_2", "PC_1"],
-            currentIndex: 2, // PC_1's turn
-            round: 1,
-            grid: { width: 10, height: 10 },
-            positions: {
-              NPC_1: { x: 0, y: 0 },
-              NPC_2: { x: 1, y: 0 },
-              PC_1: { x: 2, y: 0 },
-            },
-            turn: {
-              moveRemaining: 1,
-              actionAvailable: true,
-            },
-            turnCounter: 0,
+        combat: {
+          active: true,
+          participants: ["NPC_1", "NPC_2", "PC_1"],
+          currentIndex: 2, // PC_1's turn
+          round: 1,
+          grid: { width: 10, height: 10 },
+          positions: {
+            NPC_1: { x: 0, y: 0 },
+            NPC_2: { x: 1, y: 0 },
+            PC_1: { x: 2, y: 0 },
           },
+          turn: {
+            moveRemaining: 1,
+            actionAvailable: true,
+          },
+          turnCounter: 0,
+        },
       },
     };
 
@@ -3216,12 +3334,12 @@ describe("Combat system", () => {
     const pc = makeTestActor({
       id: "PC_1",
       stats: { INI: 40, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const npc = makeTestActor({
       id: "NPC_1",
       stats: { INI: 30, WS: 50 },
-      resources: { hp: 10, rf: 0, peq: 0 },
+      resources: { wounds: 10, rf: 0, fatePoints: 0 },
     });
     const save = makeTestSave(storyPack, pc);
     save.actorsById["NPC_1"] = npc;
@@ -3231,22 +3349,22 @@ describe("Combat system", () => {
       ...save,
       runtime: {
         ...save.runtime,
-          combat: {
-            active: true,
-            participants: ["PC_1", "NPC_1"],
-            currentIndex: 0, // PC_1's turn
-            round: 1,
-            grid: { width: 10, height: 10 },
-            positions: {
-              PC_1: { x: 0, y: 0 },
-              NPC_1: { x: 1, y: 1 },
-            },
-            turn: {
-              moveRemaining: 1,
-              actionAvailable: true,
-            },
-            turnCounter: 0,
+        combat: {
+          active: true,
+          participants: ["PC_1", "NPC_1"],
+          currentIndex: 0, // PC_1's turn
+          round: 1,
+          grid: { width: 10, height: 10 },
+          positions: {
+            PC_1: { x: 0, y: 0 },
+            NPC_1: { x: 1, y: 1 },
           },
+          turn: {
+            moveRemaining: 1,
+            actionAvailable: true,
+          },
+          turnCounter: 0,
+        },
       },
     };
 
@@ -3450,7 +3568,9 @@ describe("Combat system", () => {
       // Try melee attack - should be blocked (distance > 1)
       const afterAttack = applyChoice(storyPack, combatSave, "attack");
       // Attack may be blocked due to distance or other reasons
-      expect(afterAttack.runtime.lastCheck?.tags.some((t) => t.includes("blocked") || t.includes("combat:"))).toBe(true);
+      expect(afterAttack.runtime.lastCheck?.tags.some((t) => t.includes("blocked") || t.includes("combat:"))).toBe(
+        true,
+      );
     });
 
     it("ranged blocked if dist <= 1", () => {
