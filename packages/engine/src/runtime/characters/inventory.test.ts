@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { getActorInventory, getEquippedWeaponId, getEquippedArmorId, getInventoryItemQty, removeInventoryItemQty } from "./inventory";
+import {
+  getActorCarryCapacityKg,
+  getActorCarriedWeightKg,
+  getActorInventory,
+  getCarryCapacityKgFromBonus,
+  getEquippedWeaponId,
+  getEquippedArmorId,
+  getInventoryItemQty,
+  removeInventoryItemQty,
+} from "./inventory";
 import { makeTestActor } from "../test-helpers/makeTestActor";
+import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
+import { makeTestSave } from "../test-helpers/makeTestSave";
 
 describe("inventory", () => {
   describe("getActorInventory", () => {
@@ -146,6 +157,55 @@ describe("inventory", () => {
         },
       });
       expect(getEquippedArmorId(actor)).toBeNull();
+    });
+  });
+
+  describe("carry capacity", () => {
+    it("should match carry table formula for key sums", () => {
+      expect(getCarryCapacityKgFromBonus(0)).toBe(0.9);
+      expect(getCarryCapacityKgFromBonus(1)).toBe(2.25);
+      expect(getCarryCapacityKgFromBonus(4)).toBe(18);
+      expect(getCarryCapacityKgFromBonus(8)).toBe(56);
+      expect(getCarryCapacityKgFromBonus(12)).toBe(112);
+      expect(getCarryCapacityKgFromBonus(13)).toBe(225);
+      expect(getCarryCapacityKgFromBonus(20)).toBe(2250);
+    });
+
+    it("should include equipped and inventory weight", () => {
+      const storyPack = makeTestStoryPack({
+        items: [{ id: "item:bag", name: "Bag", type: "wearable", weight: 2 }],
+        weapons: [
+          {
+            id: "weapon:club",
+            name: "Club",
+            kind: "MELEE",
+            damage: { tier: "single", add: 0 },
+            damageType: "impact",
+            penetration: 0,
+            weight: 3,
+          },
+        ],
+        armors: [{ id: "armor:leather", name: "Leather", soak: 1, weight: 4 }],
+      });
+      const actor = makeTestActor({
+        stats: { STR: 40, TOU: 60, AGI: 0, INT: 0, WIL: 0, CHA: 0, WS: 0, BS: 0, INI: 0, PER: 0 },
+        inventory: [{ id: "item:bag", kind: "item", qty: 2 }],
+        equipment: {
+          mainHand: { id: "weapon:club", kind: "weapon" },
+          offHand: null,
+          armor: { id: "armor:leather", kind: "armor" },
+          helmet: null,
+          boots: null,
+          cloak: null,
+          necklace: null,
+          ring1: null,
+          ring2: null,
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      expect(getActorCarryCapacityKg(save, actor.id, storyPack)).toBe(78);
+      expect(getActorCarriedWeightKg(save, actor.id)).toBe(11);
     });
   });
 });

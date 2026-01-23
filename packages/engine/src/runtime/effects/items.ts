@@ -1,5 +1,11 @@
-import type { Effect, GameSave, ItemRef, ItemRefKind } from "../types";
-import { getActorInventory, getItemRefQty, removeInventoryItemQty } from "../characters/inventory";
+import type { Effect, GameSave, ItemRef, ItemRefKind, StoryPack } from "../types";
+import {
+  getActorCarryCapacityKg,
+  getActorCarriedWeightKg,
+  getActorInventory,
+  getItemRefQty,
+  removeInventoryItemQty,
+} from "../characters/inventory";
 
 /**
  * Converts ItemKind to ItemRefKind
@@ -42,7 +48,11 @@ function addItemToInventory(
   return updated;
 }
 
-export function applyAddItem(effect: Extract<Effect, { op: "addItem" }>, save: GameSave): GameSave {
+export function applyAddItem(
+  effect: Extract<Effect, { op: "addItem" }>,
+  save: GameSave,
+  storyPack?: StoryPack
+): GameSave {
   const actor = save.actorsById[effect.actorId];
   if (!actor) {
     return save; // Actor not found, ignore
@@ -58,6 +68,14 @@ export function applyAddItem(effect: Extract<Effect, { op: "addItem" }>, save: G
   const qty = effect.qty ?? 1;
   const itemRefKind = itemTypeToItemRefKind();
   const currentInventory = getActorInventory(actor);
+
+  const addedWeight = (item.weight ?? 0) * qty;
+  const currentWeight = getActorCarriedWeightKg(save, effect.actorId);
+  const maxWeight = getActorCarryCapacityKg(save, effect.actorId, storyPack);
+  if (currentWeight + addedWeight > maxWeight) {
+    return save; // Over carry capacity, skip add
+  }
+
   const updatedInventory = addItemToInventory(
     currentInventory,
     effect.itemId,

@@ -654,6 +654,50 @@ describe("effects", () => {
     });
   });
 
+  describe("addItem", () => {
+    it("should block adding items when over carry capacity", () => {
+      const storyPack = makeTestStoryPack({
+        items: [{ id: "item:rock", name: "Rock", type: "wearable", weight: 20 }],
+      });
+      const actor = makeTestActor({
+        stats: { STR: 40, TOU: 60, AGI: 0, INT: 0, WIL: 0, CHA: 0, WS: 0, BS: 0, INI: 0, PER: 0 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([]);
+
+      const effect: Effect = {
+        op: "addItem",
+        actorId: actor.id,
+        itemId: "item:rock",
+        qty: 4,
+      };
+
+      const result = applyEffect(effect, storyPack, save, rng);
+      expect(result.save.actorsById[actor.id].inventory || []).toHaveLength(0);
+    });
+
+    it("should allow adding items within carry capacity", () => {
+      const storyPack = makeTestStoryPack({
+        items: [{ id: "item:rock", name: "Rock", type: "wearable", weight: 20 }],
+      });
+      const actor = makeTestActor({
+        stats: { STR: 40, TOU: 60, AGI: 0, INT: 0, WIL: 0, CHA: 0, WS: 0, BS: 0, INI: 0, PER: 0 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([]);
+
+      const effect: Effect = {
+        op: "addItem",
+        actorId: actor.id,
+        itemId: "item:rock",
+        qty: 3,
+      };
+
+      const result = applyEffect(effect, storyPack, save, rng);
+      expect(result.save.actorsById[actor.id].inventory || []).toHaveLength(3);
+    });
+  });
+
   describe("applyEffects", () => {
     it("should apply multiple effects in sequence", () => {
       const storyPack = makeTestStoryPack();

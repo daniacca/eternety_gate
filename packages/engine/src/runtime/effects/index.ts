@@ -57,8 +57,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   addCounter: (effect, _storyPack, save, _rng) => ({
     save: applyAddCounter(effect as Extract<Effect, { op: "addCounter" }>, save),
   }),
-  addItem: (effect, _storyPack, save, _rng) => ({
-    save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, save),
+  addItem: (effect, storyPack, save, _rng) => ({
+    save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, save, storyPack),
   }),
   removeItem: (effect, _storyPack, save, _rng) => ({
     save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, save),
@@ -98,8 +98,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatGetProne(effect as Extract<Effect, { op: "combatGetProne" }>, save),
   combatStandUp: (effect, storyPack, save, _rng) =>
     combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, save, storyPack),
-  combatPickup: (effect, _storyPack, save, _rng) =>
-    combatPickup(effect as Extract<Effect, { op: "combatPickup" }>, save),
+  combatPickup: (effect, storyPack, save, _rng) =>
+    combatPickup(effect as Extract<Effect, { op: "combatPickup" }>, save, storyPack),
   combatDrop: (effect, _storyPack, save, _rng) => combatDrop(effect as Extract<Effect, { op: "combatDrop" }>, save),
   combatEquipItem: (effect, _storyPack, save, _rng) =>
     combatEquipItem(effect as Extract<Effect, { op: "combatEquipItem" }>, save),

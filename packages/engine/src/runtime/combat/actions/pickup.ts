@@ -1,15 +1,16 @@
-import type { Effect, GameSave, ItemRef } from "../../types";
+import type { Effect, GameSave, ItemRef, StoryPack } from "../../types";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
 import { posKey, isWeaponItemRef } from "../../items";
-import { getActorInventory } from "../../characters/inventory";
+import { getActorCarryCapacityKg, getActorCarriedWeightKg, getActorInventory, getItemRefWeightKg } from "../../characters/inventory";
 
 /**
  * Pickup: picks up item at actor position, adds to inventory, and optionally auto-equips if main hand empty
  */
 export function combatPickup(
   effect: Extract<Effect, { op: "combatPickup" }>,
-  save: GameSave
+  save: GameSave,
+  storyPack?: StoryPack
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -38,22 +39,12 @@ export function combatPickup(
   // Check groundItemsByPos structure
   const posKeyStr = posKey(actorPos);
   let itemRef: ItemRef | null = null;
-  let updatedGroundItemsByPos: Record<string, ItemRef[]> | undefined = undefined;
+  let remainingItems: ItemRef[] | null = null;
 
   if (combat.groundItemsByPos && combat.groundItemsByPos[posKeyStr] && combat.groundItemsByPos[posKeyStr].length > 0) {
     const itemsAtPos = combat.groundItemsByPos[posKeyStr];
     itemRef = itemsAtPos[0]; // Pick first item
-    const remainingItems = itemsAtPos.slice(1);
-    // Remove key if empty, otherwise update with remaining items
-    if (remainingItems.length === 0) {
-      const { [posKeyStr]: _, ...rest } = combat.groundItemsByPos;
-      updatedGroundItemsByPos = Object.keys(rest).length > 0 ? rest : undefined;
-    } else {
-      updatedGroundItemsByPos = {
-        ...combat.groundItemsByPos,
-        [posKeyStr]: remainingItems,
-      };
-    }
+    remainingItems = itemsAtPos.slice(1);
   }
 
   if (!itemRef) {
@@ -77,6 +68,44 @@ export function combatPickup(
       },
     };
     return { save: appendCombatLog(updatedSave, logEntry) };
+  }
+
+  const itemWeight = getItemRefWeightKg(itemRef, save) * (itemRef.qty ?? 1);
+  const currentWeight = getActorCarriedWeightKg(save, effect.actorId);
+  const maxWeight = getActorCarryCapacityKg(save, effect.actorId, storyPack);
+  if (currentWeight + itemWeight > maxWeight) {
+    const logEntry =
+      actor.kind === "PC"
+        ? `Sei troppo carico per raccogliere l'oggetto.`
+        : `${actor.name || effect.actorId} prova a raccogliere qualcosa ma è troppo carico.`;
+    const updatedCombat = {
+      ...combat,
+      turn: {
+        ...combat.turn,
+        moveRemaining: 0,
+      },
+    };
+    const updatedSave = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: updatedCombat,
+      },
+    };
+    return { save: appendCombatLog(updatedSave, logEntry) };
+  }
+
+  let updatedGroundItemsByPos: Record<string, ItemRef[]> | undefined = undefined;
+  if (remainingItems) {
+    if (remainingItems.length === 0) {
+      const { [posKeyStr]: _, ...rest } = combat.groundItemsByPos ?? {};
+      updatedGroundItemsByPos = Object.keys(rest).length > 0 ? rest : undefined;
+    } else {
+      updatedGroundItemsByPos = {
+        ...combat.groundItemsByPos,
+        [posKeyStr]: remainingItems,
+      };
+    }
   }
 
   // Add item to inventory

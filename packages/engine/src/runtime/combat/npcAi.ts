@@ -292,7 +292,7 @@ function applyStoryEffectsQueue(
         result = { save: applyAddCounter(effect as Extract<Effect, { op: "addCounter" }>, currentSave) };
         break;
       case "addItem":
-        result = { save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, currentSave) };
+        result = { save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, currentSave, storyPack) };
         break;
       case "removeItem":
         result = { save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, currentSave) };
