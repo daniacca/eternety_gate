@@ -115,7 +115,7 @@ describe("validation", () => {
         damage: { tier: "single", add: 3 },
         damageType: "impact",
         penetration: 1,
-        range: { short: 4, long: 8 },
+        range: 8,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -165,7 +165,7 @@ describe("validation", () => {
         damage: { tier: "single", add: 3 },
         damageType: "impact",
         penetration: 1,
-        range: { short: 4, long: 8 },
+        range: 8,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -202,11 +202,11 @@ describe("validation", () => {
       const result = validateAndApplyRangedModifiers(check, saveWithBoth, 5, "test_check", attacker.id);
 
       expect(result).toBeNull(); // Valid, no blocking
-      // New global rule: dist 4..5 => NORMAL (not based on weapon.range.short anymore)
+      // New global rule: dist 5..6 => NORMAL
       expect(check.modifiers?.rangeBand).toBe("NORMAL");
     });
 
-    it("should auto-set rangeBand to SHORT when dist <= short", () => {
+    it("should auto-set rangeBand to SHORT when dist in short band", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {
         id: "bow",
@@ -215,7 +215,7 @@ describe("validation", () => {
         damage: { tier: "single", add: 3 },
         damageType: "impact",
         penetration: 1,
-        range: { short: 4, long: 8 },
+        range: 8,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -252,7 +252,107 @@ describe("validation", () => {
       const result = validateAndApplyRangedModifiers(check, saveWithBoth, 3, "test_check", attacker.id);
 
       expect(result).toBeNull();
-      expect(check.modifiers?.rangeBand).toBe("SHORT"); // Auto-set to SHORT (3 <= 4)
+      expect(check.modifiers?.rangeBand).toBe("SHORT"); // Auto-set to SHORT (dist 3..4)
+    });
+
+    it("should auto-set rangeBand to POINT_BLANK when dist = 2", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "bow",
+        name: "Bow",
+        kind: "RANGED",
+        damage: { tier: "single", add: 3 },
+        damageType: "impact",
+        penetration: 1,
+        range: 8,
+      };
+      const attacker = makeTestActor({
+        id: "attacker",
+        equipment: { mainHand: { kind: "weapon", id: "bow" } },
+      });
+      const defender = makeTestActor({ id: "defender" });
+      const save = {
+        ...makeTestSave(storyPack, attacker),
+        weaponsById: { bow: weapon },
+      };
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: {
+          actorRef: { mode: "byId", actorId: attacker.id },
+          mode: "RANGED",
+        },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result = validateAndApplyRangedModifiers(check, saveWithBoth, 2, "test_check", attacker.id);
+
+      expect(result).toBeNull();
+      expect(check.modifiers?.rangeBand).toBe("POINT_BLANK");
+    });
+
+    it("allows close range shot in melee without range band", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "pistol",
+        name: "Pistol",
+        kind: "RANGED",
+        damage: { tier: "single", add: 1 },
+        damageType: "impact",
+        penetration: 0,
+        range: 6,
+        qualities: [{ id: "close_range_shot" }],
+      };
+      const attacker = makeTestActor({
+        id: "attacker",
+        equipment: { mainHand: { kind: "weapon", id: "pistol" } },
+      });
+      const defender = makeTestActor({ id: "defender" });
+      const save = {
+        ...makeTestSave(storyPack, attacker),
+        weaponsById: { pistol: weapon },
+      };
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: {
+          actorRef: { mode: "byId", actorId: attacker.id },
+          mode: "RANGED",
+        },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result = validateAndApplyRangedModifiers(check, saveWithBoth, 1, "test_check", attacker.id);
+
+      expect(result).toBeNull();
+      expect(check.modifiers?.closeRangeShot).toBe(true);
+      expect(check.modifiers?.rangeBand).toBeUndefined();
     });
 
     it("should preserve existing rangeBand modifier", () => {
@@ -264,7 +364,7 @@ describe("validation", () => {
         damage: { tier: "single", add: 3 },
         damageType: "impact",
         penetration: 1,
-        range: { short: 4, long: 8 },
+        range: 8,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -348,9 +448,9 @@ describe("validation", () => {
         },
       };
 
-      // Distance 9 - no range limit, so should be allowed
+      // Distance 10 - no range limit, so should be allowed
       // Range band will be EXTREME (-40) based on global rules
-      const result = validateAndApplyRangedModifiers(check, saveWithBoth, 9, "test_check", attacker.id);
+      const result = validateAndApplyRangedModifiers(check, saveWithBoth, 10, "test_check", attacker.id);
 
       expect(result).toBeNull(); // Not blocked - unlimited range
       expect(check.modifiers?.rangeBand).toBe("EXTREME"); // Auto-set based on distance

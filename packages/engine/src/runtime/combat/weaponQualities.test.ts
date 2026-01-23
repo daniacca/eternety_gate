@@ -148,7 +148,7 @@ describe("weapon qualities", () => {
       damage: { tier: "single", add: 0 },
       damageType: "energy",
       penetration: 0,
-      range: { short: 5, long: 10 },
+      range: 10,
       qualities: [{ id: "magic_fueled", rank: 2 }],
     };
 

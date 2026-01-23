@@ -403,14 +403,7 @@
         },
         "damageType": { "type": "string", "enum": ["energy", "explosive", "impact", "rendering", "piercing"] },
         "penetration": { "type": "number" },
-        "range": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "short": { "type": "number" },
-            "long": { "type": "number" }
-          }
-        },
+        "range": { "type": "number" },
         "tags": { "type": "array", "items": { "type": "string" } }
       }
     },

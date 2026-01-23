@@ -9,10 +9,7 @@
     },
     "damageType": "piercing",
     "penetration": 2,
-    "range": {
-      "short": 4,
-      "long": 8
-    },
+    "range": 8,
     "weight": 2,
     "handedness": "twoHand",
     "ammo": {
@@ -31,10 +28,7 @@
     },
     "damageType": "piercing",
     "penetration": 4,
-    "range": {
-      "short": 6,
-      "long": 12
-    },
+    "range": 12,
     "weight": 3,
     "handedness": "twoHand",
     "ammo": {
@@ -113,10 +107,7 @@
     },
     "damageType": "piercing",
     "penetration": 3,
-    "range": {
-      "short": 5,
-      "long": 10
-    },
+    "range": 10,
     "weight": 4,
     "handedness": "twoHand",
     "ammo": {
@@ -135,10 +126,7 @@
     },
     "damageType": "energy",
     "penetration": 1,
-    "range": {
-      "short": 5,
-      "long": 10
-    },
+    "range": 10,
     "weight": 3,
     "handedness": "oneHand",
     "qualities": [{ "id": "magic_fueled", "rank": 3 }]
@@ -192,10 +180,7 @@
     },
     "damageType": "energy",
     "penetration": 4,
-    "range": {
-      "short": 6,
-      "long": 12
-    },
+    "range": 12,
     "ammo": {
       "itemId": "ammo:shot",
       "consumedPerAttack": 1

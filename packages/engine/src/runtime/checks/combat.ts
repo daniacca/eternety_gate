@@ -79,15 +79,19 @@ export function computeAttackTarget(
     }
   }
 
+  const combatDistance = footprintDistanceBetweenActors(save, attacker.id, defender.id);
+  const isCloseRangeShot = check.attacker.mode === "RANGED" && check.modifiers?.closeRangeShot && combatDistance <= 1;
+  const effectiveMode = isCloseRangeShot ? "MELEE" : check.attacker.mode;
+
   // Range band modifier (RANGED only)
   // Global rule based on Chebyshev distance:
-  // dist >= 9 => EXTREME (-40)
-  // dist 6..8 => LONG (-20)
-  // dist 4..5 => NORMAL (+0)
-  // dist 2..3 => SHORT (+20)
-  // dist 0..1 => POINT_BLANK (+30)
+  // dist >= 10 => EXTREME (-40)
+  // dist 7..9 => LONG (-20)
+  // dist 5..6 => NORMAL (+0)
+  // dist 3..4 => SHORT (+20)
+  // dist 2 => POINT_BLANK (+30)
   // Marksman talent: ignores all distance penalties (but keeps bonuses)
-  if (check.attacker.mode === "RANGED" && check.modifiers?.rangeBand) {
+  if (!isCloseRangeShot && check.attacker.mode === "RANGED" && check.modifiers?.rangeBand) {
     switch (check.modifiers.rangeBand) {
       case "POINT_BLANK":
         combatModifier += 30;
@@ -121,7 +125,7 @@ export function computeAttackTarget(
 
   // Cover modifier (RANGED only)
   // Deadeye talent: ignore light cover, treat heavy cover as light
-  if (check.attacker.mode === "RANGED" && check.modifiers?.cover) {
+  if (effectiveMode === "RANGED" && check.modifiers?.cover) {
     switch (check.modifiers.cover) {
       case "LIGHT":
         if (attackerHasDeadeye) {
@@ -159,7 +163,7 @@ export function computeAttackTarget(
 
   // Aim stance modifier: +20 bonus for ranged attacks when aim stance is active
   const attackerStance = save.runtime.combat?.stancesByActorId?.[attacker.id];
-  if (check.attacker.mode === "RANGED" && attackerStance === "aim") {
+  if (effectiveMode === "RANGED" && attackerStance === "aim") {
     const attackerWeaponId = check.attacker.weaponId ?? getEquippedWeaponId(attacker);
     const attackerWeapon =
       attackerWeaponId && attackerWeaponId !== "unarmed" ? save.weaponsById?.[attackerWeaponId] : null;
@@ -204,7 +208,7 @@ export function computeAttackTarget(
     if (radius > 0) {
       const dist = footprintDistanceBetweenActors(save, attacker.id, defender.id);
       const appliesToRanged = radius > 1;
-      if (dist <= radius && (appliesToRanged || check.attacker.mode === "MELEE")) {
+    if (dist <= radius && (appliesToRanged || effectiveMode === "MELEE")) {
         combatModifier -= 20;
         modifierTags.push("combat:mod:untouchable=-20");
 
@@ -230,11 +234,11 @@ export function computeAttackTarget(
   const isDefenderProne = defender.conditions?.prone !== undefined;
   const isAttackerProne = attacker.conditions?.prone !== undefined;
   if (isDefenderProne) {
-    if (check.attacker.mode === "RANGED") {
+    if (effectiveMode === "RANGED") {
       // Ranged attacks against prone target: -10 to hit
       combatModifier -= 10;
       modifierTags.push("combat:mod:prone:ranged=-10");
-    } else if (check.attacker.mode === "MELEE") {
+    } else if (effectiveMode === "MELEE") {
       // Melee attacks against prone target: +20 if attacker is not prone, 0 if both prone
       if (!isAttackerProne) {
         combatModifier += 20;
@@ -257,7 +261,7 @@ export function computeAttackTarget(
   }
 
   // Combat Master: defender talent that gives attackers -20 to hit in melee
-  if (check.attacker.mode === "MELEE" && catalogs) {
+  if (effectiveMode === "MELEE" && catalogs) {
     const combatMasterPenalty = getCombatMasterPenalty(save, catalogs, defender.id);
     if (combatMasterPenalty !== 0) {
       combatModifier += combatMasterPenalty; // Already negative from talent
@@ -309,6 +313,8 @@ export function performCombatAttackCheck(
   // Determine attack stat for tags (match computeAttackTarget)
   const attackStatKey = resolveAttackStatKey(check, attacker, save);
 
+  const isCloseRangeShot = check.attacker.mode === "RANGED" && check.modifiers?.closeRangeShot === true;
+
   // Roll attack
   const attackRoll = rng.rollD100();
   const attackResult = evaluateRoll(attackRoll, attackTarget, storyPack, check.id, attacker.id);
@@ -345,10 +351,9 @@ export function performCombatAttackCheck(
       const weaponId =
         check.attacker.weaponId ??
         (attacker.equipment?.mainHand?.kind === "weapon" ? attacker.equipment.mainHand.id : null);
-      if (weaponId && weaponId !== "unarmed" && save.weaponsById?.[weaponId]?.range) {
+      if (weaponId && weaponId !== "unarmed" && save.weaponsById?.[weaponId]?.range !== undefined) {
         const weaponRange = save.weaponsById[weaponId].range!;
-        tags.push(`combat:weaponRange:short=${weaponRange.short}`);
-        tags.push(`combat:weaponRange:long=${weaponRange.long}`);
+        tags.push(`combat:weaponRange=${weaponRange}`);
       }
     }
   }
@@ -442,6 +447,7 @@ export function performCombatAttackCheck(
   const canParry =
     turnCounter >= disabledUntil &&
     check.defense.allowParry &&
+    check.attacker.mode === "MELEE" &&
     (hasMeleeWeapon || hasShield) &&
     !attackHasFlexible &&
     !parryBlockedByUnwieldy;
@@ -474,7 +480,17 @@ export function performCombatAttackCheck(
     }
 
     if (canDodge) {
-      const dodgeBreakdown = computeTargetBreakdown(defender, dodgeSkillKey, "Challenging", save, storyPack);
+      const dodgeDifficulty =
+        check.attacker.mode === "RANGED" && !isCloseRangeShot
+          ? check.modifiers?.rangeBand === "POINT_BLANK"
+            ? "Very Hard"
+            : check.modifiers?.rangeBand === "SHORT"
+            ? "Hard"
+            : check.modifiers?.rangeBand === "NORMAL"
+            ? "Difficult"
+            : "Challenging"
+          : "Challenging";
+      const dodgeBreakdown = computeTargetBreakdown(defender, dodgeSkillKey, dodgeDifficulty, save, storyPack);
       dodgeTarget = dodgeBreakdown.target;
     }
 
@@ -540,7 +556,17 @@ export function performCombatAttackCheck(
   }
 
   // Roll defense using the chosen skill
-  const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, "Challenging", save, storyPack);
+  const dodgeDifficulty =
+    defenseType === "dodge" && check.attacker.mode === "RANGED" && !isCloseRangeShot
+      ? check.modifiers?.rangeBand === "POINT_BLANK"
+        ? "Very Hard"
+        : check.modifiers?.rangeBand === "SHORT"
+        ? "Hard"
+        : check.modifiers?.rangeBand === "NORMAL"
+        ? "Difficult"
+        : "Challenging"
+      : "Challenging";
+  const defenseBreakdown = computeTargetBreakdown(defender, defenseSkillKey, dodgeDifficulty, save, storyPack);
   // Add parry bonuses to parry target only
   const parryQualityBonus =
     defenseType === "parry"

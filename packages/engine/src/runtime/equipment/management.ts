@@ -187,8 +187,8 @@ export function getItemDisplaySummary(resolved: ResolvedItemDefinition): string 
     const addLabel = `${resolved.def.damage.add >= 0 ? "+" : ""}${resolved.def.damage.add}`;
     const tierLabel = `${resolved.def.damage.tier}${addLabel}`;
     const parts = [`Pen ${resolved.def.penetration}`, tierLabel];
-    if (resolved.def.range) {
-      parts.push(`Rng ${resolved.def.range.short}/${resolved.def.range.long}`);
+    if (resolved.def.range !== undefined) {
+      parts.push(`Rng ${resolved.def.range}`);
     }
     if (resolved.def.handedness === "twoHand") {
       parts.push("2H");

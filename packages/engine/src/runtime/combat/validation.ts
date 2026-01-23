@@ -2,6 +2,7 @@ import type { CombatAttackCheck, GameSave, CheckResult, ActorId } from "../types
 import { resolveActor } from "../checks";
 import { getActorWeapon } from "./equipment";
 import { getEquippedWeaponId } from "../characters/inventory";
+import { hasWeaponQuality } from "../weaponQualities";
 
 /**
  * Validates ranged attack and applies range band modifiers
@@ -36,7 +37,8 @@ export function validateAndApplyRangedModifiers(
   }
 
   // b) Check if in melee range (dist <= 1)
-  if (dist <= 1) {
+  const hasCloseRangeShot = hasWeaponQuality(weapon, "close_range_shot");
+  if (dist <= 1 && !hasCloseRangeShot) {
     return {
       checkId,
       actorId,
@@ -50,10 +52,10 @@ export function validateAndApplyRangedModifiers(
     };
   }
 
-  // c) Check if out of range (if weapon.range exists and dist > long)
+  // c) Check if out of range (if weapon.range exists and dist > max)
   const weaponRange = weapon.range;
-  if (weaponRange) {
-    if (dist > weaponRange.long) {
+  if (weaponRange !== undefined) {
+    if (dist > weaponRange) {
       return {
         checkId,
         actorId,
@@ -63,7 +65,7 @@ export function validateAndApplyRangedModifiers(
         dos: 0,
         dof: 0,
         critical: "none",
-        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`, `combat:weaponRange=${weaponRange.long}`],
+        tags: ["combat:blocked=outOfRange", `combat:dist=${dist}`, `combat:weaponRange=${weaponRange}`],
       };
     }
   }
@@ -71,20 +73,25 @@ export function validateAndApplyRangedModifiers(
 
   // d) Auto-set rangeBand based on Chebyshev distance (global rule, independent of weapon)
   // This applies regardless of whether weapon.range exists (range check is separate)
-  if (!combatCheck.modifiers?.rangeBand) {
+  if (dist <= 1 && hasCloseRangeShot) {
+    combatCheck.modifiers = {
+      ...combatCheck.modifiers,
+      closeRangeShot: true,
+    };
+  } else if (!combatCheck.modifiers?.rangeBand) {
     let rangeBand: "POINT_BLANK" | "SHORT" | "NORMAL" | "LONG" | "EXTREME";
     
     // Global range band rules based on Chebyshev distance (number of squares)
-    if (dist >= 9) {
+    if (dist >= 10) {
       rangeBand = "EXTREME"; // -40
-    } else if (dist >= 6) {
+    } else if (dist >= 7) {
       rangeBand = "LONG"; // -20
-    } else if (dist >= 4) {
+    } else if (dist >= 5) {
       rangeBand = "NORMAL"; // +0
-    } else if (dist >= 2) {
+    } else if (dist >= 3) {
       rangeBand = "SHORT"; // +20
     } else {
-      // dist 0..1 (shouldn't happen for ranged, but handle it)
+      // dist 2 (point blank)
       rangeBand = "POINT_BLANK"; // +30
     }
     

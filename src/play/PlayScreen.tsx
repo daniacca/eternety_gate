@@ -552,7 +552,7 @@ export function PlayScreen() {
     const blastQuality = weapon.qualities?.find((q) => q.id === "blast");
     const blastRank = typeof blastQuality?.rank === "number" ? blastQuality.rank : 1;
     const grid = save.runtime.combat?.grid;
-    const rangeSquares = weapon.range?.long ?? (grid ? Math.max(grid.width, grid.height) : 0);
+    const rangeSquares = weapon.range ?? (grid ? Math.max(grid.width, grid.height) : 0);
 
     if (hasSpray) {
       return {

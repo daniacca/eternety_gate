@@ -350,6 +350,7 @@ export type CombatAttackCheck = {
   modifiers?: {
     outnumbering?: number; // >=0
     rangeBand?: RangeBand; // ranged only
+    closeRangeShot?: boolean; // ranged only (fires in melee, no range band bonuses)
     calledShot?: boolean;
     calledShotZone?: "head" | "arms" | "body" | "legs"; // Target body zone for Called Shot
     cover?: Cover; // ranged only
@@ -502,10 +503,7 @@ export type Weapon = {
   damageType: WeaponDamageType; // energy | explosive | impact | rendering | piercing
   penetration: number; // amount of armor soak ignored by this weapon
   // ranged only
-  range?: {
-    short: number; // in chebyshev squares, e.g. 4
-    long: number; // e.g. 8
-  };
+  range?: number; // max range in chebyshev squares, e.g. 8
   tags?: string[]; // e.g. ["vengeful"] for Righteous Fury, ["vengeful:3"] for best-of-3 rolls
   weight?: number;
   handedness?: "oneHand" | "twoHand";

@@ -10,10 +10,7 @@ export type NaturalAbilityProfile = {
     bonus?: "SB";
   };
   penetration: number;
-  range?: {
-    short: number;
-    long: number;
-  };
+  range?: number;
   qualities?: Array<{ id: string; rank?: number }>;
   handedness?: "oneHand" | "twoHand";
 };

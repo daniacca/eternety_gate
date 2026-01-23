@@ -223,8 +223,8 @@ function ItemInspectModal({
     rows.push({ label: "Damage Type", value: weapon.damageType });
     rows.push({ label: "Penetration", value: String(weapon.penetration) });
     rows.push({ label: "Handedness", value: weapon.handedness ?? "oneHand" });
-    if (weapon.range) {
-      rows.push({ label: "Range", value: `${weapon.range.short}/${weapon.range.long}` });
+    if (weapon.range !== undefined) {
+      rows.push({ label: "Range", value: `${weapon.range}` });
     }
     if (weapon.ammo) {
       rows.push({ label: "Ammo", value: `${weapon.ammo.itemId} x${weapon.ammo.consumedPerAttack}` });

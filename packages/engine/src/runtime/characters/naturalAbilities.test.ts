@@ -50,7 +50,7 @@ describe("naturalAbilities", () => {
               damageType: "piercing",
               damage: { tier: "single", add: 0 },
               penetration: 1,
-              range: { short: 3, long: 6 },
+              range: 6,
               qualities: [{ id: "spray" }],
             },
           ],
@@ -61,7 +61,7 @@ describe("naturalAbilities", () => {
     const weapons = getNaturalAbilityWeapons(actor);
     expect(weapons).toHaveLength(2);
     expect(weapons[1].kind).toBe("RANGED");
-    expect(weapons[1].range).toEqual({ short: 3, long: 6 });
+    expect(weapons[1].range).toBe(6);
     expect(weapons[1].qualities).toEqual([{ id: "spray" }]);
   });
 
@@ -76,7 +76,7 @@ describe("naturalAbilities", () => {
             damageType: "energy",
             damage: { tier: "double", add: 0 },
             penetration: 3,
-            range: { short: 4, long: 8 },
+            range: 8,
           },
         },
       },

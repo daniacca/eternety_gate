@@ -41,9 +41,9 @@ function getEquippedWeaponIds(actor: GameSave["actorsById"][string]): { main?: s
   return { main, off };
 }
 
-function resolveAoERangeSquares(save: GameSave, weaponRange?: { short: number; long: number }): number {
+function resolveAoERangeSquares(save: GameSave, weaponRange?: number): number {
   const combat = save.runtime.combat;
-  if (weaponRange?.long) return weaponRange.long;
+  if (weaponRange !== undefined) return weaponRange;
   if (!combat?.grid) return 0;
   return Math.max(combat.grid.width, combat.grid.height);
 }

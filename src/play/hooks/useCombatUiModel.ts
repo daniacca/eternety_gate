@@ -32,7 +32,7 @@ export interface CombatUiModel {
 
   // Weapon capabilities
   hasRangedWeapon: boolean;
-  weaponRange: { short: number; long: number } | null;
+  weaponRange: number | null;
 
   // Attack availability
   canMelee: boolean;
@@ -127,14 +127,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     const rangedWeapons = [mainWeapon, offWeapon, ...naturalAbilities].filter((weapon) => weapon?.kind === "RANGED");
     const hasRangedWeapon = rangedWeapons.length > 0;
     const weaponRange = rangedWeapons.length
-      ? rangedWeapons.reduce(
-          (acc, weapon) => {
-            const short = weapon?.range?.short ?? acc.short;
-            const long = weapon?.range?.long ?? acc.long;
-            return { short: Math.max(acc.short, short), long: Math.max(acc.long, long) };
-          },
-          { short: 0, long: 0 }
-        )
+      ? rangedWeapons.reduce((acc, weapon) => Math.max(acc, weapon?.range ?? 0), 0)
       : null;
 
     // Basic attack availability - check if any NPC is in melee range
@@ -164,7 +157,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
 
     // Update canRanged based on weapon range if available
     if (hasRangedWeapon && distance !== null) {
-      const maxRange = weaponRange?.long ?? 8;
+      const maxRange = weaponRange ?? 8;
       canRanged = distance > 1 && distance <= maxRange;
       if (distance <= 1) {
         canRangedReason = "In melee";
@@ -241,7 +234,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
           }
           // Check ranged range
           if (canRanged && hasRangedWeapon && weaponRange) {
-            if (dist > 1 && dist <= weaponRange.long) {
+            if (dist > 1 && dist <= weaponRange) {
               selectedTargetId = npcId;
               break;
             }

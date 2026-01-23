@@ -180,5 +180,12 @@
       }
     },
     "hooks": []
+  },
+  {
+    "id": "close_range_shot",
+    "name": "Close Range Shot",
+    "description": "Ranged weapon can be fired in melee; no point-blank bonus and uses melee modifiers.",
+    "paramsSchema": {},
+    "hooks": []
   }
 ]

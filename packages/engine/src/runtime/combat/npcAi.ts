@@ -76,7 +76,7 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
 
   // Decision logic:
   // 1. If dist <= 1: MELEE attack
-  // 2. Else if npcHasRanged && dist <= weapon.range.long: RANGED attack
+  // 2. Else if npcHasRanged && dist <= weapon.range: RANGED attack
   // 3. Else: MOVE toward target
 
   const effects: Effect[] = [];
@@ -96,18 +96,14 @@ export function runNpcTurn(storyPack: StoryPack, save: GameSave, npcId: ActorId,
       },
     };
     effects.push(attackEffect);
-  } else if (npcHasRanged && weaponRange && dist <= weaponRange.long) {
+  } else if (npcHasRanged && weaponRange && dist <= weaponRange) {
     // RANGED attack - emit combatRequestAttack
-    const rangeBand = dist <= weaponRange.short ? "SHORT" : "LONG";
     const attackEffect: Effect = {
       op: "combatRequestAttack",
       attackerId: npcId,
       defenderId: targetId,
       mode: "RANGED",
       weaponId: npcWeaponIdForAttack === "unarmed" ? null : npcWeaponIdForAttack,
-      modifiers: {
-        rangeBand: rangeBand as any,
-      },
       defense: {
         allowParry: true,
         allowDodge: true,
