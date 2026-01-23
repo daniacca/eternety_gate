@@ -121,6 +121,7 @@ export type Effect =
       weaponId?: string | null;
       modifiers?: CombatAttackCheck["modifiers"]; // riusa tipo esistente se possibile
       defense?: CombatAttackCheck["defense"]; // idem
+      targetSelection?: TargetSelection; // For Spray/Blast ranged weapons
       onSuccessEffects?: Effect[]; // Effects to apply when attack hits
       onFailureEffects?: Effect[]; // Effects to apply when attack misses (including parry/dodge)
     }

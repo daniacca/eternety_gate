@@ -161,5 +161,24 @@
       }
     },
     "hooks": []
+  },
+  {
+    "id": "spray",
+    "name": "Spray",
+    "description": "Ranged weapon releases its attack in a cone, using spell cone targeting.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "blast",
+    "name": "Blast",
+    "description": "Impact explodes in a radius; all enemies in the blast are hit.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
+    "hooks": []
   }
 ]
