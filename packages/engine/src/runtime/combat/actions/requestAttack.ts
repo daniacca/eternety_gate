@@ -11,16 +11,16 @@ import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { getCellTerrain } from "../terrain";
 import { computeTargetPreview } from "../targeting/computeTargeting";
 import type { TargetSpec, TargetSelection, TargetPreview } from "../targeting/types";
-import {
-  getActorInventory,
-  getEquippedWeaponId,
-  getInventoryItemQty,
-  removeInventoryItemQty,
-} from "../../characters/inventory";
+import { getActorInventory, getInventoryItemQty, removeInventoryItemQty } from "../../characters/inventory";
 import { getWeaponQualityRank, hasWeaponQuality } from "../../weaponQualities";
 import { isUntouchable } from "../../characters/untouchable";
 import { isActorAlive } from "../../characters/actors";
-import { getNaturalWeaponProfile, getNaturalWeaponProfileFromActor, isNaturalWeaponId } from "../../characters/naturalWeapons";
+import {
+  getNaturalWeaponProfile,
+  getNaturalWeaponProfileFromActor,
+  isNaturalWeaponId,
+} from "../../characters/naturalWeapons";
+import { getNaturalAbilityWeaponMap, getNaturalAbilityWeapons } from "../../characters/naturalAbilities";
 
 const TALENT_TWO_WEAPON_WIELDER = "talent:two_weapon_wielder";
 const TALENT_AMBIDEXTROUS = "talent:ambidextrous";
@@ -41,10 +41,7 @@ function getEquippedWeaponIds(actor: GameSave["actorsById"][string]): { main?: s
   return { main, off };
 }
 
-function resolveAoERangeSquares(
-  save: GameSave,
-  weaponRange?: { short: number; long: number }
-): number {
+function resolveAoERangeSquares(save: GameSave, weaponRange?: { short: number; long: number }): number {
   const combat = save.runtime.combat;
   if (weaponRange?.long) return weaponRange.long;
   if (!combat?.grid) return 0;
@@ -53,7 +50,7 @@ function resolveAoERangeSquares(
 
 function resolveAoESelectionDistance(
   attackerPos: { x: number; y: number },
-  selection?: TargetSelection
+  selection?: TargetSelection,
 ): number | null {
   if (!selection) return null;
   if (selection.kind === "single") {
@@ -76,7 +73,7 @@ export function combatRequestAttack(
   effect: Extract<Effect, { op: "combatRequestAttack" }>,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -247,7 +244,7 @@ export function combatRequestAttack(
   if (weaponIdsToUse.length === 0) {
     weaponIdsToUse = [null];
   }
-  const dualWieldPenalty = canDualWield && weaponIdsToUse.length > 1 ? dualPenalty ?? 0 : 0;
+  const dualWieldPenalty = canDualWield && weaponIdsToUse.length > 1 ? (dualPenalty ?? 0) : 0;
 
   // Include mode and special modifiers in checkId for better identification
   const checkIdSuffix = effect.modifiers?.hitBonus === 20 ? ":allOut" : "";
@@ -277,7 +274,7 @@ export function combatRequestAttack(
     weaponId: string | null,
     suffix: string,
     defenderId: string = effect.defenderId,
-    defenseOverride?: CombatAttackCheck["defense"]
+    defenseOverride?: CombatAttackCheck["defense"],
   ): CombatAttackCheck => {
     const baseHitBonus = effect.modifiers?.hitBonus;
     const hitBonus = (baseHitBonus ?? 0) + dualWieldPenalty;
@@ -297,11 +294,12 @@ export function combatRequestAttack(
       defender: {
         actorRef: { mode: "byId", actorId: defenderId },
       },
-      defense: defenseOverride ?? (effect.defense ?? {
-        allowParry: true,
-        allowDodge: true,
-        strategy: "autoBest",
-      }),
+      defense: defenseOverride ??
+        effect.defense ?? {
+          allowParry: true,
+          allowDodge: true,
+          strategy: "autoBest",
+        },
       modifiers,
     };
   };
@@ -320,16 +318,26 @@ export function combatRequestAttack(
         })
       : undefined;
 
+  const naturalAbilityWeapons = getNaturalAbilityWeapons(attacker);
+  if (naturalAbilityWeapons.length > 0) {
+    currentSave = {
+      ...currentSave,
+      weaponsById: {
+        ...(currentSave.weaponsById || {}),
+        ...getNaturalAbilityWeaponMap(attacker),
+      },
+    };
+  }
+
   // If no equipped weapons and attacker has natural weapons, use them instead of unarmed
   if (effect.mode === "MELEE" && !mainWeaponId && !offWeaponId && weaponIdsToUse.length === 1) {
     const requestedWeaponId = weaponIdsToUse[0];
     const shouldUseNatural =
-      !requestedWeaponId ||
-      isNaturalWeaponId(requestedWeaponId) ||
-      !currentSave.weaponsById?.[requestedWeaponId];
+      !requestedWeaponId || isNaturalWeaponId(requestedWeaponId) || !currentSave.weaponsById?.[requestedWeaponId];
     if (shouldUseNatural) {
-      const naturalWeapon =
-        catalogs ? getNaturalWeaponProfile(currentSave, catalogs, effect.attackerId) : getNaturalWeaponProfileFromActor(attacker);
+      const naturalWeapon = catalogs
+        ? getNaturalWeaponProfile(currentSave, catalogs, effect.attackerId)
+        : getNaturalWeaponProfileFromActor(attacker);
       if (naturalWeapon) {
         const weaponsById = {
           ...(currentSave.weaponsById || {}),
@@ -340,6 +348,18 @@ export function combatRequestAttack(
           weaponsById,
         };
         weaponIdsToUse = [naturalWeapon.id];
+      }
+    }
+  }
+
+  // If no equipped weapons and actor has natural abilities, use first matching ability
+  if (!mainWeaponId && !offWeaponId && weaponIdsToUse.length === 1) {
+    const requestedWeaponId = weaponIdsToUse[0];
+    const hasRequested = requestedWeaponId && currentSave.weaponsById?.[requestedWeaponId];
+    if (!hasRequested && naturalAbilityWeapons.length > 0) {
+      const matching = naturalAbilityWeapons.find((weapon) => weapon.kind === effect.mode);
+      if (matching) {
+        weaponIdsToUse = [matching.id];
       }
     }
   }
@@ -524,9 +544,7 @@ export function combatRequestAttack(
 
       const attackerPos = combat.positions[effect.attackerId];
       if (attackerPos && targetPreview.affectedCells.length > 0) {
-        aoeAttackDist = Math.max(
-          ...targetPreview.affectedCells.map((cell) => distanceChebyshev(attackerPos, cell))
-        );
+        aoeAttackDist = Math.max(...targetPreview.affectedCells.map((cell) => distanceChebyshev(attackerPos, cell)));
       } else if (attackerPos) {
         const selectionDist = resolveAoESelectionDistance(attackerPos, aoeTargetSelection);
         if (selectionDist !== null) {
@@ -539,7 +557,7 @@ export function combatRequestAttack(
         currentSave,
         aoeAttackDist,
         attackCheck.id,
-        effect.attackerId
+        effect.attackerId,
       );
       if (blockedCheck) {
         if (index === 0) {
@@ -567,7 +585,13 @@ export function combatRequestAttack(
     }
 
     if (effect.mode === "RANGED" && !usesAoE) {
-      const blockedCheck = validateAndApplyRangedModifiers(attackCheck, currentSave, dist, attackCheck.id, effect.attackerId);
+      const blockedCheck = validateAndApplyRangedModifiers(
+        attackCheck,
+        currentSave,
+        dist,
+        attackCheck.id,
+        effect.attackerId,
+      );
       if (blockedCheck) {
         if (index === 0) {
           return {
@@ -648,7 +672,11 @@ export function combatRequestAttack(
           continue;
         }
 
-        const { updatedInventory } = removeInventoryItemQty(inventory, weapon.ammo.itemId, weapon.ammo.consumedPerAttack);
+        const { updatedInventory } = removeInventoryItemQty(
+          inventory,
+          weapon.ammo.itemId,
+          weapon.ammo.consumedPerAttack,
+        );
         currentSave = {
           ...currentSave,
           actorsById: {
@@ -666,19 +694,18 @@ export function combatRequestAttack(
     // performCheckWithSave handles all logging automatically (attack + defense if party members)
     const attackResolutionId = `${resolutionId}${suffix}`;
     const attackCheckForRoll = usesAoE
-      ? buildCombatCheck(
-          weaponId,
-          `${suffix}:aoe`,
-          aoeTargets[0] ?? effect.defenderId,
-          { allowParry: false, allowDodge: false, strategy: "autoBest" }
-        )
+      ? buildCombatCheck(weaponId, `${suffix}:aoe`, aoeTargets[0] ?? effect.defenderId, {
+          allowParry: false,
+          allowDodge: false,
+          strategy: "autoBest",
+        })
       : attackCheck;
     const { result, save: afterCheckSave } = performCheckWithSave(
       attackCheckForRoll,
       storyPack,
       currentSave,
       rng,
-      attackResolutionId
+      attackResolutionId,
     );
     if (!result) {
       continue;
@@ -727,14 +754,14 @@ export function combatRequestAttack(
     const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
 
     // Apply damage if hit (pass resolutionId to correlate with check)
-    let damageResult = { save: currentSave, didApplyDamage: false, targetKo: false } as ReturnType<typeof applyCombatDamageIfHit>;
+    let damageResult = { save: currentSave, didApplyDamage: false, targetKo: false } as ReturnType<
+      typeof applyCombatDamageIfHit
+    >;
     const onDamageEffects: Effect[] = [];
 
     if (usesAoE) {
       if (targetPreview && targetPreview.affectedActorIds.length > 0) {
-        const targetNames = aoeTargets
-          .map((id) => currentSave.actorsById[id]?.name || id)
-          .join(", ");
+        const targetNames = aoeTargets.map((id) => currentSave.actorsById[id]?.name || id).join(", ");
         if (targetNames) {
           currentSave = appendCombatLog(currentSave, `Bersagli: ${targetNames}`);
         }
@@ -755,7 +782,7 @@ export function combatRequestAttack(
             storyPack,
             targetResolutionId,
             catalogs,
-            isMagicFueled
+            isMagicFueled,
           );
           currentSave = damageResult.save;
           if (damageResult.effects && damageResult.effects.length > 0) {
@@ -767,7 +794,8 @@ export function combatRequestAttack(
             if (deadActor) {
               const pcDied = deadActor.kind === "PC";
               const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
-              const allPartyDead = partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
+              const allPartyDead =
+                partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
 
               if (pcDied || allPartyDead) {
                 currentSave = {
@@ -800,7 +828,7 @@ export function combatRequestAttack(
         storyPack,
         attackResolutionId,
         catalogs,
-        isMagicFueled
+        isMagicFueled,
       );
       currentSave = damageResult.save;
       if (damageResult.effects && damageResult.effects.length > 0) {
@@ -821,7 +849,7 @@ export function combatRequestAttack(
             storyPack,
             attackResolutionId,
             catalogs,
-            true
+            true,
           );
           currentSave = damageResult.save;
           if (damageResult.actorDied && currentSave.runtime.gameOver) {

@@ -8,6 +8,7 @@ import {
   isActorAlive,
   getCharacteristicBonus,
   loadCharacterCatalogs,
+  getNaturalAbilityWeapons,
 } from "@eg/engine";
 
 export interface CombatUiModel {
@@ -122,7 +123,8 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     const offWeaponId = pcActor?.equipment?.offHand?.kind === "weapon" ? pcActor.equipment.offHand.id : null;
     const mainWeapon = mainWeaponId ? save.weaponsById?.[mainWeaponId] : null;
     const offWeapon = offWeaponId ? save.weaponsById?.[offWeaponId] : null;
-    const rangedWeapons = [mainWeapon, offWeapon].filter((weapon) => weapon?.kind === "RANGED");
+    const naturalAbilities = pcActor ? getNaturalAbilityWeapons(pcActor) : [];
+    const rangedWeapons = [mainWeapon, offWeapon, ...naturalAbilities].filter((weapon) => weapon?.kind === "RANGED");
     const hasRangedWeapon = rangedWeapons.length > 0;
     const weaponRange = rangedWeapons.length
       ? rangedWeapons.reduce(

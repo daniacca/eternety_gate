@@ -23,6 +23,7 @@ import {
   type Direction8,
   type Position,
   useItem,
+  getNaturalAbilityWeaponById,
 } from "@eg/engine";
 import brunholt from "../../stories/brunholt.story.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -543,7 +544,8 @@ export function PlayScreen() {
 
   const buildRangedTargetSpec = (weaponId: string | null): TargetSpec | null => {
     if (!weaponId) return null;
-    const weapon = save.weaponsById?.[weaponId];
+    const actor = save.actorsById[save.party.activeActorId];
+    const weapon = save.weaponsById?.[weaponId] || (actor ? getNaturalAbilityWeaponById(actor, weaponId) : null);
     if (!weapon || weapon.kind !== "RANGED") return null;
 
     const hasSpray = weapon.qualities?.some((q) => q.id === "spray");

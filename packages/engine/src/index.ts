@@ -110,6 +110,12 @@ export { getModifierTotal } from "./runtime/characters/modifiers";
 export { getSkillTarget } from "./runtime/characters/skills";
 export { getRangedDamageBonusFromMightyShot } from "./runtime/characters/mightyShot";
 export { getNaturalWeaponProfile } from "./runtime/characters/naturalWeapons";
+export {
+  getNaturalAbilityProfiles,
+  getNaturalAbilityWeapons,
+  getNaturalAbilityWeaponMap,
+  getNaturalAbilityWeaponById,
+} from "./runtime/characters/naturalAbilities";
 export { processRegeneration } from "./runtime/characters/regeneration";
 export { getCharacteristicBonus, getStatTestTarget } from "./runtime/characters/bonuses";
 export { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./runtime/characters/hp";

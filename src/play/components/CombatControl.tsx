@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck } from "@eg/engine";
-import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells } from "@eg/engine";
+import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells, getNaturalAbilityWeapons } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
 import { useMemo, useState } from "react";
 import { SpellPickerModal } from "./SpellPickerModal";
@@ -98,17 +98,25 @@ export function CombatControl({
   const offWeapon = offWeaponId ? save.weaponsById?.[offWeaponId] : null;
   const hasTwoWeaponWielder = (activeActor?.talents?.["talent:two_weapon_wielder"] ?? 0) > 0;
 
+  const naturalAbilityOptions = activeActor ? getNaturalAbilityWeapons(activeActor) : [];
+
   const getWeaponOptionsForMode = (mode: "MELEE" | "RANGED") => {
     const options: Array<{ id: string | null; name: string }> = [];
     if (mode === "MELEE") {
       if (mainWeaponId) options.push({ id: mainWeaponId, name: mainWeapon?.name || mainWeaponId });
       if (offWeaponId) options.push({ id: offWeaponId, name: offWeapon?.name || offWeaponId });
+      for (const ability of naturalAbilityOptions.filter((weapon) => weapon.kind === "MELEE")) {
+        options.push({ id: ability.id, name: ability.name });
+      }
     } else {
       if (mainWeaponId && mainWeapon?.kind === "RANGED") {
         options.push({ id: mainWeaponId, name: mainWeapon?.name || mainWeaponId });
       }
       if (offWeaponId && offWeapon?.kind === "RANGED") {
         options.push({ id: offWeaponId, name: offWeapon?.name || offWeaponId });
+      }
+      for (const ability of naturalAbilityOptions.filter((weapon) => weapon.kind === "RANGED")) {
+        options.push({ id: ability.id, name: ability.name });
       }
     }
     return options;

@@ -11,6 +11,7 @@ import type {
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getEquippedWeaponId, getEquippedArmorId } from "../characters/inventory";
 import { getNaturalWeaponProfileFromActor } from "../characters/naturalWeapons";
+import { getNaturalAbilityWeapons } from "../characters/naturalAbilities";
 import { getCharacteristicBonus } from "../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../characters/mightyShot";
 import { getMeleeDamageBonusFromTalents, getRangedDamageBonusFromTalents } from "../characters/talentModifiers";
@@ -128,6 +129,15 @@ export function getActorWeapon(
         weapon: naturalWeapon,
         weaponId: naturalWeapon.id,
         name: naturalWeapon.name,
+      };
+    }
+    const naturalAbilities = getNaturalAbilityWeapons(actor);
+    if (naturalAbilities.length > 0) {
+      const firstAbility = naturalAbilities[0];
+      return {
+        weapon: firstAbility,
+        weaponId: firstAbility.id,
+        name: firstAbility.name,
       };
     }
     // Unarmed: MELEE with 1d10 + SB

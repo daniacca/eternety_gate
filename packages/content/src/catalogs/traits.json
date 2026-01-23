@@ -44,6 +44,17 @@
     ]
   },
   {
+    "id": "trait:natural_ability",
+    "name": "Natural Ability",
+    "params": {
+      "profiles": {
+        "type": "array",
+        "required": true
+      }
+    },
+    "grants": []
+  },
+  {
     "id": "trait:size",
     "name": "Taglia",
     "params": {
