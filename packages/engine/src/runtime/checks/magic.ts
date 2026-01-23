@@ -2,7 +2,8 @@ import type { MagicChannelCheck, MagicEffectCheck, CheckResult, StoryPack, GameS
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
-import { rollD100Check, addPhenomenaTags } from "./evaluation";
+import { addPhenomenaTags } from "./evaluation";
+import { rollD100CheckWithFate, type FateRerollContext } from "./fate";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { getModifierTotal } from "../characters/modifiers";
 
@@ -10,7 +11,8 @@ export function performMagicChannelCheck(
   check: MagicChannelCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  fateContext?: FateRerollContext
 ): CheckResult {
   const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
@@ -35,7 +37,7 @@ export function performMagicChannelCheck(
   const channelBonus = catalogs ? getModifierTotal(save, catalogs, actor.id, "magic.channelBonus") : 0;
 
   const target = breakdown.target + channelBonus;
-  const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);
+  const baseResult = rollD100CheckWithFate(check.id, actor.id, target, storyPack, save, rng, fateContext);
 
   if (!baseResult) return null;
 
@@ -89,7 +91,8 @@ export function performMagicEffectCheck(
   check: MagicEffectCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  fateContext?: FateRerollContext
 ): CheckResult {
   const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
@@ -113,7 +116,7 @@ export function performMagicEffectCheck(
   const castBonus = catalogs ? getModifierTotal(save, catalogs, actor.id, "magic.castBonus") : 0;
 
   const target = breakdown.target + castBonus;
-  const baseResult = rollD100Check(check.id, actor.id, target, storyPack, rng);
+  const baseResult = rollD100CheckWithFate(check.id, actor.id, target, storyPack, save, rng, fateContext);
 
   if (!baseResult) return null;
 

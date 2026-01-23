@@ -3,13 +3,14 @@ import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { evaluateCondition } from "../conditions";
 import { computeTargetBreakdown } from "./target";
-import { rollD100Check } from "./evaluation";
+import { rollD100CheckWithFate, type FateRerollContext } from "./fate";
 
 export function performSingleCheck(
   check: SingleCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  fateContext?: FateRerollContext
 ): CheckResult {
   const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
@@ -21,7 +22,7 @@ export function performSingleCheck(
   const checkModifier = check.modifier ?? 0;
   const finalTarget = breakdown.target + checkModifier;
 
-  const result = rollD100Check(check.id, actor.id, finalTarget, storyPack, rng);
+  const result = rollD100CheckWithFate(check.id, actor.id, finalTarget, storyPack, save, rng, fateContext);
 
   // Add target breakdown tags for debugging
   if (result) {

@@ -26,6 +26,7 @@ import {
 import { handleLearnSpell } from "./learnSpell";
 import { handleNarrativeSpell } from "./narrativeSpell";
 import { handleAcquireTalent, handleGrantXp, handleGrantFatePoint } from "./acquireTalent";
+import { handleSetFateProtection } from "./fate";
 import { applySetFlag, applyAddCounter } from "./state";
 import { applyAddItem, applyRemoveItem } from "./items";
 import { applyClearChoiceCheckResults } from "./choiceChecks";
@@ -124,6 +125,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   grantXp: (effect, _storyPack, save, _rng) => handleGrantXp(effect as Extract<Effect, { op: "grantXp" }>, save),
   grantFatePoint: (effect, _storyPack, save, _rng) =>
     handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, save),
+  setFateProtection: (effect, _storyPack, save, _rng) =>
+    handleSetFateProtection(effect as Extract<Effect, { op: "setFateProtection" }>, save),
 };
 
 /**

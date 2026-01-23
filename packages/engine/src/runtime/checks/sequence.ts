@@ -1,15 +1,23 @@
 import type { SequenceCheck, CheckResult, StoryPack, GameSave, Check } from "../types";
 import { type IRNG } from "../rng";
+import type { FateRerollContext } from "./fate";
 
 // Type for check handler function - will be provided by index.ts
-type CheckHandler = (check: Check, storyPack: StoryPack | undefined, save: GameSave, rng: IRNG) => CheckResult;
+type CheckHandler = (
+  check: Check,
+  storyPack: StoryPack | undefined,
+  save: GameSave,
+  rng: IRNG,
+  fateContext?: FateRerollContext
+) => CheckResult;
 
 export function performSequenceCheck(
   check: SequenceCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
-  performCheckHandler: CheckHandler
+  performCheckHandler: CheckHandler,
+  fateContext?: FateRerollContext
 ): CheckResult {
   const steps = check.steps;
   let firstActorId: string | undefined;
@@ -19,7 +27,7 @@ export function performSequenceCheck(
   // Execute steps in order, stop at first failure
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
-    const result = performCheckHandler(step, storyPack, save, rng);
+    const result = performCheckHandler(step, storyPack, save, rng, fateContext);
 
     // Skip null results (should be rare)
     if (!result) {

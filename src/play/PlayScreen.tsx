@@ -366,6 +366,13 @@ export function PlayScreen() {
     setSave(newSave);
   };
 
+  const handleToggleFateProtection = useCallback(
+    (actorId: string, active: boolean) => {
+      applySystemEffects([{ op: "setFateProtection", actorId, active }]);
+    },
+    [applySystemEffects]
+  );
+
   const applyItemUse = (itemRef: ItemRef, targetSelection?: TargetSelection) => {
     const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
     const result = useItem(save, save.party.activeActorId, itemRef, {
@@ -938,6 +945,7 @@ export function PlayScreen() {
         onOpenSheet={() => setPlayerSheetVisible(true)}
         onOpenTalentShop={() => setTalentShopVisible(true)}
         onOpenEquipment={() => setEquipmentVisible(true)}
+        onToggleFateProtection={handleToggleFateProtection}
       />
 
       {isWide ? (

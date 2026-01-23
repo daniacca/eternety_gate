@@ -169,6 +169,7 @@ export function handleGrantFatePoint(
     resources: {
       ...actor.resources,
       fatePoints: newFp,
+      fateProtectionActive: newFp > 0 ? actor.resources.fateProtectionActive : false,
     },
   };
 

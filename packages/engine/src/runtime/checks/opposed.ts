@@ -3,12 +3,14 @@ import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
 import { evaluateRoll } from "./evaluation";
+import { rollD100CheckWithFate, type FateRerollContext } from "./fate";
 
 export function performOpposedCheck(
   check: OpposedCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  fateContext?: FateRerollContext
 ): CheckResult {
   // Resolve actors - default to active actor if not specified
   const attacker = resolveActor(check.attacker.actorRef, save, storyPack);
@@ -34,11 +36,9 @@ export function performOpposedCheck(
   const defenderTarget = defenderBreakdown.target;
 
   // Roll for both sides
-  const attackerRoll = rng.rollD100();
+  const attackerResult = rollD100CheckWithFate(check.id, attacker.id, attackerTarget, storyPack, save, rng, fateContext);
+  const attackerRoll = attackerResult?.roll ?? 0;
   const defenderRoll = rng.rollD100();
-
-  // Evaluate both rolls
-  const attackerResult = evaluateRoll(attackerRoll, attackerTarget, storyPack, check.id, attacker.id);
   const defenderResult = evaluateRoll(defenderRoll, defenderTarget, storyPack, check.id, defender.id);
 
   if (!attackerResult || !defenderResult) {

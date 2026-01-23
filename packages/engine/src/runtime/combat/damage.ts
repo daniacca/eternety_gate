@@ -15,6 +15,7 @@ import { hasTrait } from "../characters/prerequisites";
 import { hasNaturalWeapons } from "../characters/naturalWeapons";
 import { getMagicPower } from "../magic/pm";
 import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
+import { consumeFateProtection, isFateProtectionActive } from "../characters/fate";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -96,127 +97,155 @@ export function applyCombatDamageIfHit(
   }
 
   // Calculate raw damage with weapon (using passed RNG for determinism)
-  let rawDamage: number;
-  let weaponName: string;
-  let calculatedWeaponId: WeaponId | "unarmed" | "improvised";
-  let damageRolls: number[] = [];
-  let damageFormula: string = "";
+  let accurateLogged = false;
+  const rollWeaponDamage = (): {
+    rawDamage: number;
+    weaponName: string;
+    calculatedWeaponId: WeaponId | "unarmed" | "improvised";
+    damageRolls: number[];
+    damageFormula: string;
+  } => {
+    let rawDamage: number;
+    let weaponName: string;
+    let calculatedWeaponId: WeaponId | "unarmed" | "improvised";
+    let damageRolls: number[] = [];
+    let damageFormula: string = "";
 
-  if (useFallbackWeapon) {
-    // Improvised melee weapon: 1d5 + STR bonus, no penetration
-    let bestRoll = 0;
-    const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
-    for (let i = 0; i < rollsCount; i++) {
-      const dieRoll = rng.nextInt(1, 5);
-      const rollTotal = dieRoll + strBonus;
-      damageRolls.push(rollTotal);
-      if (rollTotal > bestRoll) {
-        bestRoll = rollTotal;
-      }
-    }
-    rawDamage = bestRoll;
-    weaponName = "Arma di fortuna";
-    calculatedWeaponId = "improvised";
-
-    // Build formula
-    const formulaParts: string[] = ["1d5"];
-    if (strBonus > 0) {
-      formulaParts.push(`${strBonus} (STR)`);
-    }
-    damageFormula = formulaParts.join(" + ");
-  } else {
-    const weaponForQualities = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
-    const hasAccurate = hasWeaponQuality(weaponForQualities, "accurate");
-    const hasMagicFueled = hasWeaponQuality(weaponForQualities, "magic_fueled");
-    const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
-    const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
-    const forceBonus =
-      hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver", save)
-        ? getMagicPower(save, attacker.id, catalogs)
-        : 0;
-    const magicFueledBonus =
-      hasMagicFueled && hasTrait(attacker, "trait:weaver", save) ? getMagicPower(save, attacker.id, catalogs) : 0;
-
-    const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
-      tearing: hasTearing,
-      extraDice: accurateExtraDice,
-    });
-    rawDamage = damageCalc.rawDamage;
-    if (forceBonus > 0) {
-      rawDamage += forceBonus;
-    }
-    if (magicFueledBonus > 0) {
-      rawDamage += magicFueledBonus;
-    }
-    weaponName = damageCalc.weaponName;
-    calculatedWeaponId = damageCalc.weaponId;
-
-    if (accurateExtraDice > 0) {
-      updatedSave = appendRuntimeLog(updatedSave, {
-        kind: "system",
-        message: `Accurate: +${accurateExtraDice}d10 damage dice`,
-        turnCounter: save.runtime.combat?.turnCounter ?? 0,
-        resolutionId,
-        tags: ["weapon:accurate", `extraDice=${accurateExtraDice}`],
-      });
-    }
-
-    // Build formula string for logging
-    const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
-    if (weapon) {
-      // Format damage tier as dice notation
-      const tierToDice = {
-        fixed: "0",
-        half: "1d5",
-        single: "1d10",
-        double: "2d10",
-        triple: "3d10",
-        quadfold: "4d10",
-        fivefold: "5d10",
-      };
-      const diceNotation = tierToDice[weapon.damage.tier];
-
-      // Build formula components
-      const formulaParts: string[] = [diceNotation];
-
-      // Add weapon damage bonus only if > 0
-      if (weapon.damage.add > 0) {
-        formulaParts.push(`${weapon.damage.add} (weapon)`);
-      }
-
-      if (mode === "MELEE") {
-        const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
-        if (strBonus > 0) {
-          formulaParts.push(`${strBonus} (STR)`);
-        }
-      } else if (mode === "RANGED") {
-        // Get Mighty Shot bonus for formula display
-        const mightyShotBonus = catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
-        if (mightyShotBonus > 0) {
-          formulaParts.push(`${mightyShotBonus} (Mighty Shot)`);
+    if (useFallbackWeapon) {
+      // Improvised melee weapon: 1d5 + STR bonus, no penetration
+      let bestRoll = 0;
+      const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
+      for (let i = 0; i < rollsCount; i++) {
+        const dieRoll = rng.nextInt(1, 5);
+        const rollTotal = dieRoll + strBonus;
+        damageRolls.push(rollTotal);
+        if (rollTotal > bestRoll) {
+          bestRoll = rollTotal;
         }
       }
+      rawDamage = bestRoll;
+      weaponName = "Arma di fortuna";
+      calculatedWeaponId = "improvised";
 
-      if (accurateExtraDice > 0) {
-        formulaParts.push(`${accurateExtraDice}d10 (Accurate)`);
-      }
-      if (forceBonus > 0) {
-        formulaParts.push(`${forceBonus} (Force)`);
-      }
-      damageFormula = formulaParts.join(" + ");
-    } else {
-      // Unarmed
-      const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
+      // Build formula
       const formulaParts: string[] = ["1d5"];
       if (strBonus > 0) {
         formulaParts.push(`${strBonus} (STR)`);
       }
-      if (forceBonus > 0) {
-        formulaParts.push(`${forceBonus} (Force)`);
-      }
       damageFormula = formulaParts.join(" + ");
+    } else {
+      const weaponForQualities = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
+      const hasAccurate = hasWeaponQuality(weaponForQualities, "accurate");
+      const hasMagicFueled = hasWeaponQuality(weaponForQualities, "magic_fueled");
+      const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
+      const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
+      const forceBonus =
+        hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver", save)
+          ? getMagicPower(save, attacker.id, catalogs)
+          : 0;
+      const magicFueledBonus =
+        hasMagicFueled && hasTrait(attacker, "trait:weaver", save) ? getMagicPower(save, attacker.id, catalogs) : 0;
+
+      const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
+        tearing: hasTearing,
+        extraDice: accurateExtraDice,
+      });
+      rawDamage = damageCalc.rawDamage;
+      if (forceBonus > 0) {
+        rawDamage += forceBonus;
+      }
+      if (magicFueledBonus > 0) {
+        rawDamage += magicFueledBonus;
+      }
+      weaponName = damageCalc.weaponName;
+      calculatedWeaponId = damageCalc.weaponId;
+
+      if (accurateExtraDice > 0 && !accurateLogged) {
+        updatedSave = appendRuntimeLog(updatedSave, {
+          kind: "system",
+          message: `Accurate: +${accurateExtraDice}d10 damage dice`,
+          turnCounter: save.runtime.combat?.turnCounter ?? 0,
+          resolutionId,
+          tags: ["weapon:accurate", `extraDice=${accurateExtraDice}`],
+        });
+        accurateLogged = true;
+      }
+
+      // Build formula string for logging
+      const weapon = calculatedWeaponId !== "unarmed" ? save.weaponsById?.[calculatedWeaponId] : null;
+      if (weapon) {
+        // Format damage tier as dice notation
+        const tierToDice = {
+          fixed: "0",
+          half: "1d5",
+          single: "1d10",
+          double: "2d10",
+          triple: "3d10",
+          quadfold: "4d10",
+          fivefold: "5d10",
+        };
+        const diceNotation = tierToDice[weapon.damage.tier];
+
+        // Build formula components
+        const formulaParts: string[] = [diceNotation];
+
+        // Add weapon damage bonus only if > 0
+        if (weapon.damage.add > 0) {
+          formulaParts.push(`${weapon.damage.add} (weapon)`);
+        }
+
+        if (mode === "MELEE") {
+          const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
+          if (strBonus > 0) {
+            formulaParts.push(`${strBonus} (STR)`);
+          }
+        } else if (mode === "RANGED") {
+          // Get Mighty Shot bonus for formula display
+          const mightyShotBonus = catalogs ? getRangedDamageBonusFromMightyShot(save, catalogs, attacker.id) : 0;
+          if (mightyShotBonus > 0) {
+            formulaParts.push(`${mightyShotBonus} (Mighty Shot)`);
+          }
+        }
+
+        if (accurateExtraDice > 0) {
+          formulaParts.push(`${accurateExtraDice}d10 (Accurate)`);
+        }
+        if (forceBonus > 0) {
+          formulaParts.push(`${forceBonus} (Force)`);
+        }
+        damageFormula = formulaParts.join(" + ");
+      } else {
+        // Unarmed
+        const strBonus = getCharacteristicBonus(save, attacker.id, "STR", catalogs);
+        const formulaParts: string[] = ["1d5"];
+        if (strBonus > 0) {
+          formulaParts.push(`${strBonus} (STR)`);
+        }
+        if (forceBonus > 0) {
+          formulaParts.push(`${forceBonus} (Force)`);
+        }
+        damageFormula = formulaParts.join(" + ");
+      }
+    }
+
+    return { rawDamage, weaponName, calculatedWeaponId, damageRolls, damageFormula };
+  };
+
+  let fateDamageRerollUsed = false;
+  let fateDamageRerollFrom: number | null = null;
+  let damageOutcome = rollWeaponDamage();
+
+  if (isFateProtectionActive(attacker) && damageOutcome.rawDamage === 1) {
+    const consumeResult = consumeFateProtection(updatedSave, attacker.id);
+    if (consumeResult.consumed) {
+      updatedSave = consumeResult.save;
+      fateDamageRerollUsed = true;
+      fateDamageRerollFrom = damageOutcome.rawDamage;
+      damageOutcome = rollWeaponDamage();
     }
   }
+
+  let { rawDamage, weaponName, calculatedWeaponId, damageRolls, damageFormula } = damageOutcome;
 
   // Get defender armor soak
   const { soak, armorId } = getActorArmor(save, defender);
@@ -386,7 +415,7 @@ export function applyCombatDamageIfHit(
 
   // Update actorsById immutably
   const updatedActorsById = {
-    ...save.actorsById,
+    ...updatedSave.actorsById,
     [defender.id]: updatedDefender,
   };
 
@@ -413,6 +442,13 @@ export function applyCombatDamageIfHit(
             ...(useFallbackWeapon ? ["combat:fallbackWeapon=improvised"] : []),
             ...((updatedDefender.resources.criticalDamage ?? 0) > 0
               ? [`combat:criticalDamage=${updatedDefender.resources.criticalDamage}`]
+              : []),
+            ...(fateDamageRerollUsed
+              ? [
+                  "fate:damageReroll=1",
+                  `fate:damageRerollFrom=${fateDamageRerollFrom ?? 1}`,
+                  `fate:damageRerollTo=${rawDamage}`,
+                ]
               : []),
           ],
         }
@@ -736,6 +772,9 @@ export function applyCombatDamageIfHit(
       finalDamage,
       turnCounter,
       resolutionId,
+      tags: fateDamageRerollUsed
+        ? ["fate:damageReroll=1", `fate:damageRerollFrom=${fateDamageRerollFrom ?? 1}`]
+        : undefined,
     });
   }
 

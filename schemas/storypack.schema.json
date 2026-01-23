@@ -322,6 +322,7 @@
             "acquireTalent",
             "grantXp",
             "grantFatePoint",
+            "setFateProtection",
             "narrativeSpell"
           ]
         }

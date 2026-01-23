@@ -71,6 +71,7 @@
         "rf": { "type": "number", "description": "Fatigue (current RF)" },
         "peq": { "type": "number" },
         "fatePoints": { "type": "number", "description": "Fate Points for special abilities like Die Hard" },
+        "fateProtectionActive": { "type": "boolean", "description": "Fate protection toggle (requires fatePoints > 0)" },
         "criticalDamage": { "type": "number" },
         "criticalTierApplied": { "type": "number" },
         "isDead": { "type": "boolean" },

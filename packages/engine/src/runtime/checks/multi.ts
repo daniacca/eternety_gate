@@ -3,13 +3,14 @@ import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { getStatOrSkillValue } from "./values";
 import { resolveDifficulty } from "./target";
-import { rollD100Check } from "./evaluation";
+import { rollD100CheckWithFate, type FateRerollContext } from "./fate";
 
 export function performMultiCheck(
   check: MultiCheck,
   storyPack: StoryPack | undefined,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
+  fateContext?: FateRerollContext
 ): CheckResult {
   const actor = resolveActor(check.actorRef, save, storyPack);
   if (!actor) return null;
@@ -20,7 +21,7 @@ export function performMultiCheck(
     const difficultyMod = resolveDifficulty(option.difficulty, storyPack);
     const target = baseValue + difficultyMod;
 
-    const result = rollD100Check(check.id, actor.id, target, storyPack, rng);
+    const result = rollD100CheckWithFate(check.id, actor.id, target, storyPack, save, rng, fateContext);
     if (result && result.success) {
       return result;
     }
@@ -32,5 +33,5 @@ export function performMultiCheck(
   const difficultyMod = resolveDifficulty(lastOption.difficulty, storyPack);
   const target = baseValue + difficultyMod;
 
-  return rollD100Check(check.id, actor.id, target, storyPack, rng);
+  return rollD100CheckWithFate(check.id, actor.id, target, storyPack, save, rng, fateContext);
 }

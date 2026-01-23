@@ -2,7 +2,7 @@ import type { Choice, StoryPack, GameSave, Check, CombatAttackCheck } from "../t
 import type { IRNG } from "../rng";
 import type { ChoiceHandler } from "./types";
 import { applyEffects } from "../effects";
-import { performCheck } from "../checks";
+import { performCheckWithSave } from "../checks";
 import { getCurrentScene } from "../selectors";
 import { distanceChebyshev } from "../combat/movement";
 import { validateAndApplyRangedModifiers } from "../combat/validation";
@@ -17,7 +17,7 @@ import type { ContentPack } from "../../content/types";
  */
 function updateMagicState(
   check: Check,
-  result: NonNullable<ReturnType<typeof performCheck>>,
+  result: NonNullable<ReturnType<typeof performCheckWithSave>>["result"],
   save: GameSave
 ): GameSave {
   if (check.kind === "magicChannel" && result.success) {
@@ -227,12 +227,13 @@ export const handleGenericChoice: ChoiceHandler = (
         }
       }
 
-      const result = performCheck(check, storyPack, currentSave, rng);
+      const checkOutcome = performCheckWithSave(check, storyPack, currentSave, rng);
+      const result = checkOutcome.result;
       if (result) {
         currentSave = {
-          ...currentSave,
+          ...checkOutcome.save,
           runtime: {
-            ...currentSave.runtime,
+            ...checkOutcome.save.runtime,
             lastCheck: result,
             rngCounter: rng.getCounter(),
           },

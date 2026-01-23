@@ -1,9 +1,10 @@
-import type { GameSave, Actor, Effect, SingleCheck, StoryPack, StatKey, RuntimeLogEntry } from "../types";
+import type { GameSave, Actor, Effect, SingleCheck, StoryPack, StatKey } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
-import { performCheck } from "../checks";
+import { performCheckWithSave } from "../checks";
 import { calculateMaxHp } from "../characters/hp";
 import { hasTalentHook } from "../characters/talentModifiers";
+import { isFateProtectionActive } from "../characters/fate";
 
 /**
  * Applies critical damage tier effects and determines if actor dies.
@@ -30,9 +31,11 @@ export function applyCriticalDamageTiers(
   emittedEffects: Effect[];
   actorDied: boolean;
   newTierApplied: number;
+  save: GameSave;
 } {
   const emittedEffects: Effect[] = [];
   let actorDied = false;
+  let currentSave = save;
 
   // Check if actor already has critical damage >= 10 and should be dead
   if (criticalDamage >= 10 && !actor.resources.isDead) {
@@ -47,6 +50,7 @@ export function applyCriticalDamageTiers(
       emittedEffects,
       actorDied,
       newTierApplied: newTier,
+      save: currentSave,
     };
   }
 
@@ -121,7 +125,11 @@ export function applyCriticalDamageTiers(
         key: saveKey,
         difficulty: "Challenging",
       };
-      const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
+      const checkOutcome = storyPack ? performCheckWithSave(toughnessCheck, storyPack, currentSave, rng) : null;
+      const toughnessResult = checkOutcome?.result ?? null;
+      if (checkOutcome) {
+        currentSave = checkOutcome.save;
+      }
       if (!toughnessResult || !toughnessResult.success) {
         actorDied = true;
       }
@@ -135,7 +143,11 @@ export function applyCriticalDamageTiers(
         key: saveKey,
         difficulty: "Hard",
       };
-      const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
+      const checkOutcome = storyPack ? performCheckWithSave(toughnessCheck, storyPack, currentSave, rng) : null;
+      const toughnessResult = checkOutcome?.result ?? null;
+      if (checkOutcome) {
+        currentSave = checkOutcome.save;
+      }
       if (!toughnessResult || !toughnessResult.success) {
         actorDied = true;
       }
@@ -149,7 +161,11 @@ export function applyCriticalDamageTiers(
         key: saveKey,
         difficulty: "Arduous",
       };
-      const toughnessResult = storyPack ? performCheck(toughnessCheck, storyPack, save, rng) : null;
+      const checkOutcome = storyPack ? performCheckWithSave(toughnessCheck, storyPack, currentSave, rng) : null;
+      const toughnessResult = checkOutcome?.result ?? null;
+      if (checkOutcome) {
+        currentSave = checkOutcome.save;
+      }
       if (!toughnessResult || !toughnessResult.success) {
         actorDied = true;
       }
@@ -169,6 +185,7 @@ export function applyCriticalDamageTiers(
     emittedEffects,
     actorDied,
     newTierApplied: newTier,
+    save: currentSave,
   };
 }
 
@@ -223,17 +240,18 @@ export function applyDamageToActor(
   if (catalogs && damage > 0 && (projectedHpAfter <= 0 || normalizedHpBefore <= 0)) {
     const hasDieHard = hasTalentHook(actor, catalogs, "dieHard");
     const fatePoints = actor.resources.fatePoints ?? 0;
-    
-    if (hasDieHard && fatePoints > 0) {
+
+    if (hasDieHard && fatePoints > 0 && isFateProtectionActive(actor)) {
       // Spend fate point and negate damage completely
       const updatedActor: Actor = {
         ...actor,
         resources: {
           ...actor.resources,
           fatePoints: fatePoints - 1,
+          fateProtectionActive: false,
         },
       };
-      
+
       return {
         updatedActor,
         effects: [],
@@ -249,6 +267,7 @@ export function applyDamageToActor(
   let hpAfter: number;
   let effects: Effect[] = [];
   let actorDied = false;
+  let saveAfterChecks = save;
 
   if (normalizedHpBefore <= 0 && damage > 0) {
     // Already at 0 HP - damage goes to critical damage track
@@ -269,6 +288,7 @@ export function applyDamageToActor(
     effects = tierResult.emittedEffects;
     actorDied = tierResult.actorDied;
     criticalTierApplied = tierResult.newTierApplied;
+    saveAfterChecks = tierResult.save;
   } else if (normalizedHpBefore > 0 && damage > 0) {
     // HP is above 0 - apply normal damage
     woundsAfter = Math.min(maxHp, woundsBefore + damage);
@@ -292,6 +312,7 @@ export function applyDamageToActor(
           effects = tierResult.emittedEffects;
           actorDied = tierResult.actorDied;
           criticalTierApplied = tierResult.newTierApplied;
+          saveAfterChecks = tierResult.save;
         }
       }
     }
@@ -302,14 +323,15 @@ export function applyDamageToActor(
   }
 
   // Update actor immutably
+  const actorBase = saveAfterChecks.actorsById[actor.id] ?? actor;
   const updatedActor: Actor = {
-    ...actor,
+    ...actorBase,
     resources: {
-      ...actor.resources,
+      ...actorBase.resources,
       wounds: actorDied ? maxHp : woundsAfter, // If dead, wounds = maxHp (HP = 0)
       criticalDamage: criticalDamage > 0 ? criticalDamage : undefined,
       criticalTierApplied: criticalTierApplied > 0 ? criticalTierApplied : undefined,
-      isDead: actorDied ? true : actor.resources.isDead,
+      isDead: actorDied ? true : actorBase.resources.isDead,
     },
   };
 

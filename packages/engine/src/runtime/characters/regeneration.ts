@@ -1,6 +1,6 @@
 import type { GameSave, ActorId } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
-import { performCheck } from "../checks";
+import { performCheckWithSave } from "../checks";
 import type { StoryPack, SingleCheck } from "../types";
 import type { IRNG } from "../rng";
 import { appendRuntimeLog } from "../combat/narration";
@@ -37,9 +37,11 @@ export function processRegeneration(
     difficulty: "Challenging",
   };
 
-  const result = performCheck(toughnessCheck, storyPack, save, rng);
+  const checkOutcome = performCheckWithSave(toughnessCheck, storyPack, save, rng);
+  const result = checkOutcome.result;
   if (!result || !result.success) {
-    return save; // Regeneration failed
+    const usedFate = Boolean(result?.tags?.some((tag) => tag.startsWith("fate:")));
+    return usedFate ? checkOutcome.save : save; // Regeneration failed (preserve identity unless fate was used)
   }
 
   // Heal X HP by reducing wounds
@@ -62,9 +64,9 @@ export function processRegeneration(
   };
 
   let updatedSave: GameSave = {
-    ...save,
+    ...checkOutcome.save,
     actorsById: {
-      ...save.actorsById,
+      ...checkOutcome.save.actorsById,
       [actorId]: updatedActor,
     },
   };

@@ -1,7 +1,7 @@
 import type { Choice, StoryPack, GameSave, Check } from "../types";
 import type { IRNG } from "../rng";
 import type { ChoiceHandler } from "./types";
-import { performCheck } from "../checks";
+import { performCheckWithSave } from "../checks";
 import { applyEffects } from "../effects";
 import { getCurrentScene } from "../selectors";
 import type { ContentPack } from "../../content/types";
@@ -11,7 +11,7 @@ import type { ContentPack } from "../../content/types";
  */
 function updateMagicState(
   check: Check,
-  result: NonNullable<ReturnType<typeof performCheck>>,
+  result: NonNullable<ReturnType<typeof performCheckWithSave>>["result"],
   save: GameSave
 ): GameSave {
   if (check.kind === "magicChannel" && result.success) {
@@ -65,8 +65,10 @@ export const handleCheckChoice: ChoiceHandler = (
   // Execute scene checks if any
   if (scene.checks) {
     for (const check of scene.checks) {
-      const result = performCheck(check, storyPack, currentSave, rng);
+      const checkOutcome = performCheckWithSave(check, storyPack, currentSave, rng);
+      const result = checkOutcome.result;
       if (result) {
+        currentSave = checkOutcome.save;
         currentSave = {
           ...currentSave,
           runtime: {
@@ -91,10 +93,11 @@ export const handleCheckChoice: ChoiceHandler = (
 
   // Execute choice checks if any
   // Stop on first failure (after applying onFailure effects)
-  let choiceCheckResult: ReturnType<typeof performCheck> = null;
+  let choiceCheckResult: ReturnType<typeof performCheckWithSave>["result"] = null;
   if (choice.checks) {
     for (const check of choice.checks) {
-      const result = performCheck(check, storyPack, currentSave, rng);
+      const checkOutcome = performCheckWithSave(check, storyPack, currentSave, rng);
+      const result = checkOutcome.result;
       if (!result) {
         // If check returns null, skip it
         continue;
@@ -102,9 +105,9 @@ export const handleCheckChoice: ChoiceHandler = (
 
       // Store check result
       currentSave = {
-        ...currentSave,
+        ...checkOutcome.save,
         runtime: {
-          ...currentSave.runtime,
+          ...checkOutcome.save.runtime,
           lastCheck: result,
           rngCounter: rng.getCounter(),
         },

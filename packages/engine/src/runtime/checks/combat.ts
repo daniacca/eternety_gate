@@ -3,7 +3,7 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
-import { evaluateRoll } from "./evaluation";
+import { rollD100CheckWithFate, type FateRerollContext, createFateRerollContext } from "./fate";
 import { computeCombatModifiersFromConditions } from "../conditions";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
@@ -16,6 +16,7 @@ import { getEquippedWeapon, hasShieldEquipped } from "../combat/equipment";
 import { hasNaturalWeapons } from "../characters/naturalWeapons";
 import { resolveForceFieldBlock } from "../combat/forceField";
 import { hasWeaponQuality } from "../weaponQualities";
+import { consumeFateProtection } from "../characters/fate";
 import {
   getCombatMasterPenalty,
   hasMarksmanTalent,
@@ -283,7 +284,8 @@ export function performCombatAttackCheck(
   storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
-  resolutionId?: string
+  resolutionId?: string,
+  fateContext?: FateRerollContext
 ): { result: CheckResult; save: GameSave } {
   // Resolve actors
   const attacker = resolveActor(check.attacker.actorRef, save, storyPack);
@@ -316,8 +318,8 @@ export function performCombatAttackCheck(
   const isCloseRangeShot = check.attacker.mode === "RANGED" && check.modifiers?.closeRangeShot === true;
 
   // Roll attack
-  const attackRoll = rng.rollD100();
-  const attackResult = evaluateRoll(attackRoll, attackTarget, storyPack, check.id, attacker.id);
+  const attackResult = rollD100CheckWithFate(check.id, attacker.id, attackTarget, storyPack, save, rng, fateContext);
+  const attackRoll = attackResult?.roll ?? 0;
 
   if (!attackResult) return { result: null, save };
 
@@ -361,6 +363,9 @@ export function performCombatAttackCheck(
   tags.push(`combat:attackStat=${attackStatKey}`);
   tags.push(`combat:attackTarget=${attackTarget}`);
   tags.push(`combat:attackRoll=${attackRoll}`);
+  if (attackResult?.tags?.some((tag) => tag.startsWith("fate:"))) {
+    tags.push(...attackResult.tags.filter((tag) => tag.startsWith("fate:")));
+  }
   tags.push(`combat:attackDoS=${attackResult.dos}`);
   tags.push(`combat:attackDoF=${attackResult.dof}`);
   tags.push(`combat:calc:base=${breakdown.baseValue}`);
@@ -575,8 +580,17 @@ export function performCombatAttackCheck(
   const parryBonus = defenseType === "parry" ? shieldMasteryBonus + parryQualityBonus : 0;
   const defenseTarget = defenseBreakdown.target + parryBonus;
 
-  const defenseRoll = rng.rollD100();
-  const defenseResult = evaluateRoll(defenseRoll, defenseTarget, storyPack, check.id, defender.id);
+  const defenseFateContext = createFateRerollContext();
+  const defenseResult = rollD100CheckWithFate(
+    check.id,
+    defender.id,
+    defenseTarget,
+    storyPack,
+    save,
+    rng,
+    defenseFateContext
+  );
+  const defenseRoll = defenseResult?.roll ?? 0;
 
   // Log defense check if defender belongs to party
   if (defenseResult) {
@@ -605,6 +619,7 @@ export function performCombatAttackCheck(
           `combat:defCalc:target=${defenseTarget}`,
           ...(shieldMasteryBonus > 0 ? [`combat:defCalc:shieldMastery=+${shieldMasteryBonus}`] : []),
           ...(parryQualityBonus !== 0 ? [`combat:defCalc:weaponQuality=${parryQualityBonus}`] : []),
+          ...defenseResult.tags.filter((tag) => tag.startsWith("fate:")),
         ],
       };
       updatedSave = appendRuntimeLog(updatedSave, {
@@ -613,6 +628,10 @@ export function performCombatAttackCheck(
         resolutionId,
       });
     }
+  }
+
+  if (defenseFateContext.used && defenseFateContext.actorId) {
+    updatedSave = consumeFateProtection(updatedSave, defenseFateContext.actorId).save;
   }
 
   if (!defenseResult) {

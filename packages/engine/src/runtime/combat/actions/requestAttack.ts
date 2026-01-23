@@ -283,6 +283,13 @@ export function combatRequestAttack(
       cover: coverModifier,
       ...(baseHitBonus !== undefined || hitBonus !== 0 ? { hitBonus } : {}),
     };
+    const defense: CombatAttackCheck["defense"] =
+      defenseOverride ??
+      effect.defense ?? {
+        allowParry: true,
+        allowDodge: true,
+        strategy: "autoBest",
+      };
     return {
       id: `combat:requestAttack:${effect.mode.toLowerCase()}:${effect.attackerId}:${defenderId}${checkIdSuffix}${suffix}`,
       kind: "combatAttack",
@@ -294,12 +301,7 @@ export function combatRequestAttack(
       defender: {
         actorRef: { mode: "byId", actorId: defenderId },
       },
-      defense: defenseOverride ??
-        effect.defense ?? {
-          allowParry: true,
-          allowDodge: true,
-          strategy: "autoBest",
-        },
+      defense,
       modifiers,
     };
   };

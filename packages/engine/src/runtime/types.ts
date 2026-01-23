@@ -223,6 +223,11 @@ export type Effect =
       amount: number;
     }
   | {
+      op: "setFateProtection";
+      actorId: ActorId;
+      active: boolean;
+    }
+  | {
       op: "narrativeSpell";
       spellId: string;
       casterId?: ActorId; // Default = party.activeActorId
@@ -592,6 +597,7 @@ export type Actor = {
     wounds: number; // Damage taken (wounds), current HP = maxHp - wounds
     rf: number; // Fatigue (current RF)
     fatePoints?: number; // Fate Points for special abilities like Die Hard
+    fateProtectionActive?: boolean; // Fate protection toggle (requires fatePoints > 0)
     criticalDamage?: number;
     criticalTierApplied?: number;
     isDead?: boolean;

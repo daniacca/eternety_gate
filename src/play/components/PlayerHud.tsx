@@ -10,6 +10,7 @@ interface PlayerHudProps {
   onOpenSheet: () => void;
   onOpenTalentShop?: () => void;
   onOpenEquipment?: () => void;
+  onToggleFateProtection?: (actorId: string, active: boolean) => void;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -52,6 +53,10 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
   const conditionEntries = Object.entries(conditions) as Array<[ConditionId, { stacks?: number }]>;
 
   const xp = activeActor.resources.xp ?? 0;
+  const partyActors = (save.party?.actors ?? [])
+    .map((actorId) => save.actorsById[actorId])
+    .filter((actor): actor is NonNullable<typeof actor> => Boolean(actor));
+  const hasFateInParty = partyActors.some((actor) => (actor.resources.fatePoints ?? 0) > 0);
 
   return (
     <View style={[styles.container, isNarrow && styles.containerNarrow]}>
@@ -87,6 +92,36 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
         <Text style={styles.xpLabel}>XP</Text>
         <Text style={styles.xpValue}>{xp}</Text>
       </View>
+
+      {/* Fate Protection */}
+      {onToggleFateProtection && hasFateInParty && (
+        <View style={styles.fateContainer}>
+          <Text style={styles.fateLabel}>Fato</Text>
+          <View style={styles.fateButtons}>
+            {partyActors.map((actor) => {
+              const fatePoints = actor.resources.fatePoints ?? 0;
+              const isActive = Boolean(actor.resources.fateProtectionActive) && fatePoints > 0;
+              const canToggle = fatePoints > 0;
+              return (
+                <TouchableOpacity
+                  key={actor.id}
+                  disabled={!canToggle}
+                  onPress={() => onToggleFateProtection(actor.id, !isActive)}
+                  style={[
+                    styles.fateToggle,
+                    isActive && styles.fateToggleActive,
+                    !canToggle && styles.fateToggleDisabled,
+                  ]}
+                >
+                  <Text style={styles.fateToggleText}>
+                    {actor.name} {isActive ? "ON" : "OFF"} ({fatePoints})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Conditions */}
       {!isNarrow && conditionEntries.length > 0 && (
@@ -207,6 +242,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#4a90e2",
+  },
+  fateContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  fateLabel: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
+  },
+  fateButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  fateToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: "#e5e7eb",
+  },
+  fateToggleActive: {
+    backgroundColor: "#f59e0b",
+  },
+  fateToggleDisabled: {
+    opacity: 0.5,
+  },
+  fateToggleText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#333",
   },
   rfWarning: {
     color: "#ff6b6b",
