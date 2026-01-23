@@ -4,7 +4,7 @@
 
 The engine package includes comprehensive unit tests for all core modules:
 
-### ✅ Passing Test Suites
+### Representative Test Suites
 
 **Core Runtime Tests:**
 - **conditions.test.ts** - Condition evaluation system
@@ -19,14 +19,31 @@ The engine package includes comprehensive unit tests for all core modules:
 - **combat/combat.test.ts** - Combat state management
 - **combat/movement.test.ts** - Grid movement utilities
 - **combat/damage.test.ts** - Damage calculation and application
+- **combat/criticalDamage.test.ts** - Critical damage handling
 - **combat/equipment.test.ts** - Equipment resolution
+- **combat/aim.test.ts** - Aim stance mechanics
+- **combat/getProne.test.ts** - Prone/stand logic
+- **combat/castSpell.test.ts** - Combat spell casting
+- **combat/forceField.test.ts** - Force field mitigation
 - **combat/validation.test.ts** - Combat validation
 - **combat/narration.test.ts** - Combat narration
 - **combat/swiftAttack.test.ts** - Swift attack mechanics
+- **combat/weaponQualities.test.ts** - Weapon quality rules
 
 **Character System Tests:**
 - **characters/modifiers.test.ts** - Modifier calculation
 - **characters/actions.test.ts** - Character actions
+- **characters/xp.test.ts** - XP spend/grant flow
+- **characters/prerequisites.test.ts** - Prerequisite evaluation
+- **characters/regeneration.test.ts** - Regeneration rules
+- **characters/naturalWeapons.test.ts** - Natural weapon profiles
+- **characters/naturalAbilities.test.ts** - Natural abilities
+- **characters/bonuses.test.ts** - Characteristic bonuses
+- **characters/talentModifiers.test.ts** - Talent modifiers
+
+**Magic System Tests:**
+- **magic/castSpellNarrative.test.ts** - Narrative spell casting flow
+- **magic/resistance.test.ts** - Resistance/defense rules
 
 **Total: Comprehensive test coverage across all modules**
 

@@ -103,18 +103,22 @@ A `GameSave` represents the complete game state at a point in time:
 
 ### Effects
 Effects are actions that modify game state:
-- **State Effects**: `setFlag`, `addCounter`
+- **State Effects**: `setFlag`, `addCounter`, `clearChoiceCheckResults`
 - **Inventory Effects**: `addItem`, `removeItem`
 - **Navigation Effects**: `goto`
 - **Conditional Effects**: `conditionalEffects`
 - **Variant Effects**: `chooseRunVariant`, `applyVariantStartEffects`
 - **World Events**: `fireWorldEvents`
-- **Combat Effects**: `combatStart`, `combatMove`, `combatEndTurn`, `combatDefend`, `combatAim`, `combatAllOut`, `combatRequestAttack`, `combatKnockdown`, `combatDisarm`, `combatSwiftAttack`, `combatGetProne`, `combatStandUp`, `combatPickup`, `combatDrop`, `combatEquipItem`, `combatUnequipItem`
+- **Combat Effects**: `combatStart`, `combatMove`, `combatEndTurn`, `combatDefend`, `combatAim`, `combatAllOut`, `combatRequestAttack`, `combatKnockdown`, `combatDisarm`, `combatSwiftAttack`, `combatGetProne`, `combatStandUp`, `combatPickup`, `combatDrop`, `combatEquipItem`, `combatUnequipItem`, `combatChannel`, `combatCastSpell`
 - **Actor Conditions**: `addCondition`, `removeCondition`
+- **Character Progression**: `learnSpell`, `acquireTalent`, `grantXp`, `grantFatePoint`
+- **Narrative Magic**: `narrativeSpell`
 
 ### Checks
 Checks are skill tests using D100 rolls:
-- `single` - Basic stat/skill check
+- `single` - Basic stat/skill check (supports conditional difficulty and flat modifiers)
+- `multi` - Choose one of several stat/skill options
+- `condition` - Pass/fail based on a condition
 - `opposed` - Attacker vs defender
 - `sequence` - Multiple checks in order
 - `magicChannel` - Magic channeling

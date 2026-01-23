@@ -135,13 +135,17 @@ Full TypeScript coverage ensures:
 **Structure**: Effects are organized into modules by category:
 
 - **`index.ts`** - Main effect registry and queue processing
-- **`state.ts`** - State effects (`setFlag`, `addCounter`)
+- **`state.ts`** - State effects (`setFlag`, `addCounter`, `clearChoiceCheckResults`)
 - **`items.ts`** - Inventory effects (`addItem`, `removeItem`)
 - **`navigation.ts`** - Navigation effects (`goto`)
 - **`conditional.ts`** - Conditional branching (`conditionalEffects`)
 - **`variants.ts`** - Run variant effects (`chooseRunVariant`, `applyVariantStartEffects`)
 - **`worldEvents.ts`** - World event effects (`fireWorldEvents`)
 - **`actorConditions.ts`** - Actor condition effects (`addCondition`, `removeCondition`)
+- **`choiceChecks.ts`** - Choice check cache utilities (`clearChoiceCheckResults`)
+- **`learnSpell.ts`** - Spell learning effects (`learnSpell`)
+- **`acquireTalent.ts`** - Talent acquisition effects (`acquireTalent`)
+- **`narrativeSpell.ts`** - Narrative spell casting effects (`narrativeSpell`)
 
 **Key Functions**:
 
@@ -181,7 +185,9 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 
 **Check Types**:
 
-- `single` - Basic D100 check
+- `single` - Basic D100 check (supports conditional difficulty and flat modifiers)
+- `multi` - Choose one of several stat/skill options
+- `condition` - Pass/fail based on a condition
 - `opposed` - Attacker vs defender
 - `sequence` - Multiple checks in order
 - `magicChannel` - Magic channeling with DoS requirements
@@ -250,6 +256,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - **`aim.ts`** - Aim stance
 - **`allOut.ts`** - All-out attack stance
 - **`requestAttack.ts`** - Attack action
+- **`channel.ts`** - Channel magic action
+- **`castSpell.ts`** - Cast spell action
 - **`knockdown.ts`** - Knockdown action
 - **`disarm.ts`** - Disarm action
 - **`swiftAttack.ts`** - Swift attack action
@@ -269,6 +277,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - `combatAim()` - Aim stance
 - `combatAllOut()` - All-out attack stance
 - `combatRequestAttack()` - Attack action
+- `combatChannel()` - Channel magic
+- `combatCastSpell()` - Cast spell
 - `combatKnockdown()` - Knockdown action
 - `combatDisarm()` - Disarm action
 - `combatSwiftAttack()` - Swift attack action
@@ -287,6 +297,7 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - Attack resolution with defense
 - Item management in combat
 - Prone/standing state management
+- Channeling and spell casting in combat
 
 ### `/runtime/combat/damage.ts`
 
@@ -405,6 +416,35 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - Special abilities (mighty shot, regeneration)
 - Natural weapon support
 
+### `/runtime/magic/`
+
+**Purpose**: Magic rules, narrative casting, and spell resolution
+
+**Structure**: Magic system modules:
+
+- **`castSpellNarrative.ts`** - Narrative spell casting workflow
+- **`applyNarrativeOps.ts`** - Applies narrative spell effects to state
+- **`learning.ts`** - Spell learning utilities
+- **`phenomena.ts`** - Doubles/phenomena handling
+- **`resistance.ts`** - Spell resistance calculations
+- **`scaling.ts`** - DoS-based scaling for spell effects
+- **`types.ts`** - Magic system types
+
+**Features**:
+
+- Narrative spell casting with gating and logs
+- DoS scaling and phenomena tags
+- Spell learning and targeting
+
+### `/runtime/targeting/`
+
+**Purpose**: Target resolution for spells and abilities
+
+**Key Functions**:
+
+- `resolveTargets()` - Resolve targets based on targeting rules
+- `getActorsInRange()` - Range-based target lookup
+
 ### `/content/`
 
 **Purpose**: Content pack loading and management
@@ -433,6 +473,7 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - **`generic.ts`** - Generic choice handler (effects only)
 - **`check.ts`** - Check choice handler (has checks)
 - **`combat.ts`** - Combat choice handler (has combatAttack checks)
+- **`magic.ts`** - Magic choice handler (narrative spell casting)
 
 **Key Functions**:
 
@@ -440,6 +481,7 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
 - `handleGenericChoice()` - Handle generic choices (in `generic.ts`)
 - `handleCheckChoice()` - Handle check choices (in `check.ts`)
 - `handleCombatChoice()` - Handle combat choices (in `combat.ts`)
+- `handleMagicChoice()` - Handle magic choices (in `magic.ts`)
 
 **Pattern**: Registry-based handler system
 
@@ -448,6 +490,7 @@ const choiceHandlers: Record<ChoiceKind, ChoiceHandler> = {
   generic: handleGenericChoice,
   check: handleCheckChoice,
   combat: handleCombatChoice,
+  magic: handleMagicChoice,
 };
 ```
 
@@ -456,6 +499,7 @@ const choiceHandlers: Record<ChoiceKind, ChoiceHandler> = {
 - `generic` - Effects only
 - `check` - Has checks
 - `combat` - Has combatAttack checks
+- `magic` - Narrative spell casting + story consequences
 
 ## Data Flow
 
@@ -476,13 +520,15 @@ createNewGame()
 applyChoice()
   ├─> Validate choice exists and conditions met
   ├─> Combat guard (check if player's turn)
+  ├─> Use cached choice check result (if present)
   ├─> Create RNG from save state
   ├─> handleChoice() - Route to handler
   │   ├─> Determine choice kind
   │   └─> Call appropriate handler
   │       ├─> handleGenericChoice() - Apply effects
   │       ├─> handleCheckChoice() - Perform checks, then effects
-  │       └─> handleCombatChoice() - Combat-specific logic
+  │       ├─> handleCombatChoice() - Combat-specific logic
+  │       └─> handleMagicChoice() - Narrative spell casting + effects
   └─> Return updated save
 ```
 
@@ -652,7 +698,6 @@ type GameSave = {
   state: {
     flags: Record<string, boolean>;
     counters: Record<string, number>;
-    inventory: { items: ItemId[] };
     runVariant?: { id: string; tags: string[] };
   };
   party: Party;
@@ -686,6 +731,19 @@ type GameRuntime = {
   combatTurnStartIndex?: number;
   combatEndedSceneId?: SceneId;
   combatLogSceneId?: SceneId;
+  combatCycleStartIndex?: number;
+  storyEnded?: {
+    sceneId: SceneId;
+    storyId: StoryId;
+    endedAt: string;
+  };
+  choiceCheckResults?: Record<ChoiceId, CheckResult>;
+  runtimeLog?: RuntimeLogEntry[];
+  runtimeLogSeq?: number;
+  gameOver?: {
+    reason: "partyDead" | "playerDead";
+    sceneId: SceneId;
+  };
 };
 ```
 
@@ -699,14 +757,26 @@ type CombatState = {
   round: number;
   startedBySceneId?: SceneId;
   grid: Grid;
+  gridId?: string;
   positions: Record<ActorId, Position>;
   turn: {
     moveRemaining: number;
     actionAvailable: boolean;
   };
-  stancesByActorId?: Record<ActorId, "defend" | "allOut">;
+  stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">;
   turnCounter: number;
   parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
+  equippedThisRoundByActorId?: Record<ActorId, number>;
+  groundItemsByPos?: Record<string, ItemRef[]>;
+  initialHpByActorId?: Record<ActorId, number>;
+  damageTakenSinceLastTurnByActorId?: Record<ActorId, number>;
+  damageDealtSinceLastTurnByActorId?: Record<ActorId, number>;
+  channeling?: {
+    actorId: ActorId;
+    accumulatedDoS: number;
+    lastChannelTurnCounter: number;
+  };
+  freeSpellUsedThisTurn?: Record<ActorId, boolean>;
 };
 ```
 
@@ -796,6 +866,7 @@ Stances persist until actor's next turn:
 
 - **Defend**: -20 to hit against this actor
 - **All-Out**: +20 to hit, cannot defend
+- **Aim**: Aim stance to improve hit chances (cleared on next turn)
 
 ### Defense
 
@@ -829,6 +900,20 @@ Basic D100 roll against target:
 - Target = stat/skill + difficulty modifier + temp modifiers
 - Success if roll <= target
 - DoS = floor((target - roll) / 10)
+
+#### Multi Check
+
+Choose one of several stat/skill options:
+
+- Evaluated using the selected option's key + difficulty
+- Uses the same success/failure rules as single checks
+
+#### Condition Check
+
+Pass/fail based on a condition:
+
+- Success if the condition evaluates to true
+- No roll, no DoS/DoF (treated as 0)
 
 #### Opposed Check
 
@@ -904,6 +989,7 @@ When tens digit = ones digit (e.g., 11, 22, 33):
 
 - `setFlag` - Set boolean flag
 - `addCounter` - Modify counter
+- `clearChoiceCheckResults` - Clear cached choice checks
 - `addItem` / `removeItem` - Inventory
 
 #### Flow Effects
@@ -923,6 +1009,8 @@ When tens digit = ones digit (e.g., 11, 22, 33):
 - `combatAim` - Aim stance
 - `combatAllOut` - All-out attack stance
 - `combatRequestAttack` - Attack action
+- `combatChannel` - Channel magic
+- `combatCastSpell` - Cast spell
 - `combatKnockdown` - Knockdown action
 - `combatDisarm` - Disarm action
 - `combatSwiftAttack` - Swift attack action
@@ -937,6 +1025,17 @@ When tens digit = ones digit (e.g., 11, 22, 33):
 
 - `addCondition` - Add condition to actor
 - `removeCondition` - Remove condition from actor
+
+#### Character Progression Effects
+
+- `learnSpell` - Learn a spell
+- `acquireTalent` - Learn a talent
+- `grantXp` - Add XP to an actor
+- `grantFatePoint` - Add fate points to an actor
+
+#### Narrative Magic Effects
+
+- `narrativeSpell` - Perform narrative spell resolution
 
 ### Effect Queue
 
