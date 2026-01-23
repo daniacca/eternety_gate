@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import type { GameSave, Choice, Effect, StoryPack, Direction8 } from "@eg/engine";
+import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck } from "@eg/engine";
 import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
 import { useMemo, useState } from "react";
@@ -15,6 +15,7 @@ interface CombatControlProps {
   width: number;
   styles: any;
   onSpellTargetSelect: (spellId: string) => void;
+  onRangedTargetSelect: (weaponId: string | null, modifiers?: CombatAttackCheck["modifiers"]) => void;
   targetingInfo?: {
     spellName: string;
     previewValid: boolean;
@@ -40,6 +41,7 @@ export function CombatControl({
   width,
   styles,
   onSpellTargetSelect,
+  onRangedTargetSelect,
   targetingInfo,
   onTargetDirection,
   onTargetConfirm,
@@ -124,8 +126,8 @@ export function CombatControl({
     mode: "MELEE" | "RANGED",
     weaponId: string | null
   ) => {
-    if (!model.selectedTargetId) return;
     if (kind === "swift") {
+      if (!model.selectedTargetId) return;
       applySystemEffects([
         {
           op: "combatSwiftAttack",
@@ -142,6 +144,11 @@ export function CombatControl({
       setCalledShotPickerVisible(true);
       return;
     }
+    if (kind === "ranged" && mode === "RANGED") {
+      onRangedTargetSelect(weaponId);
+      return;
+    }
+    if (!model.selectedTargetId) return;
     applySystemEffects([
       {
         op: "combatRequestAttack",
@@ -537,10 +544,10 @@ export function CombatControl({
                     <Pressable
                       style={[
                         styles.attackButton,
-                        (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonDisabled,
+                        model.rangedDisabled && styles.attackButtonDisabled,
                       ]}
                       onPress={() => {
-                        if (!model.rangedDisabled && model.selectedTargetId) {
+                        if (!model.rangedDisabled) {
                           const options = getWeaponOptionsForMode("RANGED");
                           if (!hasTwoWeaponWielder && options.length > 1) {
                             openWeaponPicker("ranged", "RANGED");
@@ -550,12 +557,12 @@ export function CombatControl({
                           }
                         }
                       }}
-                      disabled={model.rangedDisabled || !model.selectedTargetId}
+                      disabled={model.rangedDisabled}
                     >
                       <Text
                         style={[
                           styles.attackButtonText,
-                          (model.rangedDisabled || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                          model.rangedDisabled && styles.attackButtonTextDisabled,
                         ]}
                       >
                         Ranged Attack
@@ -572,10 +579,10 @@ export function CombatControl({
                         style={[
                           styles.attackButton,
                           styles.calledShotButton,
-                          (!model.actionAvailable || !model.selectedTargetId) && styles.attackButtonDisabled,
+                        (!model.actionAvailable || model.rangedDisabled) && styles.attackButtonDisabled,
                         ]}
                         onPress={() => {
-                          if (model.actionAvailable && model.selectedTargetId) {
+                        if (model.actionAvailable && !model.rangedDisabled) {
                             const options = getWeaponOptionsForMode("RANGED");
                             if (!hasTwoWeaponWielder && options.length > 1) {
                               openWeaponPicker("calledShot", "RANGED");
@@ -587,12 +594,12 @@ export function CombatControl({
                             }
                           }
                         }}
-                        disabled={!model.actionAvailable || !model.selectedTargetId}
+                      disabled={!model.actionAvailable || model.rangedDisabled}
                       >
                         <Text
                           style={[
                             styles.attackButtonText,
-                            (!model.actionAvailable || !model.selectedTargetId) && styles.attackButtonTextDisabled,
+                          (!model.actionAvailable || model.rangedDisabled) && styles.attackButtonTextDisabled,
                           ]}
                         >
                           Called Shot (Ranged)
@@ -892,7 +899,13 @@ export function CombatControl({
                     key={zone}
                     style={styles.calledShotZoneButton}
                     onPress={() => {
-                      if (model.selectedTargetId && pendingCalledShotMode) {
+                      if (!pendingCalledShotMode) return;
+                      if (pendingCalledShotMode === "RANGED") {
+                        onRangedTargetSelect(calledShotWeaponId, {
+                          calledShot: true,
+                          calledShotZone: zone,
+                        });
+                      } else if (model.selectedTargetId) {
                         applySystemEffects([
                           {
                             op: "combatRequestAttack",

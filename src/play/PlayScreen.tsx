@@ -12,6 +12,7 @@ import {
   type ContentPack,
   type Effect,
   type ItemRef,
+  type CombatAttackCheck,
   buildSpellTargetSpec,
   computeTargetPreview,
   getSpellById,
@@ -211,10 +212,12 @@ export function PlayScreen() {
   );
 
   type ActionTargetingState = {
-    kind: "spell" | "item";
-    spellId: string;
+    kind: "spell" | "item" | "ranged";
+    spellId?: string;
     label: string;
     itemRef?: ItemRef;
+    weaponId?: string | null;
+    modifiers?: CombatAttackCheck["modifiers"];
     targetSpec: TargetSpec;
     selection: Partial<TargetSelection>;
     preview: TargetPreview;
@@ -528,6 +531,73 @@ export function PlayScreen() {
     }
   };
 
+  const getEnemyTargetIds = (preview: TargetPreview) => {
+    const partyIds = new Set(save.party.actors);
+    return preview.affectedActorIds.filter((actorId) => {
+      const actor = save.actorsById[actorId];
+      if (!actor) return false;
+      const isParty = partyIds.has(actorId) || actor.kind === "PC";
+      return !isParty;
+    });
+  };
+
+  const buildRangedTargetSpec = (weaponId: string | null): TargetSpec | null => {
+    if (!weaponId) return null;
+    const weapon = save.weaponsById?.[weaponId];
+    if (!weapon || weapon.kind !== "RANGED") return null;
+
+    const hasSpray = weapon.qualities?.some((q) => q.id === "spray");
+    const blastQuality = weapon.qualities?.find((q) => q.id === "blast");
+    const blastRank = typeof blastQuality?.rank === "number" ? blastQuality.rank : 1;
+    const grid = save.runtime.combat?.grid;
+    const rangeSquares = weapon.range?.long ?? (grid ? Math.max(grid.width, grid.height) : 0);
+
+    if (hasSpray) {
+      return {
+        shape: { kind: "cone", range: rangeSquares, depth: 4 },
+        requiresDirection: true,
+        requiresActor: true,
+      };
+    }
+
+    if (blastQuality) {
+      return {
+        shape: { kind: "radius", range: rangeSquares, radius: blastRank },
+        requiresPoint: true,
+        requiresActor: true,
+      };
+    }
+
+    return {
+      shape: { kind: "single", range: rangeSquares },
+      requiresPoint: true,
+      requiresActor: true,
+    };
+  };
+
+  const startRangedTargeting = (weaponId: string | null, modifiers?: CombatAttackCheck["modifiers"]) => {
+    const targetSpec = buildRangedTargetSpec(weaponId);
+    const weapon = weaponId ? save.weaponsById?.[weaponId] : null;
+    if (!targetSpec || !weapon) return;
+
+    const selection = buildInitialSelection(targetSpec);
+    let preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    const enemyTargets = getEnemyTargetIds(preview);
+    if (targetSpec.requiresActor && enemyTargets.length === 0) {
+      preview = { ...preview, valid: false, reason: "no_targets" };
+    }
+
+    setActionTargeting({
+      kind: "ranged",
+      label: weapon.name || "Ranged Attack",
+      weaponId,
+      modifiers,
+      targetSpec,
+      selection,
+      preview,
+    });
+  };
+
   const startSpellTargeting = (spellId: string) => {
     const spell = getSpellById(spellId);
     const effectDef = spell ? getEffectById(spell.effectId) : null;
@@ -584,7 +654,13 @@ export function PlayScreen() {
       }
       if (kind === "cone") {
         const selection: TargetSelection = { kind: "cone", direction: dir };
-        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        if (current.kind === "ranged") {
+          const enemyTargets = getEnemyTargetIds(preview);
+          if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
+            preview = { ...preview, valid: false, reason: "no_targets" };
+          }
+        }
         return { ...current, selection, preview };
       }
       return current;
@@ -597,12 +673,24 @@ export function PlayScreen() {
       const kind = current.targetSpec.shape.kind;
       if (kind === "single") {
         const selection: TargetSelection = { kind: "single", targetPos: pos };
-        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        if (current.kind === "ranged") {
+          const enemyTargets = getEnemyTargetIds(preview);
+          if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
+            preview = { ...preview, valid: false, reason: "no_targets" };
+          }
+        }
         return { ...current, selection, preview };
       }
       if (kind === "radius") {
         const selection: TargetSelection = { kind: "radius", centerPos: pos };
-        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        if (current.kind === "ranged") {
+          const enemyTargets = getEnemyTargetIds(preview);
+          if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
+            preview = { ...preview, valid: false, reason: "no_targets" };
+          }
+        }
         return { ...current, selection, preview };
       }
       return current;
@@ -611,7 +699,7 @@ export function PlayScreen() {
 
   const confirmSpellTargeting = () => {
     if (!actionTargeting || !actionTargeting.preview.valid) return;
-    if (actionTargeting.kind === "spell") {
+    if (actionTargeting.kind === "spell" && actionTargeting.spellId) {
       applySystemEffects([
         {
           op: "combatCastSpell",
@@ -620,8 +708,22 @@ export function PlayScreen() {
           targetSelection: actionTargeting.selection as TargetSelection,
         },
       ]);
-    } else if (actionTargeting.itemRef) {
+    } else if (actionTargeting.kind === "item" && actionTargeting.itemRef) {
       applyItemUse(actionTargeting.itemRef, actionTargeting.selection as TargetSelection);
+    } else if (actionTargeting.kind === "ranged") {
+      const enemyTargets = getEnemyTargetIds(actionTargeting.preview);
+      if (enemyTargets.length === 0) return;
+      applySystemEffects([
+        {
+          op: "combatRequestAttack",
+          attackerId: save.party.activeActorId,
+          defenderId: enemyTargets[0],
+          mode: "RANGED",
+          weaponId: actionTargeting.weaponId ?? null,
+          targetSelection: actionTargeting.selection as TargetSelection,
+          modifiers: actionTargeting.modifiers,
+        },
+      ]);
     }
     setActionTargeting(null);
   };
@@ -817,6 +919,7 @@ export function PlayScreen() {
         width={width}
         styles={styles}
         onSpellTargetSelect={startSpellTargeting}
+        onRangedTargetSelect={startRangedTargeting}
         targetingInfo={targetingInfo}
         onTargetDirection={handleTargetDirection}
         onTargetConfirm={confirmSpellTargeting}
