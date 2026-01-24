@@ -1,5 +1,7 @@
 import type { StatOrSkillKey, GameSave, Actor, StoryPack } from "../types";
 import { getSkillModifierFromRank, getSkillBaseStat } from "./skills";
+import { getSkillById } from "../../content/loadCatalogs";
+import { evaluatePrerequisites } from "../characters/prerequisites";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { getModifierTotal } from "../characters/modifiers";
 import { applyArmorAgiCap } from "../characters/effectiveStats";
@@ -59,12 +61,22 @@ export function getStatOrSkillValue(
   if (key.startsWith("SKILL:")) {
     const skillId = key.substring(6);
     const rank = actor.skills[skillId] || 0;
+    const blockedValue = -10000;
 
     // Get base stat for the skill
     let baseStatValue = 0;
     const baseStat = storyPack ? getSkillBaseStat(skillId, storyPack) : null;
     if (baseStat && baseStat in actor.stats) {
       baseStatValue = actor.stats[baseStat];
+    }
+    if (catalogs) {
+      const skill = getSkillById(catalogs, skillId);
+      if (skill?.prerequisites && skill.prerequisites.length > 0) {
+        const prereqResult = evaluatePrerequisites(save, catalogs, actor, skill.prerequisites);
+        if (!prereqResult.valid) {
+          return blockedValue;
+        }
+      }
     }
     if (catalogs && baseStat) {
       baseStatValue += getModifierTotal(save, catalogs, actor.id, `stat.${baseStat}.testAdd` as any);

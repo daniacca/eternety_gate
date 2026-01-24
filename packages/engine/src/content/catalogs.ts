@@ -11,6 +11,7 @@ export type Skill = {
   baseStat: StatKey;
   trainedOnly?: boolean;
   alternateStats?: StatKey[];
+  prerequisites?: Prerequisite[];
 };
 
 export type ResistanceType = "poison" | "magic" | "disease" | "fear";

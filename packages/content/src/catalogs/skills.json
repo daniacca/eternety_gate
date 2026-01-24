@@ -52,12 +52,14 @@
   {
     "id": "skill:weave_sense",
     "name": "Senso della Trama",
-    "baseStat": "PER"
+    "baseStat": "PER",
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }]
   },
   {
     "id": "skill:channeling",
     "name": "Canalizzazione",
-    "baseStat": "WIL"
+    "baseStat": "WIL",
+    "prerequisites": [{ "type": "hasTalent", "talentId": "talent:channelling_focus" }]
   }
 ]
 

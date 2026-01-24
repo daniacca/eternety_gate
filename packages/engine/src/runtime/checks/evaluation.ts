@@ -33,6 +33,20 @@ export function evaluateRoll(
   checkId?: string,
   actorId?: string
 ): CheckResult {
+  if (!Number.isFinite(target) || target <= -9999) {
+    return {
+      checkId: checkId || "",
+      actorId: actorId || "",
+      roll,
+      target,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["check:blocked"],
+    };
+  }
+
   const criticals = storyPack?.systems?.checks?.criticals || DEFAULT_CRITICALS;
   const autoSuccess = criticals.autoSuccess || [1, 2, 3];
   const autoFail = criticals.autoFail || [98, 99, 100];

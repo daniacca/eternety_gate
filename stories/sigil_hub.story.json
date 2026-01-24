@@ -1,0 +1,233 @@
+{
+  "id": "sigil_hub",
+  "title": "Sigil Hub",
+  "version": "1.0.0",
+  "meta": {
+    "setting": "Sigil",
+    "tone": ["hub", "training", "progression"],
+    "recommendedLength": "endless",
+    "supportsReplay": true
+  },
+  "stateSchema": {
+    "flags": {
+      "trainingVictory": "boolean",
+      "trainingDefeat": "boolean"
+    },
+    "counters": {}
+  },
+  "initialState": {
+    "flags": {
+      "trainingVictory": false,
+      "trainingDefeat": false
+    },
+    "counters": {}
+  },
+  "systems": {
+    "checks": {
+      "difficultyBands": {
+        "Trivial": 60,
+        "Elementary": 50,
+        "Simple": 40,
+        "Easy": 30,
+        "Routine": 20,
+        "Ordinary": 10,
+        "Challenging": 0,
+        "Difficult": -10,
+        "Hard": -20,
+        "Very Hard": -30,
+        "Arduous": -40,
+        "Punishing": -50,
+        "Hellish": -60
+      },
+      "criticals": {
+        "autoSuccess": [1, 2, 3],
+        "autoFail": [98, 99, 100],
+        "epic": {
+          "success": 1,
+          "fail": 100,
+          "treatAsDoS": 3
+        }
+      }
+    }
+  },
+  "items": [],
+  "weapons": [],
+  "armors": [],
+  "cast": {
+    "npcs": [
+      {
+        "id": "NPC_TRAINING_DUMMY_1",
+        "name": "Training Dummy",
+        "kind": "NPC",
+        "tags": ["training"],
+        "stats": {
+          "STR": 35,
+          "TOU": 35,
+          "AGI": 30,
+          "INT": 10,
+          "WIL": 30,
+          "CHA": 10,
+          "WS": 35,
+          "BS": 20,
+          "INI": 25,
+          "PER": 20
+        },
+        "resources": { "wounds": 0, "rf": 0 },
+        "skills": {},
+        "talents": {},
+        "traits": { "trait:size": { "size": 4 } },
+        "equipment": {
+          "mainHand": { "kind": "weapon", "id": "club" },
+          "armor": { "kind": "armor", "id": "leather" }
+        },
+        "status": { "conditions": [], "tempModifiers": [] }
+      },
+      {
+        "id": "NPC_TRAINING_DUMMY_2",
+        "name": "Training Dummy",
+        "kind": "NPC",
+        "tags": ["training"],
+        "stats": {
+          "STR": 35,
+          "TOU": 35,
+          "AGI": 30,
+          "INT": 10,
+          "WIL": 30,
+          "CHA": 10,
+          "WS": 35,
+          "BS": 20,
+          "INI": 25,
+          "PER": 20
+        },
+        "resources": { "wounds": 0, "rf": 0 },
+        "skills": {},
+        "talents": {},
+        "traits": { "trait:size": { "size": 4 } },
+        "equipment": {
+          "mainHand": { "kind": "weapon", "id": "club" },
+          "armor": { "kind": "armor", "id": "leather" }
+        },
+        "status": { "conditions": [], "tempModifiers": [] }
+      }
+    ]
+  },
+  "startSceneId": "HUB_MAIN",
+  "scenes": [
+    {
+      "id": "HUB_MAIN",
+      "type": "hub",
+      "title": "Sigil Hub",
+      "text": [
+        "A quiet hub of portals and whispers, where travelers prepare for the next journey.",
+        "Choose where to focus your efforts."
+      ],
+      "choices": [
+        {
+          "id": "HUB_GO_QUEST_BOARD",
+          "label": "Quest Board",
+          "effects": [{ "op": "goto", "sceneId": "HUB_QUEST_BOARD" }]
+        },
+        {
+          "id": "HUB_GO_TRAINING",
+          "label": "Training Hall",
+          "effects": [{ "op": "goto", "sceneId": "HUB_TRAINING_HALL" }]
+        },
+        {
+          "id": "HUB_GO_SANCTUM",
+          "label": "Sanctum (Progression)",
+          "effects": [{ "op": "goto", "sceneId": "HUB_SANCTUM" }]
+        }
+      ]
+    },
+    {
+      "id": "HUB_QUEST_BOARD",
+      "type": "hub",
+      "title": "Quest Board",
+      "text": [
+        "A board of contracts and rumors.",
+        "One request stands out: the curse of Brunholt."
+      ],
+      "choices": [
+        {
+          "id": "HUB_START_BRUNHOLT",
+          "label": "Start: The Curse of Brunholt"
+        },
+        {
+          "id": "HUB_RETURN_FROM_BOARD",
+          "label": "Return to Hub",
+          "effects": [{ "op": "goto", "sceneId": "HUB_MAIN" }]
+        }
+      ]
+    },
+    {
+      "id": "HUB_TRAINING_HALL",
+      "type": "challenge",
+      "title": "Training Hall",
+      "text": [
+        "The arena is ready. Wooden dummies spring to life as you step in."
+      ],
+      "onEnter": [
+        {
+          "op": "combatStart",
+          "participantIds": ["NPC_TRAINING_DUMMY_1", "NPC_TRAINING_DUMMY_2"],
+          "gridId": "arena_01",
+          "partyPlacement": { "kind": "area", "x": 2, "y": 2, "width": 2, "height": 2 },
+          "placements": [
+            { "actorId": "NPC_TRAINING_DUMMY_1", "x": 10, "y": 6 },
+            { "actorId": "NPC_TRAINING_DUMMY_2", "x": 11, "y": 8 }
+          ]
+        }
+      ],
+      "combatEnd": {
+        "onVictory": [
+          { "op": "grantXp", "actorId": "PC_1", "amount": 5 },
+          { "op": "setFlag", "path": "flags.trainingVictory", "value": true }
+        ],
+        "onDefeat": [{ "op": "setFlag", "path": "flags.trainingDefeat", "value": true }]
+      },
+      "choices": [
+        {
+          "id": "HUB_TRAINING_RETURN",
+          "label": "Return to Hub",
+          "conditions": [
+            { "op": "flag", "path": "flags.trainingVictory", "value": true },
+            { "op": "flag", "path": "flags.trainingDefeat", "value": true }
+          ],
+          "effects": [
+            { "op": "setFlag", "path": "flags.trainingVictory", "value": false },
+            { "op": "setFlag", "path": "flags.trainingDefeat", "value": false },
+            { "op": "goto", "sceneId": "HUB_MAIN" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "HUB_SANCTUM",
+      "type": "hub",
+      "title": "Sanctum",
+      "text": [
+        "A quiet chamber of knowledge and craft.",
+        "Here you can refine your skills and learn new arts."
+      ],
+      "choices": [
+        {
+          "id": "HUB_OPEN_TALENTS",
+          "label": "Open Talent Shop"
+        },
+        {
+          "id": "HUB_OPEN_SPELLS",
+          "label": "Open Spell Shop"
+        },
+        {
+          "id": "HUB_OPEN_SKILLS",
+          "label": "Open Skill Training"
+        },
+        {
+          "id": "HUB_RETURN_FROM_SANCTUM",
+          "label": "Return to Hub",
+          "effects": [{ "op": "goto", "sceneId": "HUB_MAIN" }]
+        }
+      ]
+    }
+  ]
+}

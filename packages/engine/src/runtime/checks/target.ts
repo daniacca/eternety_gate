@@ -25,12 +25,8 @@ const DEFAULT_DIFFICULTY_BANDS: Record<string, number> = {
  * Resolves a difficulty string to a modifier number
  */
 export function resolveDifficulty(difficulty: string, storyPack?: StoryPack): number {
-  if (storyPack) {
-    const bands = storyPack.systems.checks.difficultyBands;
-    return bands[difficulty] ?? 0;
-  }
-  // Use defaults when storyPack is not available
-  return DEFAULT_DIFFICULTY_BANDS[difficulty] ?? 0;
+  const bands = storyPack?.systems?.checks?.difficultyBands ?? DEFAULT_DIFFICULTY_BANDS;
+  return bands[difficulty] ?? 0;
 }
 
 /**

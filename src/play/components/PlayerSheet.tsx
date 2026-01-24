@@ -15,7 +15,7 @@ import {
   getActorTalentsWithParams,
   canUseItem,
 } from "@eg/engine";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ConditionId } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
@@ -30,6 +30,7 @@ interface PlayerSheetProps {
   applySystemEffects?: (effects: Effect[]) => void;
   onUseItem?: (itemRef: ItemRef) => void;
   onDebugSpawnGear?: () => void;
+  openSpellShop?: boolean;
 }
 
 const conditionLabels: Record<ConditionId, string> = {
@@ -71,7 +72,15 @@ type EquipmentSlot =
   | "ring1"
   | "ring2";
 
-export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseItem, onDebugSpawnGear }: PlayerSheetProps) {
+export function PlayerSheet({
+  visible,
+  save,
+  onClose,
+  applySystemEffects,
+  onUseItem,
+  onDebugSpawnGear,
+  openSpellShop,
+}: PlayerSheetProps) {
   const [showLearnSpells, setShowLearnSpells] = useState(false);
   const [showTalentShop, setShowTalentShop] = useState(false);
   const { width } = useWindowDimensions();
@@ -90,6 +99,12 @@ export function PlayerSheet({ visible, save, onClose, applySystemEffects, onUseI
   const learnedSpells = getLearnedSpells(save, activeActor.id, catalogs);
   const allSpells = getAllSpells();
   const currentXp = activeActor.resources.xp ?? 0;
+
+  useEffect(() => {
+    if (visible && openSpellShop) {
+      setShowLearnSpells(true);
+    }
+  }, [visible, openSpellShop]);
 
   // Get equipment slots from new structure
   const mainHand = activeActor.equipment?.mainHand;

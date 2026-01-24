@@ -284,6 +284,58 @@ describe("checks", () => {
     });
   });
 
+  describe("skill prerequisites", () => {
+    const storyPack = makeTestStoryPack({
+      skills: [
+        {
+          id: "skill:channeling",
+          name: "Channeling",
+          baseStat: "WIL",
+          prerequisites: [{ type: "hasTalent", talentId: "talent:channelling_focus" }],
+        },
+      ],
+    });
+
+    it("fails skill checks when prerequisites are missing", () => {
+      const actor = makeTestActor({
+        stats: { WIL: 60 } as any,
+        skills: { "skill:channeling": 1 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([1]);
+
+      const check: SingleCheck = {
+        id: "CHK_CHANNEL_FAIL",
+        kind: "single",
+        key: "SKILL:skill:channeling",
+        difficulty: "Challenging",
+      };
+
+      const result = performCheck(check, storyPack, save, rng);
+      expect(result?.success).toBe(false);
+    });
+
+    it("allows skill checks when prerequisites are met", () => {
+      const actor = makeTestActor({
+        stats: { WIL: 60 } as any,
+        skills: { "skill:channeling": 1 },
+        talents: { "talent:channelling_focus": 1 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([1]);
+
+      const check: SingleCheck = {
+        id: "CHK_CHANNEL_OK",
+        kind: "single",
+        key: "SKILL:skill:channeling",
+        difficulty: "Challenging",
+      };
+
+      const result = performCheck(check, storyPack, save, rng);
+      expect(result?.success).toBe(true);
+    });
+  });
+
   describe("performCheck - SingleCheck", () => {
     it("should perform a successful single check", () => {
       const storyPack = makeTestStoryPack({

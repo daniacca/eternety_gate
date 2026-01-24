@@ -1,7 +1,15 @@
-import { useState, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Pressable, ImageBackground, Modal } from "react-native";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  createNewGame,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  useWindowDimensions,
+  Pressable,
+  ImageBackground,
+  Modal,
+} from "react-native";
+import {
   getCurrentScene,
   listAvailableChoices,
   applyChoice,
@@ -24,13 +32,9 @@ import {
   type Position,
   useItem,
   getNaturalAbilityWeaponById,
+  spendActorXp,
 } from "@eg/engine";
-import brunholt from "../../stories/brunholt.story.json";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
-import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
-import gridsCatalog from "@eg/content/src/catalogs/grids.json";
-import tilesCatalog from "@eg/content/src/catalogs/tiles.json";
+import { withCatalogs } from "../storypacks";
 import { sigilContentPack } from "@eg/content/src";
 import { CombatGrid } from "./components/CombatGrid";
 import { CombatControl } from "./components/CombatControl";
@@ -41,176 +45,30 @@ import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
 import { EquipmentModal } from "./components/EquipmentModal";
+import { SkillShop } from "./components/SkillShop";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
 import { resolveSceneBackground, type BackgroundSourceConfig } from "./story/sceneBackgrounds";
 
-export function PlayScreen() {
-  // Create a minimal 1-player party with fixed seed
-  const initialSave = useMemo(() => {
-    const minimalActor = {
-      id: "PC_1",
-      name: "Player",
-      kind: "PC" as const,
-      tags: [],
-      stats: {
-        STR: 53,
-        TOU: 56,
-        AGI: 62,
-        INT: 47,
-        WIL: 89,
-        CHA: 48,
-        WS: 88,
-        BS: 88,
-        INI: 75,
-        PER: 73,
-      },
-      resources: { wounds: 0, rf: 0, fatePoints: 3 },
-      skills: {
-        "skill:dodge": 2,
-        "skill:parry": 1,
-        "skill:awareness": 3,
-        "skill:stealth": 1,
-        "skill:weave_sense": 2,
-        "skill:channeling": 5,
-      },
-      talents: {
-        "talent:quick_draw": 1,
-        "talent:sound_constitution": 5,
-        "talent:mighty_shot_1": 1,
-        "talent:mighty_shot_2": 1,
-        "talent:swift_attack": 1,
-        "talent:disarm": 1,
-        "talent:takedown": 1,
-        "talent:arcane_attunement_1": 1,
-        "talent:arcane_attunement_2": 1,
-        "talent:arcane_attunement_3": 1,
-        "talent:weave_favoured": 1,
-        "talent:weave_seal": 1,
-      },
-      traits: {
-        "trait:weaver": true,
-        "trait:size": { size: 4 },
-        "trait:unnatural_characteristic": {
-          characteristics: [
-            { stat: "STR", bonusX: 2 },
-            { stat: "AGI", bonusX: 2 },
-            { stat: "TOU", bonusX: 2 },
-            { stat: "WIL", bonusX: 4 },
-            { stat: "INI", bonusX: 2 },
-          ],
-        },
-      },
-      spells: {
-        "spell:flame_bolt": true,
-        "spell:flame_cone": true,
-        "spell:pyra_explosion": true,
-        "spell:soothe_wounds": true,
-        "spell:force_push": true,
-        "spell:disrupt": true,
-        "spell:sense_magic": true,
-        "spell:corpus_steel_body": true,
-        "spell:corpus_warp_speed": true,
-        "spell:regenerate_minor": true,
-      },
-      equipment: {
-        mainHand: { kind: "weapon" as const, id: "force_sword" },
-        offHand: { kind: "weapon" as const, id: "eldritch_gauntlet" },
-        armor: { kind: "armor" as const, id: "plate" },
-      },
-      status: {
-        conditions: [],
-        tempModifiers: [],
-      },
-      inventory: [
-        { kind: "weapon" as const, id: "club" },
-        { kind: "weapon" as const, id: "longbow" },
-        { kind: "item" as const, id: "shield:wooden" },
-        { kind: "item" as const, id: "helmet:leather" },
-        { kind: "item" as const, id: "boots:leather" },
-        { kind: "item" as const, id: "cloak:traveler" },
-        { kind: "item" as const, id: "necklace:iron" },
-        { kind: "item" as const, id: "ring:clarity" },
-        { kind: "item" as const, id: "ring:aegis" },
-        { kind: "item" as const, id: "necklace:focus" },
-        { kind: "item" as const, id: "cloak:shadow" },
-        { kind: "item" as const, id: "helmet:spiked" },
-        { kind: "item" as const, id: "boots:agility" },
-        { kind: "item" as const, id: "robe:wraithbone" },
-        { kind: "item" as const, id: "ammo:arrow", qty: 10 },
-        { kind: "item" as const, id: "potion:healing", qty: 2 },
-        { kind: "item" as const, id: "potion:fatigue", qty: 2 },
-        { kind: "item" as const, id: "scroll:soothe_wounds" },
-      ],
-    };
+type AutosaveReason = "scene" | "combat" | "progression";
 
-    const party = {
-      actors: ["PC_1"],
-      activeActorId: "PC_1",
-    };
+type PlayScreenProps = {
+  initialSave: GameSave;
+  storyPack: StoryPack;
+  contentPack?: ContentPack;
+  onAutosave?: (save: GameSave, reasons: AutosaveReason[]) => void;
+  onStorySwitch?: (nextStoryId: string, currentSave: GameSave) => void;
+  onReturnToHub?: (currentSave: GameSave) => void;
+};
 
-    // Create NPC_DUMMY with club and leather armor
-    const npcDummy = {
-      id: "NPC_DUMMY",
-      name: "Dummy",
-      kind: "NPC" as const,
-      tags: [],
-      stats: {
-        STR: 40,
-        TOU: 40,
-        AGI: 30,
-        INT: 20,
-        WIL: 30,
-        CHA: 20,
-        WS: 40,
-        BS: 30,
-        INI: 30,
-        PER: 30,
-      },
-      resources: { wounds: 0, rf: 0 },
-      skills: {},
-      talents: { "talent:deny_the_witch": 1 },
-      traits: { "trait:size": { size: 4 } },
-      equipment: {
-        mainHand: { kind: "weapon" as const, id: "club" },
-        armor: { kind: "armor" as const, id: "leather" },
-      },
-      status: {
-        conditions: [],
-        tempModifiers: [],
-      },
-    };
-
-    // Merge content pack catalogs into story pack for combat system access
-    const storyPackWithCatalogs = {
-      ...(brunholt as StoryPack),
-      skills: skillsCatalog as any,
-      talents: talentsCatalog as any,
-      traits: traitsCatalog as any,
-      grids: gridsCatalog.grids as any,
-      tiles: tilesCatalog.tiles as any,
-    };
-
-    return createNewGame(
-      storyPackWithCatalogs,
-      123456, // fixed seed
-      party,
-      { PC_1: minimalActor, NPC_DUMMY: npcDummy, NPC_DUMMY_2: { ...npcDummy, id: "NPC_DUMMY_2", name: "Dummy 2" } },
-      sigilContentPack as ContentPack
-    );
-  }, []);
-
-  // Merge catalogs into story pack reference (reused throughout component)
-  const storyPackWithCatalogs = useMemo(
-    () => ({
-      ...(brunholt as StoryPack),
-      skills: skillsCatalog as any,
-      talents: talentsCatalog as any,
-      traits: traitsCatalog as any,
-      grids: gridsCatalog.grids as any,
-      tiles: tilesCatalog.tiles as any,
-    }),
-    []
-  );
+export function PlayScreen({
+  initialSave,
+  storyPack,
+  contentPack = sigilContentPack as ContentPack,
+  onAutosave,
+  onStorySwitch,
+  onReturnToHub,
+}: PlayScreenProps) {
+  const storyPackWithCatalogs = useMemo(() => withCatalogs(storyPack), [storyPack]);
 
   type ActionTargetingState = {
     kind: "spell" | "item" | "ranged";
@@ -232,11 +90,24 @@ export function PlayScreen() {
 
   const [save, setSave] = useState<GameSave>(initialSave);
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
+  const [playerSheetSpellMode, setPlayerSheetSpellMode] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
+  const [skillShopVisible, setSkillShopVisible] = useState(false);
   const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
   const [pendingChoice, setPendingChoice] = useState<ChoiceResolution | null>(null);
   const { width, height } = useWindowDimensions();
+
+  useEffect(() => {
+    setSave(initialSave);
+    setPlayerSheetVisible(false);
+    setPlayerSheetSpellMode(false);
+    setTalentShopVisible(false);
+    setEquipmentVisible(false);
+    setSkillShopVisible(false);
+    setActionTargeting(null);
+    setPendingChoice(null);
+  }, [initialSave, storyPack.id]);
 
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
   const choices = listAvailableChoices(storyPackWithCatalogs, save);
@@ -256,11 +127,72 @@ export function PlayScreen() {
     () => ({
       mode: "asset",
     }),
-    []
+    [],
   );
+
+  const hasProgressionChange = (prevSave: GameSave, nextSave: GameSave): boolean => {
+    const actorIds = new Set([...prevSave.party.actors, ...nextSave.party.actors]);
+    const recordChanged = (a: Record<string, any> | undefined, b: Record<string, any> | undefined) => {
+      const aKeys = Object.keys(a ?? {});
+      const bKeys = Object.keys(b ?? {});
+      if (aKeys.length !== bKeys.length) return true;
+      return aKeys.some((key) => (a ?? {})[key] !== (b ?? {})[key]);
+    };
+
+    for (const actorId of actorIds) {
+      const prevActor = prevSave.actorsById[actorId];
+      const nextActor = nextSave.actorsById[actorId];
+      if (!prevActor || !nextActor) continue;
+      if ((prevActor.resources.xp ?? 0) !== (nextActor.resources.xp ?? 0)) return true;
+      if (recordChanged(prevActor.talents, nextActor.talents)) return true;
+      if (recordChanged(prevActor.skills, nextActor.skills)) return true;
+      if (recordChanged(prevActor.spells ?? {}, nextActor.spells ?? {})) return true;
+    }
+    return false;
+  };
+
+  const maybeAutosave = (prevSave: GameSave, nextSave: GameSave) => {
+    if (!onAutosave) return;
+    const reasons: AutosaveReason[] = [];
+    if (prevSave.runtime.currentSceneId !== nextSave.runtime.currentSceneId) {
+      reasons.push("scene");
+    }
+    if (prevSave.runtime.combat?.active && !nextSave.runtime.combat?.active) {
+      reasons.push("combat");
+    }
+    if (hasProgressionChange(prevSave, nextSave)) {
+      reasons.push("progression");
+    }
+    if (reasons.length > 0) {
+      onAutosave(nextSave, reasons);
+    }
+  };
+
+  const commitSave = (nextSave: GameSave, prevSave?: GameSave) => {
+    const previous = prevSave ?? save;
+    setSave(nextSave);
+    maybeAutosave(previous, nextSave);
+  };
 
   const handleChoice = (choiceId: string) => {
     if (pendingChoice) return;
+    if (choiceId === "HUB_START_BRUNHOLT") {
+      onStorySwitch?.("oneshot_brunholt", save);
+      return;
+    }
+    if (choiceId === "HUB_OPEN_TALENTS") {
+      setTalentShopVisible(true);
+      return;
+    }
+    if (choiceId === "HUB_OPEN_SPELLS") {
+      setPlayerSheetSpellMode(true);
+      setPlayerSheetVisible(true);
+      return;
+    }
+    if (choiceId === "HUB_OPEN_SKILLS") {
+      setSkillShopVisible(true);
+      return;
+    }
     const activeScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === save.runtime.currentSceneId);
     const activeChoice = activeScene?.choices.find((entry) => entry.id === choiceId);
     const hasChecks = Boolean(activeChoice?.checks && activeChoice.checks.length > 0);
@@ -293,7 +225,7 @@ export function PlayScreen() {
       }
     }
 
-    const newSave = applyChoice(storyPackWithCatalogs, save, choiceId, sigilContentPack);
+    const newSave = applyChoice(storyPackWithCatalogs, save, choiceId, contentPack);
     const choiceLabel = choices.find((entry) => entry.id === choiceId)?.label ?? choiceId;
 
     const lines: string[] = [`Hai scelto: ${choiceLabel}`];
@@ -351,7 +283,7 @@ export function PlayScreen() {
 
   const applySystemEffects = (effects: Effect[]) => {
     const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter || 0);
-    let newSave = applyEffects(effects, storyPackWithCatalogs, save, rng, sigilContentPack);
+    let newSave = applyEffects(effects, storyPackWithCatalogs, save, rng, contentPack);
 
     // Ensure RNG counter is always saved back to the game state
     // This prevents RNG values from being reused
@@ -363,14 +295,14 @@ export function PlayScreen() {
       },
     };
 
-    setSave(newSave);
+    commitSave(newSave);
   };
 
   const handleToggleFateProtection = useCallback(
     (actorId: string, active: boolean) => {
       applySystemEffects([{ op: "setFateProtection", actorId, active }]);
     },
-    [applySystemEffects]
+    [applySystemEffects],
   );
 
   const applyItemUse = (itemRef: ItemRef, targetSelection?: TargetSelection) => {
@@ -387,7 +319,31 @@ export function PlayScreen() {
         rngCounter: rng.getCounter(),
       },
     };
-    setSave(updatedSave);
+    commitSave(updatedSave);
+  };
+
+  const handleTrainSkill = (skillId: string, cost: number) => {
+    const actorId = save.party.activeActorId;
+    const actor = save.actorsById[actorId];
+    if (!actor) return;
+    const spendResult = spendActorXp(save, actorId, cost);
+    if (spendResult.error) return;
+    const currentRank = actor.skills?.[skillId] ?? 0;
+    const updatedActor = {
+      ...actor,
+      skills: {
+        ...actor.skills,
+        [skillId]: currentRank + 1,
+      },
+    };
+    const updatedSave = {
+      ...spendResult.save,
+      actorsById: {
+        ...spendResult.save.actorsById,
+        [actorId]: updatedActor,
+      },
+    };
+    commitSave(updatedSave);
   };
 
   const handleUseItem = (itemRef: ItemRef) => {
@@ -759,7 +715,7 @@ export function PlayScreen() {
       !choice.id.startsWith("combat_melee") &&
       !choice.id.startsWith("combat_ranged_") &&
       choice.id !== "start_combat" &&
-      choice.id !== "combat_end_turn"
+      choice.id !== "combat_end_turn",
   );
 
   // Get combat-specific choices
@@ -769,7 +725,7 @@ export function PlayScreen() {
       choice.id === "combat_melee" ||
       choice.id.startsWith("combat_melee_") ||
       choice.id.startsWith("combat_ranged_") ||
-      choice.id === "combat_end_turn"
+      choice.id === "combat_end_turn",
   );
 
   // Use combat UI model hook
@@ -854,10 +810,25 @@ export function PlayScreen() {
           <Pressable
             style={styles.gameOverButton}
             onPress={() => {
-              setSave(initialSave);
+              commitSave(initialSave, save);
             }}
           >
             <Text style={styles.gameOverButtonText}>Restart</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {save.runtime.storyEnded && onReturnToHub && (
+        <View style={styles.gameOverPanel}>
+          <Text style={styles.gameOverTitle}>Quest Complete</Text>
+          <Text style={styles.gameOverText}>Return to the Sigil Hub to continue your journey.</Text>
+          <Pressable
+            style={styles.gameOverButton}
+            onPress={() => {
+              onReturnToHub(save);
+            }}
+          >
+            <Text style={styles.gameOverButtonText}>Return to Hub</Text>
           </Pressable>
         </View>
       )}
@@ -893,7 +864,12 @@ export function PlayScreen() {
       )}
 
       {/* Non-combat choices only */}
-      <ChoiceList choices={nonCombatChoices} handleChoice={handleChoice} styles={styles} disabled={Boolean(pendingChoice)} />
+      <ChoiceList
+        choices={nonCombatChoices}
+        handleChoice={handleChoice}
+        styles={styles}
+        disabled={Boolean(pendingChoice)}
+      />
     </View>
   );
 
@@ -942,7 +918,10 @@ export function PlayScreen() {
       {/* Player HUD - always visible */}
       <PlayerHud
         save={save}
-        onOpenSheet={() => setPlayerSheetVisible(true)}
+        onOpenSheet={() => {
+          setPlayerSheetSpellMode(false);
+          setPlayerSheetVisible(true);
+        }}
         onOpenTalentShop={() => setTalentShopVisible(true)}
         onOpenEquipment={() => setEquipmentVisible(true)}
         onToggleFateProtection={handleToggleFateProtection}
@@ -976,10 +955,14 @@ export function PlayScreen() {
       <PlayerSheet
         visible={playerSheetVisible}
         save={save}
-        onClose={() => setPlayerSheetVisible(false)}
+        onClose={() => {
+          setPlayerSheetVisible(false);
+          setPlayerSheetSpellMode(false);
+        }}
         applySystemEffects={applySystemEffects}
         onUseItem={handleUseItem}
         onDebugSpawnGear={__DEV__ ? handleSpawnTestGear : undefined}
+        openSpellShop={playerSheetSpellMode}
       />
 
       {/* Talent Shop Modal */}
@@ -989,6 +972,14 @@ export function PlayScreen() {
         actor={save.actorsById[save.party.activeActorId]}
         onClose={() => setTalentShopVisible(false)}
         applySystemEffects={applySystemEffects}
+      />
+
+      <SkillShop
+        visible={skillShopVisible}
+        save={save}
+        actor={save.actorsById[save.party.activeActorId]}
+        onClose={() => setSkillShopVisible(false)}
+        onTrainSkill={handleTrainSkill}
       />
 
       {/* Equipment Modal (debug) */}
@@ -1015,7 +1006,7 @@ export function PlayScreen() {
               <Pressable
                 style={styles.choiceModalButton}
                 onPress={() => {
-                  setSave(pendingChoice.pendingSave);
+                  commitSave(pendingChoice.pendingSave, save);
                   setPendingChoice(null);
                 }}
               >

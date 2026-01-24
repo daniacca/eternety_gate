@@ -354,11 +354,11 @@
   {
     "id": "talent:channelling_focus",
     "name": "Focus di Canalizzazione",
-    "description": "+10 to Channeling checks.",
+    "description": "Sblocca la canalizzazione magica.",
     "tier": 1,
     "xpCost": 500,
     "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
-    "grants": [{ "type": "modifier", "key": "magic.channelBonus", "op": "add", "value": 10 }],
+    "grants": [{ "type": "unlockAction", "actionId": "magic:channel" }],
     "maxRank": 1
   },
   {

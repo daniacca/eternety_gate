@@ -2,7 +2,7 @@ import { View, Text, Pressable } from "react-native";
 import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck } from "@eg/engine";
 import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells, getNaturalAbilityWeapons } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SpellPickerModal } from "./SpellPickerModal";
 
 interface CombatControlProps {
@@ -87,11 +87,19 @@ export function CombatControl({
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:swiftAttack")
     : false;
   const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:cast") : false;
+  const hasChannelUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:channel") : false;
   const hasCalledShotUnlock = catalogs
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:calledShot")
     : false;
 
   const activeActor = save.actorsById[save.party.activeActorId];
+  const isWeaver = Boolean(activeActor?.traits?.["trait:weaver"]);
+
+  useEffect(() => {
+    if (!isWeaver && activeSection === "magic") {
+      setActiveSection("movement");
+    }
+  }, [isWeaver, activeSection]);
   const mainWeaponId = activeActor?.equipment?.mainHand?.kind === "weapon" ? activeActor.equipment.mainHand.id : null;
   const offWeaponId = activeActor?.equipment?.offHand?.kind === "weapon" ? activeActor.equipment.offHand.id : null;
   const mainWeapon = mainWeaponId ? save.weaponsById?.[mainWeaponId] : null;
@@ -661,19 +669,23 @@ export function CombatControl({
           </View>
 
           {/* Magic Block */}
+          {isWeaver && (
           <View style={[styles.combatBlock, styles.magicBlock, isPhone && { padding: 10 }]}>
             {isPhone ? <SectionHeader id="magic" title="Magic" /> : <Text style={styles.combatBlockTitle}>Magic</Text>}
             {(!isPhone || activeSection === "magic") && (
               <>
                 <View style={styles.stanceActions}>
                   <Pressable
-                    style={[styles.stanceButton, !model.actionAvailable && styles.attackButtonDisabled]}
+                    style={[
+                      styles.stanceButton,
+                      (!hasChannelUnlock || !model.actionAvailable) && styles.attackButtonDisabled,
+                    ]}
                     onPress={() => {
-                      if (model.actionAvailable) {
+                      if (model.actionAvailable && hasChannelUnlock) {
                         applySystemEffects([{ op: "combatChannel", actorId: save.party.activeActorId }]);
                       }
                     }}
-                    disabled={!model.actionAvailable}
+                    disabled={!hasChannelUnlock || !model.actionAvailable}
                   >
                     <Text style={[styles.stanceButtonText, !model.actionAvailable && styles.attackButtonTextDisabled]}>
                       Channel
@@ -700,6 +712,9 @@ export function CombatControl({
                       Cast Spell
                     </Text>
                   </Pressable>
+                  {!hasChannelUnlock && (
+                    <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede Focus di Canalizzazione</Text>
+                  )}
                   {!hasMagicUnlock && (
                     <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede tratto magico</Text>
                   )}
@@ -809,6 +824,7 @@ export function CombatControl({
               </>
             )}
           </View>
+          )}
         </View>
       )}
 

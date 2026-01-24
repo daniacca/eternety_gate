@@ -6,10 +6,6 @@
       {
         "type": "unlockAction",
         "actionId": "magic:cast"
-      },
-      {
-        "type": "unlockAction",
-        "actionId": "magic:channel"
       }
     ]
   },

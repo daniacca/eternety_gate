@@ -28,7 +28,7 @@ const conditionLabels: Record<ConditionId, string> = {
   halvedMovement: "Movimento Dimezzato",
 };
 
-export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment }: PlayerHudProps) {
+export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment, onToggleFateProtection }: PlayerHudProps) {
   const { width } = useWindowDimensions();
   const isNarrow = width < 420;
 
