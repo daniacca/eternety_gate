@@ -304,6 +304,14 @@ export function PlayerSheet({
                 <Text style={styles.resourceValue}>{activeActor.resources.xp ?? 0}</Text>
               </View>
               <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>XP Totale:</Text>
+                <Text style={styles.resourceValue}>{activeActor.resources.xpEarned ?? 0}</Text>
+              </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>XP Spesa:</Text>
+                <Text style={styles.resourceValue}>{activeActor.resources.xpSpent ?? 0}</Text>
+              </View>
+              <View style={styles.resourceRow}>
                 <Text style={styles.resourceLabel}>Fate Points:</Text>
                 <Text style={[styles.resourceValue, styles.fatePointsValue]}>
                   {activeActor.resources.fatePoints ?? 0}

@@ -336,6 +336,29 @@ describe("checks", () => {
     });
   });
 
+  describe("magic CN 0 support", () => {
+    it("allows magic effect checks with CN 0 and 0 DoS", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({ stats: { WIL: 50 } as any });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([50]);
+
+      const check: MagicEffectCheck = {
+        id: "CHK_MAGIC_CN0",
+        kind: "magicEffect",
+        actorRef: { mode: "byId", actorId: actor.id },
+        key: "WIL",
+        difficulty: "Challenging",
+        castingNumberDoS: 0,
+        powerMode: "CONTROLLED",
+      };
+
+      const result = performCheck(check, storyPack, save, rng);
+      expect(result?.success).toBe(true);
+      expect(result?.dos).toBe(0);
+    });
+  });
+
   describe("performCheck - SingleCheck", () => {
     it("should perform a successful single check", () => {
       const storyPack = makeTestStoryPack({

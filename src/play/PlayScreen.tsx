@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ import {
   useItem,
   getNaturalAbilityWeaponById,
   spendActorXp,
+  type StatKey,
 } from "@eg/engine";
 import { withCatalogs } from "../storypacks";
 import { sigilContentPack } from "@eg/content/src";
@@ -46,6 +47,7 @@ import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
 import { EquipmentModal } from "./components/EquipmentModal";
 import { SkillShop } from "./components/SkillShop";
+import { StatShop } from "./components/StatShop";
 import { useCombatUiModel } from "./hooks/useCombatUiModel";
 import { resolveSceneBackground, type BackgroundSourceConfig } from "./story/sceneBackgrounds";
 
@@ -94,20 +96,62 @@ export function PlayScreen({
   const [talentShopVisible, setTalentShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
   const [skillShopVisible, setSkillShopVisible] = useState(false);
+  const [statShopVisible, setStatShopVisible] = useState(false);
   const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
   const [pendingChoice, setPendingChoice] = useState<ChoiceResolution | null>(null);
   const { width, height } = useWindowDimensions();
+  const normalizedBaseStatsRef = useRef(false);
 
   useEffect(() => {
+    normalizedBaseStatsRef.current = false;
     setSave(initialSave);
+  }, [initialSave]);
+
+  useEffect(() => {
     setPlayerSheetVisible(false);
     setPlayerSheetSpellMode(false);
     setTalentShopVisible(false);
     setEquipmentVisible(false);
     setSkillShopVisible(false);
+    setStatShopVisible(false);
     setActionTargeting(null);
     setPendingChoice(null);
-  }, [initialSave, storyPack.id]);
+  }, [storyPack.id]);
+
+  useEffect(() => {
+    if (normalizedBaseStatsRef.current) return;
+    const actorEntries = Object.entries(save.actorsById);
+    const needsInit = actorEntries.some(([, actor]) => !actor.resources?.baseStats);
+    if (!needsInit) {
+      normalizedBaseStatsRef.current = true;
+      return;
+    }
+    const updatedActors: GameSave["actorsById"] = {};
+    for (const [actorId, actor] of actorEntries) {
+      if (actor.resources?.baseStats) {
+        updatedActors[actorId] = actor;
+        continue;
+      }
+      updatedActors[actorId] = {
+        ...actor,
+        resources: {
+          ...actor.resources,
+          baseStats: { ...actor.stats },
+        },
+      };
+    }
+    normalizedBaseStatsRef.current = true;
+    commitSave(
+      {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          ...updatedActors,
+        },
+      },
+      save
+    );
+  }, [save]);
 
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
   const choices = listAvailableChoices(storyPackWithCatalogs, save);
@@ -147,6 +191,7 @@ export function PlayScreen({
       if (recordChanged(prevActor.talents, nextActor.talents)) return true;
       if (recordChanged(prevActor.skills, nextActor.skills)) return true;
       if (recordChanged(prevActor.spells ?? {}, nextActor.spells ?? {})) return true;
+      if (recordChanged(prevActor.stats, nextActor.stats)) return true;
     }
     return false;
   };
@@ -191,6 +236,10 @@ export function PlayScreen({
     }
     if (choiceId === "HUB_OPEN_SKILLS") {
       setSkillShopVisible(true);
+      return;
+    }
+    if (choiceId === "HUB_OPEN_STATS") {
+      setStatShopVisible(true);
       return;
     }
     const activeScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === save.runtime.currentSceneId);
@@ -334,6 +383,31 @@ export function PlayScreen({
       skills: {
         ...actor.skills,
         [skillId]: currentRank + 1,
+      },
+    };
+    const updatedSave = {
+      ...spendResult.save,
+      actorsById: {
+        ...spendResult.save.actorsById,
+        [actorId]: updatedActor,
+      },
+    };
+    commitSave(updatedSave);
+  };
+
+  const handleIncreaseStat = (stat: StatKey, cost: number) => {
+    const actorId = save.party.activeActorId;
+    const actor = save.actorsById[actorId];
+    if (!actor) return;
+    const spendResult = spendActorXp(save, actorId, cost);
+    if (spendResult.error) return;
+    const updatedActorBase = spendResult.save.actorsById[actorId];
+    if (!updatedActorBase) return;
+    const updatedActor = {
+      ...updatedActorBase,
+      stats: {
+        ...updatedActorBase.stats,
+        [stat]: (updatedActorBase.stats[stat] ?? 0) + 1,
       },
     };
     const updatedSave = {
@@ -980,6 +1054,14 @@ export function PlayScreen({
         actor={save.actorsById[save.party.activeActorId]}
         onClose={() => setSkillShopVisible(false)}
         onTrainSkill={handleTrainSkill}
+      />
+
+      <StatShop
+        visible={statShopVisible}
+        save={save}
+        actor={save.actorsById[save.party.activeActorId]}
+        onClose={() => setStatShopVisible(false)}
+        onIncreaseStat={handleIncreaseStat}
       />
 
       {/* Equipment Modal (debug) */}

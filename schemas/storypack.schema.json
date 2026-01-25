@@ -115,6 +115,7 @@
         "text": { "type": "array", "items": { "type": "string" } },
         "textBlocks": { "type": "array", "items": { "$ref": "#/$defs/textBlock" } },
         "onEnter": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
+        "enterMode": { "type": "string", "enum": ["firstVisit", "always"] },
         "checks": { "type": "array", "items": { "$ref": "#/$defs/check" } },
         "choices": { "type": "array", "items": { "$ref": "#/$defs/choice" } },
         "backgroundImage": { "$ref": "#/$defs/sceneBackground" },
@@ -335,7 +336,8 @@
           },
           "then": {
             "properties": {
-              "partyPlacement": { "$ref": "#/$defs/partyPlacement" }
+              "partyPlacement": { "$ref": "#/$defs/partyPlacement" },
+              "resetParticipants": { "type": "boolean" }
             }
           }
         }

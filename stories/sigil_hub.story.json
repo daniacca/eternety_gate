@@ -166,10 +166,14 @@
       "text": [
         "The arena is ready. Wooden dummies spring to life as you step in."
       ],
+      "enterMode": "always",
       "onEnter": [
+        { "op": "setFlag", "path": "flags.trainingVictory", "value": false },
+        { "op": "setFlag", "path": "flags.trainingDefeat", "value": false },
         {
           "op": "combatStart",
           "participantIds": ["NPC_TRAINING_DUMMY_1", "NPC_TRAINING_DUMMY_2"],
+          "resetParticipants": true,
           "gridId": "arena_01",
           "partyPlacement": { "kind": "area", "x": 2, "y": 2, "width": 2, "height": 2 },
           "placements": [
@@ -221,6 +225,10 @@
         {
           "id": "HUB_OPEN_SKILLS",
           "label": "Open Skill Training"
+        },
+        {
+          "id": "HUB_OPEN_STATS",
+          "label": "Open Characteristic Training"
         },
         {
           "id": "HUB_RETURN_FROM_SANCTUM",

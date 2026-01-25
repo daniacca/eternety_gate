@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { createNewGame, evaluatePrerequisites, loadCharacterCatalogs, type Actor, type ItemRef, type StatKey } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
@@ -27,6 +27,8 @@ const MAX_SKILL_RANKS = 3;
 
 export default function NewGameWizard() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 720;
   const [step, setStep] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [name, setName] = useState("");
@@ -37,7 +39,8 @@ export default function NewGameWizard() {
     Object.fromEntries(STAT_KEYS.map((key) => [key, DIFFICULTY_BASE.normal])) as Record<StatKey, number>
   );
   const [randomStats, setRandomStats] = useState<Record<StatKey, number> | null>(null);
-  const [selectedTalents, setSelectedTalents] = useState<string[]>([]);
+  const [selectedTalents, setSelectedTalents] = useState<Record<string, number>>({});
+  const [selectedTalentParams, setSelectedTalentParams] = useState<Record<string, Record<string, string>>>({});
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [skillRanks, setSkillRanks] = useState<Record<string, number>>({});
 
@@ -59,6 +62,10 @@ export default function NewGameWizard() {
   const totalSkillRanks = useMemo(() => {
     return Object.values(skillRanks).reduce((sum, value) => sum + value, 0);
   }, [skillRanks]);
+
+  const totalTalentRanks = useMemo(() => {
+    return Object.values(selectedTalents).reduce((sum, value) => sum + value, 0);
+  }, [selectedTalents]);
 
   const rollRandomStats = () => {
     const rollStat = () => {
@@ -136,13 +143,14 @@ export default function NewGameWizard() {
       stats: effectiveStats,
       resources: { wounds: 0, rf: 0, fatePoints: 4, xp: 0 },
       skills: skillRanks,
-      talents: Object.fromEntries(selectedTalents.map((talentId) => [talentId, 1])),
+      talents: selectedTalents,
       traits,
       spells: {},
       equipment: {},
       status: { conditions: [], tempModifiers: [] },
-    };
-  }, [effectiveStats, archetype, traitChoice, skillRanks, selectedTalents, name]);
+      talentParams: selectedTalentParams,
+    } as Actor;
+  }, [effectiveStats, archetype, traitChoice, skillRanks, selectedTalents, selectedTalentParams, name]);
 
   const prereqSave = useMemo(() => {
     if (!prereqActor) return null;
@@ -153,15 +161,25 @@ export default function NewGameWizard() {
 
   const availableTalents = useMemo(() => {
     if (!prereqActor || !prereqSave) return [];
-    return (talentsCatalog as Array<{ id: string; name: string; prerequisites?: any[] }>).filter((talent) => {
+    return (talentsCatalog as Array<{ id: string; name: string; prerequisites?: any[]; maxRank?: number }>).filter((talent) => {
       const prerequisites = talent.prerequisites || [];
+      const currentRank = selectedTalents[talent.id] ?? 0;
+      const maxRank = talent.maxRank ?? 1;
       if (prerequisites.length === 0) return true;
       return evaluatePrerequisites(prereqSave, catalogs, prereqActor, prerequisites).valid;
     });
-  }, [prereqActor, prereqSave, catalogs]);
+  }, [prereqActor, prereqSave, catalogs, selectedTalents]);
 
   useEffect(() => {
-    setSelectedTalents((current) => current.filter((id) => availableTalents.some((talent) => talent.id === id)));
+    setSelectedTalents((current) => {
+      const next: Record<string, number> = {};
+      Object.entries(current).forEach(([id, rank]) => {
+        if (availableTalents.some((talent) => talent.id === id)) {
+          next[id] = rank;
+        }
+      });
+      return next;
+    });
   }, [availableTalents]);
 
   const canContinue = () => {
@@ -169,7 +187,19 @@ export default function NewGameWizard() {
     if (step === 1) return name.trim().length > 0 && archetype !== null;
     if (step === 2) return traitChoice !== null;
     if (step === 3) return statMethod === "manual" ? pointsRemaining === 0 : Boolean(randomStats);
-    if (step === 4) return totalSkillRanks <= MAX_SKILL_RANKS && selectedTalents.length <= maxTalentCount;
+    if (step === 4) {
+      const missingParam = Object.entries(selectedTalents).some(([talentId, rank]) => {
+        if (rank <= 0) return false;
+        const talent = (talentsCatalog as Array<{ id: string; chosenParam?: { paramKey: string } }>).find(
+          (entry) => entry.id === talentId
+        );
+        if (!talent?.chosenParam) return false;
+        const params = selectedTalentParams[talentId];
+        return !params || !params[talent.chosenParam.paramKey];
+      });
+      return totalTalentRanks <= maxTalentCount && !missingParam;
+    }
+    if (step === 5) return totalSkillRanks <= MAX_SKILL_RANKS;
     return true;
   };
 
@@ -186,15 +216,44 @@ export default function NewGameWizard() {
     });
   };
 
-  const toggleTalent = (talentId: string) => {
+  const addTalentRank = (talentId: string, maxRank: number, requiresParam: boolean) => {
+    if (requiresParam && !selectedTalentParams[talentId]) return;
     setSelectedTalents((current) => {
-      if (current.includes(talentId)) {
-        return current.filter((id) => id !== talentId);
-      }
-      if (current.length >= maxTalentCount) return current;
-      return [...current, talentId];
+      const currentRank = current[talentId] ?? 0;
+      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
+      if (currentRank >= maxRank) return current;
+      if (currentTotal >= maxTalentCount) return current;
+      return { ...current, [talentId]: currentRank + 1 };
     });
     setSelectedTalentId(talentId);
+  };
+
+  const removeTalentRank = (talentId: string) => {
+    const currentRank = selectedTalents[talentId] ?? 0;
+    setSelectedTalents((current) => {
+      if (currentRank <= 1) {
+        const { [talentId]: _, ...rest } = current;
+        return rest;
+      }
+      return { ...current, [talentId]: currentRank - 1 };
+    });
+    setSelectedTalentParams((current) => {
+      if (currentRank <= 1) {
+        const { [talentId]: _, ...rest } = current;
+        return rest;
+      }
+      return current;
+    });
+  };
+
+  const setTalentParam = (talentId: string, paramKey: string, value: string) => {
+    setSelectedTalentParams((current) => ({
+      ...current,
+      [talentId]: {
+        ...(current[talentId] || {}),
+        [paramKey]: value,
+      },
+    }));
   };
 
   const adjustSkillRank = (skillId: string, delta: number) => {
@@ -284,21 +343,45 @@ export default function NewGameWizard() {
     if (traitChoice === "weaver") traits["trait:weaver"] = true;
     if (traitChoice === "soulless") traits["trait:untouchable"] = true;
 
+    const talentParams = Object.keys(selectedTalentParams).length > 0 ? selectedTalentParams : undefined;
+    const talentUniquenessKeys = (talentsCatalog as Array<{ id: string; uniquenessKey?: string; chosenParam?: { paramKey: string } }>).reduce(
+      (keys: string[], talent) => {
+        if (!talent.uniquenessKey) return keys;
+        const params = selectedTalentParams[talent.id];
+        const paramKey = talent.chosenParam?.paramKey;
+        if (!params || !paramKey) return keys;
+        const value = params[paramKey];
+        if (!value) return keys;
+        return [...keys, talent.uniquenessKey.replace(`<${paramKey}>`, value)];
+      },
+      []
+    );
+
     const actor: Actor = {
       id: "PC_1",
       name: name.trim(),
       kind: "PC",
       tags: [`archetype:${archetype.toLowerCase()}`],
       stats: applyArchetypeModifiers(selectedStats, archetype),
-      resources: { wounds: 0, rf: 0, fatePoints: 4, xp: 0 },
+      resources: {
+        wounds: 0,
+        rf: 0,
+        fatePoints: 4,
+        xp: 0,
+        xpEarned: 0,
+        xpSpent: 0,
+        baseStats: applyArchetypeModifiers(selectedStats, archetype),
+      },
       skills: skillRanks,
-      talents: Object.fromEntries(selectedTalents.map((talentId) => [talentId, 1])),
+      talents: selectedTalents,
       traits,
       spells: {},
       equipment: loadout.equipment,
       inventory,
       status: { conditions: [], tempModifiers: [] },
-    };
+      talentParams,
+      talentUniquenessKeys: talentUniquenessKeys.length > 0 ? talentUniquenessKeys : undefined,
+    } as Actor;
 
     const party = {
       actors: [actor.id],
@@ -332,7 +415,7 @@ export default function NewGameWizard() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>New Game Wizard</Text>
-      <Text style={styles.stepLabel}>Step {step + 1} of 6</Text>
+      <Text style={styles.stepLabel}>Step {step + 1} of 7</Text>
 
       {step === 0 && (
         <View style={styles.section}>
@@ -453,20 +536,23 @@ export default function NewGameWizard() {
 
       {step === 4 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Starting Talents & Skills</Text>
-          <Text style={styles.summaryText}>Talents: {selectedTalents.length}/{maxTalentCount}</Text>
-          <Text style={styles.summaryText}>Skill ranks: {totalSkillRanks}/{MAX_SKILL_RANKS}</Text>
+          <Text style={styles.sectionTitle}>Starting Talents</Text>
+          <Text style={styles.summaryText}>Talents: {totalTalentRanks}/{maxTalentCount}</Text>
 
-          <View style={styles.talentColumns}>
+          <View style={[styles.talentColumns, isNarrow && styles.talentColumnsStacked]}>
             <View style={styles.talentDetail}>
               {(() => {
                 const talent = availableTalents.find((entry) => entry.id === selectedTalentId) ?? availableTalents[0];
                 if (!talent) {
                   return <Text style={styles.emptyText}>No talents available for this character.</Text>;
                 }
-                const isSelected = selectedTalents.includes(talent.id);
+                const currentRank = selectedTalents[talent.id] ?? 0;
+                const isSelected = currentRank > 0;
                 const prereqs = talent.prerequisites || [];
                 const grants = talent.grants || [];
+                const maxRank = talent.maxRank ?? 1;
+                const chosenParam = talent.chosenParam;
+                const paramValue = chosenParam ? selectedTalentParams[talent.id]?.[chosenParam.paramKey] : undefined;
                 const formatPrereq = (prereq: any) => {
                   switch (prereq.type) {
                     case "statAtLeast":
@@ -526,21 +612,56 @@ export default function NewGameWizard() {
                         </Text>
                       ))
                     )}
-                    <Pressable
-                      style={[styles.primaryButton, isSelected && styles.choiceButtonActive, { marginTop: 12 }]}
-                      onPress={() => toggleTalent(talent.id)}
-                    >
-                      <Text style={styles.primaryButtonText}>{isSelected ? "Remove Talent" : "Select Talent"}</Text>
-                    </Pressable>
+                    {chosenParam && (
+                      <>
+                        <Text style={styles.subTitle}>Choose {chosenParam.label || chosenParam.paramKey}</Text>
+                        <View style={styles.choiceGrid}>
+                          {chosenParam.options.map((option: string) => (
+                            <Pressable
+                              key={`${talent.id}-${option}`}
+                              style={[
+                                styles.choiceButton,
+                                paramValue === option && styles.choiceButtonActive,
+                              ]}
+                              onPress={() => setTalentParam(talent.id, chosenParam.paramKey, option)}
+                            >
+                              <Text style={styles.choiceText}>{option}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </>
+                    )}
+                    <View style={styles.talentControls}>
+                      <Pressable
+                        style={[styles.statButton, currentRank === 0 && styles.buttonDisabled]}
+                        onPress={() => removeTalentRank(talent.id)}
+                        disabled={currentRank === 0}
+                      >
+                        <Text style={styles.statButtonText}>-1</Text>
+                      </Pressable>
+                      <Text style={styles.statValue}>{currentRank}</Text>
+                      <Pressable
+                        style={[
+                          styles.statButton,
+                          (currentRank >= maxRank || totalTalentRanks >= maxTalentCount || (chosenParam && !paramValue)) &&
+                            styles.buttonDisabled,
+                        ]}
+                        onPress={() => addTalentRank(talent.id, maxRank, Boolean(chosenParam))}
+                        disabled={currentRank >= maxRank || totalTalentRanks >= maxTalentCount || (chosenParam && !paramValue)}
+                      >
+                        <Text style={styles.statButtonText}>+1</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 );
               })()}
             </View>
             <View style={styles.talentList}>
               <Text style={styles.subTitle}>Choose Talents</Text>
-              <ScrollView contentContainerStyle={styles.talentListContent}>
+              <ScrollView contentContainerStyle={styles.talentListContent} style={styles.talentListScroll}>
                 {availableTalents.map((talent) => {
-                  const isSelected = selectedTalents.includes(talent.id);
+                  const currentRank = selectedTalents[talent.id] ?? 0;
+                  const isSelected = currentRank > 0;
                   return (
                     <Pressable
                       key={talent.id}
@@ -552,13 +673,22 @@ export default function NewGameWizard() {
                       onPress={() => setSelectedTalentId(talent.id)}
                     >
                       <Text style={styles.choiceText}>{talent.name}</Text>
-                      <Text style={styles.skillMeta}>Tier {talent.tier} · {talent.xpCost} XP</Text>
+                      <Text style={styles.skillMeta}>
+                        Tier {talent.tier} {isSelected ? `· Rank ${currentRank}` : ""}
+                      </Text>
                     </Pressable>
                   );
                 })}
               </ScrollView>
             </View>
           </View>
+        </View>
+      )}
+
+      {step === 5 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Starting Skills</Text>
+          <Text style={styles.summaryText}>Skill ranks: {totalSkillRanks}/{MAX_SKILL_RANKS}</Text>
 
           <Text style={styles.subTitle}>Assign Skill Ranks</Text>
           <View style={styles.statsList}>
@@ -601,7 +731,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Loadout</Text>
           <Text style={styles.summaryText}>Trait: {traitChoice}</Text>
@@ -628,11 +758,11 @@ export default function NewGameWizard() {
         >
           <Text style={styles.secondaryButtonText}>Back</Text>
         </Pressable>
-      {step < 5 && (
+      {step < 6 && (
           <Pressable
             style={[styles.primaryButton, !canContinue() && styles.buttonDisabled]}
             disabled={!canContinue()}
-          onPress={() => setStep((current) => Math.min(5, current + 1))}
+          onPress={() => setStep((current) => Math.min(6, current + 1))}
           >
             <Text style={styles.primaryButtonText}>Next</Text>
           </Pressable>
@@ -799,6 +929,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
   },
+  talentColumnsStacked: {
+    flexDirection: "column",
+  },
   talentDetail: {
     flex: 1,
     backgroundColor: "#0f172a",
@@ -810,10 +943,19 @@ const styles = StyleSheet.create({
   talentList: {
     flex: 1,
   },
+  talentListScroll: {
+    maxHeight: 320,
+  },
   talentListContent: {
     gap: 8,
   },
   talentActive: {
     borderColor: "#f8fafc",
+  },
+  talentControls: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });

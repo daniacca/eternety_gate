@@ -108,6 +108,7 @@ export type Effect =
       gridId?: string;
       placements?: Array<{ actorId: ActorId; x: number; y: number }>;
       partyPlacement?: PartyPlacement;
+      resetParticipants?: boolean;
     }
   | { op: "combatMove"; dir: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW"; actorId?: ActorId }
   | { op: "combatEndTurn" }
@@ -422,6 +423,7 @@ export type Scene = {
   text: string[];
   textBlocks?: TextBlock[];
   onEnter?: Effect[];
+  enterMode?: "firstVisit" | "always";
   checks?: Check[];
   choices: Choice[];
   backgroundImage?: SceneBackground;
@@ -602,6 +604,9 @@ export type Actor = {
     criticalTierApplied?: number;
     isDead?: boolean;
     xp?: number; // Experience points for this actor (default 0)
+    xpEarned?: number; // Lifetime XP earned
+    xpSpent?: number; // Lifetime XP spent
+    baseStats?: Partial<Record<StatKey, number>>; // Starting stats used for training costs
   };
 
   /**

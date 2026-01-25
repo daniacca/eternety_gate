@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { loadSaveSlots, deleteSaveSlot, type SaveSlot } from "../src/storage/gameSaves";
 
@@ -26,14 +26,26 @@ export default function HomeScreen() {
   }, [mode, refreshSlots]);
 
   const handleDeleteSlot = (slotId: string) => {
+    const deleteSlot = async () => {
+      const next = await deleteSaveSlot(slotId);
+      setSlots(next);
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Delete this save slot?");
+      if (confirmed) {
+        void deleteSlot();
+      }
+      return;
+    }
+
     Alert.alert("Reset Save", "Delete this save slot?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          const next = await deleteSaveSlot(slotId);
-          setSlots(next);
+        onPress: () => {
+          void deleteSlot();
         },
       },
     ]);

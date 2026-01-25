@@ -19,6 +19,15 @@ describe("hasUnlockedAction", () => {
     skills: [],
     talents: [
       {
+        id: "talent:channelling_focus",
+        name: "Focus di Canalizzazione",
+        tier: 1,
+        xpCost: 500,
+        prerequisites: [{ type: "hasTrait", traitId: "trait:weaver" }],
+        grants: [{ type: "unlockAction", actionId: "magic:channel" }],
+        maxRank: 1,
+      },
+      {
         id: "talent:disarm",
         name: "Disarmare",
         tier: 2,
@@ -41,10 +50,7 @@ describe("hasUnlockedAction", () => {
       {
         id: "trait:weaver",
         name: "Tessitore della Trama",
-        grants: [
-          { type: "unlockAction", actionId: "magic:cast" },
-          { type: "unlockAction", actionId: "magic:channel" },
-        ],
+        grants: [{ type: "unlockAction", actionId: "magic:cast" }],
       },
     ],
   });
@@ -129,7 +135,7 @@ describe("hasUnlockedAction", () => {
     const catalogs = createMockCatalogs();
 
     expect(hasUnlockedAction(save, catalogs, "PC_1", "magic:cast")).toBe(true);
-    expect(hasUnlockedAction(save, catalogs, "PC_1", "magic:channel")).toBe(true);
+    expect(hasUnlockedAction(save, catalogs, "PC_1", "magic:channel")).toBe(false);
     expect(hasUnlockedAction(save, catalogs, "PC_1", "combat:disarm")).toBe(false);
   });
 
@@ -142,7 +148,7 @@ describe("hasUnlockedAction", () => {
       stats: { STR: 50, TOU: 50, AGI: 50, INT: 50, WIL: 50, CHA: 50, WS: 50, BS: 50, INI: 50, PER: 50 },
       resources: { hp: 100, rf: 0, peq: 3 },
       skills: {},
-      talents: { "talent:disarm": 1, "talent:takedown": 1 },
+      talents: { "talent:disarm": 1, "talent:takedown": 1, "talent:channelling_focus": 1 },
       traits: { "trait:weaver": {} },
       equipment: {},
       status: { conditions: [], tempModifiers: [] },

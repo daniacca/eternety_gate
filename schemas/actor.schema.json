@@ -75,7 +75,25 @@
         "criticalDamage": { "type": "number" },
         "criticalTierApplied": { "type": "number" },
         "isDead": { "type": "boolean" },
-        "xp": { "type": "number", "description": "Experience points for this actor" }
+        "xp": { "type": "number", "description": "Experience points for this actor" },
+        "xpEarned": { "type": "number", "description": "Lifetime XP earned" },
+        "xpSpent": { "type": "number", "description": "Lifetime XP spent" },
+        "baseStats": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "STR": { "type": "number" },
+            "TOU": { "type": "number" },
+            "AGI": { "type": "number" },
+            "INT": { "type": "number" },
+            "WIL": { "type": "number" },
+            "CHA": { "type": "number" },
+            "WS": { "type": "number" },
+            "BS": { "type": "number" },
+            "INI": { "type": "number" },
+            "PER": { "type": "number" }
+          }
+        }
       }
     },
     "skills": {

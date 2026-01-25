@@ -94,6 +94,10 @@ export function CombatControl({
 
   const activeActor = save.actorsById[save.party.activeActorId];
   const isWeaver = Boolean(activeActor?.traits?.["trait:weaver"]);
+  const channelingDoS =
+    save.runtime.combat?.channeling?.actorId === save.party.activeActorId
+      ? save.runtime.combat.channeling.accumulatedDoS
+      : 0;
 
   useEffect(() => {
     if (!isWeaver && activeSection === "magic") {
@@ -720,6 +724,11 @@ export function CombatControl({
                   )}
                   {hasMagicUnlock && !hasLearnedSpells && (
                     <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
+                  )}
+                  {channelingDoS > 0 && (
+                    <Text style={{ fontSize: 11, color: "#2563eb", marginTop: 6 }}>
+                      Channeling power: +{channelingDoS} DoS
+                    </Text>
                   )}
                 </View>
                 {targetingInfo && (

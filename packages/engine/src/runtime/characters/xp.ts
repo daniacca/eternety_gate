@@ -26,12 +26,14 @@ export function grantActorXp(save: GameSave, actorId: ActorId, amount: number): 
 
   const currentXp = actor.resources.xp ?? 0;
   const newXp = currentXp + amount;
+  const currentEarned = actor.resources.xpEarned ?? 0;
 
   const updatedActor: Actor = {
     ...actor,
     resources: {
       ...actor.resources,
       xp: newXp,
+      xpEarned: currentEarned + amount,
     },
   };
 
@@ -68,6 +70,7 @@ export function spendActorXp(save: GameSave, actorId: ActorId, amount: number): 
     resources: {
       ...actor.resources,
       xp: currentXp - amount,
+      xpSpent: (actor.resources.xpSpent ?? 0) + amount,
     },
   };
 

@@ -150,11 +150,13 @@ export const handleCheckChoice: ChoiceHandler = (
   // Apply choice effects (may include goto)
   currentSave = applyEffects(choice.effects, storyPack, currentSave, rng, contentPack);
 
-  // Apply scene onEnter effects for the new scene if this is first visit
+  // Apply scene onEnter effects based on enterMode
   const newSceneId = currentSave.runtime.currentSceneId;
-  if (!visitedScenesBefore.includes(newSceneId)) {
-    const newScene = storyPack.scenes.find((s) => s.id === newSceneId);
-    if (newScene && newScene.onEnter) {
+  const newScene = storyPack.scenes.find((s) => s.id === newSceneId);
+  if (newScene && newScene.onEnter) {
+    const enterMode = newScene.enterMode ?? "firstVisit";
+    const shouldEnter = enterMode === "always" || !visitedScenesBefore.includes(newSceneId);
+    if (shouldEnter) {
       currentSave = applyEffects(newScene.onEnter, storyPack, currentSave, rng, contentPack);
     }
   }

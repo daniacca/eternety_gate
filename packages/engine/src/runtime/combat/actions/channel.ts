@@ -3,14 +3,13 @@ import type { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave } from "../../checks";
-import { getCharacteristicBonus } from "../../characters/bonuses";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import { getUntouchableAuraImpact } from "../untouchableAura";
 import { hasTrait } from "../../characters/prerequisites";
 
 /**
  * Channeling action: Full Round Action
- * Performs a d100 check on Channeling skill (MVP: uses WIL bonus)
+ * Performs a d100 check on Channeling skill
  * If success: accumulate DoS into combatState.channeling
  */
 export function combatChannel(
@@ -88,10 +87,6 @@ export function combatChannel(
     return { save };
   }
 
-  // MVP: Use WIL bonus for channeling (future: use SKILL:skill:channeling)
-  const wilBonus = getCharacteristicBonus(save, turnActorId, "WIL", catalogs);
-  const channelingTarget = wilBonus;
-
   // Untouchable aura penalty applies when a weaver channels within the aura
   let auraPenalty = 0;
   if (hasTrait(actor, "trait:weaver", save) && catalogs) {
@@ -106,7 +101,7 @@ export function combatChannel(
     id: `combat:channeling:${turnActorId}`,
     kind: "single",
     actorRef: { mode: "byId", actorId: turnActorId },
-    key: "WIL", // MVP: use WIL stat directly
+    key: "SKILL:skill:channeling",
     difficulty: "Challenging",
     modifier: auraPenalty !== 0 ? auraPenalty : undefined,
   };
@@ -131,7 +126,8 @@ export function combatChannel(
   // Update combat state: consume action and movement (Full Round Action)
   const currentChanneling = combat.channeling;
   const accumulatedDoS = currentChanneling?.actorId === turnActorId ? currentChanneling.accumulatedDoS : 0;
-  const newAccumulatedDoS = result.success ? accumulatedDoS + result.dos : accumulatedDoS;
+  const addedDoS = result.success ? Math.max(1, result.dos) : 0;
+  const newAccumulatedDoS = result.success ? accumulatedDoS + addedDoS : accumulatedDoS;
 
   const updatedCombat = {
     ...combat,
@@ -162,14 +158,14 @@ export function combatChannel(
   if (result.success) {
     const logEntry =
       actor?.kind === "PC"
-        ? `Canalizzi energia magica. Accumuli ${result.dos} DoS (totale: ${newAccumulatedDoS}).`
-        : `${actor?.name || turnActorId} canalizza energia magica. Accumula ${result.dos} DoS (totale: ${newAccumulatedDoS}).`;
+        ? `Canalizzi energia magica. Accumuli ${addedDoS} DoS (totale: ${newAccumulatedDoS}).`
+        : `${actor?.name || turnActorId} canalizza energia magica. Accumula ${addedDoS} DoS (totale: ${newAccumulatedDoS}).`;
     updatedSave = appendCombatLog(updatedSave, logEntry);
 
     // Log system entry
     updatedSave = appendRuntimeLog(updatedSave, {
       kind: "system",
-      message: `Channeling: accumulati ${result.dos} DoS (totale: ${newAccumulatedDoS})`,
+      message: `Channeling: accumulati ${addedDoS} DoS (totale: ${newAccumulatedDoS})`,
       turnCounter: combat.turnCounter,
       resolutionId,
     });

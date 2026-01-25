@@ -1,11 +1,11 @@
 [
   {
     "id": "spell:flame_bolt",
-    "name": "Fiamma Bolt",
+    "name": "Dardo Infuocato",
     "discipline": "PYRA",
     "castTime": "standard",
     "effectId": "effect:flame_bolt",
-    "baseCN": 2,
+    "baseCN": 1,
     "rangeMode": "medium",
     "targetShape": "single",
     "notes": "Danno da fuoco a bersaglio singolo",
@@ -14,6 +14,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_flame_control"
       }
     ]
   },
@@ -32,6 +36,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:flame_bolt"
       }
     ]
   },
@@ -41,7 +49,7 @@
     "discipline": "KINESIS",
     "castTime": "standard",
     "effectId": "effect:force_push",
-    "baseCN": 2,
+    "baseCN": 0,
     "rangeMode": "short",
     "targetShape": "single",
     "notes": "Spinge il bersaglio a terra",
@@ -77,7 +85,7 @@
     "discipline": "VATES",
     "castTime": "free",
     "effectId": "effect:sense_magic",
-    "baseCN": 1,
+    "baseCN": 0,
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Rileva la presenza di magia",
@@ -154,10 +162,12 @@
     "targetShape": "self",
     "notes": "Grants temporary NaturalArmor",
     "xpCost": 700,
-    "prerequisites": [{
-      "type": "hasTrait",
-      "traitId": "trait:weaver"
-    }]
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
   },
   {
     "id": "spell:pyra_explosion",
@@ -165,7 +175,7 @@
     "discipline": "PYRA",
     "castTime": "fullRound",
     "effectId": "effect:pyra_explosion",
-    "baseCN": 3,
+    "baseCN": 5,
     "rangeMode": "medium",
     "targetShape": "radius",
     "rangeSquares": 6,
@@ -176,6 +186,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:flame_cone"
       }
     ]
   },
@@ -468,7 +482,7 @@
     "discipline": "KINESIS",
     "castTime": "standard",
     "effectId": "effect:kinesis_force_push",
-    "baseCN": 1,
+    "baseCN": 0,
     "rangeMode": "touch",
     "targetShape": "single",
     "notes": "Manipola teleticamente i meccanismi di una serratura",
@@ -483,7 +497,7 @@
     "narrative": {
       "target": "none",
       "requiresCheck": true,
-      "minDoSToSucceed": 1,
+      "minDoSToSucceed": 0,
       "onSuccess": [{ "op": "setFlag", "key": "lock_opened", "value": true }],
       "onFailure": [{ "op": "incFlag", "key": "failed_unlock_attempts", "by": 1 }]
     }
@@ -494,7 +508,7 @@
     "discipline": "MENTIS",
     "castTime": "standard",
     "effectId": "effect:mentis_disrupt",
-    "baseCN": 1,
+    "baseCN": 0,
     "rangeMode": "short",
     "targetShape": "single",
     "notes": "Legge i pensieri superficiali di un bersaglio",
