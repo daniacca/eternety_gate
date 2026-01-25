@@ -3,7 +3,6 @@
     "id": "effect:flame_bolt",
     "discipline": "PYRA",
     "castingStat": "WIL",
-    "baseCN": 2,
     "kind": "damage",
     "baseDamageDice": {
       "dice": 2,
@@ -17,12 +16,10 @@
     "id": "effect:force_push",
     "discipline": "KINESIS",
     "castingStat": "WIL",
-    "baseCN": 2,
     "kind": "malediction",
     "applyConditions": [
       {
-        "conditionId": "prone",
-        "durationRounds": 1
+        "conditionId": "prone"
       }
     ],
     "description": "Spinge il bersaglio a terra"
@@ -31,12 +28,10 @@
     "id": "effect:disrupt",
     "discipline": "MENTIS",
     "castingStat": "INT",
-    "baseCN": 1,
     "kind": "malediction",
     "applyConditions": [
       {
         "conditionId": "fatigue",
-        "durationRounds": 2,
         "value": 1
       }
     ],
@@ -46,7 +41,6 @@
     "id": "effect:flame_cone",
     "discipline": "PYRA",
     "castingStat": "WIL",
-    "baseCN": 2,
     "kind": "damage",
     "baseDamageDice": {
       "dice": 2,
@@ -60,13 +54,10 @@
     "id": "effect:sense_magic",
     "discipline": "VATES",
     "castingStat": "PER",
-    "baseCN": 1,
     "kind": "blessing",
     "description": "Rileva la presenza di magia nell'area",
     "narrativeDefaults": {
-      "onSuccess": [
-        { "op": "setFlag", "key": "magic_detected", "value": true }
-      ],
+      "onSuccess": [{ "op": "setFlag", "key": "magic_detected", "value": true }],
       "onFailure": []
     }
   },
@@ -74,7 +65,6 @@
     "id": "effect:soothe_wounds",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "heal",
     "baseDamageDice": {
       "dice": 1,
@@ -89,7 +79,6 @@
     "id": "effect:pyra_explosion",
     "discipline": "PYRA",
     "castingStat": "WIL",
-    "baseCN": 3,
     "kind": "damage",
     "baseDamageDice": {
       "dice": 3,
@@ -103,7 +92,6 @@
     "id": "effect:pyra_flame_control_touch",
     "discipline": "PYRA",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "damage",
     "baseDamageDice": {
       "dice": 1,
@@ -117,7 +105,6 @@
     "id": "effect:kinesis_force_push",
     "discipline": "KINESIS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "malediction",
     "baseDamageDice": {
       "dice": 1,
@@ -127,8 +114,7 @@
     "damageType": "impact",
     "applyConditions": [
       {
-        "conditionId": "prone",
-        "durationRounds": 1
+        "conditionId": "prone"
       }
     ],
     "description": "Push/backlash simplified MVP"
@@ -137,7 +123,6 @@
     "id": "effect:kinesis_force_shield",
     "discipline": "KINESIS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "blessing",
     "applyConditions": [
       {
@@ -151,11 +136,11 @@
     "id": "effect:corpus_dragon_skin",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "blessing",
     "applyConditions": [
       {
-        "conditionId": "force_shield"
+        "conditionId": "force_shield",
+        "durationRounds": 1
       }
     ],
     "description": "Grants temporary NaturalArmor based on CN/overcast"
@@ -164,7 +149,6 @@
     "id": "effect:kinesis_disarm",
     "discipline": "KINESIS",
     "castingStat": "WS",
-    "baseCN": 2,
     "kind": "malediction",
     "specialOp": "combatDisarmAtRange",
     "opposedStat": "STR",
@@ -175,7 +159,6 @@
     "id": "effect:kinesis_force_bind",
     "discipline": "KINESIS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "malediction",
     "applyConditions": [
       {
@@ -189,7 +172,6 @@
     "id": "effect:mentis_disrupt",
     "discipline": "MENTIS",
     "castingStat": "INT",
-    "baseCN": 1,
     "kind": "fatigue",
     "applyFatigueDice": {
       "dice": 1,
@@ -201,7 +183,6 @@
     "id": "effect:mentis_suggestion",
     "discipline": "MENTIS",
     "castingStat": "INT",
-    "baseCN": 2,
     "kind": "malediction",
     "opposed": true,
     "opposedStat": "WIL",
@@ -218,7 +199,6 @@
     "id": "effect:mentis_sensory_distortion",
     "discipline": "MENTIS",
     "castingStat": "INT",
-    "baseCN": 2,
     "kind": "malediction",
     "tempModifier": {
       "scope": "all",
@@ -231,7 +211,6 @@
     "id": "effect:vates_premonition",
     "discipline": "VATES",
     "castingStat": "PER",
-    "baseCN": 1,
     "kind": "blessing",
     "tempModifier": {
       "scope": "all",
@@ -244,7 +223,6 @@
     "id": "effect:corpus_mend",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "heal",
     "baseDamageDice": {
       "dice": 2,
@@ -259,7 +237,6 @@
     "id": "effect:corpus_suture",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 2,
     "kind": "heal",
     "baseDamageDice": {
       "dice": 3,
@@ -274,7 +251,6 @@
     "id": "effect:corpus_steel_body",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "blessing",
     "applyConditions": [
       {
@@ -288,7 +264,6 @@
     "id": "effect:corpus_warp_speed",
     "discipline": "CORPUS",
     "castingStat": "WIL",
-    "baseCN": 1,
     "kind": "blessing",
     "applyConditions": [
       {

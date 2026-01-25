@@ -93,7 +93,7 @@ export function combatCastSpell(
     return { save };
   }
 
-  const cnBase = effectDef.baseCN ?? spell.baseCN;
+  const cnBase = spell.baseCN;
 
   // Load catalogs early for checks
   const catalogs: CharacterCatalogs | undefined =
@@ -313,7 +313,6 @@ export function combatCastSpell(
   }
 
   // Calculate CN and effective DoS
-  // Use effectDef.baseCN (which is the CN for the effect) or fallback to spell.baseCN
   const castDoS = result.dos;
   const effectiveDoS = castDoS + channelDoS;
   const success = effectiveDoS >= cnBase;
@@ -1090,17 +1089,26 @@ export function combatCastSpell(
         for (const target of validTargetActors) {
           const targetOvercast = getOvercastForTarget(target.actorId);
           let finalStacks: number;
-          let finalDuration: number;
+          let finalDuration: number | undefined;
 
           if (conditionSpec.conditionId === "force_field") {
-            // Force Field: protection/overload scale by overcast, duration = base + overcast
+            // Force Field: duration = base + overcast (base from durationRounds)
             const baseDuration = conditionSpec.durationRounds ?? 1;
             finalStacks = 1;
             finalDuration = baseDuration + targetOvercast;
           } else if (conditionSpec.conditionId === "force_shield") {
-            // Force Shield: stacks = cnBase + overcast, duration = cnBase + overcast
-            finalStacks = cnBase + targetOvercast;
-            finalDuration = cnBase + targetOvercast;
+            // Force Shield: stacks = base + overcast, duration = base + overcast (base from durationRounds)
+            const baseDuration = conditionSpec.durationRounds ?? 1;
+            finalStacks = baseDuration + targetOvercast;
+            finalDuration = baseDuration + targetOvercast;
+          } else if (
+            (conditionSpec.conditionId === "prone" || conditionSpec.conditionId === "fatigue") &&
+            conditionSpec.durationRounds === undefined
+          ) {
+            // Prone/Fatigue without duration do not expire automatically
+            const baseStacks = conditionSpec.value ?? 1;
+            finalStacks = baseStacks + Math.floor(targetOvercast / 2);
+            finalDuration = undefined;
           } else if (conditionSpec.conditionId === "steel_body" || conditionSpec.conditionId === "warp_speed") {
             // Steel Body / Warp Speed: stacks = 1 + overcast (for scaling bonuses)
             const scaled = scaleCondition(conditionSpec.value, conditionSpec.durationRounds, targetOvercast);
@@ -1113,7 +1121,8 @@ export function combatCastSpell(
             finalDuration = scaled.durationTurns;
           }
 
-          const untilTurnCounter = combat.turnCounter + finalDuration;
+          const untilTurnCounter =
+            finalDuration === undefined ? undefined : combat.turnCounter + finalDuration;
           const spellSource = `spell:${spell.id}`;
 
           // Add condition
@@ -1157,7 +1166,9 @@ export function combatCastSpell(
           // Log condition application
           const targetName = target.actor.name || target.actorId;
           const conditionName = conditionSpec.conditionId;
-          const conditionLog = `${targetName} ottiene ${conditionName} (stacks ${finalStacks}, durata ${finalDuration} turni)`;
+          const durationLabel =
+            finalDuration === undefined ? "permanente" : `${finalDuration} turni`;
+          const conditionLog = `${targetName} ottiene ${conditionName} (stacks ${finalStacks}, durata ${durationLabel})`;
           updatedSave = appendCombatLog(updatedSave, conditionLog);
         }
       }

@@ -48,7 +48,6 @@ export type EffectDefinition = {
   id: string;
   discipline: Discipline;
   castingStat: StatKey; // Stat used for casting check (WIS, INT, RES, etc.)
-  baseCN: number; // Base Casting Number
   kind: "damage" | "heal" | "fatigue" | "blessing" | "malediction"; // Semantic kind of effect
   baseDamageDice?: {
     dice: number; // Number of dice

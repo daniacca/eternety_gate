@@ -45,7 +45,7 @@
   },
   {
     "id": "spell:force_push",
-    "name": "Spinta di Forza",
+    "name": "Atterraggio",
     "discipline": "KINESIS",
     "castTime": "standard",
     "effectId": "effect:force_push",
@@ -222,7 +222,7 @@
     "rangeMode": "short",
     "targetShape": "single",
     "rangeMultiplier": 2,
-    "notes": "Push/backlash simplified MVP",
+    "notes": "Hit the target with kinetic force",
     "xpCost": 500,
     "prerequisites": [
       {

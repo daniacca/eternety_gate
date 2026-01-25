@@ -641,7 +641,7 @@ export function PlayScreen({
     const spell = getSpellById(spellId);
     const effectDef = spell ? getEffectById(spell.effectId) : null;
     if (!spell || !effectDef) return;
-    const cnBase = effectDef.baseCN ?? spell.baseCN;
+    const cnBase = spell.baseCN;
     const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
     const selection = buildInitialSelection(targetSpec);
     const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
@@ -662,7 +662,7 @@ export function PlayScreen({
     const spell = getSpellById(spellId);
     const effectDef = spell ? getEffectById(spell.effectId) : null;
     if (!spell || !effectDef) return;
-    const cnBase = effectDef.baseCN ?? spell.baseCN;
+    const cnBase = spell.baseCN;
     const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
     const selection = buildInitialSelection(targetSpec);
     const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);

@@ -142,7 +142,7 @@ export function runNarrativeSpell(
     requiresCheck: true,
   };
 
-  const cnBase = effect.baseCN ?? spell.baseCN;
+  const cnBase = spell.baseCN;
   tags.push(`magic:cn=${cnBase}`);
 
   // Calculate PM

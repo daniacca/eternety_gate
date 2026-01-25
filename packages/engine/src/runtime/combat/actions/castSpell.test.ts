@@ -184,7 +184,7 @@ describe("combatCastSpell - magic resistance", () => {
     const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
     const runtimeLog = result.save.runtime.runtimeLog ?? [];
     const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
-    expect(damageEntry?.tags?.includes("magic:overcast=1")).toBe(true);
+    expect(damageEntry?.tags?.includes("magic:overcast=2")).toBe(true);
   });
 
   it("should not overflow when target is inside an untouchable field", () => {
@@ -229,7 +229,7 @@ describe("combatCastSpell - magic resistance", () => {
           positions: {
             [caster.id]: { x: 5, y: 5 },
             [untouchable.id]: { x: 1, y: 1 },
-            [target.id]: { x: 3, y: 1 }, // dist=2 from untouchable
+            [target.id]: { x: 3, y: 3 }, // dist=2 from untouchable, within range
           },
           turn: {
             ...combat.turn,
@@ -243,7 +243,7 @@ describe("combatCastSpell - magic resistance", () => {
       op: "combatCastSpell",
       actorId: caster.id,
       spellId: "spell:flame_bolt",
-      targetSelection: { kind: "single", targetPos: { x: 3, y: 1 } },
+      targetSelection: { kind: "single", targetPos: { x: 3, y: 3 } },
     };
 
     const rng = new FixedRng([42], [5, 5]);
