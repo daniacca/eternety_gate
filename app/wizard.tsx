@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { createNewGame, evaluatePrerequisites, loadCharacterCatalogs, type Actor, type ItemRef, type StatKey } from "@eg/engine";
+import { createNewGame, evaluatePrerequisites, loadCharacterCatalogs, canLearnSpell, type Actor, type ItemRef, type StatKey } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
 import weaponsCatalog from "@eg/content/src/catalogs/weapons.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
+import spellsCatalog from "@eg/content/src/catalogs/spells.json";
 import { upsertSaveSlot } from "../src/storage/gameSaves";
 import { getStoryPackById } from "../src/storypacks";
 import { hashToSeed } from "../src/utils/seed";
@@ -43,7 +44,14 @@ export default function NewGameWizard() {
   const [selectedTalentParams, setSelectedTalentParams] = useState<Record<string, Record<string, string>>>({});
   const [selectedTalentParamRanks, setSelectedTalentParamRanks] = useState<Record<string, Record<string, number>>>({});
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
+  const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
+  const [activeSpellDiscipline, setActiveSpellDiscipline] = useState<string | null>(null);
   const [skillRanks, setSkillRanks] = useState<Record<string, number>>({});
+
+  const baseStat = DIFFICULTY_BASE[difficulty];
+  const maxTalentCount = archetype === "Human" ? 3 : 2;
+  const catalogs = useMemo(() => loadCharacterCatalogs(sigilContentPack as any), []);
+  const isWeaver = traitChoice === "weaver";
 
   useEffect(() => {
     const base = DIFFICULTY_BASE[difficulty];
@@ -51,9 +59,11 @@ export default function NewGameWizard() {
     setRandomStats(null);
   }, [difficulty]);
 
-  const baseStat = DIFFICULTY_BASE[difficulty];
-  const maxTalentCount = archetype === "Human" ? 3 : 2;
-  const catalogs = useMemo(() => loadCharacterCatalogs(sigilContentPack as any), []);
+  useEffect(() => {
+    if (!isWeaver && selectedSpells.length > 0) {
+      setSelectedSpells([]);
+    }
+  }, [isWeaver, selectedSpells.length]);
 
   const pointsRemaining = useMemo(() => {
     const spent = STAT_KEYS.reduce((sum, key) => sum + (manualStats[key] - baseStat), 0);
@@ -67,6 +77,31 @@ export default function NewGameWizard() {
   const totalTalentRanks = useMemo(() => {
     return Object.values(selectedTalents).reduce((sum, value) => sum + value, 0);
   }, [selectedTalents]);
+
+  const selectedSpellsRecord = useMemo(() => {
+    const record: Record<string, boolean> = {};
+    selectedSpells.forEach((spellId) => {
+      record[spellId] = true;
+    });
+    return record;
+  }, [selectedSpells]);
+
+  const stepOrder = useMemo(() => {
+    const base = ["difficulty", "name", "trait", "stats", "talents"];
+    if (isWeaver) {
+      base.push("spells");
+    }
+    base.push("skills", "loadout");
+    return base;
+  }, [isWeaver]);
+  const currentStep = stepOrder[step] ?? stepOrder[0];
+  const lastStepIndex = stepOrder.length - 1;
+
+  useEffect(() => {
+    if (step > lastStepIndex) {
+      setStep(lastStepIndex);
+    }
+  }, [lastStepIndex, step]);
 
   const talentParamStorage = useMemo(() => {
     const paramsById: Record<string, Record<string, Record<string, string>>> = {};
@@ -172,7 +207,7 @@ export default function NewGameWizard() {
       skills: skillRanks,
       talents: selectedTalents,
       traits,
-      spells: {},
+      spells: selectedSpellsRecord,
       equipment: {},
       status: { conditions: [], tempModifiers: [] },
       talentParams: selectedTalentParams,
@@ -180,7 +215,17 @@ export default function NewGameWizard() {
       talentUniquenessRanksById: talentParamStorage.ranksById,
       talentUniquenessKeys: talentParamStorage.uniquenessKeys.length > 0 ? talentParamStorage.uniquenessKeys : undefined,
     } as Actor;
-  }, [effectiveStats, archetype, traitChoice, skillRanks, selectedTalents, selectedTalentParams, name, talentParamStorage]);
+  }, [
+    effectiveStats,
+    archetype,
+    traitChoice,
+    skillRanks,
+    selectedTalents,
+    selectedTalentParams,
+    name,
+    talentParamStorage,
+    selectedSpellsRecord,
+  ]);
 
   const prereqSave = useMemo(() => {
     if (!prereqActor) return null;
@@ -188,6 +233,31 @@ export default function NewGameWizard() {
     if (!storyPack) return null;
     return createNewGame(storyPack, 1, { actors: [prereqActor.id], activeActorId: prereqActor.id }, { [prereqActor.id]: prereqActor }, sigilContentPack as any);
   }, [prereqActor]);
+
+  const spellPrereqActor = useMemo<Actor | null>(() => {
+    if (!prereqActor) return null;
+    return {
+      ...prereqActor,
+      resources: {
+        ...prereqActor.resources,
+        xp: 9999,
+      },
+      spells: selectedSpellsRecord,
+    };
+  }, [prereqActor, selectedSpellsRecord]);
+
+  const spellPrereqSave = useMemo(() => {
+    if (!spellPrereqActor) return null;
+    const storyPack = getStoryPackById("sigil_hub");
+    if (!storyPack) return null;
+    return createNewGame(
+      storyPack,
+      1,
+      { actors: [spellPrereqActor.id], activeActorId: spellPrereqActor.id },
+      { [spellPrereqActor.id]: spellPrereqActor },
+      sigilContentPack as any
+    );
+  }, [spellPrereqActor]);
 
   const availableTalents = useMemo(() => {
     if (!prereqActor || !prereqSave) return [];
@@ -231,15 +301,24 @@ export default function NewGameWizard() {
   }, [availableTalents]);
 
   const canContinue = () => {
-    if (step === 0) return true;
-    if (step === 1) return name.trim().length > 0 && archetype !== null;
-    if (step === 2) return traitChoice !== null;
-    if (step === 3) return statMethod === "manual" ? pointsRemaining === 0 : Boolean(randomStats);
-    if (step === 4) {
-      return totalTalentRanks <= maxTalentCount;
+    switch (currentStep) {
+      case "difficulty":
+        return true;
+      case "name":
+        return name.trim().length > 0 && archetype !== null;
+      case "trait":
+        return traitChoice !== null;
+      case "stats":
+        return statMethod === "manual" ? pointsRemaining === 0 : Boolean(randomStats);
+      case "talents":
+        return totalTalentRanks <= maxTalentCount;
+      case "spells":
+        return selectedSpells.length <= 2;
+      case "skills":
+        return totalSkillRanks <= MAX_SKILL_RANKS;
+      default:
+        return true;
     }
-    if (step === 5) return totalSkillRanks <= MAX_SKILL_RANKS;
-    return true;
   };
 
   const adjustStat = (key: StatKey, delta: number) => {
@@ -345,6 +424,43 @@ export default function NewGameWizard() {
     });
   };
 
+  const maxStartingSpells = 2;
+  const spellDisciplines = useMemo(() => {
+    const values = Array.from(new Set((spellsCatalog as Array<{ discipline: string }>).map((spell) => spell.discipline)));
+    return values.sort();
+  }, []);
+
+  useEffect(() => {
+    if (!activeSpellDiscipline && spellDisciplines.length > 0) {
+      setActiveSpellDiscipline(spellDisciplines[0]);
+    }
+  }, [activeSpellDiscipline, spellDisciplines]);
+
+  const spellsByDiscipline = useMemo(() => {
+    const grouped: Record<string, Array<any>> = {};
+    (spellsCatalog as Array<any>).forEach((spell) => {
+      grouped[spell.discipline] = grouped[spell.discipline] || [];
+      grouped[spell.discipline].push(spell);
+    });
+    Object.keys(grouped).forEach((discipline) => {
+      grouped[discipline].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    return grouped;
+  }, []);
+
+  const toggleSpellSelection = (spellId: string) => {
+    if (!spellPrereqSave || !spellPrereqActor) return;
+    const isSelected = selectedSpells.includes(spellId);
+    if (isSelected) {
+      setSelectedSpells((current) => current.filter((id) => id !== spellId));
+      return;
+    }
+    if (selectedSpells.length >= maxStartingSpells) return;
+    const canLearn = canLearnSpell(spellPrereqSave, catalogs, spellPrereqActor.id, spellId);
+    if (!canLearn.canLearn) return;
+    setSelectedSpells((current) => [...current, spellId]);
+  };
+
   const buildLoadout = () => {
     if (traitChoice === "weaver") {
       return {
@@ -442,7 +558,7 @@ export default function NewGameWizard() {
       skills: skillRanks,
       talents: selectedTalents,
       traits,
-      spells: {},
+      spells: selectedSpellsRecord,
       equipment: loadout.equipment,
       inventory,
       status: { conditions: [], tempModifiers: [] },
@@ -485,9 +601,11 @@ export default function NewGameWizard() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>New Game Wizard</Text>
-      <Text style={styles.stepLabel}>Step {step + 1} of 7</Text>
+      <Text style={styles.stepLabel}>
+        Step {Math.min(step + 1, stepOrder.length)} of {stepOrder.length}
+      </Text>
 
-      {step === 0 && (
+      {currentStep === "difficulty" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Choose Difficulty</Text>
           {(["easy", "normal", "hard"] as Difficulty[]).map((level) => (
@@ -502,7 +620,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 1 && (
+      {currentStep === "name" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Name & Archetype</Text>
           <TextInput
@@ -526,7 +644,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 2 && (
+      {currentStep === "trait" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Core Trait</Text>
           {(["weaver", "soulless", "none"] as TraitChoice[]).map((option) => (
@@ -541,7 +659,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 3 && (
+      {currentStep === "stats" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Stats</Text>
           <Text style={styles.summaryText}>Base value: {baseStat}</Text>
@@ -604,7 +722,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 4 && (
+      {currentStep === "talents" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Talents</Text>
           <Text style={styles.summaryText}>Talents: {totalTalentRanks}/{maxTalentCount}</Text>
@@ -763,7 +881,61 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 5 && (
+      {currentStep === "spells" && isWeaver && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Starting Spells</Text>
+          <Text style={styles.summaryText}>Spells: {selectedSpells.length}/{maxStartingSpells}</Text>
+          <View style={styles.choiceGrid}>
+            {spellDisciplines.map((discipline) => (
+              <Pressable
+                key={discipline}
+                style={[
+                  styles.choiceButton,
+                  activeSpellDiscipline === discipline && styles.choiceButtonActive,
+                ]}
+                onPress={() => setActiveSpellDiscipline(discipline)}
+              >
+                <Text style={styles.choiceText}>{discipline}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.talentList}>
+            <ScrollView contentContainerStyle={styles.talentListContent} style={styles.talentListScroll}>
+              {(spellsByDiscipline[activeSpellDiscipline || ""] || []).map((spell) => {
+                const isSelected = selectedSpells.includes(spell.id);
+                const canLearnResult =
+                  !isSelected && spellPrereqSave && spellPrereqActor
+                    ? canLearnSpell(spellPrereqSave, catalogs, spellPrereqActor.id, spell.id)
+                    : { canLearn: true };
+                const isDisabled =
+                  (!isSelected && !canLearnResult.canLearn) || (!isSelected && selectedSpells.length >= maxStartingSpells);
+                return (
+                  <Pressable
+                    key={spell.id}
+                    style={[
+                      styles.choiceButton,
+                      isSelected && styles.choiceButtonActive,
+                      isDisabled && styles.buttonDisabled,
+                    ]}
+                    onPress={() => toggleSpellSelection(spell.id)}
+                    disabled={isDisabled}
+                  >
+                    <Text style={styles.choiceText}>{spell.name}</Text>
+                    <Text style={styles.skillMeta}>
+                      {spell.discipline} • CN {spell.baseCN}
+                    </Text>
+                    {!isSelected && !canLearnResult.canLearn && (
+                      <Text style={styles.skillMeta}>{canLearnResult.reason}</Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {currentStep === "skills" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Skills</Text>
           <Text style={styles.summaryText}>Skill ranks: {totalSkillRanks}/{MAX_SKILL_RANKS}</Text>
@@ -809,7 +981,7 @@ export default function NewGameWizard() {
         </View>
       )}
 
-      {step === 6 && (
+      {currentStep === "loadout" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Loadout</Text>
           <Text style={styles.summaryText}>Trait: {traitChoice}</Text>
@@ -836,11 +1008,11 @@ export default function NewGameWizard() {
         >
           <Text style={styles.secondaryButtonText}>Back</Text>
         </Pressable>
-      {step < 6 && (
+        {step < lastStepIndex && (
           <Pressable
             style={[styles.primaryButton, !canContinue() && styles.buttonDisabled]}
             disabled={!canContinue()}
-          onPress={() => setStep((current) => Math.min(6, current + 1))}
+            onPress={() => setStep((current) => Math.min(lastStepIndex, current + 1))}
           >
             <Text style={styles.primaryButtonText}>Next</Text>
           </Pressable>
@@ -958,6 +1130,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: "center",
+    flex: 1,
   },
   primaryButtonText: {
     color: "#ffffff",
@@ -966,7 +1139,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: "#1e293b",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 10,
     alignItems: "center",
     flex: 1,

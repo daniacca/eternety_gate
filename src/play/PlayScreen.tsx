@@ -45,6 +45,7 @@ import { ChoiceList } from "./components/ChoiceList";
 import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
+import { SpellShop } from "./components/SpellShop";
 import { EquipmentModal } from "./components/EquipmentModal";
 import { SkillShop } from "./components/SkillShop";
 import { StatShop } from "./components/StatShop";
@@ -94,6 +95,7 @@ export function PlayScreen({
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const [playerSheetSpellMode, setPlayerSheetSpellMode] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
+  const [spellShopVisible, setSpellShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
   const [skillShopVisible, setSkillShopVisible] = useState(false);
   const [statShopVisible, setStatShopVisible] = useState(false);
@@ -111,6 +113,7 @@ export function PlayScreen({
     setPlayerSheetVisible(false);
     setPlayerSheetSpellMode(false);
     setTalentShopVisible(false);
+    setSpellShopVisible(false);
     setEquipmentVisible(false);
     setSkillShopVisible(false);
     setStatShopVisible(false);
@@ -230,8 +233,7 @@ export function PlayScreen({
       return;
     }
     if (choiceId === "HUB_OPEN_SPELLS") {
-      setPlayerSheetSpellMode(true);
-      setPlayerSheetVisible(true);
+      setSpellShopVisible(true);
       return;
     }
     if (choiceId === "HUB_OPEN_SKILLS") {
@@ -1045,6 +1047,13 @@ export function PlayScreen({
         save={save}
         actor={save.actorsById[save.party.activeActorId]}
         onClose={() => setTalentShopVisible(false)}
+        applySystemEffects={applySystemEffects}
+      />
+      <SpellShop
+        visible={spellShopVisible}
+        save={save}
+        actor={save.actorsById[save.party.activeActorId]}
+        onClose={() => setSpellShopVisible(false)}
         applySystemEffects={applySystemEffects}
       />
 

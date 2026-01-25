@@ -62,24 +62,6 @@
     ]
   },
   {
-    "id": "spell:disrupt",
-    "name": "Disrupt",
-    "discipline": "MENTIS",
-    "castTime": "standard",
-    "effectId": "effect:disrupt",
-    "baseCN": 1,
-    "rangeMode": "medium",
-    "targetShape": "single",
-    "notes": "Indebolisce il bersaglio",
-    "xpCost": 500,
-    "prerequisites": [
-      {
-        "type": "hasTrait",
-        "traitId": "trait:weaver"
-      }
-    ]
-  },
-  {
     "id": "spell:sense_magic",
     "name": "Senso della Magia",
     "discipline": "VATES",
