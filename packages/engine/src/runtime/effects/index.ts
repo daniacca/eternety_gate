@@ -181,8 +181,8 @@ export function applyEffects(
   rng: IRNG,
   contentPack?: ContentPack
 ): GameSave {
+  const hadCombatActive = Boolean(save.runtime.combat?.active);
   const currentSave = applyEffectsQueue(effects, storyPack, save, rng, contentPack);
-  const hadCombatActive = Boolean(currentSave.runtime.combat?.active);
 
   // Ensure combat end state is applied consistently regardless of which effect caused deaths.
   const finalizedSave = finalizeCombatIfEnded(currentSave);

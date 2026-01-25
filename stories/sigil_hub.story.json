@@ -143,10 +143,7 @@
       "id": "HUB_QUEST_BOARD",
       "type": "hub",
       "title": "Quest Board",
-      "text": [
-        "A board of contracts and rumors.",
-        "One request stands out: the curse of Brunholt."
-      ],
+      "text": ["A board of contracts and rumors.", "One request stands out: the curse of Brunholt."],
       "choices": [
         {
           "id": "HUB_START_BRUNHOLT",
@@ -163,9 +160,7 @@
       "id": "HUB_TRAINING_HALL",
       "type": "challenge",
       "title": "Training Hall",
-      "text": [
-        "The arena is ready. Wooden dummies spring to life as you step in."
-      ],
+      "text": ["The arena is ready. Wooden dummies spring to life as you step in."],
       "enterMode": "always",
       "onEnter": [
         { "op": "setFlag", "path": "flags.trainingVictory", "value": false },
@@ -184,7 +179,7 @@
       ],
       "combatEnd": {
         "onVictory": [
-          { "op": "grantXp", "actorId": "PC_1", "amount": 5 },
+          { "op": "grantXp", "actorId": "PC_1", "amount": 50 },
           { "op": "setFlag", "path": "flags.trainingVictory", "value": true }
         ],
         "onDefeat": [{ "op": "setFlag", "path": "flags.trainingDefeat", "value": true }]
@@ -209,10 +204,7 @@
       "id": "HUB_SANCTUM",
       "type": "hub",
       "title": "Sanctum",
-      "text": [
-        "A quiet chamber of knowledge and craft.",
-        "Here you can refine your skills and learn new arts."
-      ],
+      "text": ["A quiet chamber of knowledge and craft.", "Here you can refine your skills and learn new arts."],
       "choices": [
         {
           "id": "HUB_OPEN_TALENTS",
