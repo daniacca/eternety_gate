@@ -343,7 +343,7 @@
   },
   {
     "id": "talent:deny_the_witch",
-    "name": "Rifiuto della Strega",
+    "name": "Annullare la Stregoneria",
     "description": "When a spell affects you, attempt a Will test to negate effects on yourself only. Non-casters suffer -10 penalty. Does NOT cancel the spell.",
     "tier": 2,
     "xpCost": 1000,
@@ -369,7 +369,7 @@
     "xpCost": 1000,
     "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
     "grants": [{ "type": "modifier", "key": "magic.castBonus.<chosenDiscipline>", "op": "add", "value": 10 }],
-    "maxRank": 1,
+    "maxRank": 3,
     "chosenParam": {
       "paramKey": "chosenDiscipline",
       "options": ["PYRA", "KINESIS", "MENTIS", "VATES", "CORPUS"],

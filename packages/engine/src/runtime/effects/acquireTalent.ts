@@ -1,7 +1,7 @@
 import type { Effect, GameSave, StoryPack, Actor } from "../types";
 import type { CharacterCatalogs, Talent } from "../../content/catalogs";
 import { loadCharacterCatalogs, getTalentById } from "../../content/loadCatalogs";
-import { evaluatePrerequisites, hasAcquiredTalentWithUniquenessKey, resolveTalentUniquenessKey, TalentParams } from "../characters/prerequisites";
+import { evaluatePrerequisites, resolveTalentUniquenessKey, TalentParams, getTalentUniquenessRank } from "../characters/prerequisites";
 import { getActorXp, spendActorXp, grantActorXp } from "../characters/xp";
 
 /**
@@ -54,8 +54,8 @@ export function handleAcquireTalent(
   const currentRank = actor.talents[talentId] ?? 0;
   const maxRank = talent.maxRank ?? 1;
 
-  if (currentRank >= maxRank) {
-    console.warn(`[acquireTalent] Talent already at max rank: ${talentId}`);
+  if (talent.chosenParam && (!chosenParams || Object.keys(chosenParams).length === 0)) {
+    console.warn(`[acquireTalent] Missing chosen params for talent: ${talentId}`);
     return { save };
   }
 
@@ -68,12 +68,15 @@ export function handleAcquireTalent(
   if (talent.uniquenessKey && chosenParams) {
     const resolvedKey = resolveTalentUniquenessKey(talent, chosenParams as TalentParams);
     if (resolvedKey) {
-      const alreadyHas = hasAcquiredTalentWithUniquenessKey(actor, talent.uniquenessKey, chosenParams[talent.chosenParam?.paramKey || ""] as string);
-      if (alreadyHas) {
-        console.warn(`[acquireTalent] Already has uniqueness key: ${resolvedKey}`);
+      const uniqueRank = getTalentUniquenessRank(actor, talentId, resolvedKey);
+      if (uniqueRank >= maxRank) {
+        console.warn(`[acquireTalent] Talent already at max rank for specialization: ${resolvedKey}`);
         return { save };
       }
     }
+  } else if (currentRank >= maxRank) {
+    console.warn(`[acquireTalent] Talent already at max rank: ${talentId}`);
+    return { save };
   }
 
   // Spend XP from actor
@@ -100,24 +103,43 @@ export function handleAcquireTalent(
 
   // Store chosen params if present
   if (chosenParams && Object.keys(chosenParams).length > 0) {
-    const existingParams = (actorAfterXp as any).talentParams || {};
-    updatedActor = {
-      ...updatedActor,
-      talentParams: {
-        ...existingParams,
-        [talentId]: chosenParams,
-      },
-    } as Actor;
-  }
-
-  // Store uniqueness key if present
-  if (talent.uniquenessKey && chosenParams) {
-    const resolvedKey = resolveTalentUniquenessKey(talent, chosenParams as TalentParams);
+    const resolvedKey = talent.uniquenessKey ? resolveTalentUniquenessKey(talent, chosenParams as TalentParams) : null;
     if (resolvedKey) {
+      const existingParamsById = (actorAfterXp as any).talentParamsById || {};
+      const existingParamsForTalent = existingParamsById[talentId] || {};
+      const existingRanksById = (actorAfterXp as any).talentUniquenessRanksById || {};
+      const existingRanksForTalent = existingRanksById[talentId] || {};
       const existingKeys = ((actorAfterXp as any).talentUniquenessKeys as string[]) || [];
+
+      const newRankForKey = (existingRanksForTalent[resolvedKey] ?? 0) + 1;
+      const nextKeys = existingKeys.includes(resolvedKey) ? existingKeys : [...existingKeys, resolvedKey];
+
       updatedActor = {
         ...updatedActor,
-        talentUniquenessKeys: [...existingKeys, resolvedKey],
+        talentParamsById: {
+          ...existingParamsById,
+          [talentId]: {
+            ...existingParamsForTalent,
+            [resolvedKey]: chosenParams,
+          },
+        },
+        talentUniquenessRanksById: {
+          ...existingRanksById,
+          [talentId]: {
+            ...existingRanksForTalent,
+            [resolvedKey]: newRankForKey,
+          },
+        },
+        talentUniquenessKeys: nextKeys,
+      } as Actor;
+    } else {
+      const existingParams = (actorAfterXp as any).talentParams || {};
+      updatedActor = {
+        ...updatedActor,
+        talentParams: {
+          ...existingParams,
+          [talentId]: chosenParams,
+        },
       } as Actor;
     }
   }

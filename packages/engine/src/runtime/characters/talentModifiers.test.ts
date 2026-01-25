@@ -394,6 +394,28 @@ describe("Resistance", () => {
     const bonus = getResistanceBonus(save, catalogs, "PC_1", "magic");
     expect(bonus).toBe(0);
   });
+
+  it("should support multiple resistance types", () => {
+    const actor = createActor("PC_1", { "talent:resistance": 2 });
+    (actor as any).talentParamsById = {
+      "talent:resistance": {
+        "resistance:poison": { chosenType: "poison" },
+        "resistance:magic": { chosenType: "magic" },
+      },
+    };
+    (actor as any).talentUniquenessRanksById = {
+      "talent:resistance": {
+        "resistance:poison": 1,
+        "resistance:magic": 1,
+      },
+    };
+
+    const save = createSave([actor]);
+    const catalogs = createCatalogs([resistanceTalent]);
+
+    expect(getResistanceBonus(save, catalogs, "PC_1", "poison")).toBe(10);
+    expect(getResistanceBonus(save, catalogs, "PC_1", "magic")).toBe(10);
+  });
 });
 
 describe("Casting Specialization", () => {
@@ -417,6 +439,26 @@ describe("Casting Specialization", () => {
     
     const bonus = getCastingSpecializationBonus(save, catalogs, "PC_1", "KINESIS");
     expect(bonus).toBe(0);
+  });
+
+  it("should stack ranks per specialization", () => {
+    const actor = createActor("PC_1", { "talent:casting_specialization": 2 });
+    (actor as any).talentParamsById = {
+      "talent:casting_specialization": {
+        "castingSpec:PYRA": { chosenDiscipline: "PYRA" },
+      },
+    };
+    (actor as any).talentUniquenessRanksById = {
+      "talent:casting_specialization": {
+        "castingSpec:PYRA": 2,
+      },
+    };
+
+    const save = createSave([actor]);
+    const catalogs = createCatalogs([castingSpecTalent]);
+
+    const bonus = getCastingSpecializationBonus(save, catalogs, "PC_1", "PYRA");
+    expect(bonus).toBe(20);
   });
 });
 

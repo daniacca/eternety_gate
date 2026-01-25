@@ -41,6 +41,7 @@ export default function NewGameWizard() {
   const [randomStats, setRandomStats] = useState<Record<StatKey, number> | null>(null);
   const [selectedTalents, setSelectedTalents] = useState<Record<string, number>>({});
   const [selectedTalentParams, setSelectedTalentParams] = useState<Record<string, Record<string, string>>>({});
+  const [selectedTalentParamRanks, setSelectedTalentParamRanks] = useState<Record<string, Record<string, number>>>({});
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [skillRanks, setSkillRanks] = useState<Record<string, number>>({});
 
@@ -66,6 +67,32 @@ export default function NewGameWizard() {
   const totalTalentRanks = useMemo(() => {
     return Object.values(selectedTalents).reduce((sum, value) => sum + value, 0);
   }, [selectedTalents]);
+
+  const talentParamStorage = useMemo(() => {
+    const paramsById: Record<string, Record<string, Record<string, string>>> = {};
+    const ranksById: Record<string, Record<string, number>> = {};
+    const uniquenessKeys: string[] = [];
+
+    (talentsCatalog as Array<{ id: string; uniquenessKey?: string; chosenParam?: { paramKey: string } }>).forEach((talent) => {
+      if (!talent.chosenParam || !talent.uniquenessKey) return;
+      const paramKey = talent.chosenParam.paramKey;
+      const paramRanks = selectedTalentParamRanks[talent.id];
+      if (!paramRanks) return;
+      for (const [paramValue, rank] of Object.entries(paramRanks)) {
+        if (rank <= 0) continue;
+        const resolvedKey = talent.uniquenessKey.replace(`<${paramKey}>`, paramValue);
+        if (!paramsById[talent.id]) paramsById[talent.id] = {};
+        if (!ranksById[talent.id]) ranksById[talent.id] = {};
+        paramsById[talent.id][resolvedKey] = { [paramKey]: paramValue };
+        ranksById[talent.id][resolvedKey] = rank;
+        if (!uniquenessKeys.includes(resolvedKey)) {
+          uniquenessKeys.push(resolvedKey);
+        }
+      }
+    });
+
+    return { paramsById, ranksById, uniquenessKeys };
+  }, [selectedTalentParamRanks]);
 
   const rollRandomStats = () => {
     const rollStat = () => {
@@ -149,8 +176,11 @@ export default function NewGameWizard() {
       equipment: {},
       status: { conditions: [], tempModifiers: [] },
       talentParams: selectedTalentParams,
+      talentParamsById: talentParamStorage.paramsById,
+      talentUniquenessRanksById: talentParamStorage.ranksById,
+      talentUniquenessKeys: talentParamStorage.uniquenessKeys.length > 0 ? talentParamStorage.uniquenessKeys : undefined,
     } as Actor;
-  }, [effectiveStats, archetype, traitChoice, skillRanks, selectedTalents, selectedTalentParams, name]);
+  }, [effectiveStats, archetype, traitChoice, skillRanks, selectedTalents, selectedTalentParams, name, talentParamStorage]);
 
   const prereqSave = useMemo(() => {
     if (!prereqActor) return null;
@@ -180,6 +210,24 @@ export default function NewGameWizard() {
       });
       return next;
     });
+    setSelectedTalentParams((current) => {
+      const next: Record<string, Record<string, string>> = {};
+      Object.entries(current).forEach(([id, params]) => {
+        if (availableTalents.some((talent) => talent.id === id)) {
+          next[id] = params;
+        }
+      });
+      return next;
+    });
+    setSelectedTalentParamRanks((current) => {
+      const next: Record<string, Record<string, number>> = {};
+      Object.entries(current).forEach(([id, ranks]) => {
+        if (availableTalents.some((talent) => talent.id === id)) {
+          next[id] = ranks;
+        }
+      });
+      return next;
+    });
   }, [availableTalents]);
 
   const canContinue = () => {
@@ -188,16 +236,7 @@ export default function NewGameWizard() {
     if (step === 2) return traitChoice !== null;
     if (step === 3) return statMethod === "manual" ? pointsRemaining === 0 : Boolean(randomStats);
     if (step === 4) {
-      const missingParam = Object.entries(selectedTalents).some(([talentId, rank]) => {
-        if (rank <= 0) return false;
-        const talent = (talentsCatalog as Array<{ id: string; chosenParam?: { paramKey: string } }>).find(
-          (entry) => entry.id === talentId
-        );
-        if (!talent?.chosenParam) return false;
-        const params = selectedTalentParams[talentId];
-        return !params || !params[talent.chosenParam.paramKey];
-      });
-      return totalTalentRanks <= maxTalentCount && !missingParam;
+      return totalTalentRanks <= maxTalentCount;
     }
     if (step === 5) return totalSkillRanks <= MAX_SKILL_RANKS;
     return true;
@@ -216,33 +255,68 @@ export default function NewGameWizard() {
     });
   };
 
-  const addTalentRank = (talentId: string, maxRank: number, requiresParam: boolean) => {
-    if (requiresParam && !selectedTalentParams[talentId]) return;
+  const addTalentRank = (talent: { id: string; maxRank?: number; chosenParam?: { paramKey: string } }) => {
+    const maxRank = talent.maxRank ?? 1;
+    const hasParam = Boolean(talent.chosenParam);
+    if (hasParam) {
+      const paramKey = talent.chosenParam?.paramKey || "";
+      const paramValue = selectedTalentParams[talent.id]?.[paramKey];
+      if (!paramValue) return;
+      const paramRanks = selectedTalentParamRanks[talent.id] || {};
+      const currentParamRank = paramRanks[paramValue] ?? 0;
+      if (currentParamRank >= maxRank) return;
+      if (totalTalentRanks >= maxTalentCount) return;
+      const nextParamRanks = { ...paramRanks, [paramValue]: currentParamRank + 1 };
+      const nextTotalRank = Object.values(nextParamRanks).reduce((sum, value) => sum + value, 0);
+      setSelectedTalentParamRanks((current) => ({ ...current, [talent.id]: nextParamRanks }));
+      setSelectedTalents((current) => ({ ...current, [talent.id]: nextTotalRank }));
+      setSelectedTalentId(talent.id);
+      return;
+    }
+
     setSelectedTalents((current) => {
-      const currentRank = current[talentId] ?? 0;
+      const currentRank = current[talent.id] ?? 0;
       const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
       if (currentRank >= maxRank) return current;
       if (currentTotal >= maxTalentCount) return current;
-      return { ...current, [talentId]: currentRank + 1 };
+      return { ...current, [talent.id]: currentRank + 1 };
     });
-    setSelectedTalentId(talentId);
+    setSelectedTalentId(talent.id);
   };
 
-  const removeTalentRank = (talentId: string) => {
-    const currentRank = selectedTalents[talentId] ?? 0;
+  const removeTalentRank = (talent: { id: string; chosenParam?: { paramKey: string } }) => {
+    const hasParam = Boolean(talent.chosenParam);
+    if (hasParam) {
+      const paramKey = talent.chosenParam?.paramKey || "";
+      const paramValue = selectedTalentParams[talent.id]?.[paramKey];
+      const paramRanks = selectedTalentParamRanks[talent.id] || {};
+      const valueToRemove =
+        paramValue && paramRanks[paramValue] ? paramValue : Object.keys(paramRanks).find((key) => paramRanks[key] > 0);
+      if (!valueToRemove) return;
+      const nextParamRank = Math.max(0, (paramRanks[valueToRemove] ?? 0) - 1);
+      const nextParamRanks = { ...paramRanks, [valueToRemove]: nextParamRank };
+      if (nextParamRank === 0) {
+        delete nextParamRanks[valueToRemove];
+      }
+      const nextTotalRank = Object.values(nextParamRanks).reduce((sum, value) => sum + value, 0);
+      setSelectedTalentParamRanks((current) => ({ ...current, [talent.id]: nextParamRanks }));
+      setSelectedTalents((current) => {
+        if (nextTotalRank <= 0) {
+          const { [talent.id]: _, ...rest } = current;
+          return rest;
+        }
+        return { ...current, [talent.id]: nextTotalRank };
+      });
+      return;
+    }
+
+    const currentRank = selectedTalents[talent.id] ?? 0;
     setSelectedTalents((current) => {
       if (currentRank <= 1) {
-        const { [talentId]: _, ...rest } = current;
+        const { [talent.id]: _, ...rest } = current;
         return rest;
       }
-      return { ...current, [talentId]: currentRank - 1 };
-    });
-    setSelectedTalentParams((current) => {
-      if (currentRank <= 1) {
-        const { [talentId]: _, ...rest } = current;
-        return rest;
-      }
-      return current;
+      return { ...current, [talent.id]: currentRank - 1 };
     });
   };
 
@@ -343,19 +417,12 @@ export default function NewGameWizard() {
     if (traitChoice === "weaver") traits["trait:weaver"] = true;
     if (traitChoice === "soulless") traits["trait:untouchable"] = true;
 
-    const talentParams = Object.keys(selectedTalentParams).length > 0 ? selectedTalentParams : undefined;
-    const talentUniquenessKeys = (talentsCatalog as Array<{ id: string; uniquenessKey?: string; chosenParam?: { paramKey: string } }>).reduce(
-      (keys: string[], talent) => {
-        if (!talent.uniquenessKey) return keys;
-        const params = selectedTalentParams[talent.id];
-        const paramKey = talent.chosenParam?.paramKey;
-        if (!params || !paramKey) return keys;
-        const value = params[paramKey];
-        if (!value) return keys;
-        return [...keys, talent.uniquenessKey.replace(`<${paramKey}>`, value)];
-      },
-      []
-    );
+    const legacyTalentParams =
+      Object.keys(talentParamStorage.paramsById).length > 0
+        ? Object.fromEntries(
+            Object.entries(talentParamStorage.paramsById).map(([talentId, entries]) => [talentId, Object.values(entries)[0]])
+          )
+        : undefined;
 
     const actor: Actor = {
       id: "PC_1",
@@ -379,8 +446,11 @@ export default function NewGameWizard() {
       equipment: loadout.equipment,
       inventory,
       status: { conditions: [], tempModifiers: [] },
-      talentParams,
-      talentUniquenessKeys: talentUniquenessKeys.length > 0 ? talentUniquenessKeys : undefined,
+      talentParams: legacyTalentParams,
+      talentParamsById: Object.keys(talentParamStorage.paramsById).length > 0 ? talentParamStorage.paramsById : undefined,
+      talentUniquenessRanksById: Object.keys(talentParamStorage.ranksById).length > 0 ? talentParamStorage.ranksById : undefined,
+      talentUniquenessKeys:
+        talentParamStorage.uniquenessKeys.length > 0 ? talentParamStorage.uniquenessKeys : undefined,
     } as Actor;
 
     const party = {
@@ -553,6 +623,7 @@ export default function NewGameWizard() {
                 const maxRank = talent.maxRank ?? 1;
                 const chosenParam = talent.chosenParam;
                 const paramValue = chosenParam ? selectedTalentParams[talent.id]?.[chosenParam.paramKey] : undefined;
+                const paramRanks = chosenParam ? selectedTalentParamRanks[talent.id] || {} : {};
                 const formatPrereq = (prereq: any) => {
                   switch (prereq.type) {
                     case "statAtLeast":
@@ -625,7 +696,10 @@ export default function NewGameWizard() {
                               ]}
                               onPress={() => setTalentParam(talent.id, chosenParam.paramKey, option)}
                             >
-                              <Text style={styles.choiceText}>{option}</Text>
+                              <Text style={styles.choiceText}>
+                                {option}
+                                {paramRanks[option] ? ` · Rank ${paramRanks[option]}` : ""}
+                              </Text>
                             </Pressable>
                           ))}
                         </View>
@@ -634,7 +708,7 @@ export default function NewGameWizard() {
                     <View style={styles.talentControls}>
                       <Pressable
                         style={[styles.statButton, currentRank === 0 && styles.buttonDisabled]}
-                        onPress={() => removeTalentRank(talent.id)}
+                        onPress={() => removeTalentRank(talent)}
                         disabled={currentRank === 0}
                       >
                         <Text style={styles.statButtonText}>-1</Text>
@@ -643,11 +717,15 @@ export default function NewGameWizard() {
                       <Pressable
                         style={[
                           styles.statButton,
-                          (currentRank >= maxRank || totalTalentRanks >= maxTalentCount || (chosenParam && !paramValue)) &&
+                          (totalTalentRanks >= maxTalentCount ||
+                            (chosenParam && (!paramValue || (paramRanks[paramValue] ?? 0) >= maxRank))) &&
                             styles.buttonDisabled,
                         ]}
-                        onPress={() => addTalentRank(talent.id, maxRank, Boolean(chosenParam))}
-                        disabled={currentRank >= maxRank || totalTalentRanks >= maxTalentCount || (chosenParam && !paramValue)}
+                        onPress={() => addTalentRank(talent)}
+                        disabled={
+                          totalTalentRanks >= maxTalentCount ||
+                          (chosenParam && (!paramValue || (paramRanks[paramValue] ?? 0) >= maxRank))
+                        }
                       >
                         <Text style={styles.statButtonText}>+1</Text>
                       </Pressable>

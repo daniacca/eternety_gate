@@ -3,7 +3,7 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById } from "../../content/loadCatalogs";
 import { getCharacteristicBonus } from "./bonuses";
 import { hasShieldEquipped } from "../combat/equipment";
-import { getTalentParams } from "./prerequisites";
+import { getTalentParamEntries } from "./prerequisites";
 
 /**
  * Gets the total modifier for a specific talent modifier key.
@@ -26,23 +26,23 @@ export function getTalentModifierTotal(
     if (!talent) continue;
 
     for (const grant of talent.grants) {
-      if (grant.type === "modifier") {
-        let grantKey = grant.key;
-        
-        // Handle dynamic keys with chosen params (e.g., "combat.resistance.<chosenType>")
-        if (talent.chosenParam && grantKey.includes(`<${talent.chosenParam.paramKey}>`)) {
-          const params = getTalentParams(actor, talentId);
-          const paramValue = params?.[talent.chosenParam.paramKey];
-          if (typeof paramValue === "string") {
-            grantKey = grantKey.replace(`<${talent.chosenParam.paramKey}>`, paramValue);
-          } else {
-            continue; // Can't resolve key without param value
+      if (grant.type !== "modifier") continue;
+
+      if (talent.chosenParam && grant.key.includes(`<${talent.chosenParam.paramKey}>`)) {
+        const entries = getTalentParamEntries(actor, talentId);
+        for (const entry of entries) {
+          const paramValue = entry.params?.[talent.chosenParam.paramKey];
+          if (typeof paramValue !== "string") continue;
+          const resolvedKey = grant.key.replace(`<${talent.chosenParam.paramKey}>`, paramValue);
+          if (resolvedKey === key) {
+            total += grant.value * (entry.rank ?? 1);
           }
         }
+        continue;
+      }
 
-        if (grantKey === key) {
-          total += grant.value * rank;
-        }
+      if (grant.key === key) {
+        total += grant.value * rank;
       }
     }
   }

@@ -1,7 +1,7 @@
 import type { GameSave, ActorId, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getTalentById } from "../../content/loadCatalogs";
-import { evaluatePrerequisites } from "./prerequisites";
+import { evaluatePrerequisites, resolveTalentUniquenessKey, TalentParams, getTalentUniquenessRank } from "./prerequisites";
 import { applyGrants } from "./grants";
 
 /**
@@ -94,7 +94,8 @@ export function buyTalent(
   save: GameSave,
   catalogs: CharacterCatalogs,
   actorId: ActorId,
-  talentId: string
+  talentId: string,
+  chosenParams?: TalentParams
 ): { save: GameSave; error?: string } {
   const actor = save.actorsById[actorId];
   if (!actor) {
@@ -106,10 +107,23 @@ export function buyTalent(
     return { save, error: `Talent ${talentId} not found` };
   }
 
-  // Check current rank
   const currentRank = actor.talents[talentId] ?? 0;
   const maxRank = talent.maxRank ?? 1;
-  if (currentRank >= maxRank) {
+
+  if (talent.chosenParam && (!chosenParams || Object.keys(chosenParams).length === 0)) {
+    return { save, error: `Talent ${talentId} requires a specialization selection` };
+  }
+
+  if (talent.uniquenessKey && chosenParams) {
+    const resolvedKey = resolveTalentUniquenessKey(talent, chosenParams);
+    if (!resolvedKey) {
+      return { save, error: `Talent ${talentId} requires a specialization selection` };
+    }
+    const uniqueRank = getTalentUniquenessRank(actor, talentId, resolvedKey);
+    if (uniqueRank >= maxRank) {
+      return { save, error: `Talent ${talentId} already at max rank for specialization` };
+    }
+  } else if (currentRank >= maxRank) {
     return { save, error: `Talent ${talentId} already at max rank ${maxRank}` };
   }
 
@@ -126,14 +140,55 @@ export function buyTalent(
   }
 
   // Update actor with new talent rank
-  const newRank = currentRank + 1;
-  const updatedActor = {
+  let newRank = currentRank + 1;
+  let updatedActor: any = {
     ...spendResult.save.actorsById[actorId],
     talents: {
       ...spendResult.save.actorsById[actorId].talents,
       [talentId]: newRank,
     },
   };
+
+  if (talent.uniquenessKey && chosenParams) {
+    const resolvedKey = resolveTalentUniquenessKey(talent, chosenParams);
+    if (!resolvedKey) {
+      return { save: spendResult.save, error: `Talent ${talentId} requires a specialization selection` };
+    }
+
+    const existingParamsById = (updatedActor as any).talentParamsById || {};
+    const existingParamsForTalent = existingParamsById[talentId] || {};
+    const existingRanksById = (updatedActor as any).talentUniquenessRanksById || {};
+    const existingRanksForTalent = existingRanksById[talentId] || {};
+    const existingKeys = ((updatedActor as any).talentUniquenessKeys as string[]) || [];
+
+    updatedActor = {
+      ...updatedActor,
+      talentParamsById: {
+        ...existingParamsById,
+        [talentId]: {
+          ...existingParamsForTalent,
+          [resolvedKey]: chosenParams,
+        },
+      },
+      talentUniquenessRanksById: {
+        ...existingRanksById,
+        [talentId]: {
+          ...existingRanksForTalent,
+          [resolvedKey]: (existingRanksForTalent[resolvedKey] ?? 0) + 1,
+        },
+      },
+      talentUniquenessKeys: existingKeys.includes(resolvedKey) ? existingKeys : [...existingKeys, resolvedKey],
+    };
+  } else if (chosenParams && Object.keys(chosenParams).length > 0) {
+    const existingParams = (updatedActor as any).talentParams || {};
+    updatedActor = {
+      ...updatedActor,
+      talentParams: {
+        ...existingParams,
+        [talentId]: chosenParams,
+      },
+    };
+  }
 
   // Apply grants
   const updatedSave = applyGrants(

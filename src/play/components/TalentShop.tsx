@@ -38,6 +38,7 @@ const PARAM_OPTIONS: Record<string, string[]> = {
 export function TalentShop({ visible, save, actor, onClose, applySystemEffects }: TalentShopProps) {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [paramModalVisible, setParamModalVisible] = useState(false);
+  const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
 
   // Load catalogs
   const catalogs = useMemo(() => {
@@ -74,6 +75,14 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
 
     return grouped;
   }, []);
+
+  const filteredTalentsByCategory = useMemo(() => {
+    const filtered: Record<string, Talent[]> = {};
+    for (const [category, talents] of Object.entries(talentsByCategory)) {
+      filtered[category] = talents.filter((talent) => talent.tier === activeTier);
+    }
+    return filtered;
+  }, [talentsByCategory, activeTier]);
 
   // Get current XP (per-actor XP)
   const currentXp = actor?.resources?.xp ?? 0;
@@ -112,8 +121,11 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
   };
 
   // Get prerequisite status with detailed reason
-  const getPrereqStatus = (talent: Talent): { canBuy: boolean; reason: string; prereqList: string } => {
-    const result = canAcquireTalent(save, catalogs, actor, talent);
+  const getPrereqStatus = (
+    talent: Talent,
+    chosenParams?: Record<string, string>
+  ): { canBuy: boolean; reason: string; prereqList: string } => {
+    const result = canAcquireTalent(save, catalogs, actor, talent, chosenParams);
     
     // Build prerequisite list for display
     const prereqParts: string[] = [];
@@ -138,18 +150,41 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
     };
   };
 
+  const getParamRank = (talent: Talent, paramValue: string): number => {
+    if (!talent.uniquenessKey || !talent.chosenParam) return 0;
+    const resolvedKey = talent.uniquenessKey.replace(`<${talent.chosenParam.paramKey}>`, paramValue);
+    const rankMap = (actor as any).talentUniquenessRanksById?.[talent.id] as Record<string, number> | undefined;
+    if (rankMap && typeof rankMap[resolvedKey] === "number") return rankMap[resolvedKey] ?? 0;
+    const legacyKeys = (actor as any).talentUniquenessKeys as string[] | undefined;
+    return legacyKeys?.includes(resolvedKey) ? 1 : 0;
+  };
+
   const renderTalentCard = (talent: Talent) => {
     const currentRank = actor?.talents?.[talent.id] ?? 0;
     const maxRank = talent.maxRank ?? 1;
-    const status = getPrereqStatus(talent);
-    const tierStyle = tierColors[talent.tier] || tierColors[1];
     const hasParam = !!talent.chosenParam;
-    const isMaxed = currentRank >= maxRank;
+    const paramKey = talent.chosenParam?.paramKey;
+    const paramOptions = paramKey ? PARAM_OPTIONS[paramKey] || talent.chosenParam?.options || [] : [];
+    const firstAvailableParam =
+      hasParam && paramKey
+        ? paramOptions.find((option) => getParamRank(talent, option) < maxRank)
+        : undefined;
+    const status = hasParam && paramKey && firstAvailableParam
+      ? getPrereqStatus(talent, { [paramKey]: firstAvailableParam })
+      : getPrereqStatus(talent);
+    const tierStyle = tierColors[talent.tier] || tierColors[1];
+    const isMaxed = hasParam ? !firstAvailableParam : currentRank >= maxRank;
 
     // Check if acquired with params
-    const acquiredWithParams = acquiredTalents.find((t) => t.talentId === talent.id);
-    const paramDisplay = acquiredWithParams?.params
-      ? Object.entries(acquiredWithParams.params).map(([k, v]) => v).join(", ")
+    const acquiredForTalent = acquiredTalents.filter((t) => t.talentId === talent.id && t.params);
+    const paramDisplay = acquiredForTalent.length
+      ? acquiredForTalent
+          .map((entry) => {
+            const values = entry.params ? Object.values(entry.params).join(", ") : "";
+            return entry.rank > 1 ? `${values} x${entry.rank}` : values;
+          })
+          .filter(Boolean)
+          .join(", ")
       : null;
 
     return (
@@ -182,10 +217,16 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
             <Text style={styles.statLabel}>Cost</Text>
             <Text style={styles.statValue}>{talent.xpCost} XP</Text>
           </View>
-          {maxRank > 1 && (
+          {!hasParam && maxRank > 1 && (
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Rank</Text>
               <Text style={styles.statValue}>{currentRank}/{maxRank}</Text>
+            </View>
+          )}
+          {hasParam && (
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Specializations</Text>
+              <Text style={styles.statValue}>{acquiredForTalent.length}</Text>
             </View>
           )}
         </View>
@@ -254,23 +295,13 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
 
             <ScrollView style={styles.paramOptionsList}>
               {options.map((optionValue) => {
-                // Check if this option is already taken via uniqueness key
-                const resolvedUniquenessKey = selectedTalent.uniquenessKey?.replace(
-                  `<${paramKey}>`,
-                  optionValue
-                );
-                const alreadyHas = resolvedUniquenessKey
-                  ? (actor as any).talentUniquenessKeys?.includes(resolvedUniquenessKey)
-                  : false;
-
-                // Also check canAcquireTalent with this param
+                const currentParamRank = getParamRank(selectedTalent, optionValue);
                 const canBuyWithParam = canAcquireTalent(save, catalogs, actor, selectedTalent, {
                   [paramKey]: optionValue,
                 });
+                const isMaxed = currentParamRank >= (selectedTalent.maxRank ?? 1);
+                const isDisabled = isMaxed || !canBuyWithParam.canAcquire;
 
-                const isDisabled = alreadyHas || !canBuyWithParam.canAcquire;
-
-                // Format the label nicely
                 const optionLabel = optionValue.charAt(0).toUpperCase() + optionValue.slice(1).toLowerCase();
 
                 return (
@@ -282,11 +313,12 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
                   >
                     <Text style={[styles.paramOptionText, isDisabled && styles.paramOptionTextDisabled]}>
                       {optionLabel}
+                      {currentParamRank > 0 ? ` (Rank ${currentParamRank}/${selectedTalent.maxRank ?? 1})` : ""}
                     </Text>
-                    {alreadyHas && (
-                      <Text style={styles.paramOptionTaken}>Already acquired</Text>
+                    {isMaxed && (
+                      <Text style={styles.paramOptionTaken}>Max rank reached</Text>
                     )}
-                    {!alreadyHas && !canBuyWithParam.canAcquire && (
+                    {!isMaxed && !canBuyWithParam.canAcquire && (
                       <Text style={styles.paramOptionTaken}>{canBuyWithParam.reason}</Text>
                     )}
                   </TouchableOpacity>
@@ -319,10 +351,9 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
       <View style={styles.ownedTalentsList}>
         {acquiredTalents.map((t, idx) => {
           const talent = getTalentById(catalogs, t.talentId as TalentId);
-          const rank = actor.talents[t.talentId] ?? 1;
           const maxRank = talent?.maxRank ?? 1;
           const paramStr = t.params ? Object.values(t.params).join(", ") : "";
-          
+
           return (
             <View key={`${t.talentId}-${idx}`} style={styles.ownedTalentItem}>
               <Text style={styles.ownedTalentName}>
@@ -330,7 +361,7 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
                 {paramStr ? ` (${paramStr})` : ""}
               </Text>
               {maxRank > 1 && (
-                <Text style={styles.ownedTalentRank}>R{rank}/{maxRank}</Text>
+                <Text style={styles.ownedTalentRank}>R{t.rank}/{maxRank}</Text>
               )}
             </View>
           );
@@ -432,17 +463,36 @@ export function TalentShop({ visible, save, actor, onClose, applySystemEffects }
             </View>
           </View>
 
+          {/* Tier tabs */}
+          <View style={styles.tierTabs}>
+            {[1, 2, 3].map((tier) => (
+              <TouchableOpacity
+                key={`tier-${tier}`}
+                style={[
+                  styles.tierTab,
+                  activeTier === tier && styles.tierTabActive,
+                  { borderColor: tierColors[tier].border },
+                ]}
+                onPress={() => setActiveTier(tier as 1 | 2 | 3)}
+              >
+                <Text style={[styles.tierTabText, activeTier === tier && styles.tierTabTextActive]}>
+                  Tier {tier}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Main content - talents by category */}
           <ScrollView 
             style={styles.talentsList} 
             contentContainerStyle={styles.talentsListContent}
             showsVerticalScrollIndicator={true}
           >
-            {renderCategory("common", talentsByCategory.common)}
-            {renderCategory("fighter", talentsByCategory.fighter)}
-            {renderCategory("archer", talentsByCategory.archer)}
-            {renderCategory("mage", talentsByCategory.mage)}
-            {renderCategory("martial", talentsByCategory.martial)}
+            {renderCategory("common", filteredTalentsByCategory.common)}
+            {renderCategory("fighter", filteredTalentsByCategory.fighter)}
+            {renderCategory("archer", filteredTalentsByCategory.archer)}
+            {renderCategory("mage", filteredTalentsByCategory.mage)}
+            {renderCategory("martial", filteredTalentsByCategory.martial)}
           </ScrollView>
         </View>
       </View>
@@ -604,6 +654,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#0f0f1a",
     borderBottomWidth: 1,
     borderBottomColor: "#2d2d44",
+  },
+  tierTabs: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 10,
+    backgroundColor: "#0f0f1a",
+    borderBottomWidth: 1,
+    borderBottomColor: "#2d2d44",
+  },
+  tierTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    backgroundColor: "#151525",
+  },
+  tierTabActive: {
+    backgroundColor: "#1f2937",
+  },
+  tierTabText: {
+    fontSize: 12,
+    color: "#a0a0c0",
+    fontWeight: "600",
+  },
+  tierTabTextActive: {
+    color: "#f0f0ff",
   },
   legendItem: {
     flexDirection: "row",

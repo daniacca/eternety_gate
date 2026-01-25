@@ -61,8 +61,9 @@ export function evaluatePrerequisites(
     } else if (prereq.type === "notHasTalentWithParam") {
       // Check if actor already has this talent with the specified param value
       // Used to prevent taking same Resistance type or Casting Specialization twice
-      const talentParams = (actor as any).talentParams?.[prereq.talentId];
-      if (talentParams && talentParams[prereq.paramKey] === prereq.paramValue) {
+      const paramEntries = getTalentParamEntries(actor, prereq.talentId);
+      const alreadyHas = paramEntries.some((entry) => entry.params?.[prereq.paramKey] === prereq.paramValue);
+      if (alreadyHas) {
         return {
           valid: false,
           reason: `Already has ${prereq.talentId} with ${prereq.paramKey}=${prereq.paramValue}`,
@@ -80,16 +81,14 @@ export function evaluatePrerequisites(
 export function hasAcquiredTalentWithUniquenessKey(
   actor: Actor,
   uniquenessKey: string,
-  chosenParamValue?: string
+  chosenParamValue?: string,
+  talentId?: string
 ): boolean {
   // Resolve the uniqueness key with the chosen param
-  const resolvedKey = chosenParamValue 
-    ? uniquenessKey.replace(/<[^>]+>/g, chosenParamValue)
-    : uniquenessKey;
-  
-  // Check talentUniquenessKeys on actor
-  const uniquenessKeys = (actor as any).talentUniquenessKeys as string[] | undefined;
-  return uniquenessKeys?.includes(resolvedKey) ?? false;
+  const resolvedKey = chosenParamValue ? uniquenessKey.replace(/<[^>]+>/g, chosenParamValue) : uniquenessKey;
+
+  const rank = getTalentUniquenessRank(actor, talentId, resolvedKey);
+  return rank > 0;
 }
 
 /**
@@ -106,6 +105,8 @@ export function resolveTalentUniquenessKey(
     const paramValue = chosenParams[talent.chosenParam.paramKey];
     if (typeof paramValue === "string") {
       key = key.replace(`<${talent.chosenParam.paramKey}>`, paramValue);
+    } else {
+      return null;
     }
   }
   return key;
@@ -167,8 +168,41 @@ export function statAtLeast(save: GameSave, actor: Actor, statKey: string, value
 /**
  * Gets all talent params for an actor's talent
  */
+export type TalentParamEntry = { params: TalentParams; uniquenessKey?: string; rank?: number };
+
+export function getTalentParamEntries(actor: Actor, talentId: string): TalentParamEntry[] {
+  const paramsById = (actor as any).talentParamsById?.[talentId] as Record<string, TalentParams> | undefined;
+  if (paramsById) {
+    const ranksById = (actor as any).talentUniquenessRanksById?.[talentId] as Record<string, number> | undefined;
+    return Object.entries(paramsById).map(([key, params]) => ({
+      params,
+      uniquenessKey: key,
+      rank: ranksById?.[key] ?? 1,
+    }));
+  }
+
+  const legacyParams = (actor as any).talentParams?.[talentId] as TalentParams | undefined;
+  if (legacyParams) {
+    return [{ params: legacyParams, rank: actor.talents?.[talentId] ?? 1 }];
+  }
+
+  return [];
+}
+
 export function getTalentParams(actor: Actor, talentId: string): TalentParams | undefined {
-  return (actor as any).talentParams?.[talentId];
+  const entries = getTalentParamEntries(actor, talentId);
+  return entries[0]?.params;
+}
+
+export function getTalentUniquenessRank(actor: Actor, talentId: string | undefined, resolvedKey: string): number {
+  if (talentId) {
+    const ranksById = (actor as any).talentUniquenessRanksById?.[talentId] as Record<string, number> | undefined;
+    if (ranksById && typeof ranksById[resolvedKey] === "number") {
+      return ranksById[resolvedKey] ?? 0;
+    }
+  }
+  const uniquenessKeys = (actor as any).talentUniquenessKeys as string[] | undefined;
+  return uniquenessKeys?.includes(resolvedKey) ? 1 : 0;
 }
 
 /**
@@ -186,15 +220,29 @@ export function canAcquireTrait(actor: Actor, traitId: string): { valid: boolean
 /**
  * Gets all acquired talents with their params for an actor
  */
-export function getActorTalentsWithParams(actor: Actor): Array<{ talentId: string; rank: number; params?: TalentParams }> {
-  const result: Array<{ talentId: string; rank: number; params?: TalentParams }> = [];
+export function getActorTalentsWithParams(
+  actor: Actor
+): Array<{ talentId: string; rank: number; params?: TalentParams; uniquenessKey?: string }> {
+  const result: Array<{ talentId: string; rank: number; params?: TalentParams; uniquenessKey?: string }> = [];
   for (const [talentId, rank] of Object.entries(actor.talents)) {
     if (rank >= 1) {
-      result.push({
-        talentId,
-        rank,
-        params: getTalentParams(actor, talentId),
-      });
+      const paramEntries = getTalentParamEntries(actor, talentId);
+      if (paramEntries.length > 0) {
+        for (const entry of paramEntries) {
+          result.push({
+            talentId,
+            rank: entry.rank ?? rank,
+            params: entry.params,
+            uniquenessKey: entry.uniquenessKey,
+          });
+        }
+      } else {
+        result.push({
+          talentId,
+          rank,
+          params: undefined,
+        });
+      }
     }
   }
   return result;
@@ -212,12 +260,12 @@ export function canAcquireTalent(
   talent: Talent,
   chosenParams?: TalentParams
 ): { canAcquire: boolean; reason?: string } {
-  // Check current rank vs max rank
   const currentRank = actor.talents[talent.id] ?? 0;
   const maxRank = talent.maxRank ?? 1;
-  
-  if (currentRank >= maxRank) {
-    return { canAcquire: false, reason: "Already at max rank" };
+
+  const requiresParam = Boolean(talent.chosenParam);
+  if (requiresParam && !chosenParams) {
+    return { canAcquire: false, reason: "Select a specialization" };
   }
 
   // Check XP (per-actor XP from actor.resources.xp)
@@ -232,16 +280,17 @@ export function canAcquireTalent(
     return { canAcquire: false, reason: prereqResult.reason };
   }
 
-  // Check uniqueness key (for repeatable talents with choices)
+  // Check rank cap
   if (talent.uniquenessKey && chosenParams) {
-    const paramKey = talent.chosenParam?.paramKey || "";
-    const chosenValue = chosenParams[paramKey];
-    if (typeof chosenValue === "string") {
-      const alreadyHas = hasAcquiredTalentWithUniquenessKey(actor, talent.uniquenessKey, chosenValue);
-      if (alreadyHas) {
-        return { canAcquire: false, reason: `Already acquired with ${chosenValue}` };
+    const resolvedKey = resolveTalentUniquenessKey(talent, chosenParams);
+    if (resolvedKey) {
+      const uniqueRank = getTalentUniquenessRank(actor, talent.id, resolvedKey);
+      if (uniqueRank >= maxRank) {
+        return { canAcquire: false, reason: "Already at max rank for this specialization" };
       }
     }
+  } else if (currentRank >= maxRank) {
+    return { canAcquire: false, reason: "Already at max rank" };
   }
 
   return { canAcquire: true };
