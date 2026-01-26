@@ -1,6 +1,6 @@
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { Actor, GameSave } from "@eg/engine";
-import { evaluatePrerequisites, loadCharacterCatalogs } from "@eg/engine";
+import { evaluatePrerequisites, loadCharacterCatalogs, getSkillTrainingCost } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
 import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 
@@ -10,14 +10,12 @@ type SkillDef = {
   baseStat: string;
 };
 
-const SKILL_TRAINING_COST = 50;
-
 interface SkillShopProps {
   visible: boolean;
   save: GameSave;
   actor: Actor;
   onClose: () => void;
-  onTrainSkill: (skillId: string, cost: number) => void;
+  onTrainSkill: (skillId: string) => void;
 }
 
 export function SkillShop({ visible, save, actor, onClose, onTrainSkill }: SkillShopProps) {
@@ -42,7 +40,6 @@ export function SkillShop({ visible, save, actor, onClose, onTrainSkill }: Skill
           <View style={styles.resourceBar}>
             <Text style={styles.resourceLabel}>XP:</Text>
             <Text style={styles.resourceValue}>{currentXp}</Text>
-            <Text style={styles.costHint}>Cost per rank: {SKILL_TRAINING_COST} XP</Text>
           </View>
 
           <ScrollView contentContainerStyle={styles.listContent}>
@@ -51,7 +48,8 @@ export function SkillShop({ visible, save, actor, onClose, onTrainSkill }: Skill
               const prerequisites = skill.prerequisites || [];
               const meetsPrereqs =
                 prerequisites.length === 0 || evaluatePrerequisites(save, catalogs, actor, prerequisites).valid;
-              const canTrain = currentXp >= SKILL_TRAINING_COST && meetsPrereqs;
+              const trainingCost = getSkillTrainingCost(rank);
+              const canTrain = currentXp >= trainingCost && meetsPrereqs;
               return (
                 <View key={skill.id} style={styles.skillCard}>
                   <View style={styles.skillRow}>
@@ -68,9 +66,11 @@ export function SkillShop({ visible, save, actor, onClose, onTrainSkill }: Skill
                   <TouchableOpacity
                     style={[styles.trainButton, !canTrain && styles.trainButtonDisabled]}
                     disabled={!canTrain}
-                    onPress={() => onTrainSkill(skill.id, SKILL_TRAINING_COST)}
+                    onPress={() => onTrainSkill(skill.id)}
                   >
-                    <Text style={[styles.trainText, !canTrain && styles.trainTextDisabled]}>Train (+1)</Text>
+                    <Text style={[styles.trainText, !canTrain && styles.trainTextDisabled]}>
+                      Train (+1 · {trainingCost} XP)
+                    </Text>
                   </TouchableOpacity>
                   {!meetsPrereqs && (
                     <Text style={styles.skillLockedText}>Prerequisites not met</Text>
@@ -152,11 +152,6 @@ const styles = StyleSheet.create({
     color: "#facc15",
     fontSize: 16,
     fontWeight: "700",
-  },
-  costHint: {
-    color: "#64748b",
-    fontSize: 11,
-    marginLeft: "auto",
   },
   listContent: {
     padding: 16,

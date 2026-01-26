@@ -32,6 +32,7 @@ export const createDebugSave = () => {
       xp: 250,
       xpEarned: 250,
       xpSpent: 0,
+      gold: 10,
       baseStats: {
         STR: 50,
         TOU: 50,

@@ -1,7 +1,16 @@
 import { useMemo, useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { createNewGame, evaluatePrerequisites, loadCharacterCatalogs, canLearnSpell, type Actor, type ItemRef, type StatKey } from "@eg/engine";
+import {
+  createNewGame,
+  evaluatePrerequisites,
+  loadCharacterCatalogs,
+  canLearnSpell,
+  getSkillTrainingCost,
+  type Actor,
+  type ItemRef,
+  type StatKey,
+} from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
 import weaponsCatalog from "@eg/content/src/catalogs/weapons.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
@@ -24,7 +33,6 @@ const DIFFICULTY_BASE: Record<Difficulty, number> = {
 };
 
 const ARCHETYPES = ["Human", "Elf", "Dwarf", "Halfling"] as const;
-const MAX_SKILL_RANKS = 3;
 
 export default function NewGameWizard() {
   const router = useRouter();
@@ -49,7 +57,7 @@ export default function NewGameWizard() {
   const [skillRanks, setSkillRanks] = useState<Record<string, number>>({});
 
   const baseStat = DIFFICULTY_BASE[difficulty];
-  const maxTalentCount = archetype === "Human" ? 3 : 2;
+  const xpBudget = archetype === "Human" ? 2000 : 1500;
   const catalogs = useMemo(() => loadCharacterCatalogs(sigilContentPack as any), []);
   const isWeaver = traitChoice === "weaver";
 
@@ -77,6 +85,34 @@ export default function NewGameWizard() {
   const totalTalentRanks = useMemo(() => {
     return Object.values(selectedTalents).reduce((sum, value) => sum + value, 0);
   }, [selectedTalents]);
+
+  const totalTalentXp = useMemo(() => {
+    return Object.entries(selectedTalents).reduce((sum, [talentId, rank]) => {
+      if (rank <= 0) return sum;
+      const talent = (talentsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === talentId);
+      return sum + (talent?.xpCost ?? 0) * rank;
+    }, 0);
+  }, [selectedTalents]);
+
+  const totalSkillXp = useMemo(() => {
+    return Object.values(skillRanks).reduce((sum, rank) => {
+      let skillTotal = 0;
+      for (let r = 1; r <= rank; r += 1) {
+        skillTotal += getSkillTrainingCost(r - 1);
+      }
+      return sum + skillTotal;
+    }, 0);
+  }, [skillRanks]);
+
+  const totalSpellXp = useMemo(() => {
+    return selectedSpells.reduce((sum, spellId) => {
+      const spell = (spellsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === spellId);
+      return sum + (spell?.xpCost ?? 0);
+    }, 0);
+  }, [selectedSpells]);
+
+  const totalSpentXp = totalTalentXp + totalSkillXp + totalSpellXp;
+  const remainingXp = Math.max(0, xpBudget - totalSpentXp);
 
   const selectedSpellsRecord = useMemo(() => {
     const record: Record<string, boolean> = {};
@@ -203,7 +239,7 @@ export default function NewGameWizard() {
       kind: "PC",
       tags: [`archetype:${archetype.toLowerCase()}`],
       stats: effectiveStats,
-      resources: { wounds: 0, rf: 0, fatePoints: 4, xp: 0 },
+      resources: { wounds: 0, rf: 0, fatePoints: 4, xp: 0, gold: 10 },
       skills: skillRanks,
       talents: selectedTalents,
       traits,
@@ -311,11 +347,11 @@ export default function NewGameWizard() {
       case "stats":
         return statMethod === "manual" ? pointsRemaining === 0 : Boolean(randomStats);
       case "talents":
-        return totalTalentRanks <= maxTalentCount;
+        return totalSpentXp <= xpBudget;
       case "spells":
-        return selectedSpells.length <= 2;
+        return totalSpentXp <= xpBudget;
       case "skills":
-        return totalSkillRanks <= MAX_SKILL_RANKS;
+        return totalSpentXp <= xpBudget;
       default:
         return true;
     }
@@ -334,9 +370,11 @@ export default function NewGameWizard() {
     });
   };
 
-  const addTalentRank = (talent: { id: string; maxRank?: number; chosenParam?: { paramKey: string } }) => {
+  const addTalentRank = (talent: { id: string; maxRank?: number; chosenParam?: { paramKey: string }; xpCost?: number }) => {
     const maxRank = talent.maxRank ?? 1;
     const hasParam = Boolean(talent.chosenParam);
+    const cost = talent.xpCost ?? 0;
+    if (remainingXp < cost) return;
     if (hasParam) {
       const paramKey = talent.chosenParam?.paramKey || "";
       const paramValue = selectedTalentParams[talent.id]?.[paramKey];
@@ -344,7 +382,6 @@ export default function NewGameWizard() {
       const paramRanks = selectedTalentParamRanks[talent.id] || {};
       const currentParamRank = paramRanks[paramValue] ?? 0;
       if (currentParamRank >= maxRank) return;
-      if (totalTalentRanks >= maxTalentCount) return;
       const nextParamRanks = { ...paramRanks, [paramValue]: currentParamRank + 1 };
       const nextTotalRank = Object.values(nextParamRanks).reduce((sum, value) => sum + value, 0);
       setSelectedTalentParamRanks((current) => ({ ...current, [talent.id]: nextParamRanks }));
@@ -355,9 +392,7 @@ export default function NewGameWizard() {
 
     setSelectedTalents((current) => {
       const currentRank = current[talent.id] ?? 0;
-      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
       if (currentRank >= maxRank) return current;
-      if (currentTotal >= maxTalentCount) return current;
       return { ...current, [talent.id]: currentRank + 1 };
     });
     setSelectedTalentId(talent.id);
@@ -413,9 +448,10 @@ export default function NewGameWizard() {
     setSkillRanks((current) => {
       const currentRank = current[skillId] ?? 0;
       const nextRank = Math.max(0, currentRank + delta);
-      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
-      const nextTotal = currentTotal - currentRank + nextRank;
-      if (nextTotal > MAX_SKILL_RANKS) return current;
+      if (delta > 0) {
+        const cost = getSkillTrainingCost(currentRank);
+        if (remainingXp < cost) return current;
+      }
       if (nextRank === 0) {
         const { [skillId]: _, ...rest } = current;
         return rest;
@@ -424,7 +460,6 @@ export default function NewGameWizard() {
     });
   };
 
-  const maxStartingSpells = 2;
   const spellDisciplines = useMemo(() => {
     const values = Array.from(new Set((spellsCatalog as Array<{ discipline: string }>).map((spell) => spell.discipline)));
     return values.sort();
@@ -455,7 +490,9 @@ export default function NewGameWizard() {
       setSelectedSpells((current) => current.filter((id) => id !== spellId));
       return;
     }
-    if (selectedSpells.length >= maxStartingSpells) return;
+    const spell = (spellsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === spellId);
+    const cost = spell?.xpCost ?? 0;
+    if (remainingXp < cost) return;
     const canLearn = canLearnSpell(spellPrereqSave, catalogs, spellPrereqActor.id, spellId);
     if (!canLearn.canLearn) return;
     setSelectedSpells((current) => [...current, spellId]);
@@ -550,9 +587,10 @@ export default function NewGameWizard() {
         wounds: 0,
         rf: 0,
         fatePoints: 4,
-        xp: 0,
-        xpEarned: 0,
-        xpSpent: 0,
+        xp: remainingXp,
+        xpEarned: xpBudget,
+        xpSpent: totalSpentXp,
+        gold: 10,
         baseStats: applyArchetypeModifiers(selectedStats, archetype),
       },
       skills: skillRanks,
@@ -725,7 +763,9 @@ export default function NewGameWizard() {
       {currentStep === "talents" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Talents</Text>
-          <Text style={styles.summaryText}>Talents: {totalTalentRanks}/{maxTalentCount}</Text>
+          <Text style={styles.summaryText}>
+            XP Budget: {xpBudget} · Spent: {totalSpentXp} · Remaining: {remainingXp}
+          </Text>
 
           <View style={[styles.talentColumns, isNarrow && styles.talentColumnsStacked]}>
             <View style={styles.talentDetail}>
@@ -742,6 +782,7 @@ export default function NewGameWizard() {
                 const chosenParam = talent.chosenParam;
                 const paramValue = chosenParam ? selectedTalentParams[talent.id]?.[chosenParam.paramKey] : undefined;
                 const paramRanks = chosenParam ? selectedTalentParamRanks[talent.id] || {} : {};
+                const talentCost = talent.xpCost ?? 0;
                 const formatPrereq = (prereq: any) => {
                   switch (prereq.type) {
                     case "statAtLeast":
@@ -835,13 +876,13 @@ export default function NewGameWizard() {
                       <Pressable
                         style={[
                           styles.statButton,
-                          (totalTalentRanks >= maxTalentCount ||
+                          (remainingXp < talentCost ||
                             (chosenParam && (!paramValue || (paramRanks[paramValue] ?? 0) >= maxRank))) &&
                             styles.buttonDisabled,
                         ]}
                         onPress={() => addTalentRank(talent)}
                         disabled={
-                          totalTalentRanks >= maxTalentCount ||
+                          remainingXp < talentCost ||
                           (chosenParam && (!paramValue || (paramRanks[paramValue] ?? 0) >= maxRank))
                         }
                       >
@@ -884,7 +925,9 @@ export default function NewGameWizard() {
       {currentStep === "spells" && isWeaver && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Spells</Text>
-          <Text style={styles.summaryText}>Spells: {selectedSpells.length}/{maxStartingSpells}</Text>
+          <Text style={styles.summaryText}>
+            XP Budget: {xpBudget} · Spent: {totalSpentXp} · Remaining: {remainingXp}
+          </Text>
           <View style={styles.choiceGrid}>
             {spellDisciplines.map((discipline) => (
               <Pressable
@@ -903,12 +946,13 @@ export default function NewGameWizard() {
             <ScrollView contentContainerStyle={styles.talentListContent} style={styles.talentListScroll}>
               {(spellsByDiscipline[activeSpellDiscipline || ""] || []).map((spell) => {
                 const isSelected = selectedSpells.includes(spell.id);
+                const spellCost = spell.xpCost ?? 0;
                 const canLearnResult =
                   !isSelected && spellPrereqSave && spellPrereqActor
                     ? canLearnSpell(spellPrereqSave, catalogs, spellPrereqActor.id, spell.id)
                     : { canLearn: true };
                 const isDisabled =
-                  (!isSelected && !canLearnResult.canLearn) || (!isSelected && selectedSpells.length >= maxStartingSpells);
+                  (!isSelected && !canLearnResult.canLearn) || (!isSelected && remainingXp < spellCost);
                 return (
                   <Pressable
                     key={spell.id}
@@ -922,7 +966,7 @@ export default function NewGameWizard() {
                   >
                     <Text style={styles.choiceText}>{spell.name}</Text>
                     <Text style={styles.skillMeta}>
-                      {spell.discipline} • CN {spell.baseCN}
+                      {spell.discipline} • CN {spell.baseCN} · {spellCost} XP
                     </Text>
                     {!isSelected && !canLearnResult.canLearn && (
                       <Text style={styles.skillMeta}>{canLearnResult.reason}</Text>
@@ -938,12 +982,15 @@ export default function NewGameWizard() {
       {currentStep === "skills" && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Starting Skills</Text>
-          <Text style={styles.summaryText}>Skill ranks: {totalSkillRanks}/{MAX_SKILL_RANKS}</Text>
+          <Text style={styles.summaryText}>
+            XP Budget: {xpBudget} · Spent: {totalSpentXp} · Remaining: {remainingXp}
+          </Text>
 
           <Text style={styles.subTitle}>Assign Skill Ranks</Text>
           <View style={styles.statsList}>
             {(skillsCatalog as Array<{ id: string; name: string; baseStat: string; prerequisites?: any[] }>).map((skill) => {
               const rank = skillRanks[skill.id] ?? 0;
+              const trainingCost = getSkillTrainingCost(rank);
               const prerequisites = skill.prerequisites || [];
               const skillAllowed =
                 prerequisites.length === 0 ||
@@ -954,7 +1001,9 @@ export default function NewGameWizard() {
                 <View key={skill.id} style={styles.statRow}>
                   <View style={styles.skillInfo}>
                     <Text style={styles.statLabel}>{skill.name}</Text>
-                    <Text style={styles.skillMeta}>Base {skill.baseStat}</Text>
+                    <Text style={styles.skillMeta}>
+                      Base {skill.baseStat} · {trainingCost} XP
+                    </Text>
                     {!skillAllowed && <Text style={styles.skillMeta}>Requires prerequisites</Text>}
                   </View>
                   <View style={styles.statControls}>
@@ -967,9 +1016,12 @@ export default function NewGameWizard() {
                     </Pressable>
                     <Text style={styles.statValue}>{rank}</Text>
                     <Pressable
-                      style={[styles.statButton, !skillAllowed && styles.buttonDisabled]}
+                      style={[
+                        styles.statButton,
+                        (!skillAllowed || remainingXp < trainingCost) && styles.buttonDisabled,
+                      ]}
                       onPress={() => adjustSkillRank(skill.id, 1)}
-                      disabled={!skillAllowed}
+                      disabled={!skillAllowed || remainingXp < trainingCost}
                     >
                       <Text style={styles.statButtonText}>+1</Text>
                     </Pressable>

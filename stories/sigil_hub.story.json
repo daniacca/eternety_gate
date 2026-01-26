@@ -211,6 +211,10 @@
           "label": "Open Talent Shop"
         },
         {
+          "id": "HUB_OPEN_ITEMS",
+          "label": "Open Item Shop"
+        },
+        {
           "id": "HUB_OPEN_SPELLS",
           "label": "Open Spell Shop"
         },

@@ -32,6 +32,7 @@ import {
   type Position,
   useItem,
   getNaturalAbilityWeaponById,
+  getSkillTrainingCost,
   spendActorXp,
   type StatKey,
 } from "@eg/engine";
@@ -46,6 +47,7 @@ import { PlayerHud } from "./components/PlayerHud";
 import { PlayerSheet } from "./components/PlayerSheet";
 import { TalentShop } from "./components/TalentShop";
 import { SpellShop } from "./components/SpellShop";
+import { ItemShop } from "./components/ItemShop";
 import { EquipmentModal } from "./components/EquipmentModal";
 import { SkillShop } from "./components/SkillShop";
 import { StatShop } from "./components/StatShop";
@@ -95,6 +97,7 @@ export function PlayScreen({
   const [playerSheetVisible, setPlayerSheetVisible] = useState(false);
   const [playerSheetSpellMode, setPlayerSheetSpellMode] = useState(false);
   const [talentShopVisible, setTalentShopVisible] = useState(false);
+  const [itemShopVisible, setItemShopVisible] = useState(false);
   const [spellShopVisible, setSpellShopVisible] = useState(false);
   const [equipmentVisible, setEquipmentVisible] = useState(false);
   const [skillShopVisible, setSkillShopVisible] = useState(false);
@@ -113,6 +116,7 @@ export function PlayScreen({
     setPlayerSheetVisible(false);
     setPlayerSheetSpellMode(false);
     setTalentShopVisible(false);
+    setItemShopVisible(false);
     setSpellShopVisible(false);
     setEquipmentVisible(false);
     setSkillShopVisible(false);
@@ -230,6 +234,10 @@ export function PlayScreen({
     }
     if (choiceId === "HUB_OPEN_TALENTS") {
       setTalentShopVisible(true);
+      return;
+    }
+    if (choiceId === "HUB_OPEN_ITEMS") {
+      setItemShopVisible(true);
       return;
     }
     if (choiceId === "HUB_OPEN_SPELLS") {
@@ -373,13 +381,14 @@ export function PlayScreen({
     commitSave(updatedSave);
   };
 
-  const handleTrainSkill = (skillId: string, cost: number) => {
+  const handleTrainSkill = (skillId: string) => {
     const actorId = save.party.activeActorId;
     const actor = save.actorsById[actorId];
     if (!actor) return;
+    const currentRank = actor.skills?.[skillId] ?? 0;
+    const cost = getSkillTrainingCost(currentRank);
     const spendResult = spendActorXp(save, actorId, cost);
     if (spendResult.error) return;
-    const currentRank = actor.skills?.[skillId] ?? 0;
     const updatedActor = {
       ...actor,
       skills: {
@@ -1047,6 +1056,13 @@ export function PlayScreen({
         save={save}
         actor={save.actorsById[save.party.activeActorId]}
         onClose={() => setTalentShopVisible(false)}
+        applySystemEffects={applySystemEffects}
+      />
+      <ItemShop
+        visible={itemShopVisible}
+        save={save}
+        actor={save.actorsById[save.party.activeActorId]}
+        onClose={() => setItemShopVisible(false)}
         applySystemEffects={applySystemEffects}
       />
       <SpellShop

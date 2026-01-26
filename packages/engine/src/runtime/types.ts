@@ -94,6 +94,7 @@ export type Effect =
   | { op: "setFlag"; path: string; value: boolean }
   | { op: "addCounter"; path: string; value: number }
   | { op: "addItem"; actorId: ActorId; itemId: ItemId; qty?: number }
+  | { op: "addInventoryItem"; actorId: ActorId; kind: "item" | "weapon" | "armor"; itemId: string; qty?: number }
   | { op: "removeItem"; actorId: ActorId; itemId: ItemId; qty?: number }
   | { op: "clearChoiceCheckResults"; onlyFailed?: boolean; choiceIds?: ChoiceId[] }
   | { op: "goto"; sceneId: SceneId }
@@ -216,6 +217,16 @@ export type Effect =
   | {
       op: "grantXp";
       actorId: ActorId; // XP is per-actor, not global
+      amount: number;
+    }
+  | {
+      op: "grantGold";
+      actorId: ActorId;
+      amount: number;
+    }
+  | {
+      op: "spendGold";
+      actorId: ActorId;
       amount: number;
     }
   | {
@@ -497,6 +508,7 @@ export type StoryPack = {
 
 export type WeaponDamageTier = "fixed" | "half" | "single" | "double" | "triple" | "quadfold" | "fivefold";
 export type WeaponDamageType = "energy" | "explosive" | "impact" | "rendering" | "piercing";
+export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 
 export type WeaponQualityRef = {
   id: string;
@@ -506,6 +518,8 @@ export type WeaponQualityRef = {
 export type Weapon = {
   id: WeaponId;
   name: string;
+  rarity?: ItemRarity;
+  overPrice?: number;
   kind: "MELEE" | "RANGED";
   damage: {
     tier: WeaponDamageTier; // fixed (0), half (1d5), single (1d10), double (2d10), triple (3d10), quadfold (4d10), fivefold (5d10)
@@ -530,6 +544,8 @@ export type Weapon = {
 export type Armor = {
   id: ArmorId;
   name: string;
+  rarity?: ItemRarity;
+  overPrice?: number;
   soak: number; // flat damage reduction
   agiMax?: number;
   weight: number;
@@ -550,6 +566,8 @@ export type ItemGrant =
 export type ItemDefinition = {
   id: ItemId;
   name: string;
+  rarity?: ItemRarity;
+  overPrice?: number;
   type: "wearable" | "consumable";
   kind?: "wearable" | "consumable";
   slot?: "mainHand" | "offHand" | "armor" | "helmet" | "boots" | "cloak" | "necklace" | "ring";
@@ -607,6 +625,7 @@ export type Actor = {
     xpEarned?: number; // Lifetime XP earned
     xpSpent?: number; // Lifetime XP spent
     baseStats?: Partial<Record<StatKey, number>>; // Starting stats used for training costs
+    gold?: number; // Gold coins held by this actor
   };
 
   /**

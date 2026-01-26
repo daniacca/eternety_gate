@@ -2,6 +2,7 @@
   {
     "id": "shield:wooden",
     "name": "Wooden Shield",
+    "rarity": "Common",
     "type": "wearable",
     "slot": "offHand",
     "weight": 4,
@@ -13,6 +14,7 @@
   {
     "id": "helmet:leather",
     "name": "Leather Cap",
+    "rarity": "Common",
     "type": "wearable",
     "slot": "helmet",
     "weight": 1,
@@ -21,6 +23,7 @@
   {
     "id": "boots:leather",
     "name": "Leather Boots",
+    "rarity": "Common",
     "type": "wearable",
     "slot": "boots",
     "weight": 1,
@@ -29,6 +32,7 @@
   {
     "id": "cloak:traveler",
     "name": "Traveler's Cloak",
+    "rarity": "Common",
     "type": "wearable",
     "slot": "cloak",
     "weight": 1,
@@ -37,6 +41,7 @@
   {
     "id": "necklace:iron",
     "name": "Iron Necklace",
+    "rarity": "Common",
     "type": "wearable",
     "slot": "necklace",
     "weight": 1,
@@ -45,6 +50,7 @@
   {
     "id": "helmet:spiked",
     "name": "Spiked Helm",
+    "rarity": "Uncommon",
     "type": "wearable",
     "slot": "helmet",
     "weight": 2,
@@ -61,6 +67,7 @@
   {
     "id": "cloak:shadow",
     "name": "Shadow Cloak",
+    "rarity": "Uncommon",
     "type": "wearable",
     "slot": "cloak",
     "weight": 1,
@@ -77,6 +84,7 @@
   {
     "id": "boots:agility",
     "name": "Boots of Agility",
+    "rarity": "Uncommon",
     "type": "wearable",
     "slot": "boots",
     "weight": 1,
@@ -93,6 +101,7 @@
   {
     "id": "ring:clarity",
     "name": "Ring of Clarity",
+    "rarity": "Rare",
     "type": "wearable",
     "slot": "ring",
     "weight": 0.1,
@@ -115,6 +124,7 @@
   {
     "id": "necklace:focus",
     "name": "Necklace of Magic Focus",
+    "rarity": "Rare",
     "type": "wearable",
     "slot": "necklace",
     "weight": 0.2,
@@ -137,6 +147,7 @@
   {
     "id": "ring:aegis",
     "name": "Ring of Aegis",
+    "rarity": "Rare",
     "type": "wearable",
     "slot": "ring",
     "weight": 0.1,
@@ -152,6 +163,7 @@
   {
     "id": "robe:wraithbone",
     "name": "Wraithbone Robe",
+    "rarity": "Uncommon",
     "type": "wearable",
     "slot": "armor",
     "weight": 2,
@@ -169,6 +181,7 @@
   {
     "id": "potion:healing",
     "name": "Healing Potion",
+    "rarity": "Common",
     "type": "consumable",
     "kind": "consumable",
     "weight": 0.2,
@@ -182,6 +195,7 @@
   {
     "id": "potion:fatigue",
     "name": "Fatigue Draught",
+    "rarity": "Common",
     "type": "consumable",
     "kind": "consumable",
     "weight": 0.2,
@@ -195,6 +209,7 @@
   {
     "id": "scroll:soothe_wounds",
     "name": "Scroll of Soothe Wounds",
+    "rarity": "Uncommon",
     "type": "consumable",
     "kind": "consumable",
     "weight": 0.1,
@@ -209,6 +224,7 @@
   {
     "id": "ammo:arrow",
     "name": "Arrows",
+    "rarity": "Common",
     "type": "consumable",
     "weight": 0.1,
     "maxStack": 20,
@@ -217,6 +233,7 @@
   {
     "id": "ammo:bolt",
     "name": "Bolts",
+    "rarity": "Common",
     "type": "consumable",
     "weight": 0.1,
     "maxStack": 20,
@@ -225,6 +242,7 @@
   {
     "id": "ammo:shot",
     "name": "Shots",
+    "rarity": "Common",
     "type": "consumable",
     "weight": 0.1,
     "maxStack": 20,

@@ -14,6 +14,7 @@ import {
   getMagicPower,
   getActorTalentsWithParams,
   canUseItem,
+  getItemRefQty,
 } from "@eg/engine";
 import { useState, useEffect } from "react";
 import type { ConditionId } from "@eg/engine";
@@ -488,6 +489,17 @@ export function PlayerSheet({
               >
                 <Text style={styles.actionButtonText}>{showLearnSpells ? "Nascondi" : "Impara Incantesimi"}</Text>
               </TouchableOpacity>
+              {/* Debug: Grant gold */}
+              <TouchableOpacity
+                style={[styles.actionButton, { marginTop: 8, backgroundColor: "#16a34a" }]}
+                onPress={() => {
+                  if (applySystemEffects) {
+                    applySystemEffects([{ op: "grantGold", actorId: activeActor.id, amount: 100 }]);
+                  }
+                }}
+              >
+                <Text style={styles.actionButtonText}>+100 Oro (debug)</Text>
+              </TouchableOpacity>
               {/* Debug: Learn all spells button */}
               <TouchableOpacity
                 style={[styles.actionButton, { marginTop: 8, backgroundColor: "#ff6b6b" }]}
@@ -648,9 +660,11 @@ export function PlayerSheet({
                   const isConsumable = Boolean(itemDef?.consumable?.actionId);
                   const isWearable = Boolean(itemDef && (itemDef.kind ?? itemDef.type) === "wearable");
                   const canUse = isConsumable ? canUseItem(save, activeActor.id, itemRef) : { ok: false };
+                  const itemQty = getItemRefQty(itemRef);
+                  const itemLabel = `${getItemName(itemRef)}${itemQty > 1 ? ` x${itemQty}` : ""}`;
                   return (
                     <View key={index} style={styles.inventoryRow}>
-                      <Text style={styles.inventoryItem}>{getItemName(itemRef)}</Text>
+                      <Text style={styles.inventoryItem}>{itemLabel}</Text>
                       {applySystemEffects && (
                         <View style={styles.inventoryActions}>
                           {isConsumable && onUseItem && (

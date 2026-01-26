@@ -2,6 +2,7 @@
   {
     "id": "leather",
     "name": "Leather Armor",
+    "rarity": "Common",
     "soak": 1,
     "weight": 6,
     "tags": ["light"]
@@ -9,6 +10,7 @@
   {
     "id": "chainmail",
     "name": "Chainmail",
+    "rarity": "Uncommon",
     "soak": 2,
     "agiMax": 55,
     "weight": 12,
@@ -17,6 +19,7 @@
   {
     "id": "plate",
     "name": "Plate Armor",
+    "rarity": "Uncommon",
     "soak": 4,
     "agiMax": 45,
     "weight": 18,
@@ -25,6 +28,7 @@
   {
     "id": "fullplate",
     "name": "Full Plate Armor",
+    "rarity": "Uncommon",
     "soak": 8,
     "agiMax": 35,
     "weight": 28,

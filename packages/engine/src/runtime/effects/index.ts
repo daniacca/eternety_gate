@@ -28,7 +28,8 @@ import { handleNarrativeSpell } from "./narrativeSpell";
 import { handleAcquireTalent, handleGrantXp, handleGrantFatePoint } from "./acquireTalent";
 import { handleSetFateProtection } from "./fate";
 import { applySetFlag, applyAddCounter } from "./state";
-import { applyAddItem, applyRemoveItem } from "./items";
+import { applyAddItem, applyAddInventoryItem, applyRemoveItem } from "./items";
+import { handleGrantGold, handleSpendGold } from "./gold";
 import { applyClearChoiceCheckResults } from "./choiceChecks";
 import { applyGoto } from "./navigation";
 import { applyConditionalEffects } from "./conditional";
@@ -60,6 +61,9 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   }),
   addItem: (effect, storyPack, save, _rng) => ({
     save: applyAddItem(effect as Extract<Effect, { op: "addItem" }>, save, storyPack),
+  }),
+  addInventoryItem: (effect, storyPack, save, _rng) => ({
+    save: applyAddInventoryItem(effect as Extract<Effect, { op: "addInventoryItem" }>, save, storyPack),
   }),
   removeItem: (effect, _storyPack, save, _rng) => ({
     save: applyRemoveItem(effect as Extract<Effect, { op: "removeItem" }>, save),
@@ -123,6 +127,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
   acquireTalent: (effect, storyPack, save, _rng) =>
     handleAcquireTalent(effect as Extract<Effect, { op: "acquireTalent" }>, storyPack, save),
   grantXp: (effect, _storyPack, save, _rng) => handleGrantXp(effect as Extract<Effect, { op: "grantXp" }>, save),
+  grantGold: (effect, _storyPack, save, _rng) => handleGrantGold(effect as Extract<Effect, { op: "grantGold" }>, save),
+  spendGold: (effect, _storyPack, save, _rng) => handleSpendGold(effect as Extract<Effect, { op: "spendGold" }>, save),
   grantFatePoint: (effect, _storyPack, save, _rng) =>
     handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, save),
   setFateProtection: (effect, _storyPack, save, _rng) =>

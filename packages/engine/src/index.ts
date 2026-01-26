@@ -43,8 +43,15 @@ export {
 
 // Inventory helpers
 export { posKey, isWeaponItemRef, isArmorItemRef, isCatalogItemRef } from "./runtime/items";
-export { getEquippedWeaponId, getEquippedArmorId, getActorInventory } from "./runtime/characters/inventory";
+export {
+  getEquippedWeaponId,
+  getEquippedArmorId,
+  getActorInventory,
+  getActorCarriedWeightKg,
+  getActorCarryCapacityKg,
+} from "./runtime/characters/inventory";
 export { canUseItem, useItem } from "./runtime/items";
+export { getItemPrice, getAdjustedPrice, getBasePriceFromRarity } from "./runtime/items/pricing";
 
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from "./runtime/combat/movement";
@@ -95,6 +102,7 @@ export { getGrid, getCellTerrain } from "./runtime/combat/terrain";
 
 // Character framework
 export { getActorXp, grantActorXp, spendActorXp, buyTalent } from "./runtime/characters/xp";
+export { getActorGold, grantActorGold, spendActorGold } from "./runtime/characters/gold";
 export {
   evaluatePrerequisites,
   hasTrait,
@@ -107,7 +115,7 @@ export {
 } from "./runtime/characters/prerequisites";
 export { hasUnlockedAction } from "./runtime/characters/actions";
 export { getModifierTotal } from "./runtime/characters/modifiers";
-export { getSkillTarget } from "./runtime/characters/skills";
+export { getSkillTarget, getSkillTrainingCost } from "./runtime/characters/skills";
 export { getRangedDamageBonusFromMightyShot } from "./runtime/characters/mightyShot";
 export { getNaturalWeaponProfile } from "./runtime/characters/naturalWeapons";
 export {
