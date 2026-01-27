@@ -54,6 +54,7 @@ export type StatOrSkillKey = StatKey | `SKILL:${string}`;
 export type ConditionId =
   | "prone"
   | "stunned"
+  | "shock"
   | "bleeding"
   | "fatigue"
   | "unconscious"

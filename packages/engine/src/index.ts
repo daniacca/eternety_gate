@@ -47,6 +47,7 @@ export {
   getEquippedWeaponId,
   getEquippedArmorId,
   getActorInventory,
+  getItemRefQty,
   getInventoryItemQty,
   getActorCarriedWeightKg,
   getActorCarryCapacityKg,

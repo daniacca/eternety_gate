@@ -93,6 +93,23 @@ describe("combatAim", () => {
     expect(result.save.runtime.lastCheck?.tags).toContain("combat:blocked=actionSpent");
   });
 
+  it("should block aim when shocked", () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor({
+      id: "PC_1",
+      stats: { INI: 50, AGI: 50 } as any,
+      conditions: { shock: { stacks: 1 } },
+    });
+    const save = makeTestSave(storyPack, actor);
+    const combatSave = startCombat(storyPack, save, ["PC_1"]);
+
+    const effect: Effect = { op: "combatAim" };
+    const result = combatAim(effect as Extract<Effect, { op: "combatAim" }>, combatSave);
+
+    expect(result.save.runtime.lastCheck?.success).toBe(false);
+    expect(result.save.runtime.lastCheck?.tags).toContain("combat:blocked=shock");
+  });
+
   it("should reset channeling when aiming", () => {
     const storyPack = makeTestStoryPack();
     const actor = makeTestActor({ id: "PC_1", stats: { INI: 50, AGI: 50 } as any });

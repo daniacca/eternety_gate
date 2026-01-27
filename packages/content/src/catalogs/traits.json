@@ -246,7 +246,7 @@
   },
   {
     "id": "trait:undying",
-    "name": "Non Morto",
+    "name": "Undying",
     "grants": [
       {
         "type": "modifier",
@@ -287,8 +287,51 @@
     ]
   },
   {
+    "id": "trait:toxic",
+    "name": "Tossico",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": []
+  },
+  {
+    "id": "trait:baneful_presence",
+    "name": "Presenza Nefasta",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": []
+  },
+  {
+    "id": "trait:fear",
+    "name": "Paura",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": []
+  },
+  {
+    "id": "trait:from_beyond",
+    "name": "Da Oltre",
+    "grants": []
+  },
+  {
+    "id": "trait:warp_weapons",
+    "name": "Armi Warp",
+    "grants": []
+  },
+  {
     "id": "trait:flyer",
-    "name": "Volatore",
+    "name": "Volante",
     "params": {
       "x": {
         "type": "number",

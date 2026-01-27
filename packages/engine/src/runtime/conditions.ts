@@ -86,6 +86,12 @@ export function addConditionToActor(
   ) {
     return actor;
   }
+  if (
+    (condition === "stunned" || condition === "shock") &&
+    actor.traits?.["trait:from_beyond"] !== undefined
+  ) {
+    return actor;
+  }
 
   const existingInstance = actor.conditions?.[condition];
   const newInstance: ConditionInstance = {

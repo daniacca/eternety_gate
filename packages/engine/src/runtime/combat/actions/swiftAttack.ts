@@ -54,6 +54,30 @@ export function combatSwiftAttack(
     return { save };
   }
 
+  const actor = save.actorsById[turnActorId];
+  if (actor?.conditions?.shock) {
+    const blockedCheck = {
+      checkId: "combat:swiftAttack:blocked",
+      actorId: effect.attackerId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=shock"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
   // Load catalogs and check if action is unlocked
   const catalogs =
     storyPack?.skills || storyPack?.talents || storyPack?.traits

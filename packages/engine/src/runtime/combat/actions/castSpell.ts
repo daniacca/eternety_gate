@@ -218,6 +218,30 @@ export function combatCastSpell(
     }
   }
 
+  const shockedActor = save.actorsById[turnActorId];
+  if (shockedActor?.conditions?.shock && spell.castTime === "fullRound") {
+    const blockedCheck: CheckResult = {
+      checkId: "combat:castSpell:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:blocked=shock"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
   const targetSelection: TargetSelection = effect.targetSelection;
   const spellTargetSpec: TargetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
   let targetPreview: TargetPreview = computeTargetPreview(save, turnActorId, spellTargetSpec, targetSelection);
@@ -552,6 +576,7 @@ export function combatCastSpell(
 
     // Initialize valid targets (will be filtered by opposed saves if needed)
     let validTargetActors = [...targetActors];
+
     const targetOvercastById = new Map<ActorId, number>();
 
     // Magic Resistance (per target): may fully resist or reduce overcast for that target
@@ -587,6 +612,30 @@ export function combatCastSpell(
       }
 
       validTargetActors = targetActors.filter((t) => !resistedByMr.has(t.actorId));
+    }
+
+    // From Beyond: immune to all MENTIS spells
+    if (spell.discipline === "MENTIS" && validTargetActors.length > 0) {
+      const immuneTargets = new Set<ActorId>();
+      for (const target of validTargetActors) {
+        if (target.actor.traits?.["trait:from_beyond"] !== undefined) {
+          immuneTargets.add(target.actorId);
+        }
+      }
+      if (immuneTargets.size > 0) {
+        validTargetActors = validTargetActors.filter((t) => !immuneTargets.has(t.actorId));
+        for (const targetId of immuneTargets) {
+          const targetName = updatedSave.actorsById[targetId]?.name || targetId;
+          updatedSave = appendCombatLog(updatedSave, `${targetName} è immune agli effetti mentali.`);
+          updatedSave = appendRuntimeLog(updatedSave, {
+            kind: "system",
+            message: `From Beyond: ${targetId} resists MENTIS spell ${spell.id}`,
+            turnCounter: combat.turnCounter,
+            resolutionId,
+            tags: ["trait:from_beyond", "magic:discipline=MENTIS", `magic:spell=${spell.id}`],
+          });
+        }
+      }
     }
 
     const getOvercastForTarget = (actorId: ActorId): number =>

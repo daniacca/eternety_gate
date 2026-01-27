@@ -39,6 +39,30 @@ export function combatAim(
     };
   }
 
+  const actor = save.actorsById[turnActorId];
+  if (actor?.conditions?.shock) {
+    const blockedCheck = {
+      checkId: "combat:aim:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=shock"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+
   if (!combat.turn.actionAvailable) {
     // Action already spent
     const blockedCheck = {
@@ -103,7 +127,6 @@ export function combatAim(
   };
 
   // Add narration
-  const actor = save.actorsById[turnActorId];
   const logEntry = actor?.kind === "PC" ? `Prendi la mira.` : `${actor?.name || turnActorId} prende la mira.`;
   updatedSave = appendCombatLog(updatedSave, logEntry);
 

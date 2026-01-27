@@ -12,7 +12,7 @@ import { applyDamageToActor } from "./criticalDamage";
 import { getModifierTotal } from "../characters/modifiers";
 import { trackCombatDamage } from "./damageTracking";
 import { hasTrait } from "../characters/prerequisites";
-import { hasNaturalWeapons } from "../characters/naturalWeapons";
+import { hasNaturalWeapons, isNaturalWeaponId } from "../characters/naturalWeapons";
 import { getMagicPower } from "../magic/pm";
 import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
 import { consumeFateProtection, isFateProtectionActive } from "../characters/fate";
@@ -255,6 +255,10 @@ export function applyCombatDamageIfHit(
   // Get weapon for penetration calculation
   const weaponForPenetration =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+  const isNaturalWeaponAttack =
+    calculatedWeaponId !== "unarmed" && !useFallbackWeapon && isNaturalWeaponId(calculatedWeaponId);
+  const usesWarpWeapons =
+    hasTrait(attacker, "trait:warp_weapons", save) && (isUnarmed || isNaturalWeaponAttack);
   const forcePenBonus =
     weaponForPenetration && hasWeaponQuality(weaponForPenetration, "force") && hasTrait(attacker, "trait:weaver", save)
       ? getMagicPower(save, attacker.id, catalogs)
@@ -273,7 +277,9 @@ export function applyCombatDamageIfHit(
 
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag
   let effectiveSoak = soak;
-  if (isUnarmed || useFallbackWeapon) {
+  if (usesWarpWeapons) {
+    effectiveSoak = 0;
+  } else if (isUnarmed || useFallbackWeapon) {
     const hasNaturalWeapon = hasNaturalWeapons(save, catalogs, attacker.id);
     if (!hasNaturalWeapon) {
       effectiveSoak = soak * 2;
@@ -283,7 +289,9 @@ export function applyCombatDamageIfHit(
     // Penetration reduces effective soak (but not below 0)
     effectiveSoak = Math.max(0, soak - effectivePenetration);
   }
-  const extraSoak = machineSoak > 0 ? machineSoak : naturalArmorSoak;
+  const defenderHasWeaver = hasTrait(defender, "trait:weaver", save);
+  const effectiveNaturalArmorSoak = usesWarpWeapons && !defenderHasWeaver ? 0 : naturalArmorSoak;
+  const extraSoak = machineSoak > 0 ? machineSoak : effectiveNaturalArmorSoak;
   if (extraSoak > 0) {
     effectiveSoak += extraSoak;
   }
@@ -572,70 +580,6 @@ export function applyCombatDamageIfHit(
       });
     }
 
-    const toxicRank = getWeaponQualityRank(weaponForHitEffects, "toxic");
-    if (toxicRank && toxicRank > 0 && storyPack) {
-      const toxicCheck: SingleCheck = {
-        id: `combat:toxic:${attacker.id}:${defender.id}`,
-        kind: "single",
-        actorRef: { mode: "byId", actorId: defender.id },
-        key: "TOU",
-        difficulty: "Challenging",
-        modifier: -10 * toxicRank,
-      };
-      const { result: toxicResult, save: saveAfterToxicCheck } = performCheckWithSave(
-        toxicCheck,
-        storyPack,
-        updatedSave,
-        rng,
-        resolutionId ? `${resolutionId}:toxic` : undefined
-      );
-      updatedSave = {
-        ...saveAfterToxicCheck,
-        runtime: {
-          ...saveAfterToxicCheck.runtime,
-          rngCounter: rng.getCounter(),
-        },
-      };
-      updatedSave = appendRuntimeLog(updatedSave, {
-        kind: "system",
-        message: `Toxic: ${defender.id} ${toxicResult?.success ? "resists" : "fails"} (rank ${toxicRank})`,
-        turnCounter: save.runtime.combat?.turnCounter ?? 0,
-        resolutionId,
-        tags: ["weapon:toxic", `rank=${toxicRank}`, `success=${toxicResult?.success ? 1 : 0}`],
-      });
-
-      if (!toxicResult?.success) {
-        const directDamage = rng.nextInt(1, 10);
-        const currentDefender = updatedSave.actorsById[defender.id] ?? defender;
-        const toxicDamageResult = applyDamageToActor(currentDefender, directDamage, updatedSave, rng, storyPack, catalogs);
-        const toxicDefender = toxicDamageResult.updatedActor;
-        if (toxicDamageResult.actorDied) {
-          actorDied = true;
-        }
-        updatedSave = {
-          ...updatedSave,
-          actorsById: {
-            ...updatedSave.actorsById,
-            [defender.id]: toxicDefender,
-          },
-          runtime: {
-            ...updatedSave.runtime,
-            rngCounter: rng.getCounter(),
-          },
-        };
-        if (toxicDamageResult.effects.length > 0) {
-          emittedEffects.push(...toxicDamageResult.effects);
-        }
-        updatedSave = appendRuntimeLog(updatedSave, {
-          kind: "system",
-          message: `Toxic: ${defender.id} suffers ${directDamage} direct damage`,
-          turnCounter: save.runtime.combat?.turnCounter ?? 0,
-          resolutionId,
-          tags: ["weapon:toxic", `damage=${directDamage}`, "direct=1"],
-        });
-      }
-    }
-
     if (hasWeaponQuality(weaponForHitEffects, "sanctified") && storyPack) {
       const hasInstability = defender.traits?.["trait:spiritual_instability"] !== undefined;
       if (hasInstability) {
@@ -701,6 +645,75 @@ export function applyCombatDamageIfHit(
           });
         }
       }
+    }
+  }
+  const toxicTraitParams = attacker.traits?.["trait:toxic"];
+  const toxicTraitRank =
+    typeof toxicTraitParams === "object" && typeof toxicTraitParams.x === "number" ? toxicTraitParams.x : 0;
+  const weaponToxicRank = weaponForHitEffects ? getWeaponQualityRank(weaponForHitEffects, "toxic") : null;
+  const toxicRank =
+    weaponToxicRank ??
+    (toxicTraitRank > 0 && (isUnarmed || isNaturalWeaponAttack) ? toxicTraitRank : null);
+  if (didApplyDamage && toxicRank && toxicRank > 0 && storyPack) {
+    const toxicCheck: SingleCheck = {
+      id: `combat:toxic:${attacker.id}:${defender.id}`,
+      kind: "single",
+      actorRef: { mode: "byId", actorId: defender.id },
+      key: "TOU",
+      difficulty: "Challenging",
+      modifier: -10 * toxicRank,
+    };
+    const { result: toxicResult, save: saveAfterToxicCheck } = performCheckWithSave(
+      toxicCheck,
+      storyPack,
+      updatedSave,
+      rng,
+      resolutionId ? `${resolutionId}:toxic` : undefined
+    );
+    updatedSave = {
+      ...saveAfterToxicCheck,
+      runtime: {
+        ...saveAfterToxicCheck.runtime,
+        rngCounter: rng.getCounter(),
+      },
+    };
+    updatedSave = appendRuntimeLog(updatedSave, {
+      kind: "system",
+      message: `Toxic: ${defender.id} ${toxicResult?.success ? "resists" : "fails"} (rank ${toxicRank})`,
+      turnCounter: save.runtime.combat?.turnCounter ?? 0,
+      resolutionId,
+      tags: ["weapon:toxic", `rank=${toxicRank}`, `success=${toxicResult?.success ? 1 : 0}`],
+    });
+
+    if (!toxicResult?.success) {
+      const directDamage = rng.nextInt(1, 10);
+      const currentDefender = updatedSave.actorsById[defender.id] ?? defender;
+      const toxicDamageResult = applyDamageToActor(currentDefender, directDamage, updatedSave, rng, storyPack, catalogs);
+      const toxicDefender = toxicDamageResult.updatedActor;
+      if (toxicDamageResult.actorDied) {
+        actorDied = true;
+      }
+      updatedSave = {
+        ...updatedSave,
+        actorsById: {
+          ...updatedSave.actorsById,
+          [defender.id]: toxicDefender,
+        },
+        runtime: {
+          ...updatedSave.runtime,
+          rngCounter: rng.getCounter(),
+        },
+      };
+      if (toxicDamageResult.effects.length > 0) {
+        emittedEffects.push(...toxicDamageResult.effects);
+      }
+      updatedSave = appendRuntimeLog(updatedSave, {
+        kind: "system",
+        message: `Toxic: ${defender.id} suffers ${directDamage} direct damage`,
+        turnCounter: save.runtime.combat?.turnCounter ?? 0,
+        resolutionId,
+        tags: ["weapon:toxic", `damage=${directDamage}`, "direct=1"],
+      });
     }
   }
 

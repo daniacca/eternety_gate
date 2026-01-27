@@ -277,6 +277,23 @@ export function runNarrativeSpell(
     );
   }
 
+  if (spell.discipline === "MENTIS") {
+    const targetActorId =
+      narrativeConfig.target === "self"
+        ? casterId
+        : narrativeConfig.target === "singleActor"
+        ? (request.targetActorId as ActorId | undefined)
+        : undefined;
+    if (targetActorId) {
+      const targetActor = updatedSave.actorsById[targetActorId];
+      if (targetActor?.traits?.["trait:from_beyond"] !== undefined) {
+        opsToApply = [];
+        logs.push("L'obiettivo è immune agli effetti mentali.");
+        tags.push("magic:immune=from_beyond");
+      }
+    }
+  }
+
   // Apply narrative ops
   if (opsToApply.length > 0) {
     const { save: afterOpsSave, emittedLogs } = applyNarrativeOps(

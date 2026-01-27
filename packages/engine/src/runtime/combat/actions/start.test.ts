@@ -131,6 +131,72 @@ describe("combatStart", () => {
     expect(result.save.runtime.combatLog?.length).toBeGreaterThan(0);
   });
 
+  it("should apply Fear at combat start and add shock on failure", () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor({ id: "PC_1", stats: { WIL: 10, INI: 50 } as any });
+    const fearSource = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { INI: 30 } as any,
+      traits: { "trait:fear": { x: 3 } },
+    });
+    const save = makeTestSave(storyPack, actor);
+    const saveWithBoth = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [fearSource.id]: fearSource,
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatStart",
+      participantIds: ["PC_1", "NPC_1"],
+      placements: [
+        { actorId: "PC_1", x: 0, y: 0 },
+        { actorId: "NPC_1", x: 1, y: 0 },
+      ],
+    };
+    const result = combatStart(effect as Extract<Effect, { op: "combatStart" }>, storyPack, saveWithBoth);
+
+    expect(result.save.actorsById["PC_1"].conditions?.shock).toBeDefined();
+  });
+
+  it("should ignore Fear for actors with From Beyond", () => {
+    const storyPack = makeTestStoryPack();
+    const actor = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 10, INI: 50 } as any,
+      traits: { "trait:from_beyond": {} },
+    });
+    const fearSource = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { INI: 30 } as any,
+      traits: { "trait:fear": { x: 3 } },
+    });
+    const save = makeTestSave(storyPack, actor);
+    const saveWithBoth = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [fearSource.id]: fearSource,
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatStart",
+      participantIds: ["PC_1", "NPC_1"],
+      placements: [
+        { actorId: "PC_1", x: 0, y: 0 },
+        { actorId: "NPC_1", x: 1, y: 0 },
+      ],
+    };
+    const result = combatStart(effect as Extract<Effect, { op: "combatStart" }>, storyPack, saveWithBoth);
+
+    expect(result.save.actorsById["PC_1"].conditions?.shock).toBeUndefined();
+  });
+
   it("should place party members using partyPlacement area", () => {
     const storyPack = makeTestStoryPack();
     const actor1 = makeTestActor({ id: "PC_1", stats: { INI: 50 } as any });

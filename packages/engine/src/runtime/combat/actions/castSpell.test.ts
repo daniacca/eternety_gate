@@ -252,3 +252,62 @@ describe("combatCastSpell - magic resistance", () => {
     expect(runtimeLog.some((entry) => entry.kind === "system" && entry.tags?.includes("magic:resisted"))).toBe(true);
   });
 });
+
+describe("combatCastSpell - From Beyond immunity", () => {
+  it("should ignore MENTIS effects on From Beyond targets", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { INT: 100, WIL: 50, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:mentis_disrupt": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      traits: { "trait:from_beyond": {} },
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:mentis_disrupt",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([1], [5]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    expect(result.save.actorsById[target.id].resources.rf ?? 0).toBe(0);
+  });
+});

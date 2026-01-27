@@ -204,6 +204,120 @@ describe("damage", () => {
       expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(0); // No wounds taken
     });
 
+    it("should apply Toxic trait to unarmed attacks", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 0 } as any,
+        traits: { "trait:toxic": { x: 2 } },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        stats: { TOU: 0 } as any,
+        resources: { wounds: 0, rf: 0, peq: 100 },
+      });
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      const d100ForUnarmed = FakeRng.d100ForNextInt(1, 1, 5);
+      const d100ForToxicCheck = 50;
+      const d100ForToxicDamage = FakeRng.d100ForNextInt(4, 1, 10);
+      const rng = new FakeRng([d100ForUnarmed, d100ForToxicCheck, d100ForToxicDamage]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 50,
+        success: true,
+        dos: 2,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng, storyPack);
+      expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(5);
+    });
+
+    it("should let Warp Weapons bypass physical armor on natural attacks", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 0 } as any,
+        traits: { "trait:warp_weapons": {} },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        stats: { TOU: 0 } as any,
+        equipment: {
+          ...makeTestActor().equipment,
+          armor: { kind: "armor", id: "plate" },
+        },
+      });
+      const armor: Armor = {
+        id: "plate",
+        name: "Plate",
+        soak: 5,
+        weight: 10,
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        armorsById: {
+          plate: armor,
+        },
+      };
+      const d100ForUnarmed = FakeRng.d100ForNextInt(5, 1, 5);
+      const rng = new FakeRng([d100ForUnarmed]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 50,
+        success: true,
+        dos: 2,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng, storyPack);
+      expect(damageResult.finalDamage).toBe(5);
+    });
+
     it("should apply Righteous Fury on critical success", () => {
       const storyPack = makeTestStoryPack();
       const weapon: Weapon = {

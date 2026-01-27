@@ -5,6 +5,7 @@ import { evaluatePrerequisites } from "../characters/prerequisites";
 import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 import { getModifierTotal } from "../characters/modifiers";
 import { applyArmorAgiCap } from "../characters/effectiveStats";
+import { footprintDistanceBetweenActors } from "../combat/footprint";
 
 /**
  * Gets the value of a stat or skill for an actor
@@ -16,6 +17,23 @@ export function getStatOrSkillValue(
   save: GameSave,
   storyPack?: StoryPack
 ): number {
+  let banefulPresencePenalty = 0;
+  const combat = save.runtime.combat;
+  if (combat?.active && combat.positions?.[actor.id]) {
+    for (const otherId of combat.participants) {
+      if (otherId === actor.id) continue;
+      const other = save.actorsById[otherId];
+      if (!other) continue;
+      const presenceParams = other.traits?.["trait:baneful_presence"];
+      const presenceRange =
+        typeof presenceParams === "object" && typeof presenceParams.x === "number" ? presenceParams.x : 0;
+      if (presenceRange <= 0) continue;
+      const distance = footprintDistanceBetweenActors(save, actor.id, otherId);
+      if (distance <= presenceRange) {
+        banefulPresencePenalty -= 10;
+      }
+    }
+  }
   const catalogs =
     storyPack?.skills || storyPack?.talents || storyPack?.traits
       ? loadCharacterCatalogs({
@@ -52,6 +70,10 @@ export function getStatOrSkillValue(
       if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }
+    }
+
+    if (statKey === "WIL" && banefulPresencePenalty !== 0) {
+      value += banefulPresencePenalty;
     }
 
     return value;
@@ -105,6 +127,10 @@ export function getStatOrSkillValue(
       if ((tempMod.scope === "check" || tempMod.scope === "all") && (!tempMod.key || tempMod.key === key)) {
         value += tempMod.value;
       }
+    }
+
+    if (baseStat === "WIL" && banefulPresencePenalty !== 0) {
+      value += banefulPresencePenalty;
     }
 
     return value;

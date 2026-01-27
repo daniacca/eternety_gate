@@ -108,6 +108,44 @@ describe("checks", () => {
       expect(value).toBe(50);
     });
 
+    it("should apply Baneful Presence penalty to WIL-based checks in combat", () => {
+      const storyPack = makeTestStoryPack();
+      const target = makeTestActor({ id: "PC_1", stats: { WIL: 40 } as any });
+      const source = makeTestActor({
+        id: "NPC_1",
+        kind: "NPC",
+        traits: { "trait:baneful_presence": { x: 2 } },
+      });
+      const save = makeTestSave(storyPack, target);
+      const saveWithCombat = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [source.id]: source,
+        },
+        runtime: {
+          ...save.runtime,
+          combat: {
+            active: true,
+            participants: [target.id, source.id],
+            currentIndex: 0,
+            round: 1,
+            grid: { width: 5, height: 5 },
+            positions: {
+              [target.id]: { x: 0, y: 0 },
+              [source.id]: { x: 1, y: 0 },
+            },
+            turn: { moveRemaining: 3, actionAvailable: true },
+            turnCounter: 0,
+          },
+        },
+      };
+
+      const value = getStatOrSkillValue(target, "WIL", saveWithCombat);
+
+      expect(value).toBe(30);
+    });
+
     it("should apply equipment bonuses to stats", () => {
       const storyPack = makeTestStoryPack();
       const actor = makeTestActor({

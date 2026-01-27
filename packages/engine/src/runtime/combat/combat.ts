@@ -122,8 +122,17 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
   const logEntry =
     outcome === "victory" ? "Tutti i nemici presenti nell'area sono stati sconfitti." : "Il party è stato annientato. Game over.";
 
+  const clearedActorsById = { ...save.actorsById };
+  for (const actorId of combat.participants) {
+    const actor = clearedActorsById[actorId];
+    if (actor?.conditions?.shock) {
+      clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
+    }
+  }
+
   const updatedSave: GameSave = {
     ...save,
+    actorsById: clearedActorsById,
     runtime: {
       ...save.runtime,
       combat: undefined,
@@ -497,6 +506,76 @@ export function startCombat(
   const turnHeader = isPlayerTurn ? `— Tocca a te —` : `— Turno 1: ${actorName} —`;
   updatedSave = appendCombatLog(updatedSave, turnHeader);
 
+  // Fear: apply willpower test at combat start
+  const fearSources = orderedIds
+    .map((id) => {
+      const actor = save.actorsById[id];
+      const fearParams = actor?.traits?.["trait:fear"];
+      const fearRank =
+        typeof fearParams === "object" && typeof fearParams.x === "number" ? fearParams.x : 0;
+      return { id, fearRank };
+    })
+    .filter((entry) => entry.fearRank > 0);
+
+  if (fearSources.length > 0) {
+    for (const targetId of orderedIds) {
+      const targetActor = updatedSave.actorsById[targetId];
+      if (!targetActor) continue;
+      if (targetActor.traits?.["trait:from_beyond"] !== undefined) {
+        continue;
+      }
+      const maxFear = Math.max(
+        0,
+        ...fearSources.filter((source) => source.id !== targetId).map((source) => source.fearRank)
+      );
+      if (maxFear <= 0) continue;
+      const fearPenalty = -10 * Math.max(0, maxFear - 1);
+      const fearCheck: SingleCheck = {
+        id: `combat:fear:${targetId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: targetId },
+        key: "WIL",
+        difficulty: "Challenging",
+        modifier: fearPenalty,
+      };
+      const { result: fearResult, save: saveAfterFearCheck } = performCheckWithSave(
+        fearCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:fear:${targetId}`
+      );
+      updatedSave = {
+        ...saveAfterFearCheck,
+        runtime: {
+          ...saveAfterFearCheck.runtime,
+          rngCounter: rng.getCounter(),
+        },
+      };
+      if (!fearResult?.success) {
+        const shockedActor = addConditionToActor(
+          updatedSave.actorsById[targetId],
+          "shock",
+          1,
+          undefined,
+          "trait:fear"
+        );
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [targetId]: shockedActor,
+          },
+        };
+        const fearLog =
+          targetActor.kind === "PC"
+            ? "Sei terrorizzato dall'orrore innaturale e resti sotto shock."
+            : `${targetActor.name || targetId} è terrorizzato dall'orrore innaturale e resta sotto shock.`;
+        updatedSave = appendCombatLog(updatedSave, fearLog);
+      }
+    }
+  }
+
   return updatedSave;
 }
 
@@ -569,8 +648,17 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
           tags: ["combat:state=end", `combat:outcome=${outcome}`, ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
+    const clearedActorsById = { ...save.actorsById };
+    for (const actorId of combat.participants) {
+      const actor = clearedActorsById[actorId];
+      if (actor?.conditions?.shock) {
+        clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
+      }
+    }
+
     let updatedSave = {
       ...save,
+      actorsById: clearedActorsById,
       runtime: {
         ...save.runtime,
         combat: undefined,
@@ -777,8 +865,17 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
 
           updatedSave = appendCombatLog(updatedSave, endLog);
 
+          const clearedActorsById = { ...updatedSave.actorsById };
+          for (const actorId of updatedSave.runtime.combat?.participants ?? []) {
+            const actor = clearedActorsById[actorId];
+            if (actor?.conditions?.shock) {
+              clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
+            }
+          }
+
           return {
             ...updatedSave,
+            actorsById: clearedActorsById,
             runtime: {
               ...updatedSave.runtime,
               combat: undefined,
@@ -1033,8 +1130,17 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
 
               updatedSave = appendCombatLog(updatedSave, endLog);
 
+              const clearedActorsById = { ...updatedSave.actorsById };
+              for (const actorId of updatedSave.runtime.combat?.participants ?? []) {
+                const actor = clearedActorsById[actorId];
+                if (actor?.conditions?.shock) {
+                  clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
+                }
+              }
+
               return {
                 ...updatedSave,
+                actorsById: clearedActorsById,
                 runtime: {
                   ...updatedSave.runtime,
                   combat: undefined,
