@@ -113,6 +113,31 @@ export function performCheckWithSave(
     };
   }
 
+  if (outcome.result?.tags?.includes("fate:mastery=1")) {
+    const actorId = outcome.result.actorId;
+    const actor = outcome.save.actorsById[actorId];
+    const fatePoints = actor?.resources.fatePoints ?? 0;
+    if (actor && fatePoints > 0) {
+      const updatedActor = {
+        ...actor,
+        resources: {
+          ...actor.resources,
+          fatePoints: fatePoints - 1,
+        },
+      };
+      outcome = {
+        ...outcome,
+        save: {
+          ...outcome.save,
+          actorsById: {
+            ...outcome.save.actorsById,
+            [actorId]: updatedActor,
+          },
+        },
+      };
+    }
+  }
+
   // Centralized logging: log check if party member performed it
   // This applies to ALL check kinds (attack, parry/dodge, knockdown, disarm, narrative, magic, etc.)
   // Defense checks are already logged inside performCombatAttackCheck when defender is party member

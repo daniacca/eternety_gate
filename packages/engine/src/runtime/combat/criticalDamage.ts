@@ -5,6 +5,7 @@ import { performCheckWithSave } from "../checks";
 import { calculateMaxHp } from "../characters/hp";
 import { hasTalentHook } from "../characters/talentModifiers";
 import { isFateProtectionActive } from "../characters/fate";
+import { getCharacteristicBonus } from "../characters/bonuses";
 
 /**
  * Applies critical damage tier effects and determines if actor dies.
@@ -258,6 +259,23 @@ export function applyDamageToActor(
         actorDied: false,
         dieHardUsed: true,
       };
+    }
+  }
+
+  // True Grit talent: reduce critical damage by TOU bonus (minimum 1 critical damage)
+  if (catalogs && damage > 0 && hasTalentHook(actor, catalogs, "trueGrit")) {
+    const touBonus = getCharacteristicBonus(save, actor.id, "TOU", catalogs);
+    if (touBonus > 0) {
+      if (normalizedHpBefore <= 0) {
+        damage = Math.max(damage - touBonus, 1);
+      } else if (projectedHpAfter <= 0) {
+        const damageToZero = maxHp - woundsBefore;
+        const excessDamage = Math.max(0, damage - damageToZero);
+        if (excessDamage > 0) {
+          const reducedExcess = Math.max(excessDamage - touBonus, 1);
+          damage = damageToZero + reducedExcess;
+        }
+      }
     }
   }
 

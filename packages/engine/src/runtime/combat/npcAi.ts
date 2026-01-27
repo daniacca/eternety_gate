@@ -240,7 +240,9 @@ function applyNpcEffects(
         result = combatStandUp(effect as Extract<Effect, { op: "combatStandUp" }>, currentSave, storyPack);
         break;
       case "addCondition":
-        result = { save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave) };
+        result = {
+          save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave, storyPack, rng),
+        };
         break;
       case "removeCondition":
         result = { save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, currentSave) };
@@ -328,7 +330,9 @@ function applyStoryEffectsQueue(
         result = handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, currentSave);
         break;
       case "addCondition":
-        result = { save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave) };
+        result = {
+          save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, currentSave, storyPack, rng),
+        };
         break;
       case "removeCondition":
         result = { save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, currentSave) };

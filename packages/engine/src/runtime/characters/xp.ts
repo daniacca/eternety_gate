@@ -128,7 +128,7 @@ export function buyTalent(
   }
 
   // Validate prerequisites
-  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites);
+  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites, chosenParams);
   if (!prereqResult.valid) {
     return { save, error: prereqResult.reason || "Prerequisites not met" };
   }

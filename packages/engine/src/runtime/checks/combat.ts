@@ -4,7 +4,7 @@ import { type IRNG } from "../rng";
 import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
 import { rollD100CheckWithFate, type FateRerollContext, createFateRerollContext } from "./fate";
-import { computeCombatModifiersFromConditions } from "../conditions";
+import { computeCombatModifiersFromConditions, hasCondition } from "../conditions";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendCombatLog, appendRuntimeLog } from "../combat/narration";
@@ -23,6 +23,7 @@ import {
   hasDeadeyeTalent,
   getShieldMasteryParryBonus,
   getFatiguePenaltyReduction,
+  hasTalentHook,
 } from "../characters/talentModifiers";
 
 /**
@@ -49,7 +50,8 @@ export function computeAttackTarget(
   const modifierTags: string[] = [];
 
   // Outnumbering modifier
-  if (check.modifiers?.outnumbering !== undefined) {
+  const defenderHasMultiFight = catalogs && hasTalentHook(defender, catalogs, "multiFight");
+  if (check.modifiers?.outnumbering !== undefined && !defenderHasMultiFight) {
     if (check.modifiers.outnumbering >= 3) {
       combatModifier += 20;
       modifierTags.push("combat:mod:outnumbering=+20");
@@ -57,6 +59,8 @@ export function computeAttackTarget(
       combatModifier += 10;
       modifierTags.push("combat:mod:outnumbering=+10");
     }
+  } else if (check.modifiers?.outnumbering !== undefined && defenderHasMultiFight) {
+    modifierTags.push("combat:mod:outnumbering=+0 (Multi Fight)");
   }
 
   // Check if attacker has Marksman talent (ignore distance penalties for ranged)
@@ -449,13 +453,15 @@ export function performCombatAttackCheck(
   const attackHasFlexible = hasWeaponQuality(attackerWeapon, "flexible");
   const parryWeaponUnwieldy = hasWeaponQuality(parryWeapon, "unwieldy");
   const parryBlockedByUnwieldy = parryWeaponUnwieldy && !hasShield;
+  const defenderHasFrenzy = hasCondition(defender, "frenzy");
   const canParry =
     turnCounter >= disabledUntil &&
     check.defense.allowParry &&
     check.attacker.mode === "MELEE" &&
     (hasMeleeWeapon || hasShield) &&
     !attackHasFlexible &&
-    !parryBlockedByUnwieldy;
+    !parryBlockedByUnwieldy &&
+    !defenderHasFrenzy;
   const canDodge = check.defense.allowDodge;
 
   // Use skill keys for defense

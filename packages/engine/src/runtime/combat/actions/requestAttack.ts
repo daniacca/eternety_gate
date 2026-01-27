@@ -15,6 +15,7 @@ import { getActorInventory, getInventoryItemQty, removeInventoryItemQty } from "
 import { getWeaponQualityRank, hasWeaponQuality } from "../../weaponQualities";
 import { isUntouchable } from "../../characters/untouchable";
 import { isActorAlive } from "../../characters/actors";
+import { hasUnlockedAction } from "../../characters/actions";
 import {
   getNaturalWeaponProfile,
   getNaturalWeaponProfileFromActor,
@@ -320,6 +321,89 @@ export function combatRequestAttack(
           traits: storyPack.traits || [],
         })
       : undefined;
+
+  if (effect.vengeanceShot) {
+    if (effect.mode !== "RANGED") {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=vengeanceMeleeOnly"],
+      };
+      return {
+        save: {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+    if (catalogs && !hasUnlockedAction(currentSave, catalogs, effect.attackerId, "combat:vengeanceShot")) {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=actionNotUnlocked", "combat:vengeanceShot=1"],
+      };
+      return {
+        save: {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+    const fatePoints = attacker.resources.fatePoints ?? 0;
+    if (fatePoints <= 0) {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=noFatePoint", "combat:vengeanceShot=1"],
+      };
+      return {
+        save: {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+    currentSave = {
+      ...currentSave,
+      actorsById: {
+        ...currentSave.actorsById,
+        [effect.attackerId]: {
+          ...attacker,
+          resources: {
+            ...attacker.resources,
+            fatePoints: fatePoints - 1,
+          },
+        },
+      },
+    };
+  }
 
   const naturalAbilityWeapons = getNaturalAbilityWeapons(attacker);
   if (naturalAbilityWeapons.length > 0) {
@@ -843,6 +927,11 @@ export function combatRequestAttack(
     const isMagicFueled = hasWeaponQuality(weaponForQuality, "magic_fueled");
     const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
 
+    const vengeanceDamageOptions =
+      effect.vengeanceShot && result.success
+        ? { bonusDamage: result.dos, bonusPenetration: result.dos }
+        : undefined;
+
     // Apply damage if hit (pass resolutionId to correlate with check)
     let damageResult = { save: currentSave, didApplyDamage: false, targetKo: false } as ReturnType<
       typeof applyCombatDamageIfHit
@@ -873,6 +962,7 @@ export function combatRequestAttack(
             targetResolutionId,
             catalogs,
             isMagicFueled,
+            vengeanceDamageOptions,
           );
           currentSave = damageResult.save;
           if (damageResult.effects && damageResult.effects.length > 0) {
@@ -919,6 +1009,7 @@ export function combatRequestAttack(
         attackResolutionId,
         catalogs,
         isMagicFueled,
+        vengeanceDamageOptions,
       );
       currentSave = damageResult.save;
       if (damageResult.effects && damageResult.effects.length > 0) {
@@ -940,6 +1031,7 @@ export function combatRequestAttack(
             attackResolutionId,
             catalogs,
             true,
+            vengeanceDamageOptions,
           );
           currentSave = damageResult.save;
           if (damageResult.actorDied && currentSave.runtime.gameOver) {

@@ -25,8 +25,10 @@ function hasNaturalWeaponsFlag(save: GameSave, catalogs: CharacterCatalogs | und
   return getModifierTotal(save, catalogs, actor.id, "combat.hasNaturalWeapons" as any) > 0;
 }
 
-function hasDeadlyNaturalWeapons(actor: Actor): boolean {
-  return actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined;
+function hasDeadlyNaturalWeapons(save: GameSave, catalogs: CharacterCatalogs | undefined, actor: Actor): boolean {
+  if (actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined) return true;
+  if (!catalogs) return false;
+  return getModifierTotal(save, catalogs, actor.id, "combat.deadlyNaturalWeapons" as any) > 0;
 }
 
 function resolveNaturalWeaponSize(actor: Actor): number {
@@ -90,7 +92,7 @@ export function getNaturalWeaponProfile(
   if (!hasNaturalWeaponsFlag(save, catalogs, actor)) return null;
 
   const weaponId = getNaturalWeaponId(actorId);
-  const deadly = hasDeadlyNaturalWeapons(actor);
+  const deadly = hasDeadlyNaturalWeapons(save, catalogs, actor);
   return buildNaturalWeapon(actor, weaponId, deadly);
 }
 
@@ -100,7 +102,7 @@ export function getNaturalWeaponProfileFromActor(actor: Actor): NaturalWeaponPro
     actor.traits?.[NATURAL_WEAPON_TRAIT] !== undefined ||
     actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined;
   if (!hasNatural) return null;
-  const deadly = hasDeadlyNaturalWeapons(actor);
+  const deadly = actor.traits?.[DEADLY_NATURAL_WEAPON_TRAIT] !== undefined;
   const weaponId = getNaturalWeaponId(actor.id);
   return buildNaturalWeapon(actor, weaponId, deadly);
 }

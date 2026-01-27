@@ -432,6 +432,42 @@ describe("criticalDamage", () => {
       expect(fatigueEffects.length).toBe(0); // No new fatigue (already applied)
     });
 
+    it("should apply True Grit reduction to critical damage", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { TOU: 40 } as any,
+        talents: { "talent:true_grit": 1 },
+        resources: {
+          wounds: 100,
+          criticalDamage: 0,
+          criticalTierApplied: 0,
+          rf: 0,
+          peq: 0,
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([]);
+      const catalogs = {
+        skills: [],
+        traits: [],
+        talents: [
+          {
+            id: "talent:true_grit",
+            name: "True Grit",
+            tier: 3,
+            xpCost: 1000,
+            prerequisites: [],
+            grants: [{ type: "hook", hookId: "trueGrit" }],
+          },
+        ],
+      };
+
+      const result = applyDamageToActor(actor, 3, save, rng, storyPack, catalogs);
+
+      expect(result.updatedActor.resources.criticalDamage).toBe(1);
+    });
+
     it("should handle damage that exceeds maxHp", () => {
       const storyPack = makeTestStoryPack();
       const actor = makeTestActor({

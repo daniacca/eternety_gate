@@ -158,6 +158,17 @@ describe("actor conditions", () => {
       expect(mods.allowParry).toBe(false);
       expect(mods.allowDodge).toBe(false);
     });
+
+    it("should disable parry when frenzy", () => {
+      const actor = makeTestActor({
+        conditions: {
+          frenzy: {},
+        },
+      });
+      const mods = computeCombatModifiersFromConditions(actor);
+
+      expect(mods.allowParry).toBe(false);
+    });
   });
 
   describe("addCondition effect", () => {

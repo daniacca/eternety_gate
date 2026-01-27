@@ -49,6 +49,28 @@ export function combatChannel(
   }
 
   const actor = save.actorsById[turnActorId];
+  if (actor?.conditions?.frenzy) {
+    const blockedCheck = {
+      checkId: "combat:channel:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none" as const,
+      tags: ["combat:blocked=frenzy"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
   if (actor?.conditions?.shock) {
     const blockedCheck = {
       checkId: "combat:channel:blocked",

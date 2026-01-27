@@ -287,6 +287,58 @@ describe("combatRequestAttack ammo consumption", () => {
   });
 });
 
+describe("combatRequestAttack vengeance shot", () => {
+  it("should spend fate and add DoS to damage and penetration", () => {
+    const storyPack = makeTestStoryPack({
+      talents: [
+        {
+          id: "talent:eye_of_vengeance",
+          name: "Eye of Vengeance",
+          tier: 3,
+          xpCost: 1000,
+          prerequisites: [{ type: "statAtLeast", stat: "BS", value: 50 }],
+          grants: [{ type: "unlockAction", actionId: "combat:vengeanceShot" }],
+        },
+      ],
+    });
+    const attacker = makeActor({
+      id: "PC_1",
+      stats: { BS: 50 } as any,
+      equipment: { mainHand: { kind: "weapon", id: "bow" } },
+      inventory: [{ kind: "item", id: "ammo:arrow", qty: 2 }],
+    });
+    attacker.resources = { wounds: 0, rf: 0, fatePoints: 2 };
+    attacker.talents = { "talent:eye_of_vengeance": 1 };
+    const defender = makeActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { STR: 50, TOU: 50, WIL: 50, AGI: 0, WS: 0 } as any,
+    });
+    defender.resources = { wounds: 0, rf: 0 };
+    const save = prepareCombatSave(storyPack, attacker, defender);
+    const rng = new FakeRng([
+      1, // attack roll (auto success)
+      50, // extra roll (e.g. logs/defense path)
+      FakeRng.d100ForNextInt(2, 1, 10), // damage roll (1d10)
+    ]);
+
+    const effect: Effect = {
+      op: "combatRequestAttack",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      mode: "RANGED",
+      weaponId: "bow",
+      vengeanceShot: true,
+      defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+    };
+
+    const result = combatRequestAttack(effect, storyPack, save, rng);
+    const updatedAttacker = result.save.actorsById[attacker.id];
+
+    expect(updatedAttacker.resources.fatePoints).toBe(1);
+  });
+});
+
 describe("combatRequestAttack recharge quality", () => {
   it("blocks ranged attack until recharge expires", () => {
     const storyPack = makeTestStoryPack();

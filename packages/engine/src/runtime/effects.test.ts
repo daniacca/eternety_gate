@@ -134,6 +134,76 @@ describe("effects", () => {
       });
     });
 
+    describe("addCondition", () => {
+      it("should block stunned when Iron Jaw succeeds", () => {
+        const storyPack = makeTestStoryPack({
+          talents: [
+            {
+              id: "talent:iron_jaw",
+              name: "Iron Jaw",
+              tier: 1,
+              xpCost: 250,
+              prerequisites: [],
+              grants: [{ type: "hook", hookId: "ironJaw" }],
+            },
+          ],
+        });
+        const actor = makeTestActor({
+          id: "PC_1",
+          stats: { TOU: 40 } as any,
+          talents: { "talent:iron_jaw": 1 },
+        });
+        const save = makeTestSave(storyPack, actor);
+        const rng = new FakeRng([30]);
+
+        const effect: Effect = {
+          op: "addCondition",
+          actorId: "PC_1",
+          condition: "stunned",
+          durationTurns: 2,
+          source: "test",
+        };
+
+        const result = applyEffect(effect, storyPack, save, rng);
+
+        expect(result.save.actorsById["PC_1"].conditions?.stunned).toBeUndefined();
+      });
+
+      it("should apply stunned when Iron Jaw fails", () => {
+        const storyPack = makeTestStoryPack({
+          talents: [
+            {
+              id: "talent:iron_jaw",
+              name: "Iron Jaw",
+              tier: 1,
+              xpCost: 250,
+              prerequisites: [],
+              grants: [{ type: "hook", hookId: "ironJaw" }],
+            },
+          ],
+        });
+        const actor = makeTestActor({
+          id: "PC_1",
+          stats: { TOU: 40 } as any,
+          talents: { "talent:iron_jaw": 1 },
+        });
+        const save = makeTestSave(storyPack, actor);
+        const rng = new FakeRng([90]);
+
+        const effect: Effect = {
+          op: "addCondition",
+          actorId: "PC_1",
+          condition: "stunned",
+          durationTurns: 2,
+          source: "test",
+        };
+
+        const result = applyEffect(effect, storyPack, save, rng);
+
+        expect(result.save.actorsById["PC_1"].conditions?.stunned).toBeDefined();
+      });
+    });
+
     describe("addCounter", () => {
       it("should add to an existing counter", () => {
         const storyPack = makeTestStoryPack();

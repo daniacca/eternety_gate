@@ -20,6 +20,7 @@ import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { performCheckWithSave } from "../checks";
 import type { SingleCheck } from "../types";
 import { getModifierTotal } from "../characters/modifiers";
+import { hasTalentHook } from "../characters/talentModifiers";
 import {
   getCombatDamageTracking,
   resetCombatDamageTrackingForActor,
@@ -175,7 +176,10 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
 
   const agiStatMod = catalogs ? getModifierTotal(save, catalogs, actor.id, "stat.AGI.testAdd") : 0;
   const cappedAgi = applyArmorAgiCap(save, actor.id, actor.stats.AGI + agiStatMod);
-  const agiBonus = getCharacteristicBonusBase(cappedAgi);
+  let agiBonus = getCharacteristicBonusBase(cappedAgi);
+  if (catalogs && hasTalentHook(actor, catalogs, "sprint")) {
+    agiBonus = Math.floor(agiBonus * 1.5);
+  }
   const sizeModifier = getSizeMovementModifier(actor);
   let baseMove = Math.max(1, agiBonus + sizeModifier + moveDelta);
   
@@ -507,6 +511,18 @@ export function startCombat(
   updatedSave = appendCombatLog(updatedSave, turnHeader);
 
   // Fear: apply willpower test at combat start
+  const fearCatalogs =
+    storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
   const fearSources = orderedIds
     .map((id) => {
       const actor = save.actorsById[id];
@@ -522,6 +538,12 @@ export function startCombat(
       const targetActor = updatedSave.actorsById[targetId];
       if (!targetActor) continue;
       if (targetActor.traits?.["trait:from_beyond"] !== undefined) {
+        continue;
+      }
+      if (fearCatalogs && hasTalentHook(targetActor, fearCatalogs, "jaded")) {
+        continue;
+      }
+      if (targetActor.conditions?.frenzy !== undefined) {
         continue;
       }
       const maxFear = Math.max(

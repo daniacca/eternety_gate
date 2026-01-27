@@ -203,14 +203,17 @@ export function calculateWeaponDamage(
   mode: "MELEE" | "RANGED",
   rollsCount: number = 1,
   catalogs?: CharacterCatalogs,
-  options?: { tearing?: boolean; extraDice?: number }
+  options?: { tearing?: boolean; extraDice?: number; rerollOnes?: boolean }
 ): { rawDamage: number; weaponName: string; weaponId: WeaponId | "unarmed" } {
   if (!weaponId || weaponId === "unarmed" || !save.weaponsById?.[weaponId]) {
     // Unarmed: 1d5 + STR bonus (always applies STR bonus for unarmed)
     let bestRoll = 0;
     const strBonus = getCharacteristicBonus(save, attacker.id, "STR");
     for (let i = 0; i < rollsCount; i++) {
-      const dieRoll = rng.nextInt(1, 5);
+      let dieRoll = rng.nextInt(1, 5);
+      if (options?.rerollOnes && dieRoll === 1) {
+        dieRoll = rng.nextInt(1, 5);
+      }
       const rollTotal = dieRoll + strBonus;
       if (rollTotal > bestRoll) {
         bestRoll = rollTotal;

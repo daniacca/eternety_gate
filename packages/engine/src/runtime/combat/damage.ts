@@ -16,6 +16,7 @@ import { hasNaturalWeapons, isNaturalWeaponId } from "../characters/naturalWeapo
 import { getMagicPower } from "../magic/pm";
 import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
 import { consumeFateProtection, isFateProtectionActive } from "../characters/fate";
+import { hasTalentHook } from "../characters/talentModifiers";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -29,7 +30,8 @@ export function applyCombatDamageIfHit(
   storyPack?: StoryPack,
   resolutionId?: string,
   catalogs?: CharacterCatalogs,
-  isMagicalSource: boolean = false
+  isMagicalSource: boolean = false,
+  damageOptions?: { bonusDamage?: number; bonusPenetration?: number }
 ): {
   save: GameSave;
   didApplyDamage: boolean;
@@ -96,6 +98,8 @@ export function applyCombatDamageIfHit(
     }
   }
 
+  const hasUnarmedSpecialist = catalogs ? hasTalentHook(attacker, catalogs, "unarmedSpecialist") : false;
+
   // Calculate raw damage with weapon (using passed RNG for determinism)
   let accurateLogged = false;
   const rollWeaponDamage = (): {
@@ -149,6 +153,7 @@ export function applyCombatDamageIfHit(
       const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
         tearing: hasTearing,
         extraDice: accurateExtraDice,
+        rerollOnes: isUnarmed && hasUnarmedSpecialist,
       });
       rawDamage = damageCalc.rawDamage;
       if (forceBonus > 0) {
@@ -246,6 +251,12 @@ export function applyCombatDamageIfHit(
   }
 
   let { rawDamage, weaponName, calculatedWeaponId, damageRolls, damageFormula } = damageOutcome;
+  const bonusDamage = damageOptions?.bonusDamage ?? 0;
+  const bonusPenetration = damageOptions?.bonusPenetration ?? 0;
+  if (bonusDamage > 0) {
+    rawDamage += bonusDamage;
+    damageFormula = damageFormula ? `${damageFormula} + ${bonusDamage} (Vengeance)` : `${bonusDamage} (Vengeance)`;
+  }
 
   // Get defender armor soak
   const { soak, armorId } = getActorArmor(save, defender);
@@ -272,7 +283,7 @@ export function applyCombatDamageIfHit(
   const razorSharpActive =
     weaponForPenetration && hasWeaponQuality(weaponForPenetration, "razor_sharp") && result.dos >= 3;
   const basePenetration =
-    weaponForPenetration ? weaponForPenetration.penetration + forcePenBonus + magicFueledPenBonus : 0;
+    weaponForPenetration ? weaponForPenetration.penetration + forcePenBonus + magicFueledPenBonus + bonusPenetration : 0;
   const effectivePenetration = razorSharpActive ? basePenetration * 2 : basePenetration;
 
   // Unarmed/improvised rules: double armor soak unless attacker has natural weapon flag

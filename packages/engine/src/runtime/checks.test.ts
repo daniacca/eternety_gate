@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { performCheck, resolveActor, getStatOrSkillValue } from "./checks/index";
+import { performCheck, resolveActor, getStatOrSkillValue, performCheckWithSave } from "./checks/index";
 import { makeTestSave } from "./test-helpers/makeTestSave";
 import { makeTestStoryPack } from "./test-helpers/makeTestStoryPack";
 import { makeTestActor } from "./test-helpers/makeTestActor";
@@ -319,6 +319,39 @@ describe("checks", () => {
       const value = getStatOrSkillValue(actor, "STR", save);
 
       expect(value).toBe(50);
+    });
+  });
+
+  describe("skill mastery", () => {
+    it("should auto-pass skill check and spend fate when using mastery", () => {
+      const storyPack = makeTestStoryPack({
+        skills: [{ id: "skill:medicae", name: "Medicae", baseStat: "INT" }],
+      });
+      const actor = makeTestActor({
+        id: "PC_1",
+        stats: { INT: 45 } as any,
+        talents: { "talent:mastery": 1 },
+        resources: { fatePoints: 2 },
+      });
+      (actor as any).talentParams = { "talent:mastery": { chosenSkill: "skill:medicae" } };
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([90]);
+
+      const check: SingleCheck = {
+        id: "test:mastery",
+        kind: "single",
+        actorRef: { mode: "byId", actorId: actor.id },
+        key: "SKILL:skill:medicae",
+        difficulty: "Challenging",
+        useFateMastery: true,
+      };
+
+      const outcome = performCheckWithSave(check, storyPack, save, rng);
+
+      expect(outcome.result.success).toBe(true);
+      expect(outcome.result.dos).toBe(4);
+      expect(outcome.save.actorsById[actor.id].resources.fatePoints).toBe(1);
+      expect(outcome.result.tags).toContain("fate:mastery=1");
     });
   });
 

@@ -15,7 +15,8 @@ export function evaluatePrerequisites(
   save: GameSave,
   catalogs: CharacterCatalogs,
   actor: Actor,
-  prerequisites: Prerequisite[]
+  prerequisites: Prerequisite[],
+  chosenParams?: TalentParams
 ): { valid: boolean; reason?: string } {
   for (const prereq of prerequisites) {
     if (prereq.type === "statAtLeast") {
@@ -40,6 +41,24 @@ export function evaluatePrerequisites(
         return {
           valid: false,
           reason: `Requires ${prereq.talentId} at rank ${prereq.minRank}+, but has ${talentRank}`,
+        };
+      }
+    } else if (prereq.type === "hasSkillRank") {
+      let resolvedSkillId = prereq.skillId;
+      if (chosenParams) {
+        const match = prereq.skillId.match(/<([^>]+)>/);
+        if (match) {
+          const paramValue = chosenParams[match[1]];
+          if (typeof paramValue === "string") {
+            resolvedSkillId = prereq.skillId.replace(`<${match[1]}>`, paramValue);
+          }
+        }
+      }
+      const skillRank = actor.skills?.[resolvedSkillId] ?? 0;
+      if (skillRank < prereq.minRank) {
+        return {
+          valid: false,
+          reason: `Requires ${resolvedSkillId} at rank ${prereq.minRank}+, but has ${skillRank}`,
         };
       }
     } else if (prereq.type === "hasTrait") {
@@ -275,7 +294,7 @@ export function canAcquireTalent(
   }
 
   // Check prerequisites
-  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites);
+  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites, chosenParams);
   if (!prereqResult.valid) {
     return { canAcquire: false, reason: prereqResult.reason };
   }

@@ -1541,6 +1541,54 @@ describe("Combat attack check", () => {
     expect(attackTargetTag).toBe("combat:attackTarget=70");
   });
 
+  it("outnumbering bonus is ignored with Multi Fight", () => {
+    const storyPack = makeTestStoryPack({
+      talents: [
+        {
+          id: "talent:multi_fight",
+          name: "Multi Fight",
+          tier: 2,
+          xpCost: 500,
+          prerequisites: [],
+          grants: [{ type: "hook", hookId: "multiFight" }],
+        },
+      ],
+    });
+    const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });
+    const defender = makeTestActor({ id: "NPC_1", talents: { "talent:multi_fight": 1 } });
+    const save = makeTestSave(storyPack, attacker);
+    save.actorsById["NPC_1"] = defender;
+
+    const fakeRng = new FakeRng([30]);
+
+    const check = {
+      id: "combat_attack",
+      kind: "combatAttack" as const,
+      attacker: {
+        actorRef: { mode: "byId" as const, actorId: "PC_1" },
+        mode: "MELEE" as const,
+        weaponId: null,
+      },
+      defender: {
+        actorRef: { mode: "byId" as const, actorId: "NPC_1" },
+      },
+      defense: {
+        allowParry: false,
+        allowDodge: false,
+        strategy: "autoBest" as const,
+      },
+      modifiers: {
+        outnumbering: 3,
+      },
+    };
+
+    const result = performCheck(check, storyPack, save, fakeRng);
+
+    expect(result).not.toBeNull();
+    const attackTargetTag = result?.tags.find((t) => t.startsWith("combat:attackTarget="));
+    expect(attackTargetTag).toBe("combat:attackTarget=50");
+  });
+
   it("melee hit with tie (equal DoS) => MISS (defender wins ties)", () => {
     const storyPack = makeTestStoryPack();
     const attacker = makeTestActor({ id: "PC_1", stats: { WS: 50 } });

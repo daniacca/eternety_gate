@@ -1159,5 +1159,150 @@ describe("damage", () => {
       expect(lastCheck?.tags).toContain("combat:weapon=improvised");
       expect(lastCheck?.tags).toContain("combat:fallbackWeapon=improvised");
     });
+
+    it("should reroll unarmed damage rolls of 1 for Unarmed Specialist", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({
+        id: "attacker",
+        stats: { STR: 30 } as any,
+        talents: { "talent:unarmed_specialist": 1 },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        stats: { TOU: 0 } as any,
+        resources: { wounds: 0, rf: 100, peq: 100 },
+      });
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      const catalogs: CharacterCatalogs = {
+        skills: [],
+        traits: [],
+        talents: [
+          {
+            id: "talent:unarmed_specialist",
+            name: "Unarmed Specialist",
+            tier: 2,
+            xpCost: 500,
+            prerequisites: [],
+            grants: [{ type: "hook", hookId: "unarmedSpecialist" }],
+          },
+        ],
+      };
+      const rng = new FakeRng([
+        FakeRng.d100ForNextInt(1, 1, 5),
+        FakeRng.d100ForNextInt(5, 1, 5),
+      ]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 30,
+        target: 40,
+        success: true,
+        dos: 1,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng, storyPack, undefined, catalogs);
+
+      expect(damageResult.finalDamage).toBe(8);
+    });
+
+    it("should apply bonus damage and penetration (vengeance shot)", () => {
+      const storyPack = makeTestStoryPack();
+      const weapon: Weapon = {
+        id: "rifle",
+        name: "Rifle",
+        kind: "RANGED",
+        damage: { tier: "fixed", add: 2 },
+        damageType: "piercing",
+        penetration: 0,
+      };
+      const armor: Armor = {
+        id: "chain",
+        name: "Chain",
+        soak: 4,
+        weight: 5,
+      };
+      const attacker = makeTestActor({
+        id: "attacker",
+        equipment: { mainHand: { kind: "weapon", id: weapon.id } },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        stats: { TOU: 0 } as any,
+        equipment: { armor: { kind: "armor", id: armor.id } },
+        resources: { wounds: 0, rf: 100, peq: 100 },
+      });
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        weaponsById: { [weapon.id]: weapon },
+        armorsById: { [armor.id]: armor },
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+      };
+      const rng = new FakeRng([]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "RANGED", weaponId: weapon.id },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: false,
+          allowDodge: false,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 40,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(
+        check,
+        result,
+        saveWithBoth,
+        rng,
+        storyPack,
+        undefined,
+        undefined,
+        false,
+        { bonusDamage: 3, bonusPenetration: 3 }
+      );
+
+      expect(damageResult.finalDamage).toBe(4);
+    });
   });
 });

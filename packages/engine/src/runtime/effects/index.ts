@@ -14,6 +14,8 @@ import {
   combatKnockdown,
   combatDisarm,
   combatSwiftAttack,
+  combatFrenzy,
+  combatWhirlwindAttack,
   combatGetProne,
   combatStandUp,
   combatPickup,
@@ -99,6 +101,10 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatDisarm(effect as Extract<Effect, { op: "combatDisarm" }>, storyPack, save, rng),
   combatSwiftAttack: (effect, storyPack, save, rng) =>
     combatSwiftAttack(effect as Extract<Effect, { op: "combatSwiftAttack" }>, storyPack, save, rng),
+  combatFrenzy: (effect, storyPack, save, rng) =>
+    combatFrenzy(effect as Extract<Effect, { op: "combatFrenzy" }>, storyPack, save, rng),
+  combatWhirlwindAttack: (effect, storyPack, save, rng) =>
+    combatWhirlwindAttack(effect as Extract<Effect, { op: "combatWhirlwindAttack" }>, storyPack, save, rng),
   combatGetProne: (effect, _storyPack, save, _rng) =>
     combatGetProne(effect as Extract<Effect, { op: "combatGetProne" }>, save),
   combatStandUp: (effect, storyPack, save, _rng) =>
@@ -116,8 +122,8 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, save, rng),
   learnSpell: (effect, storyPack, save, _rng) =>
     handleLearnSpell(effect as Extract<Effect, { op: "learnSpell" }>, storyPack, save),
-  addCondition: (effect, _storyPack, save, _rng) => ({
-    save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, save),
+  addCondition: (effect, storyPack, save, rng) => ({
+    save: applyAddCondition(effect as Extract<Effect, { op: "addCondition" }>, save, storyPack, rng),
   }),
   removeCondition: (effect, _storyPack, save, _rng) => ({
     save: applyRemoveCondition(effect as Extract<Effect, { op: "removeCondition" }>, save),

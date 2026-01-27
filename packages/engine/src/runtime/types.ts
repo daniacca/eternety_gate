@@ -59,6 +59,7 @@ export type ConditionId =
   | "fatigue"
   | "unconscious"
   | "halvedMovement"
+  | "frenzy"
   | "bound"
   | "force_field"
   | "force_field_overload"
@@ -128,6 +129,7 @@ export type Effect =
       targetSelection?: TargetSelection; // For Spray/Blast ranged weapons
       onSuccessEffects?: Effect[]; // Effects to apply when attack hits
       onFailureEffects?: Effect[]; // Effects to apply when attack misses (including parry/dodge)
+      vengeanceShot?: boolean; // Eye of Vengeance special shot
     }
   | {
       op: "addCondition";
@@ -156,6 +158,15 @@ export type Effect =
       op: "combatSwiftAttack";
       attackerId: ActorId;
       defenderId: ActorId;
+      weaponId?: WeaponId | null;
+    }
+  | {
+      op: "combatFrenzy";
+      actorId: ActorId;
+    }
+  | {
+      op: "combatWhirlwindAttack";
+      attackerId: ActorId;
       weaponId?: WeaponId | null;
     }
   | {
@@ -202,6 +213,7 @@ export type Effect =
         ignoreWeaverRequirement?: boolean;
         skipRfCost?: boolean;
         noOvercast?: boolean;
+        magicConduct?: boolean;
       };
     }
   | {
@@ -263,6 +275,8 @@ export type SingleCheck = {
   actorRef?: ActorRef;
   key: StatOrSkillKey;
   difficulty: string;
+  /** If true, allow spending a Fate Point for Skill Mastery auto-pass */
+  useFateMastery?: boolean;
   difficultyByCondition?: {
     default: string;
     rules: Array<{ when: Condition; difficulty: string }>;
@@ -280,6 +294,8 @@ export type MultiCheck = {
   kind: "multi";
   actorRef?: ActorRef;
   options: Array<{ key: StatOrSkillKey; difficulty: string }>;
+  /** If true, allow spending a Fate Point for Skill Mastery auto-pass */
+  useFateMastery?: boolean;
   onSuccess?: Effect[];
   onFailure?: Effect[];
   successText?: string[];

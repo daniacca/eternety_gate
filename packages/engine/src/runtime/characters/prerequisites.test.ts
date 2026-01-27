@@ -182,6 +182,36 @@ describe("prerequisites", () => {
       expect(result.reason).toContain("Requires spell spell:test");
     });
 
+    it("should validate hasSkillRank prerequisite", () => {
+      const actor = makeTestActor({
+        id: "PC_1",
+        skills: {
+          "skill:medicae": 4,
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const catalogs: CharacterCatalogs = { skills: [], talents: [], traits: [] };
+
+      const prereqs: Prerequisite[] = [{ type: "hasSkillRank", skillId: "skill:medicae", minRank: 4 }];
+      const result = evaluatePrerequisites(save, catalogs, actor, prereqs);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should resolve skillId from chosen params for hasSkillRank", () => {
+      const actor = makeTestActor({
+        id: "PC_1",
+        skills: {
+          "skill:medicae": 4,
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const catalogs: CharacterCatalogs = { skills: [], talents: [], traits: [] };
+
+      const prereqs: Prerequisite[] = [{ type: "hasSkillRank", skillId: "<chosenSkill>", minRank: 4 }];
+      const result = evaluatePrerequisites(save, catalogs, actor, prereqs, { chosenSkill: "skill:medicae" });
+      expect(result.valid).toBe(true);
+    });
+
     it("should validate multiple prerequisites (all must pass)", () => {
       const actor = makeTestActor({
         id: "PC_1",

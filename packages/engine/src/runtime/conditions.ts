@@ -172,6 +172,11 @@ export function computeCombatModifiersFromConditions(
     allowDodge = false;
   }
 
+  // Frenzy: no parry
+  if (hasCondition(actor, "frenzy")) {
+    allowParry = false;
+  }
+
   // Bound: -20 to melee (attack/parry/dodge)
   // Note: Movement blocking is handled in advanceCombatTurn (moveRemaining=0 + escape attempt)
   if (hasCondition(actor, "bound")) {

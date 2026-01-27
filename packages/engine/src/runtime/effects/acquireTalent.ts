@@ -43,7 +43,7 @@ export function handleAcquireTalent(
   }
 
   // Check prerequisites
-  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites);
+  const prereqResult = evaluatePrerequisites(save, catalogs, actor, talent.prerequisites, chosenParams as TalentParams);
   if (!prereqResult.valid) {
     console.warn(`[acquireTalent] Prerequisites not met: ${prereqResult.reason}`);
     return { save };

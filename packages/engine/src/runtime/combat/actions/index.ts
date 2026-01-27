@@ -7,6 +7,8 @@ export { combatAim } from "./aim";
 export { combatEndTurn } from "./endTurn";
 export { combatKnockdown } from "./knockdown";
 export { combatSwiftAttack } from "./swiftAttack";
+export { combatFrenzy } from "./frenzy";
+export { combatWhirlwindAttack } from "./whirlwindAttack";
 export { combatDisarm } from "./disarm";
 export { combatGetProne } from "./getProne";
 export { combatStandUp } from "./standUp";

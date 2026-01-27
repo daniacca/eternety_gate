@@ -75,6 +75,18 @@ export function runNarrativeSpell(
       },
     };
   }
+  if (caster.conditions?.frenzy) {
+    return {
+      save,
+      result: {
+        ok: false,
+        success: false,
+        appliedOps: [],
+        logs: ["Non puoi lanciare incantesimi mentre sei in Frenzy."],
+        tags: [...tags, "magic:blocked=frenzy"],
+      },
+    };
+  }
   tags.push(`magic:caster=${casterId}`);
 
   // Load spell definition

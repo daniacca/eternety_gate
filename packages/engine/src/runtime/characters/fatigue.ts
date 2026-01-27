@@ -32,6 +32,9 @@ export function applyFatigue(save: GameSave, actorId: ActorId, amount: number, c
   if (!actor) {
     return save;
   }
+  if (hasCondition(actor, "frenzy")) {
+    return save;
+  }
 
   const currentRF = actor.resources.rf ?? 0;
   const newRF = currentRF + amount;

@@ -57,6 +57,23 @@ describe("fatigue", () => {
       expect(result.actorsById["PC_1"].status.tempModifiers).toEqual([]);
     });
 
+    it("should not apply fatigue while in frenzy", () => {
+      const actor = makeTestActor({
+        id: "PC_1",
+        conditions: { frenzy: {} },
+        resources: {
+          wounds: 0,
+          rf: 0,
+          peq: 100,
+        },
+      });
+      const save = makeTestSave(storyPack, actor);
+
+      const result = applyFatigue(save, "PC_1", 10);
+
+      expect(result).toBe(save);
+    });
+
     it("should apply -10 modifier when crossing RF > HP threshold", () => {
       const actor = makeTestActor({
         id: "PC_1",

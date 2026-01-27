@@ -92,6 +92,28 @@ export function combatCastSpell(
   if (!actor) {
     return { save };
   }
+  if (actor.conditions?.frenzy) {
+    const blockedCheck: CheckResult = {
+      checkId: "combat:castSpell:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:blocked=frenzy"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
 
   const cnBase = spell.baseCN;
 
@@ -242,15 +264,77 @@ export function combatCastSpell(
     };
   }
 
+  let currentSave = save;
+  if (castOptions?.magicConduct) {
+    if (catalogs && !hasUnlockedAction(save, catalogs, turnActorId, "magic:conduct")) {
+      const blockedCheck: CheckResult = {
+        checkId: "combat:castSpell:blocked",
+        actorId: turnActorId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:blocked=actionNotUnlocked", "magic:conduct=1"],
+      };
+      return {
+        save: {
+          ...save,
+          runtime: {
+            ...save.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+    const fatePoints = actor.resources.fatePoints ?? 0;
+    if (fatePoints <= 0) {
+      const blockedCheck: CheckResult = {
+        checkId: "combat:castSpell:blocked",
+        actorId: turnActorId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:blocked=noFatePoint", "magic:conduct=1"],
+      };
+      return {
+        save: {
+          ...save,
+          runtime: {
+            ...save.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+    currentSave = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [turnActorId]: {
+          ...actor,
+          resources: {
+            ...actor.resources,
+            fatePoints: fatePoints - 1,
+          },
+        },
+      },
+    };
+  }
+
   const targetSelection: TargetSelection = effect.targetSelection;
   const spellTargetSpec: TargetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
-  let targetPreview: TargetPreview = computeTargetPreview(save, turnActorId, spellTargetSpec, targetSelection);
+  let targetPreview: TargetPreview = computeTargetPreview(currentSave, turnActorId, spellTargetSpec, targetSelection);
 
   if (!targetPreview.valid) {
     const invalidMessage = targetPreview.reason
       ? `Targeting non valido: ${targetPreview.reason}`
       : "Targeting non valido";
-    const loggedSave = appendRuntimeLog(save, {
+    const loggedSave = appendRuntimeLog(currentSave, {
       kind: "system",
       message: invalidMessage,
       turnCounter: combat.turnCounter,
@@ -291,7 +375,7 @@ export function combatCastSpell(
   };
 
   // Generate resolutionId
-  const { save: saveWithSeq, seq } = nextRuntimeSeq(save);
+  const { save: saveWithSeq, seq } = nextRuntimeSeq(currentSave);
   const resolutionId = `res:${seq}`;
 
   // Perform casting check (penalty will be applied via tempModifier system)
@@ -338,8 +422,20 @@ export function combatCastSpell(
 
   // Calculate CN and effective DoS
   const castDoS = result.dos;
-  const effectiveDoS = castDoS + channelDoS;
-  const success = effectiveDoS >= cnBase;
+  let effectiveDoS = castDoS + channelDoS;
+  const baseSuccess = effectiveDoS >= cnBase;
+  if (baseSuccess && castOptions?.magicConduct) {
+    const magicConductBonus = rng.nextInt(1, 5);
+    effectiveDoS += magicConductBonus;
+    saveAfterPenaltyRemoval = appendRuntimeLog(saveAfterPenaltyRemoval, {
+      kind: "system",
+      message: `Magic Conduct: +${magicConductBonus} DoS`,
+      turnCounter: combat.turnCounter,
+      resolutionId,
+      tags: ["magic:conduct", `dosBonus=${magicConductBonus}`],
+    });
+  }
+  const success = baseSuccess;
   const rawOvercast = Math.max(0, effectiveDoS - cnBase);
   const overcast = castOptions?.noOvercast ? 0 : rawOvercast;
   const manifestedPM = cnBase + overcast;

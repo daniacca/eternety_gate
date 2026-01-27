@@ -514,6 +514,39 @@ describe("combat", () => {
       expect(movement).toBeGreaterThanOrEqual(1);
     });
 
+    it("should apply Sprint movement bonus", () => {
+      const storyPack = makeTestStoryPack({
+        talents: [
+          {
+            id: "talent:sprint",
+            name: "Sprint",
+            tier: 3,
+            xpCost: 1000,
+            prerequisites: [],
+            grants: [{ type: "hook", hookId: "sprint" }],
+          },
+        ],
+      });
+      const actor = makeTestActor({
+        id: "test_actor",
+        stats: { AGI: 40 },
+        talents: { "talent:sprint": 1 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const catalogs = loadCharacterCatalogs({
+        id: storyPack.id,
+        weapons: [],
+        armors: [],
+        skills: storyPack.skills || [],
+        talents: storyPack.talents || [],
+        traits: storyPack.traits || [],
+      });
+
+      const movement = calculateInitialMovement(actor, save, catalogs);
+
+      expect(movement).toBe(6);
+    });
+
     it("should override movement for flyers", () => {
       const storyPack = makeTestStoryPack({
         traits: [

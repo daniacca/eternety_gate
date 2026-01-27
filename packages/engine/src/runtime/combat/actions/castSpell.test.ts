@@ -253,6 +253,81 @@ describe("combatCastSpell - magic resistance", () => {
   });
 });
 
+describe("combatCastSpell - magic conduct", () => {
+  it("should spend fate and add DoS bonus on success", () => {
+    const storyPack = makeTestStoryPack({
+      traits: baseTraits,
+      talents: [
+        {
+          id: "talent:magic_conduct",
+          name: "Magic Conduct",
+          tier: 3,
+          xpCost: 1000,
+          prerequisites: [{ type: "hasTrait", traitId: "trait:weaver" }],
+          grants: [{ type: "unlockAction", actionId: "magic:conduct" }],
+        },
+      ],
+    });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 80, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      talents: { "talent:magic_conduct": 1 },
+      resources: { fatePoints: 2 },
+      spells: { "spell:flame_bolt": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:flame_bolt",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+      castOptions: { magicConduct: true },
+    };
+
+    const rng = new FixedRng([10], [3, 1, 1, 1, 1, 1]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    expect(result.save.actorsById[caster.id].resources.fatePoints).toBe(1);
+    const conductLog = result.save.runtime.runtimeLog?.find((entry) => entry.tags?.includes("magic:conduct"));
+    expect(conductLog).toBeTruthy();
+  });
+});
+
 describe("combatCastSpell - From Beyond immunity", () => {
   it("should ignore MENTIS effects on From Beyond targets", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits });

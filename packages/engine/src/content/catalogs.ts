@@ -21,6 +21,7 @@ export type Prerequisite =
   | { type: "statAtLeast"; stat: StatKey; value: number }
   | { type: "hasTalent"; talentId: TalentId }
   | { type: "hasTalentRank"; talentId: TalentId; minRank: number }
+  | { type: "hasSkillRank"; skillId: SkillId; minRank: number }
   | { type: "hasTrait"; traitId: TraitId }
   | { type: "hasSpell"; spellId: string }
   | { type: "notHasTalentWithParam"; talentId: TalentId; paramKey: string; paramValue: string };
@@ -42,8 +43,9 @@ export type Talent = {
   id: TalentId;
   name: string;
   description?: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4;
   xpCost: number;
+  tags?: string[];
   prerequisites: Prerequisite[];
   grants: Grant[];
   maxRank?: number; // default 1
