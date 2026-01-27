@@ -1,0 +1,1010 @@
+[
+  {
+    "id": "BESTIARY_GIANT_RAT",
+    "name": "Giant Rat",
+    "kind": "NPC",
+    "tags": ["beast", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 20,
+      "TOU": 25,
+      "AGI": 45,
+      "INT": 10,
+      "WIL": 20,
+      "CHA": 5,
+      "WS": 35,
+      "BS": 0,
+      "INI": 45,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 2 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_DOG",
+    "name": "Dog",
+    "kind": "NPC",
+    "tags": ["beast", "ai:ranged=0"],
+    "stats": {
+      "STR": 30,
+      "TOU": 30,
+      "AGI": 45,
+      "INT": 15,
+      "WIL": 25,
+      "CHA": 10,
+      "WS": 40,
+      "BS": 0,
+      "INI": 45,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 3 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_WOLF",
+    "name": "Wolf",
+    "kind": "NPC",
+    "tags": ["beast", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 35,
+      "TOU": 35,
+      "AGI": 45,
+      "INT": 20,
+      "WIL": 30,
+      "CHA": 15,
+      "WS": 45,
+      "BS": 0,
+      "INI": 45,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_BEAR",
+    "name": "Bear",
+    "kind": "NPC",
+    "tags": ["beast", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 55,
+      "TOU": 55,
+      "AGI": 30,
+      "INT": 20,
+      "WIL": 40,
+      "CHA": 10,
+      "WS": 50,
+      "BS": 0,
+      "INI": 30,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 2 },
+      "trait:size": { "size": 6 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_HORSE",
+    "name": "Horse",
+    "kind": "NPC",
+    "tags": ["beast", "ai:ranged=0"],
+    "stats": {
+      "STR": 50,
+      "TOU": 45,
+      "AGI": 45,
+      "INT": 15,
+      "WIL": 30,
+      "CHA": 20,
+      "WS": 30,
+      "BS": 0,
+      "INI": 40,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 5 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_HUMAN_COMMONER",
+    "name": "Human Commoner",
+    "kind": "NPC",
+    "tags": ["humanoid", "ai:ranged=0"],
+    "stats": {
+      "STR": 30,
+      "TOU": 30,
+      "AGI": 30,
+      "INT": 30,
+      "WIL": 30,
+      "CHA": 30,
+      "WS": 25,
+      "BS": 25,
+      "INI": 30,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "club" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_HUMAN_GUARD",
+    "name": "Human Guard",
+    "kind": "NPC",
+    "tags": ["humanoid", "ai:ranged=0"],
+    "stats": {
+      "STR": 40,
+      "TOU": 40,
+      "AGI": 35,
+      "INT": 30,
+      "WIL": 35,
+      "CHA": 30,
+      "WS": 45,
+      "BS": 30,
+      "INI": 35,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "longsword" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "chainmail" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_ELF_SCOUT",
+    "name": "Elf Scout",
+    "kind": "NPC",
+    "tags": ["humanoid"],
+    "stats": {
+      "STR": 30,
+      "TOU": 30,
+      "AGI": 50,
+      "INT": 40,
+      "WIL": 35,
+      "CHA": 35,
+      "WS": 35,
+      "BS": 45,
+      "INI": 45,
+      "PER": 45
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "longbow" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "inventory": [{ "kind": "item", "id": "ammo:arrow", "qty": 20 }],
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_DWARF_WARRIOR",
+    "name": "Dwarf Warrior",
+    "kind": "NPC",
+    "tags": ["humanoid", "ai:ranged=0"],
+    "stats": {
+      "STR": 45,
+      "TOU": 50,
+      "AGI": 25,
+      "INT": 30,
+      "WIL": 40,
+      "CHA": 25,
+      "WS": 50,
+      "BS": 30,
+      "INI": 30,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "warhammer" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "chainmail" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_WITCH",
+    "name": "Witch",
+    "kind": "NPC",
+    "tags": ["humanoid", "ai:ranged=0"],
+    "stats": {
+      "STR": 25,
+      "TOU": 30,
+      "AGI": 30,
+      "INT": 45,
+      "WIL": 45,
+      "CHA": 35,
+      "WS": 25,
+      "BS": 25,
+      "INI": 35,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:weaver": true,
+      "trait:size": { "size": 4 }
+    },
+    "spells": {
+      "spell:mentis_disrupt": true,
+      "spell:mentis_suggestion": true,
+      "spell:kinesis_force_push": true
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "staff" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_BRIGAND",
+    "name": "Brigand",
+    "kind": "NPC",
+    "tags": ["humanoid", "ai:ranged=0"],
+    "stats": {
+      "STR": 35,
+      "TOU": 35,
+      "AGI": 40,
+      "INT": 30,
+      "WIL": 30,
+      "CHA": 25,
+      "WS": 40,
+      "BS": 35,
+      "INI": 40,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "dagger" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_GOBLIN",
+    "name": "Goblin",
+    "kind": "NPC",
+    "tags": ["humanoid", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 30,
+      "TOU": 30,
+      "AGI": 40,
+      "INT": 25,
+      "WIL": 25,
+      "CHA": 20,
+      "WS": 35,
+      "BS": 35,
+      "INI": 40,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 3 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "dagger" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_ORC",
+    "name": "Orc",
+    "kind": "NPC",
+    "tags": ["humanoid", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 45,
+      "TOU": 45,
+      "AGI": 30,
+      "INT": 25,
+      "WIL": 35,
+      "CHA": 20,
+      "WS": 45,
+      "BS": 30,
+      "INI": 35,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:size": { "size": 5 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "club" },
+      "offHand": null,
+      "armor": { "kind": "armor", "id": "leather" },
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_GIANT_SPIDER",
+    "name": "Giant Spider",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 35,
+      "TOU": 35,
+      "AGI": 50,
+      "INT": 10,
+      "WIL": 30,
+      "CHA": 5,
+      "WS": 45,
+      "BS": 0,
+      "INI": 50,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_TROLL",
+    "name": "Troll",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 65,
+      "TOU": 60,
+      "AGI": 25,
+      "INT": 20,
+      "WIL": 35,
+      "CHA": 10,
+      "WS": 55,
+      "BS": 0,
+      "INI": 25,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:regeneration": { "x": 2 },
+      "trait:size": { "size": 6 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_WYVERN",
+    "name": "Wyvern",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 60,
+      "TOU": 55,
+      "AGI": 40,
+      "INT": 20,
+      "WIL": 40,
+      "CHA": 15,
+      "WS": 50,
+      "BS": 0,
+      "INI": 40,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:size": { "size": 7 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_BASILISK",
+    "name": "Basilisk",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 55,
+      "TOU": 60,
+      "AGI": 20,
+      "INT": 15,
+      "WIL": 45,
+      "CHA": 10,
+      "WS": 45,
+      "BS": 0,
+      "INI": 20,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:size": { "size": 6 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_DRAGON",
+    "name": "Dragon",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 65,
+      "TOU": 65,
+      "AGI": 25,
+      "INT": 45,
+      "WIL": 85,
+      "CHA": 25,
+      "WS": 65,
+      "BS": 60,
+      "INI": 60,
+      "PER": 70
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:undying": true,
+      "trait:flyer": { "x": 8 },
+      "trait:natural_armour": { "armor": 5 },
+      "trait:magic_resistance": { "x": 12 },
+      "trait:weaver": true,
+      "trait:size": { "size": 8 },
+      "trait:natural_ability": {
+        "profiles": [
+          {
+            "name": "Tail Swipe",
+            "kind": "MELEE",
+            "damageType": "impact",
+            "damage": { "tier": "double", "add": 2, "bonus": "SB" },
+            "penetration": 4,
+            "handedness": "twoHand"
+          },
+          {
+            "name": "Fire Breath",
+            "kind": "RANGED",
+            "damageType": "energy",
+            "damage": { "tier": "triple", "add": 2 },
+            "penetration": 4,
+            "range": 8,
+            "qualities": [{ "id": "spray" }, { "id": "close_range_shot" }, { "id": "recharge", "rank": 5 }]
+          }
+        ]
+      }
+    },
+    "spells": {
+      "spell:flame_bolt": true,
+      "spell:sense_magic": true,
+      "spell:pyra_flame_control": true
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_MANTICORE",
+    "name": "Manticore",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 60,
+      "TOU": 50,
+      "AGI": 40,
+      "INT": 25,
+      "WIL": 40,
+      "CHA": 20,
+      "WS": 55,
+      "BS": 30,
+      "INI": 40,
+      "PER": 35
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:size": { "size": 6 },
+      "trait:flyer": { "x": 4 },
+      "trait:natural_ability": {
+        "profiles": [
+          {
+            "name": "Venom Tail",
+            "kind": "MELEE",
+            "damageType": "piercing",
+            "damage": { "tier": "single", "add": 1, "bonus": "SB" },
+            "penetration": 2,
+            "qualities": [{ "id": "toxic", "rank": 2 }]
+          }
+        ]
+      }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_HYDRA",
+    "name": "Hydra",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 50,
+      "TOU": 55,
+      "AGI": 25,
+      "INT": 15,
+      "WIL": 45,
+      "CHA": 10,
+      "WS": 60,
+      "BS": 40,
+      "INI": 15,
+      "PER": 55
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 4 },
+      "trait:regeneration": { "x": 5 },
+      "trait:size": { "size": 7 },
+      "trait:natural_ability": {
+        "profiles": [
+          {
+            "name": "Breath of Fire",
+            "kind": "RANGED",
+            "damageType": "energy",
+            "damage": { "tier": "double", "add": 0 },
+            "penetration": 4,
+            "range": 8,
+            "qualities": [{ "id": "spray" }, { "id": "close_range_shot" }, { "id": "recharge", "rank": 5 }]
+          },
+          {
+            "name": "Bite",
+            "kind": "MELEE",
+            "damageType": "rendering",
+            "damage": { "tier": "single", "add": 4, "bonus": "SB" },
+            "penetration": 2,
+            "qualities": [{ "id": "tearing" }]
+          }
+        ]
+      }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_GRIFFON",
+    "name": "Griffon",
+    "kind": "NPC",
+    "tags": ["monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 50,
+      "TOU": 50,
+      "AGI": 60,
+      "INT": 20,
+      "WIL": 35,
+      "CHA": 20,
+      "WS": 55,
+      "BS": 0,
+      "INI": 45,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:flyer": { "x": 6 },
+      "trait:size": { "size": 6 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_SKELETON",
+    "name": "Skeleton",
+    "kind": "NPC",
+    "tags": ["undead", "ai:ranged=0"],
+    "stats": {
+      "STR": 30,
+      "TOU": 35,
+      "AGI": 30,
+      "INT": 10,
+      "WIL": 35,
+      "CHA": 5,
+      "WS": 40,
+      "BS": 20,
+      "INI": 30,
+      "PER": 25
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": { "kind": "weapon", "id": "club" },
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_ZOMBIE",
+    "name": "Zombie",
+    "kind": "NPC",
+    "tags": ["undead", "ai:ranged=0"],
+    "stats": {
+      "STR": 35,
+      "TOU": 45,
+      "AGI": 20,
+      "INT": 5,
+      "WIL": 30,
+      "CHA": 0,
+      "WS": 35,
+      "BS": 0,
+      "INI": 20,
+      "PER": 20
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_GHOUL",
+    "name": "Ghoul",
+    "kind": "NPC",
+    "tags": ["undead", "ai:ranged=0"],
+    "stats": {
+      "STR": 40,
+      "TOU": 35,
+      "AGI": 35,
+      "INT": 15,
+      "WIL": 30,
+      "CHA": 5,
+      "WS": 45,
+      "BS": 0,
+      "INI": 35,
+      "PER": 30
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:natural_weapons": true,
+      "trait:natural_armour": { "armor": 1 },
+      "trait:size": { "size": 4 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  },
+  {
+    "id": "BESTIARY_LESSER_DEMON",
+    "name": "Lesser Demon",
+    "kind": "NPC",
+    "tags": ["demon", "monster", "ai:ranged=0"],
+    "stats": {
+      "STR": 55,
+      "TOU": 50,
+      "AGI": 40,
+      "INT": 30,
+      "WIL": 50,
+      "CHA": 35,
+      "WS": 55,
+      "BS": 20,
+      "INI": 40,
+      "PER": 40
+    },
+    "resources": { "wounds": 0, "rf": 0 },
+    "skills": {},
+    "talents": {},
+    "traits": {
+      "trait:deadly_natural_weapons": true,
+      "trait:natural_armour": { "armor": 3 },
+      "trait:magic_resistance": { "x": 15 },
+      "trait:size": { "size": 5 }
+    },
+    "equipment": {
+      "mainHand": null,
+      "offHand": null,
+      "armor": null,
+      "helmet": null,
+      "boots": null,
+      "cloak": null,
+      "necklace": null,
+      "ring1": null,
+      "ring2": null
+    },
+    "status": { "conditions": [], "tempModifiers": [] }
+  }
+]

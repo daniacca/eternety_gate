@@ -786,6 +786,9 @@ export type CombatState = {
   // Parry disabled until turn counter (by actor ID)
   parryDisabledUntilTurnCounterByActorId?: Record<ActorId, number>;
 
+  // Ranged weapon recharge (by actor ID -> weapon ID -> turn counter)
+  weaponRechargeUntilTurnCounterByActorId?: Record<ActorId, Record<WeaponId, number>>;
+
   // Equipped this round (by actor ID) - tracks which round each actor last equipped an item
   equippedThisRoundByActorId?: Record<ActorId, number>;
 

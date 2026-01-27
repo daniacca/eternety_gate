@@ -255,6 +255,14 @@
           "additionalProperties": { "type": "integer" }
         },
 
+        "weaponRechargeUntilTurnCounterByActorId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "integer" }
+          }
+        },
+
         "equippedThisRoundByActorId": {
           "type": "object",
           "additionalProperties": { "type": "integer" }

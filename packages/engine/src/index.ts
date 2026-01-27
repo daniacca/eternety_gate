@@ -47,6 +47,7 @@ export {
   getEquippedWeaponId,
   getEquippedArmorId,
   getActorInventory,
+  getInventoryItemQty,
   getActorCarriedWeightKg,
   getActorCarryCapacityKg,
 } from "./runtime/characters/inventory";

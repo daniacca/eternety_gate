@@ -182,6 +182,18 @@
     "hooks": []
   },
   {
+    "id": "recharge",
+    "name": "Recharge",
+    "description": "Ranged weapon must wait X rounds before it can fire again.",
+    "paramsSchema": {
+      "rank": {
+        "type": "number",
+        "min": 1
+      }
+    },
+    "hooks": []
+  },
+  {
     "id": "close_range_shot",
     "name": "Close Range Shot",
     "description": "Ranged weapon can be fired in melee; no point-blank bonus and uses melee modifiers.",

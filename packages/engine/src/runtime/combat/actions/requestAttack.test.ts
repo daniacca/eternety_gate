@@ -287,6 +287,91 @@ describe("combatRequestAttack ammo consumption", () => {
   });
 });
 
+describe("combatRequestAttack recharge quality", () => {
+  it("blocks ranged attack until recharge expires", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeActor({
+      id: "PC_1",
+      equipment: { mainHand: { kind: "weapon", id: "recharge_bow" } },
+    });
+    const defender = makeActor({ id: "NPC_1", kind: "NPC" });
+    let save = prepareCombatSave(storyPack, attacker, defender);
+    save = {
+      ...save,
+      weaponsById: {
+        ...save.weaponsById,
+        recharge_bow: {
+          id: "recharge_bow",
+          name: "Recharge Bow",
+          kind: "RANGED",
+          damage: { tier: "single", add: 0 },
+          damageType: "piercing",
+          penetration: 0,
+          range: 8,
+          qualities: [{ id: "recharge", rank: 2 }],
+        },
+      },
+      actorsById: {
+        ...save.actorsById,
+        [attacker.id]: {
+          ...save.actorsById[attacker.id],
+          equipment: {
+            ...save.actorsById[attacker.id].equipment,
+            mainHand: { kind: "weapon", id: "recharge_bow" },
+          },
+        },
+      },
+    };
+    const rng = new FakeRng([50, 50, 50, 50, 50, 50]);
+
+    const effect: Effect = {
+      op: "combatRequestAttack",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      mode: "RANGED",
+    };
+
+    const first = combatRequestAttack(effect, storyPack, save, rng);
+    const combat = first.save.runtime.combat!;
+    const rechargeUntil =
+      combat.weaponRechargeUntilTurnCounterByActorId?.[attacker.id]?.["recharge_bow"];
+    expect(rechargeUntil).toBe((combat.turnCounter ?? 0) + 2);
+
+    const saveWithActionReset = {
+      ...first.save,
+      runtime: {
+        ...first.save.runtime,
+        combat: {
+          ...combat,
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+    const blocked = combatRequestAttack(effect, storyPack, saveWithActionReset, rng);
+    expect(blocked.save.runtime.lastCheck?.tags).toContain("combat:blocked=recharge");
+
+    const saveReady = {
+      ...first.save,
+      runtime: {
+        ...first.save.runtime,
+        combat: {
+          ...combat,
+          turnCounter: rechargeUntil ?? (combat.turnCounter ?? 0),
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+    const ready = combatRequestAttack(effect, storyPack, saveReady, rng);
+    expect(ready.save.runtime.lastCheck?.tags).not.toContain("combat:blocked=recharge");
+  });
+});
+
 describe("combatRequestAttack AOE weapon qualities", () => {
   it("applies Spray cone damage to enemies only", () => {
     const storyPack = makeTestStoryPack();

@@ -6,9 +6,12 @@ import {
   getActorArmor,
   distanceChebyshev,
   isActorAlive,
+  getInventoryItemQty,
   getCharacteristicBonus,
   loadCharacterCatalogs,
   getNaturalAbilityWeapons,
+  getWeaponQualityRank,
+  hasWeaponQuality,
 } from "@eg/engine";
 
 export interface CombatUiModel {
@@ -124,10 +127,29 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     const mainWeapon = mainWeaponId ? save.weaponsById?.[mainWeaponId] : null;
     const offWeapon = offWeaponId ? save.weaponsById?.[offWeaponId] : null;
     const naturalAbilities = pcActor ? getNaturalAbilityWeapons(pcActor) : [];
-    const rangedWeapons = [mainWeapon, offWeapon, ...naturalAbilities].filter((weapon) => weapon?.kind === "RANGED");
+    const rangedWeapons = [mainWeapon, offWeapon, ...naturalAbilities].filter(
+      (weapon): weapon is NonNullable<typeof weapon> => Boolean(weapon && weapon.kind === "RANGED")
+    );
     const hasRangedWeapon = rangedWeapons.length > 0;
-    const weaponRange = rangedWeapons.length
-      ? rangedWeapons.reduce((acc, weapon) => Math.max(acc, weapon?.range ?? 0), 0)
+    const inventory = pcActor?.inventory ?? [];
+    const rechargeByActor = combat?.weaponRechargeUntilTurnCounterByActorId?.[save.party.activeActorId] || {};
+    const rangedWeaponStates = rangedWeapons.map((weapon) => {
+      const rechargeTurns = getWeaponQualityRank(weapon, "recharge") ?? 0;
+      const rechargeUntil = rechargeTurns > 0 ? rechargeByActor[weapon.id] : undefined;
+      const isRecharging = rechargeUntil !== undefined && (combat?.turnCounter ?? 0) < rechargeUntil;
+      const hasAmmo = weapon.ammo
+        ? getInventoryItemQty(inventory, weapon.ammo.itemId) >= weapon.ammo.consumedPerAttack
+        : true;
+      const hasCloseRangeShot = hasWeaponQuality(weapon, "close_range_shot");
+      return { weapon, isRecharging, hasAmmo, hasCloseRangeShot };
+    });
+    const availableRangedWeapons = rangedWeaponStates.filter((state) => !state.isRecharging && state.hasAmmo);
+    const hasReadyRangedWeapon = availableRangedWeapons.length > 0;
+    const hasUnlimitedRange = availableRangedWeapons.some((state) => state.weapon.range === undefined);
+    const weaponRange = hasReadyRangedWeapon
+      ? hasUnlimitedRange
+        ? null
+        : availableRangedWeapons.reduce((acc, state) => Math.max(acc, state.weapon.range ?? 0), 0)
       : null;
 
     // Basic attack availability - check if any NPC is in melee range
@@ -155,22 +177,37 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     let canRanged = distance !== null && distance > 1 && distance <= 8;
     let canRangedReason: string | null = null;
 
-    // Update canRanged based on weapon range if available
-    if (hasRangedWeapon && distance !== null) {
-      const maxRange = weaponRange ?? 8;
-      canRanged = distance > 1 && distance <= maxRange;
-      if (distance <= 1) {
-        canRangedReason = "In melee";
-      } else if (distance > maxRange) {
-        canRangedReason = "Out of range";
-      }
-    } else if (!hasRangedWeapon) {
+    const allRecharging = hasRangedWeapon && rangedWeaponStates.every((state) => state.isRecharging);
+    const allOutOfAmmo = hasRangedWeapon && rangedWeaponStates.every((state) => !state.hasAmmo);
+    const allBlockedByResources =
+      hasRangedWeapon && rangedWeaponStates.every((state) => state.isRecharging || !state.hasAmmo);
+
+    // Update canRanged based on weapon readiness and range if available
+    if (!hasRangedWeapon) {
       canRanged = false;
       canRangedReason = "No ranged weapon";
-    } else if (distance !== null && distance <= 1) {
+    } else if (!hasReadyRangedWeapon) {
       canRanged = false;
-      canRangedReason = "In melee";
-    } else if (distance !== null && distance > 8) {
+      if (allRecharging || allBlockedByResources) {
+        canRangedReason = "Recharging";
+      } else if (allOutOfAmmo) {
+        canRangedReason = "No ammo";
+      } else {
+        canRangedReason = "Recharging";
+      }
+    } else if (distance !== null) {
+      const hasCloseRangeShot = availableRangedWeapons.some((state) => state.hasCloseRangeShot);
+      if (distance <= 1 && !hasCloseRangeShot) {
+        canRanged = false;
+        canRangedReason = "In melee";
+      } else if (weaponRange !== null && distance > weaponRange) {
+        canRanged = false;
+        canRangedReason = "Out of range";
+      } else {
+        canRanged = true;
+        canRangedReason = null;
+      }
+    } else {
       canRanged = false;
       canRangedReason = "Out of range";
     }
@@ -233,14 +270,13 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
             break;
           }
           // Check ranged range
-          if (canRanged && hasRangedWeapon && weaponRange) {
-            if (dist > 1 && dist <= weaponRange) {
-              selectedTargetId = npcId;
-              break;
-            }
-          } else if (canRanged && !hasRangedWeapon) {
-            // Fallback: if canRanged is true but no weapon, use default range (2-8)
-            if (dist > 1 && dist <= 8) {
+          if (canRanged && hasRangedWeapon) {
+            if (weaponRange === null) {
+              if (dist > 1) {
+                selectedTargetId = npcId;
+                break;
+              }
+            } else if (dist > 1 && dist <= weaponRange) {
               selectedTargetId = npcId;
               break;
             }

@@ -217,6 +217,7 @@ export function combatRequestAttack(
   }
 
   const channelDoS = combat.channeling?.actorId === effect.attackerId ? combat.channeling.accumulatedDoS : 0;
+  const currentTurnCounter = combat.turnCounter ?? 0;
 
   // Mutable save for further updates (ammo, action, etc.)
   let currentSave: GameSave = save;
@@ -412,6 +413,35 @@ export function combatRequestAttack(
           ...currentSave,
           runtime: {
             ...currentSave.runtime,
+            lastCheck: blockedCheck,
+          },
+        },
+      };
+    }
+
+    const rechargeTurns = getWeaponQualityRank(primaryWeapon, "recharge") ?? 0;
+    const rechargeUntil =
+      primaryWeaponId && primaryWeaponId !== "unarmed"
+        ? combat.weaponRechargeUntilTurnCounterByActorId?.[effect.attackerId]?.[primaryWeaponId]
+        : undefined;
+    if (rechargeTurns > 0 && rechargeUntil !== undefined && currentTurnCounter < rechargeUntil) {
+      const blockedCheck = {
+        checkId: "combat:attack:blocked",
+        actorId: effect.attackerId,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none" as const,
+        tags: ["combat:blocked=recharge", `combat:rechargeUntil=${rechargeUntil}`],
+      };
+      const saveWithLog = appendCombatLog(currentSave, "Weapon recharging.");
+      return {
+        save: {
+          ...saveWithLog,
+          runtime: {
+            ...saveWithLog.runtime,
             lastCheck: blockedCheck,
           },
         },
@@ -643,6 +673,39 @@ export function combatRequestAttack(
         continue;
       }
 
+      const rechargeTurns = getWeaponQualityRank(weapon, "recharge") ?? 0;
+      const rechargeUntil =
+        weaponId && weaponId !== "unarmed"
+          ? currentSave.runtime.combat?.weaponRechargeUntilTurnCounterByActorId?.[effect.attackerId]?.[weaponId]
+          : undefined;
+      if (rechargeTurns > 0 && rechargeUntil !== undefined && currentTurnCounter < rechargeUntil) {
+        if (index === 0) {
+          const blockedCheck = {
+            checkId: "combat:attack:blocked",
+            actorId: effect.attackerId,
+            roll: 0,
+            target: 0,
+            success: false,
+            dos: 0,
+            dof: 0,
+            critical: "none" as const,
+            tags: ["combat:blocked=recharge", `combat:rechargeUntil=${rechargeUntil}`],
+          };
+          const saveWithLog = appendCombatLog(currentSave, "Weapon recharging.");
+          return {
+            save: {
+              ...saveWithLog,
+              runtime: {
+                ...saveWithLog.runtime,
+                lastCheck: blockedCheck,
+              },
+            },
+          };
+        }
+        currentSave = appendCombatLog(currentSave, "Weapon recharging.");
+        continue;
+      }
+
       if (weapon?.ammo && !isMagicFueled) {
         const inventory = getActorInventory(currentAttacker);
         const availableAmmo = getInventoryItemQty(inventory, weapon.ammo.itemId);
@@ -715,6 +778,31 @@ export function combatRequestAttack(
 
     // Use the updated save from performCheckWithSave (includes all check logs)
     currentSave = afterCheckSave;
+
+    if (effect.mode === "RANGED" && weaponId && weaponId !== "unarmed") {
+      const rechargeTurns = getWeaponQualityRank(weaponDef, "recharge") ?? 0;
+      if (rechargeTurns > 0 && currentSave.runtime.combat) {
+        const rechargeUntil = (currentSave.runtime.combat.turnCounter ?? 0) + rechargeTurns;
+        const existingRechargeByActor = currentSave.runtime.combat.weaponRechargeUntilTurnCounterByActorId || {};
+        const actorRecharge = existingRechargeByActor[effect.attackerId] || {};
+        currentSave = {
+          ...currentSave,
+          runtime: {
+            ...currentSave.runtime,
+            combat: {
+              ...currentSave.runtime.combat,
+              weaponRechargeUntilTurnCounterByActorId: {
+                ...existingRechargeByActor,
+                [effect.attackerId]: {
+                  ...actorRecharge,
+                  [weaponId]: rechargeUntil,
+                },
+              },
+            },
+          },
+        };
+      }
+    }
 
     const isPlayerActor = currentSave.actorsById[effect.attackerId]?.kind === "PC";
 

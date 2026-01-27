@@ -445,6 +445,7 @@ export function startCombat(
     stancesByActorId: {},
     turnCounter: 0,
     parryDisabledUntilTurnCounterByActorId: {},
+    weaponRechargeUntilTurnCounterByActorId: {},
     equippedThisRoundByActorId: {},
     initialHpByActorId,
     damageTakenSinceLastTurnByActorId: {},
@@ -1154,6 +1155,7 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
     stancesByActorId: updatedStancesByActorId,
     turnCounter: newTurnCounter,
     parryDisabledUntilTurnCounterByActorId: combat.parryDisabledUntilTurnCounterByActorId || {},
+    weaponRechargeUntilTurnCounterByActorId: combat.weaponRechargeUntilTurnCounterByActorId || {},
     freeSpellUsedThisTurn: updatedFreeSpellUsed,
   };
 

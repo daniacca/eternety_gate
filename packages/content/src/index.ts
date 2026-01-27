@@ -10,6 +10,7 @@ import weaponsCatalog from "./catalogs/weapons.json";
 import weaponQualitiesCatalog from "./catalogs/weapon_qualities.json";
 import armorsCatalog from "./catalogs/armors.json";
 import itemsCatalog from "./catalogs/items.json";
+import bestiaryCatalog from "./catalogs/bestiary.json";
 import type { ContentPack } from "@eg/engine";
 
 export const sigilContentPack: ContentPack = {
@@ -40,5 +41,6 @@ export {
   weaponsCatalog,
   weaponQualitiesCatalog,
   armorsCatalog,
+  bestiaryCatalog,
 };
 
