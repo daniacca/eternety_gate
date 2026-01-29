@@ -528,4 +528,94 @@ describe("defense selection", () => {
     const { result } = performCombatAttackCheck(check, storyPack, save, rng);
     expect(result?.tags).toContain("combat:defense=parry");
   });
+
+  it("applies invisibility penalties and melee bonus to hit", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({
+      id: "attacker",
+      conditions: { invisibility: { params: { wilBonus: 3 } } },
+    });
+    const defender = makeTestActor({
+      id: "defender",
+      conditions: { invisibility: { params: { wilBonus: 4 } } },
+    });
+
+    const save = makeTestSave(storyPack, attacker);
+    const saveWithBoth = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [defender.id]: defender,
+      },
+      runtime: {
+        ...save.runtime,
+        combat: makeCombatState([attacker.id, defender.id]),
+      },
+    };
+
+    const rangedCheck: CombatAttackCheck = {
+      id: "invis_ranged",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "RANGED" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+    const meleeCheck: CombatAttackCheck = {
+      id: "invis_melee",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+
+    const rangedTarget = computeAttackTarget(rangedCheck, attacker, defender, saveWithBoth, storyPack);
+    expect(rangedTarget.modifier).toBe(-20);
+
+    const meleeTarget = computeAttackTarget(meleeCheck, attacker, defender, saveWithBoth, storyPack);
+    expect(meleeTarget.modifier).toBe(-5);
+  });
+
+  it("applies invisibility penalty to parry/dodge checks", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeTestActor({
+      id: "attacker",
+      stats: { WS: 60 } as any,
+      conditions: { invisibility: { params: { wilBonus: 3 } } },
+    });
+    const defender = makeTestActor({
+      id: "defender",
+      kind: "PC",
+      stats: { AGI: 50 } as any,
+      skills: { "skill:dodge": 1 },
+    });
+
+    const save = makeTestSave(storyPack, attacker);
+    const saveWithBoth = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [defender.id]: defender,
+      },
+      runtime: {
+        ...save.runtime,
+        combat: makeCombatState([attacker.id, defender.id]),
+      },
+    };
+
+    const check: CombatAttackCheck = {
+      id: "invis_defense",
+      kind: "combatAttack",
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+    };
+
+    const rng = new FakeRng([10, 50]);
+    const { save: afterCheck } = performCombatAttackCheck(check, storyPack, saveWithBoth, rng);
+    const runtimeLog = afterCheck.runtime.runtimeLog ?? [];
+    const defenseLog = runtimeLog.find(
+      (entry) => entry.kind === "check" && entry.check?.checkId?.includes(":defense:")
+    );
+    expect(defenseLog?.check?.tags?.some((tag) => tag === "combat:defCalc:invisibleAttacker=-15")).toBe(true);
+  });
 });

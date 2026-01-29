@@ -136,6 +136,7 @@ export function resolveTalentUniquenessKey(
  */
 export function hasTrait(actor: Actor, traitId: string, save?: GameSave): boolean {
   if (actor.traits[traitId] !== undefined) return true;
+  if (actor.conditions?.beast_form) return false;
   if (!save || !actor.equipment || !save.itemsById) return false;
   const equippedItems = [
     actor.equipment.mainHand,

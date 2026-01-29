@@ -265,6 +265,26 @@ export function computeAttackTarget(
     }
   }
 
+  const defenderInvisibilityBonus =
+    typeof defender.conditions?.invisibility?.params?.wilBonus === "number"
+      ? defender.conditions?.invisibility?.params?.wilBonus
+      : 0;
+  if (defenderInvisibilityBonus > 0) {
+    const invisPenalty = -5 * defenderInvisibilityBonus;
+    combatModifier += invisPenalty;
+    modifierTags.push(`combat:mod:invisibleTarget=${invisPenalty}`);
+  }
+
+  const attackerInvisibilityBonus =
+    typeof attacker.conditions?.invisibility?.params?.wilBonus === "number"
+      ? attacker.conditions?.invisibility?.params?.wilBonus
+      : 0;
+  if (attackerInvisibilityBonus > 0 && effectiveMode === "MELEE") {
+    const invisBonus = 5 * attackerInvisibilityBonus;
+    combatModifier += invisBonus;
+    modifierTags.push(`combat:mod:invisibleAttacker=+${invisBonus}`);
+  }
+
   // Combat Master: defender talent that gives attackers -20 to hit in melee
   if (effectiveMode === "MELEE" && catalogs) {
     const combatMasterPenalty = getCombatMasterPenalty(save, catalogs, defender.id);
@@ -584,7 +604,12 @@ export function performCombatAttackCheck(
       ? (hasWeaponQuality(parryWeapon, "balanced") ? 10 : 0) + (hasWeaponQuality(parryWeapon, "unbalanced") ? -10 : 0)
       : 0;
   const parryBonus = defenseType === "parry" ? shieldMasteryBonus + parryQualityBonus : 0;
-  const defenseTarget = defenseBreakdown.target + parryBonus;
+  const attackerInvisibilityBonus =
+    typeof attacker.conditions?.invisibility?.params?.wilBonus === "number"
+      ? attacker.conditions?.invisibility?.params?.wilBonus
+      : 0;
+  const defenseInvisPenalty = attackerInvisibilityBonus > 0 ? -5 * attackerInvisibilityBonus : 0;
+  const defenseTarget = defenseBreakdown.target + parryBonus + defenseInvisPenalty;
 
   const defenseFateContext = createFateRerollContext();
   const defenseResult = rollD100CheckWithFate(
@@ -625,6 +650,7 @@ export function performCombatAttackCheck(
           `combat:defCalc:target=${defenseTarget}`,
           ...(shieldMasteryBonus > 0 ? [`combat:defCalc:shieldMastery=+${shieldMasteryBonus}`] : []),
           ...(parryQualityBonus !== 0 ? [`combat:defCalc:weaponQuality=${parryQualityBonus}`] : []),
+          ...(defenseInvisPenalty !== 0 ? [`combat:defCalc:invisibleAttacker=${defenseInvisPenalty}`] : []),
           ...defenseResult.tags.filter((tag) => tag.startsWith("fate:")),
         ],
       };

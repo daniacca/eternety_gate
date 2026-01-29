@@ -119,7 +119,8 @@ export function getActorWeapon(
   weaponId: WeaponId | "unarmed";
   name: string;
 } {
-  const weaponId = getEquippedWeaponId(actor);
+  const suppressEquipment = actor.conditions?.beast_form;
+  const weaponId = suppressEquipment ? null : getEquippedWeaponId(actor);
   const weapon = weaponId ? save.weaponsById?.[weaponId] : null;
 
   if (!weaponId || !weapon) {
@@ -167,9 +168,10 @@ export function getActorArmor(
   name: string;
   soak: number;
 } {
-  const armorId = getEquippedArmorId(actor);
+  const suppressEquipment = actor.conditions?.beast_form;
+  const armorId = suppressEquipment ? null : getEquippedArmorId(actor);
   const armor = armorId ? save.armorsById?.[armorId] : null;
-  const shieldSoak = getShieldSoak(save, actor.id);
+  const shieldSoak = suppressEquipment ? 0 : getShieldSoak(save, actor.id);
 
   if (!armorId || !armor) {
     return {

@@ -37,6 +37,13 @@ const conditionLabels: Record<ConditionId, string> = {
   perfect_timing: "Tempismo Perfetto",
   precognition: "Precognizione",
   misfortune: "Sventura",
+  beast_form: "Forma Bestiale",
+  giant_form: "Canto del Gigante",
+  fiery_form: "Forma di Fuoco",
+  flight: "Volo",
+  weave_of_fate: "Trama del Fato",
+  invisibility: "Invisibilità",
+  mind_control: "Controllo Mentale",
 };
 
 export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment, onToggleFateProtection }: PlayerHudProps) {

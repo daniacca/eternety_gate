@@ -44,7 +44,8 @@ function getModifierTotalBase(
   }
 
   const equippedTraitParams: Record<string, any> = {};
-  if (actor.equipment && save.itemsById) {
+  const suppressEquipment = actor.conditions?.beast_form;
+  if (actor.equipment && save.itemsById && !suppressEquipment) {
     const equippedItems = [
       actor.equipment.mainHand,
       actor.equipment.offHand,
@@ -182,7 +183,9 @@ function getModifierTotalBase(
   }
 
   // TODO: Check equipment
-  const equippedItems = [
+  const equippedItems = suppressEquipment
+    ? []
+    : [
     actor.equipment?.mainHand,
     actor.equipment?.offHand,
     actor.equipment?.armor,
@@ -192,7 +195,7 @@ function getModifierTotalBase(
     actor.equipment?.necklace,
     actor.equipment?.ring1,
     actor.equipment?.ring2,
-  ];
+    ];
 
   for (const itemRef of equippedItems) {
     if (!itemRef) continue;

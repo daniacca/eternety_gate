@@ -130,6 +130,24 @@
     ]
   },
   {
+    "id": "spell:pyra_fiery_form",
+    "name": "Forma di Fuoco",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:pyra_fiery_form",
+    "baseCN": 3,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Resistenza ai danni energia e colpi in mischia potenziati",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:pyra_flame_control",
     "name": "Controllo delle Fiamme",
     "discipline": "PYRA",
@@ -320,6 +338,62 @@
     ]
   },
   {
+    "id": "spell:mentis_veil_invisibility",
+    "name": "Velo di Invisibilita",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_veil_invisibility",
+    "baseCN": 2,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Alleati nell'area diventano invisibili; penalita e bonus in mischia",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:mentis_control_mind",
+    "name": "Controllo Mentale",
+    "discipline": "MENTIS",
+    "castTime": "fullRound",
+    "effectId": "effect:mentis_control_mind",
+    "baseCN": 7,
+    "rangeMode": "long",
+    "targetShape": "single",
+    "notes": "Il bersaglio resiste con WIL; se fallisce diventa controllabile",
+    "xpCost": 1400,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:mentis_vision_of_terror",
+    "name": "Visione del Terrore",
+    "discipline": "MENTIS",
+    "castTime": "standard",
+    "effectId": "effect:mentis_vision_of_terror",
+    "baseCN": 3,
+    "rangeMode": "medium",
+    "targetShape": "radius",
+    "radiusSquares": 3,
+    "notes": "I nemici nell'area resistono alla paura o restano sotto shock",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:vates_premonition",
     "name": "Presagio",
     "discipline": "VATES",
@@ -418,6 +492,50 @@
     ]
   },
   {
+    "id": "spell:vates_weave_of_fate",
+    "name": "Trama del Fato",
+    "discipline": "VATES",
+    "castTime": "fullRound",
+    "effectId": "effect:vates_weave_of_fate",
+    "baseCN": 10,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Ottieni un Punto Fato temporaneo per la durata",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:vates_vision",
+    "name": "Visione",
+    "discipline": "VATES",
+    "castTime": "free",
+    "effectId": "effect:vates_vision",
+    "baseCN": 0,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Hook narrativo per visioni o messaggi",
+    "xpCost": 100,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ],
+    "usage": { "combat": false, "narrative": true },
+    "narrative": {
+      "target": "scene",
+      "requiresCheck": true,
+      "minDoSToSucceed": 0,
+      "onSuccess": [],
+      "onFailure": []
+    }
+  },
+  {
     "id": "spell:corpus_mend",
     "name": "Cura Ferite",
     "discipline": "CORPUS",
@@ -492,6 +610,98 @@
       {
         "type": "hasSpell",
         "spellId": "spell:corpus_steel_body"
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_purity_of_body",
+    "name": "Purità del Corpo",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_purity_of_body",
+    "baseCN": 8,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Rimuove condizioni negative corporee e mentali dagli alleati nell'area",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_haemorrhage",
+    "name": "Emorragia",
+    "discipline": "CORPUS",
+    "castTime": "standard",
+    "effectId": "effect:corpus_haemorrhage",
+    "baseCN": 3,
+    "rangeMode": "touch",
+    "targetShape": "single",
+    "rangeSquares": 1,
+    "notes": "Danni diretti pari al bonus WIL + DoF se il bersaglio fallisce la resistenza",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_beast_form",
+    "name": "Forma Bestiale",
+    "discipline": "CORPUS",
+    "castTime": "fullRound",
+    "effectId": "effect:corpus_beast_form",
+    "baseCN": 8,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Trasforma il caster in una bestia feroce; non può lanciare incantesimi",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:corpus_song_of_giant",
+    "name": "Canto del Gigante",
+    "discipline": "CORPUS",
+    "castTime": "fullRound",
+    "effectId": "effect:corpus_song_of_giant",
+    "baseCN": 8,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Aumenta la taglia e potenzia STR/TOU riducendo AGI",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_flight",
+    "name": "Volo",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_flight",
+    "baseCN": 2,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Conferisce il tratto Volante per la durata",
+    "xpCost": 500,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
       }
     ]
   },

@@ -82,6 +82,88 @@ export function removeUnnaturalCharacteristicsBySource(
   };
 }
 
+export function addTraitsWithSource(
+  actor: Actor,
+  traitsToAdd: Record<string, any>,
+  source: string
+): Actor {
+  const updatedTraits = { ...(actor.traits ?? {}) };
+
+  for (const [traitId, params] of Object.entries(traitsToAdd)) {
+    if (traitId === "trait:natural_ability") {
+      const existing = updatedTraits[traitId];
+      const existingProfiles: Array<Record<string, any>> = [];
+      if (existing && typeof existing === "object") {
+        if (Array.isArray(existing.profiles)) {
+          existingProfiles.push(...existing.profiles);
+        } else if (Array.isArray(existing.abilities)) {
+          existingProfiles.push(...existing.abilities);
+        } else if (existing.profile) {
+          existingProfiles.push(existing.profile);
+        }
+      }
+      const incomingProfiles = Array.isArray(params?.profiles)
+        ? params.profiles
+        : Array.isArray(params?.abilities)
+          ? params.abilities
+          : Array.isArray(params)
+            ? params
+            : [];
+      const sourcedProfiles = incomingProfiles.map((profile) => ({ ...profile, _source: source }));
+      updatedTraits[traitId] = {
+        profiles: [...existingProfiles, ...sourcedProfiles],
+      };
+      continue;
+    }
+
+    if (updatedTraits[traitId] !== undefined && (updatedTraits[traitId] as any)?._source !== source) {
+      continue;
+    }
+    if (params && typeof params === "object") {
+      updatedTraits[traitId] = { ...params, _source: source };
+    } else {
+      updatedTraits[traitId] = { _source: source };
+    }
+  }
+
+  return {
+    ...actor,
+    traits: updatedTraits,
+  };
+}
+
+export function removeTraitsBySource(actor: Actor, source: string): Actor {
+  const updatedTraits = { ...(actor.traits ?? {}) };
+  let changed = false;
+
+  for (const [traitId, params] of Object.entries(updatedTraits)) {
+    if (traitId === "trait:natural_ability" && params && typeof params === "object") {
+      const profiles = Array.isArray((params as any).profiles) ? (params as any).profiles : [];
+      const remaining = profiles.filter((profile: any) => profile?._source !== source);
+      if (remaining.length !== profiles.length) {
+        changed = true;
+        if (remaining.length > 0) {
+          updatedTraits[traitId] = { profiles: remaining };
+        } else {
+          delete updatedTraits[traitId];
+        }
+      }
+      continue;
+    }
+
+    if (params && typeof params === "object" && (params as any)._source === source) {
+      delete updatedTraits[traitId];
+      changed = true;
+    }
+  }
+
+  if (!changed) return actor;
+  return {
+    ...actor,
+    traits: updatedTraits,
+  };
+}
+
 /**
  * Gets the characteristics that should be added for steel_body condition
  * @param stacks Number of stacks (1 + overcast)

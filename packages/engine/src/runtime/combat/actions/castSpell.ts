@@ -1,6 +1,6 @@
 import type { Effect, GameSave, StoryPack, SingleCheck, ActorId, CheckResult, StatKey } from "../../types";
 import type { IRNG } from "../../rng";
-import { calculateInitialMovement, getCurrentTurnActorId } from "../combat";
+import { calculateInitialMovement, getCurrentTurnActorId, updateAuraEffects } from "../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave } from "../../checks";
 import { getSpellById, getEffectById } from "../../magic/catalogs";
@@ -9,9 +9,10 @@ import { applyFatigue } from "../../characters/fatigue";
 import { getCharacteristicBonus } from "../../characters/bonuses";
 import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../magic/phenomena";
 import { hasLearnedSpell } from "../../magic/learning";
-import { addConditionToActor, hasCondition } from "../../conditions";
+import { addConditionToActor, hasCondition, removeConditionFromActor } from "../../conditions";
 import {
   addUnnaturalCharacteristics,
+  addTraitsWithSource,
   getSteelBodyCharacteristics,
   getWarpSpeedCharacteristics,
   removeUnnaturalCharacteristicsBySource,
@@ -28,7 +29,7 @@ import type { TargetSpec, TargetSelection, TargetPreview } from "../targeting/ty
 import { posKey } from "../../items";
 import type { ItemRef } from "../../types";
 import { hasDenyTheWitch, getBestResistStat, performDenyTheWitchCheck } from "../../magic/denyTheWitch";
-import { getResistanceBonus } from "../../characters/talentModifiers";
+import { getResistanceBonus, hasTalentHook } from "../../characters/talentModifiers";
 import { getMagicResistanceAgainstSpell } from "../../magic/resistance";
 import { getUntouchableDenyBonus } from "../../characters/untouchable";
 import { hasTrait } from "../../characters/prerequisites";
@@ -116,6 +117,28 @@ export function combatCastSpell(
       dof: 0,
       critical: "none",
       tags: ["combat:blocked=frenzy"],
+    };
+    return {
+      save: {
+        ...save,
+        runtime: {
+          ...save.runtime,
+          lastCheck: blockedCheck,
+        },
+      },
+    };
+  }
+  if (actor.conditions?.beast_form) {
+    const blockedCheck: CheckResult = {
+      checkId: "combat:castSpell:blocked",
+      actorId: turnActorId,
+      roll: 0,
+      target: 0,
+      success: false,
+      dos: 0,
+      dof: 0,
+      critical: "none",
+      tags: ["combat:blocked=beastForm"],
     };
     return {
       save: {
@@ -1560,12 +1583,38 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     return updatedSave;
   }
 
-  const targetActors = targetPreview.affectedActorIds
+  let targetActors = targetPreview.affectedActorIds
     .map((id) => ({
       actorId: id,
       actor: updatedSave.actorsById[id],
     }))
     .filter((t): t is { actorId: ActorId; actor: NonNullable<typeof updatedSave.actorsById[string]> } => !!t.actor);
+
+  if (effectDef.aura?.applyToAllies && effectDef.aura.includeCaster !== false) {
+    if (!targetActors.some((target) => target.actorId === turnActorId)) {
+      const casterActor = updatedSave.actorsById[turnActorId];
+      if (casterActor) {
+        targetActors = [{ actorId: turnActorId, actor: casterActor }, ...targetActors];
+      }
+    }
+  }
+
+  const partyIds = new Set(updatedSave.party?.actors ?? []);
+  const isAlly = (casterId: ActorId, targetId: ActorId): boolean => {
+    const casterIsParty = partyIds.has(casterId);
+    return casterIsParty ? partyIds.has(targetId) : !partyIds.has(targetId);
+  };
+
+  if (
+    effectDef.aura?.applyToAllies ||
+    effectDef.specialOp === "combatPurgeConditions"
+  ) {
+    targetActors = targetActors.filter((t) => isAlly(turnActorId, t.actorId));
+  }
+
+  if (effectDef.specialOp === "combatControlMind" || effectDef.specialOp === "combatVisionOfTerror") {
+    targetActors = targetActors.filter((t) => !isAlly(turnActorId, t.actorId));
+  }
 
   // Log target resolution
   if (targetActors.length > 0) {
@@ -1645,7 +1694,14 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
   // Handle opposed saves FIRST (before any effect application)
   // Filter out targets that successfully resist
   // Skip this block for combatDisarmAtRange - it handles its own opposed check
-  if (effectDef.opposed && effectDef.specialOp !== "combatDisarmAtRange" && validTargetActors.length > 0) {
+  if (
+    effectDef.opposed &&
+    effectDef.specialOp !== "combatDisarmAtRange" &&
+    effectDef.specialOp !== "combatHaemorrhage" &&
+    effectDef.specialOp !== "combatControlMind" &&
+    effectDef.specialOp !== "combatVisionOfTerror" &&
+    validTargetActors.length > 0
+  ) {
     const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;
     const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
 
@@ -1768,6 +1824,284 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
   }
 
+  if (effectDef.specialOp === "combatPurgeConditions" && validTargetActors.length > 0) {
+    const badConditions = new Set([
+      "stunned",
+      "bleeding",
+      "fatigue",
+      "unconscious",
+      "bound",
+      "halvedMovement",
+      "prone",
+      "misfortune",
+      "shock",
+      "force_field_overload",
+    ]);
+    for (const target of validTargetActors) {
+      let updatedActor = target.actor;
+      if (updatedActor.conditions) {
+        for (const conditionId of Object.keys(updatedActor.conditions)) {
+          if (badConditions.has(conditionId)) {
+            updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+          }
+        }
+      }
+      if (updatedActor.status?.tempModifiers?.length) {
+        const filteredMods = updatedActor.status.tempModifiers.filter((mod) => mod.value >= 0);
+        if (filteredMods.length !== updatedActor.status.tempModifiers.length) {
+          updatedActor = {
+            ...updatedActor,
+            status: {
+              ...updatedActor.status,
+              tempModifiers: filteredMods,
+            },
+          };
+        }
+      }
+      if (updatedActor !== target.actor) {
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: updatedActor,
+          },
+        };
+        const targetName = target.actor.name || target.actorId;
+        updatedSave = appendCombatLog(updatedSave, `${targetName} viene purificato dalle condizioni negative.`);
+      }
+    }
+    return updatedSave;
+  }
+
+  if (effectDef.specialOp === "combatHaemorrhage" && validTargetActors.length > 0) {
+    const resistedTargetIds = new Set<ActorId>();
+    const baseOpposedStat = effectDef.opposedStat || "TOU";
+    const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
+
+    for (const target of validTargetActors) {
+      const opposedStat = catalogs
+        ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
+        : baseOpposedStat;
+      const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+      const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const resistPenalty = -10 * targetOvercast;
+
+      const defenderCheck: SingleCheck = {
+        id: `combat:cast:haemorrhage:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: opposedStat,
+        difficulty: opposedDifficulty,
+        modifier: magicResistanceBonus + untouchableDenyBonus + resistPenalty,
+      };
+
+      const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+        defenderCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:haemorrhage:${spell.id}:${target.actorId}`
+      );
+
+      updatedSave = saveAfterDefenderCheck;
+
+      if (!defenderResult) {
+        resistedTargetIds.add(target.actorId);
+        continue;
+      }
+
+      const attackerDoS = effectiveDoS;
+      const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+
+      if (attackerDoS > defenderDoS) {
+        const damage = Math.max(0, effectStatBonus + defenderResult.dof);
+        const damageResult = applyDamageToActor(target.actor, damage, updatedSave, rng, storyPack, catalogs);
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: damageResult.updatedActor,
+          },
+        };
+        updatedSave = appendCombatLog(
+          updatedSave,
+          `${target.actor.name || target.actorId} subisce Emorragia (${damage} danni).`
+        );
+        updatedSave = appendRuntimeLog(updatedSave, {
+          kind: "damage",
+          attackerId: turnActorId,
+          defenderId: target.actorId,
+          formula: `WIL bonus + DoF (${effectStatBonus} + ${defenderResult.dof})`,
+          rolls: [],
+          rawDamage: damage,
+          soak: 0,
+          finalDamage: damage,
+          turnCounter: combat.turnCounter,
+          resolutionId,
+          tags: [
+            `magic:spell=${spell.id}`,
+            `magic:effect=${effectDef.id}`,
+            `magic:cn=${cnBase}`,
+            `magic:dosTotal=${effectiveDoS}`,
+            `magic:overcast=${targetOvercast}`,
+            `magic:kind=${effectDef.kind}`,
+            "magic:haemorrhage=1",
+          ],
+        });
+      } else {
+        resistedTargetIds.add(target.actorId);
+        const targetName = target.actor.name || target.actorId;
+        const resistedLog = `${targetName} resiste all'emorragia (${opposedStat}).`;
+        updatedSave = appendCombatLog(updatedSave, resistedLog);
+      }
+    }
+
+    validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    return updatedSave;
+  }
+
+  if (effectDef.specialOp === "combatControlMind" && validTargetActors.length > 0) {
+    const resistedTargetIds = new Set<ActorId>();
+    const baseOpposedStat = effectDef.opposedStat || "WIL";
+    const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
+
+    for (const target of validTargetActors) {
+      const opposedStat = catalogs
+        ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
+        : baseOpposedStat;
+      const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+      const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const resistPenalty = -10 * targetOvercast;
+
+      const defenderCheck: SingleCheck = {
+        id: `combat:cast:controlMind:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: opposedStat,
+        difficulty: opposedDifficulty,
+        modifier: magicResistanceBonus + untouchableDenyBonus + resistPenalty,
+      };
+
+      const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+        defenderCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:controlMind:${spell.id}:${target.actorId}`
+      );
+
+      updatedSave = saveAfterDefenderCheck;
+
+      if (!defenderResult) {
+        resistedTargetIds.add(target.actorId);
+        continue;
+      }
+
+      const attackerDoS = effectiveDoS;
+      const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+
+      if (attackerDoS > defenderDoS) {
+        const duration = Math.max(1, effectStatBonus + targetOvercast);
+        const untilTurnCounter = combat.turnCounter + duration;
+        const spellSource = `spell:${spell.id}`;
+        let updatedTargetActor = addConditionToActor(
+          target.actor,
+          "mind_control",
+          1,
+          untilTurnCounter,
+          spellSource,
+          { addedToParty: true }
+        );
+
+        const partyActors = updatedSave.party?.actors ?? [];
+        const alreadyInParty = partyActors.includes(target.actorId);
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: updatedTargetActor,
+          },
+          party: {
+            ...updatedSave.party,
+            actors: alreadyInParty ? partyActors : [...partyActors, target.actorId],
+            activeActorId:
+              updatedSave.party.activeActorId && updatedSave.party.activeActorId !== target.actorId
+                ? updatedSave.party.activeActorId
+                : updatedSave.party.activeActorId ?? turnActorId,
+          },
+        };
+        updatedSave = appendCombatLog(
+          updatedSave,
+          `${target.actor.name || target.actorId} è sotto il tuo controllo.`
+        );
+      } else {
+        resistedTargetIds.add(target.actorId);
+        const targetName = target.actor.name || target.actorId;
+        const resistedLog = `${targetName} resiste al controllo mentale (${opposedStat}).`;
+        updatedSave = appendCombatLog(updatedSave, resistedLog);
+      }
+    }
+
+    validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    return updatedSave;
+  }
+
+  if (effectDef.specialOp === "combatVisionOfTerror" && validTargetActors.length > 0) {
+    for (const target of validTargetActors) {
+      if (target.actor.traits?.["trait:from_beyond"] !== undefined) {
+        continue;
+      }
+      if (catalogs && hasTalentHook(target.actor, catalogs, "jaded")) {
+        continue;
+      }
+      if (target.actor.conditions?.frenzy !== undefined) {
+        continue;
+      }
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const fearPenalty = -(5 * effectStatBonus + 5 * targetOvercast);
+      const fearCheck: SingleCheck = {
+        id: `combat:visionTerror:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: "WIL",
+        difficulty: "Challenging",
+        modifier: fearPenalty,
+      };
+      const { result: fearResult, save: saveAfterFearCheck } = performCheckWithSave(
+        fearCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:visionTerror:${spell.id}:${target.actorId}`
+      );
+      updatedSave = saveAfterFearCheck;
+      if (!fearResult?.success) {
+        const shockedActor = addConditionToActor(
+          updatedSave.actorsById[target.actorId],
+          "shock",
+          1,
+          undefined,
+          `spell:${spell.id}`
+        );
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: shockedActor,
+          },
+        };
+        const fearLog =
+          target.actor.kind === "PC"
+            ? "Sei sopraffatto dal terrore e resti sotto shock."
+            : `${target.actor.name || target.actorId} è sopraffatto dal terrore e resta sotto shock.`;
+        updatedSave = appendCombatLog(updatedSave, fearLog);
+      }
+    }
+    return updatedSave;
+  }
+
   // Force Field: block hostile spell effects before applying conditions or damage
   const shouldCheckForceField =
     effectDef.kind === "damage" || effectDef.kind === "fatigue" || effectDef.kind === "malediction";
@@ -1836,7 +2170,14 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
       const targetOvercast = getOvercastForTarget(target.actorId);
       const baseDamageFlat = (effectDef.baseDamageFlat ?? 0) + effectStatBonus;
       const scaled = scaleDamage(effectDef.baseDamageDice, baseDamageFlat, targetOvercast);
-      const totalDamage = diceTotal + scaled.flatPlus;
+      let totalDamage = diceTotal + scaled.flatPlus;
+      if (
+        effectDef.kind === "damage" &&
+        effectDef.damageType === "energy" &&
+        hasCondition(target.actor, "fiery_form")
+      ) {
+        totalDamage = Math.ceil(totalDamage / 2);
+      }
 
       if (effectDef.kind === "heal") {
         // Healing: reduce wounds instead of applying damage
@@ -2319,6 +2660,10 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     }
   }
 
+  if (effectDef.moveTarget) {
+    updatedSave = updateAuraEffects(updatedSave);
+  }
+
   // Apply conditions if effect has conditions
   if (effectDef.applyConditions && validTargetActors.length > 0) {
     for (const conditionSpec of effectDef.applyConditions) {
@@ -2335,6 +2680,9 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
           conditionSpec.trigger?.overcast !== undefined &&
           targetOvercast < conditionSpec.trigger.overcast
         ) {
+          continue;
+        }
+        if (effectDef.aura?.applyToAllies && target.actorId !== turnActorId) {
           continue;
         }
         let finalStacks: number;
@@ -2363,6 +2711,22 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
           const scaled = scaleCondition(baseStacksValue, baseDurationValue, targetOvercast);
           finalStacks = 1 + targetOvercast;
           finalDuration = scaled.durationTurns;
+        } else if (conditionSpec.conditionId === "beast_form") {
+          const baseDuration = baseDurationValue ?? 1;
+          finalStacks = 1;
+          finalDuration = baseDuration + targetOvercast;
+        } else if (conditionSpec.conditionId === "giant_form") {
+          const baseDuration = baseDurationValue ?? 1;
+          finalStacks = 1;
+          finalDuration = baseDuration + targetOvercast;
+        } else if (
+          conditionSpec.conditionId === "fiery_form" ||
+          conditionSpec.conditionId === "flight" ||
+          conditionSpec.conditionId === "weave_of_fate"
+        ) {
+          const baseDuration = baseDurationValue ?? 1;
+          finalStacks = 1;
+          finalDuration = baseDuration + targetOvercast;
         } else {
           // Other conditions: use normal scaling
           const scaled = scaleCondition(baseStacksValue, baseDurationValue, targetOvercast);
@@ -2373,21 +2737,44 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
         const untilTurnCounter =
           finalDuration === undefined ? undefined : combat.turnCounter + finalDuration;
         const spellSource = `spell:${spell.id}`;
+        let conditionParams: Record<string, any> | undefined = undefined;
 
-        // Add condition
-        let updatedTargetActor = addConditionToActor(
-          target.actor,
-          conditionSpec.conditionId as any,
-          finalStacks,
-          untilTurnCounter,
-          spellSource,
-          conditionSpec.conditionId === "force_field"
-            ? {
-                x: 35 + targetOvercast * 5,
-                y: Math.max(0, 20 - targetOvercast * 2),
-              }
-            : undefined
-        );
+        if (effectDef.aura?.applyToAllies && target.actorId === turnActorId) {
+          const auraRadius = effectDef.aura.radiusFromEffectStat
+            ? Math.max(0, effectStatBonus)
+            : Math.max(0, effectDef.aura.radiusSquares ?? 0);
+          conditionParams = {
+            ...(conditionParams ?? {}),
+            aura: {
+              radius: auraRadius,
+              includeCaster: effectDef.aura.includeCaster !== false,
+            },
+          };
+        }
+        if (conditionSpec.conditionId === "invisibility") {
+          conditionParams = {
+            ...(conditionParams ?? {}),
+            wilBonus: effectStatBonus,
+          };
+        }
+
+        const shouldApplyCondition =
+          conditionSpec.conditionId !== "giant_form" && conditionSpec.conditionId !== "weave_of_fate";
+        let updatedTargetActor = shouldApplyCondition
+          ? addConditionToActor(
+              target.actor,
+              conditionSpec.conditionId as any,
+              finalStacks,
+              untilTurnCounter,
+              spellSource,
+              conditionSpec.conditionId === "force_field"
+                ? {
+                    x: 35 + targetOvercast * 5,
+                    y: Math.max(0, 20 - targetOvercast * 2),
+                  }
+                : conditionParams
+            )
+          : target.actor;
 
         // For steel_body and warp_speed, also add characteristics to the trait
         // First remove any existing characteristics from this spell source (in case of re-casting)
@@ -2402,6 +2789,149 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
             const characteristics = getWarpSpeedCharacteristics(finalStacks);
             updatedTargetActor = addUnnaturalCharacteristics(updatedTargetActor, characteristics, spellSource);
           }
+        }
+
+        if (conditionSpec.conditionId === "beast_form") {
+          const wpb = effectStatBonus;
+          updatedTargetActor = removeUnnaturalCharacteristicsBySource(updatedTargetActor, spellSource);
+          updatedTargetActor = addTraitsWithSource(
+            updatedTargetActor,
+            {
+              "trait:deadly_natural_weapons": {},
+              "trait:warp_weapons": {},
+              "trait:undying": {},
+              "trait:from_beyond": {},
+              "trait:regeneration": { x: wpb },
+              "trait:magic_resistance": { x: wpb },
+              "trait:natural_armour": { armor: wpb },
+              "trait:natural_ability": {
+                profiles: [
+                  {
+                    name: "Horn Attack",
+                    kind: "MELEE",
+                    damageType: "piercing",
+                    damage: { tier: "single", add: wpb },
+                    penetration: 3,
+                  },
+                  {
+                    name: "Tentacle",
+                    kind: "MELEE",
+                    damageType: "impact",
+                    damage: { tier: "single", add: wpb },
+                    penetration: 0,
+                  },
+                  {
+                    name: "Fire Breath",
+                    kind: "RANGED",
+                    damageType: "energy",
+                    damage: { tier: "double", add: wpb },
+                    penetration: 5,
+                    range: 6,
+                    qualities: [{ id: "spray" }, { id: "recharge", rank: 4 }],
+                  },
+                ],
+              },
+            },
+            spellSource
+          );
+          const bonus = Math.ceil(wpb / 2);
+          updatedTargetActor = addUnnaturalCharacteristics(
+            updatedTargetActor,
+            [
+              { stat: "STR", bonusX: bonus },
+              { stat: "TOU", bonusX: bonus },
+              { stat: "AGI", bonusX: bonus },
+            ],
+            spellSource
+          );
+        }
+
+        if (conditionSpec.conditionId === "giant_form") {
+          const combatState = updatedSave.runtime.combat;
+          const casterPos = combatState?.positions?.[target.actorId];
+          const currentSize = getActorSize(updatedTargetActor);
+          const sizeIncrease = Math.max(0, Math.min(10 - currentSize, 2 + targetOvercast));
+          if (!combatState || !casterPos || sizeIncrease <= 0) {
+            updatedSave = appendCombatLog(updatedSave, `${target.actor.name || target.actorId} non riesce a crescere.`);
+            continue;
+          }
+          const newSize = currentSize + sizeIncrease;
+          const simulatedSave: GameSave = {
+            ...updatedSave,
+            actorsById: {
+              ...updatedSave.actorsById,
+              [target.actorId]: {
+                ...updatedTargetActor,
+                traits: {
+                  ...updatedTargetActor.traits,
+                  "trait:size": { size: newSize },
+                },
+              },
+            },
+          };
+          const canGrow = canPlaceActorAt(simulatedSave, target.actorId, casterPos, terrainContentPack);
+          if (!canGrow) {
+            updatedSave = appendCombatLog(updatedSave, `${target.actor.name || target.actorId} non ha spazio per crescere.`);
+            continue;
+          }
+          const strDelta = sizeIncrease * 10;
+          const touDelta = sizeIncrease * 10;
+          const agiDelta = sizeIncrease * 5;
+          const hadSizeTrait = updatedTargetActor.traits?.["trait:size"] !== undefined;
+          updatedTargetActor = {
+            ...updatedTargetActor,
+            stats: {
+              ...updatedTargetActor.stats,
+              STR: (updatedTargetActor.stats.STR ?? 0) + strDelta,
+              TOU: (updatedTargetActor.stats.TOU ?? 0) + touDelta,
+              AGI: (updatedTargetActor.stats.AGI ?? 0) - agiDelta,
+            },
+            traits: {
+              ...updatedTargetActor.traits,
+              "trait:size": { size: newSize, _source: spellSource },
+            },
+          };
+          updatedTargetActor = addConditionToActor(
+            updatedTargetActor,
+            conditionSpec.conditionId as any,
+            finalStacks,
+            untilTurnCounter,
+            spellSource,
+            {
+              ...(conditionParams ?? {}),
+              statDeltas: { STR: strDelta, TOU: touDelta, AGI: agiDelta },
+              previousSize: currentSize,
+              hadSizeTrait,
+            }
+          );
+        }
+
+        if (conditionSpec.conditionId === "flight") {
+          const wpb = effectStatBonus;
+          updatedTargetActor = addTraitsWithSource(updatedTargetActor, { "trait:flyer": { x: wpb } }, spellSource);
+        }
+
+        if (conditionSpec.conditionId === "weave_of_fate") {
+          const currentFp = updatedTargetActor.resources.fatePoints ?? 0;
+          updatedTargetActor = {
+            ...updatedTargetActor,
+            resources: {
+              ...updatedTargetActor.resources,
+              fatePoints: currentFp + 1,
+            },
+          };
+          updatedTargetActor = addConditionToActor(
+            updatedTargetActor,
+            conditionSpec.conditionId as any,
+            finalStacks,
+            untilTurnCounter,
+            spellSource,
+            {
+              ...(conditionParams ?? {}),
+              originalFatePoints: currentFp,
+              tempFate: 1,
+            }
+          );
         }
 
         updatedSave = {
@@ -2446,6 +2976,10 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
         updatedSave = appendCombatLog(updatedSave, conditionLog);
       }
     }
+  }
+
+  if (effectDef.aura?.applyToAllies) {
+    updatedSave = updateAuraEffects(updatedSave);
   }
 
   return updatedSave;

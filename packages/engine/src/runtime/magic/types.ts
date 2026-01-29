@@ -73,6 +73,12 @@ export type EffectDefinition = {
   specialFatigue?: number; // Extra RF always applied on success
   rfOnSuccess?: number; // RF applied on successful cast (in addition to other RF rules)
   healFatigueRatio?: number; // Ratio of healed wounds converted into Fatigue for caster
+  aura?: {
+    applyToAllies?: boolean;
+    radiusFromEffectStat?: boolean;
+    radiusSquares?: number;
+    includeCaster?: boolean;
+  };
   opposed?: boolean; // If true, requires opposed check
   opposedStat?: StatKey; // Stat for defender's opposed check (defaults to same as castingStat)
   opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "Challenging")

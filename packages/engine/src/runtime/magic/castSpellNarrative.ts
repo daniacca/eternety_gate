@@ -87,6 +87,18 @@ export function runNarrativeSpell(
       },
     };
   }
+  if (caster.conditions?.beast_form) {
+    return {
+      save,
+      result: {
+        ok: false,
+        success: false,
+        appliedOps: [],
+        logs: ["Non puoi lanciare incantesimi mentre sei in Beast Form."],
+        tags: [...tags, "magic:blocked=beastForm"],
+      },
+    };
+  }
   tags.push(`magic:caster=${casterId}`);
 
   // Load spell definition

@@ -936,3 +936,202 @@ describe("combatCastSpell - shockwave", () => {
     expect(damageEntry).toBeTruthy();
   });
 });
+
+describe("combatCastSpell - mentis additions", () => {
+  it("should apply invisibility aura to allies with wil bonus params", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 50, INT: 60, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:mentis_veil_invisibility": true },
+    });
+    const ally = makeTestActor({
+      id: "PC_2",
+      kind: "PC",
+      stats: { INI: 40 } as any,
+    });
+    const enemy = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { INI: 30 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithActors = {
+      ...save,
+      party: {
+        actors: [caster.id, ally.id],
+        activeActorId: caster.id,
+      },
+      actorsById: {
+        ...save.actorsById,
+        [ally.id]: ally,
+        [enemy.id]: enemy,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithActors, [caster.id, ally.id, enemy.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [ally.id]: { x: 3, y: 1 },
+            [enemy.id]: { x: 8, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:mentis_veil_invisibility",
+      targetSelection: { kind: "radius", centerPos: { x: 1, y: 1 } },
+    };
+
+    const rng = new FixedRng([10], []);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    expect(result.save.actorsById[caster.id].conditions?.invisibility).toBeDefined();
+    expect(result.save.actorsById[ally.id].conditions?.invisibility).toBeDefined();
+    expect(result.save.actorsById[ally.id].conditions?.invisibility?.params?.wilBonus).toBe(5);
+    expect(result.save.actorsById[ally.id].conditions?.invisibility?.params?.auraApplied).toBe(true);
+    expect(result.save.actorsById[enemy.id].conditions?.invisibility).toBeUndefined();
+  });
+
+  it("should add mind controlled target to the party", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 80, INT: 80, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:mentis_control_mind": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { WIL: 30, INI: 30 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 4, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:mentis_control_mind",
+      targetSelection: { kind: "single", targetPos: { x: 4, y: 1 } },
+    };
+
+    const rng = new FixedRng([1, 90], []);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    expect(result.save.actorsById[target.id].conditions?.mind_control).toBeDefined();
+    expect(result.save.party.actors).toContain(target.id);
+    const untilTurnCounter = result.save.actorsById[target.id].conditions?.mind_control?.untilTurnCounter ?? 0;
+    expect(untilTurnCounter).toBe((combat.turnCounter ?? 0) + 8);
+  });
+
+  it("should apply shock to enemies failing vision of terror", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 60, INT: 70, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:mentis_vision_of_terror": true },
+    });
+    const targetA = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { WIL: 30, INI: 30 } as any,
+    });
+    const targetB = makeTestActor({
+      id: "NPC_2",
+      kind: "NPC",
+      stats: { WIL: 30, INI: 25 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTargets = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [targetA.id]: targetA,
+        [targetB.id]: targetB,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTargets, [caster.id, targetA.id, targetB.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [targetA.id]: { x: 2, y: 1 },
+            [targetB.id]: { x: 3, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:mentis_vision_of_terror",
+      targetSelection: { kind: "radius", centerPos: { x: 1, y: 1 } },
+    };
+
+    const rng = new FixedRng([10, 90, 90], []);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    expect(result.save.actorsById[targetA.id].conditions?.shock).toBeDefined();
+    expect(result.save.actorsById[targetB.id].conditions?.shock).toBeDefined();
+  });
+});

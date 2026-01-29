@@ -130,7 +130,13 @@
     "id": "effect:corpus_dragon_skin",
     "discipline": "CORPUS",
     "castingStat": "WIL",
+    "effectStat": "WIL",
     "kind": "blessing",
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
     "applyConditions": [
       {
         "conditionId": "force_shield",
@@ -200,6 +206,47 @@
       "durationRounds": 2
     },
     "description": "Applies -20 to all tests for duration"
+  },
+  {
+    "id": "effect:mentis_veil_invisibility",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
+    "applyConditions": [
+      {
+        "conditionId": "invisibility",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Rende invisibili alleati e caster nell'area"
+  },
+  {
+    "id": "effect:mentis_control_mind",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "specialOp": "combatControlMind",
+    "description": "Assoggetta la mente del bersaglio al controllo del caster"
+  },
+  {
+    "id": "effect:mentis_vision_of_terror",
+    "discipline": "MENTIS",
+    "castingStat": "INT",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "specialOp": "combatVisionOfTerror",
+    "description": "Visioni di terrore che inducono shock ai nemici"
   },
   {
     "id": "effect:vates_premonition",
@@ -276,7 +323,13 @@
     "id": "effect:corpus_steel_body",
     "discipline": "CORPUS",
     "castingStat": "WIL",
+    "effectStat": "WIL",
     "kind": "blessing",
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
     "applyConditions": [
       {
         "conditionId": "steel_body",
@@ -289,7 +342,13 @@
     "id": "effect:corpus_warp_speed",
     "discipline": "CORPUS",
     "castingStat": "WIL",
+    "effectStat": "WIL",
     "kind": "blessing",
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
     "applyConditions": [
       {
         "conditionId": "warp_speed",
@@ -297,6 +356,105 @@
       }
     ],
     "description": "Grants temporary Unnatural WS/BS/AGI +1"
+  },
+  {
+    "id": "effect:corpus_purity_of_body",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "specialOp": "combatPurgeConditions",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "description": "Purifica condizioni negative corporee e mentali agli alleati nell'area"
+  },
+  {
+    "id": "effect:corpus_haemorrhage",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "opposed": true,
+    "opposedStat": "TOU",
+    "specialOp": "combatHaemorrhage",
+    "description": "Emorragia interna: danni diretti pari al bonus WIL + DoF"
+  },
+  {
+    "id": "effect:corpus_beast_form",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "beast_form",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Trasforma il caster in una bestia feroce con potenziamenti e abilità naturali"
+  },
+  {
+    "id": "effect:corpus_song_of_giant",
+    "discipline": "CORPUS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "giant_form",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Ingrandisce il caster, aumentando forza e resistenza"
+  },
+  {
+    "id": "effect:pyra_fiery_form",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "fiery_form",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Il caster brucia di fiamme: resiste ai danni energia e potenzia i colpi in mischia"
+  },
+  {
+    "id": "effect:kinesis_flight",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "flight",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Conferisce il tratto Flyer per la durata"
+  },
+  {
+    "id": "effect:vates_weave_of_fate",
+    "discipline": "VATES",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "weave_of_fate",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Conferisce un Punto Fato temporaneo"
+  },
+  {
+    "id": "effect:vates_vision",
+    "discipline": "VATES",
+    "castingStat": "PER",
+    "kind": "blessing",
+    "description": "Permette al narratore di inviare visioni o messaggi"
   },
   {
     "id": "effect:kinesis_shockwave",

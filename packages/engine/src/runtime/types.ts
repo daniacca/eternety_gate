@@ -68,7 +68,14 @@ export type ConditionId =
   | "warp_speed"
   | "perfect_timing"
   | "precognition"
-  | "misfortune";
+  | "misfortune"
+  | "beast_form"
+  | "giant_form"
+  | "fiery_form"
+  | "flight"
+  | "weave_of_fate"
+  | "invisibility"
+  | "mind_control";
 
 export type ConditionInstance = {
   stacks?: number;

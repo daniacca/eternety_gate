@@ -1108,9 +1108,10 @@ export function combatRequestAttack(
         if (enemiesAlive.length === 0 && partyAlive.length > 0) {
           const combatState = currentSave.runtime.combat;
           const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
-          const clearedActorsById = combatState?.participants
+          const clearedResult = combatState?.participants
             ? clearCombatEndConditions(currentSave, combatState.participants)
-            : currentSave.actorsById;
+            : { actorsById: currentSave.actorsById, partyActors: currentSave.party?.actors ?? [] };
+          const clearedActorsById = clearedResult.actorsById;
           currentSave = appendCombatLog(currentSave, "Tutti i nemici presenti nell'area sono stati sconfitti.");
 
           const last = currentSave.runtime.lastCheck;
@@ -1134,6 +1135,10 @@ export function combatRequestAttack(
           currentSave = {
             ...currentSave,
             actorsById: clearedActorsById,
+            party: {
+              ...currentSave.party,
+              actors: clearedResult.partyActors,
+            },
             runtime: {
               ...currentSave.runtime,
               combat: undefined,
@@ -1144,9 +1149,10 @@ export function combatRequestAttack(
         } else if (partyAlive.length === 0) {
           const combatState = currentSave.runtime.combat;
           const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
-          const clearedActorsById = combatState?.participants
+          const clearedResult = combatState?.participants
             ? clearCombatEndConditions(currentSave, combatState.participants)
-            : currentSave.actorsById;
+            : { actorsById: currentSave.actorsById, partyActors: currentSave.party?.actors ?? [] };
+          const clearedActorsById = clearedResult.actorsById;
           currentSave = appendCombatLog(currentSave, "Il party è stato annientato. Game over.");
 
           const last = currentSave.runtime.lastCheck;
@@ -1179,6 +1185,10 @@ export function combatRequestAttack(
           currentSave = {
             ...currentSave,
             actorsById: clearedActorsById,
+            party: {
+              ...currentSave.party,
+              actors: clearedResult.partyActors,
+            },
             runtime: {
               ...currentSave.runtime,
               combat: undefined,

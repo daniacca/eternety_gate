@@ -1,4 +1,15 @@
-import type { StoryPack, GameSave, Actor, ActorId, SceneId, Grid, Position, CombatState, CheckResult } from "../types";
+import type {
+  StoryPack,
+  GameSave,
+  Actor,
+  ActorId,
+  SceneId,
+  Grid,
+  Position,
+  CombatState,
+  CheckResult,
+  ConditionId,
+} from "../types";
 import { RNG } from "../rng";
 import { clampToGrid } from "./movement";
 import { appendCombatLog, appendRuntimeLog } from "./narration";
@@ -14,7 +25,7 @@ import { applyArmorAgiCap } from "../characters/effectiveStats";
 import { loadCharacterCatalogs, loadTerrainCatalogs } from "../../content/loadCatalogs";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { calculateMaxHp } from "../characters/hp";
-import { removeUnnaturalCharacteristicsBySource } from "../characters/traitHelpers";
+import { removeUnnaturalCharacteristicsBySource, removeTraitsBySource } from "../characters/traitHelpers";
 import { applyDamageToActor } from "./criticalDamage";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { performCheckWithSave } from "../checks";
@@ -27,7 +38,7 @@ import {
   trackCombatSelfDamage,
 } from "./damageTracking";
 import { getUntouchableAuraImpact } from "./untouchableAura";
-import { getActorSize, getFootprintCells, getFootprintRadius } from "./footprint";
+import { getActorSize, getFootprintCells, getFootprintRadius, footprintDistanceBetweenActors } from "./footprint";
 import { posKey } from "../items/posKey";
 
 /**
@@ -123,11 +134,15 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
   const logEntry =
     outcome === "victory" ? "Tutti i nemici presenti nell'area sono stati sconfitti." : "Il party è stato annientato. Game over.";
 
-  const clearedActorsById = clearCombatEndConditions(save, combat.participants);
+  const { actorsById: clearedActorsById, partyActors } = clearCombatEndConditions(save, combat.participants);
 
   const updatedSave: GameSave = {
     ...save,
     actorsById: clearedActorsById,
+    party: {
+      ...save.party,
+      actors: partyActors,
+    },
     runtime: {
       ...save.runtime,
       combat: undefined,
@@ -139,8 +154,70 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
   return appendCombatLog(updatedSave, logEntry);
 }
 
-export function clearCombatEndConditions(save: GameSave, participants: ActorId[]): GameSave["actorsById"] {
+function cleanupConditionRemoval(
+  actor: Actor,
+  conditionId: string,
+  instance: { source?: string; params?: Record<string, any> }
+): Actor {
+  let updatedActor = actor;
+  if (instance.source) {
+    updatedActor = removeUnnaturalCharacteristicsBySource(updatedActor, instance.source);
+    updatedActor = removeTraitsBySource(updatedActor, instance.source);
+  }
+
+  if (conditionId === "giant_form") {
+    const deltas = instance.params?.statDeltas;
+    if (deltas && typeof deltas === "object") {
+      updatedActor = {
+        ...updatedActor,
+        stats: {
+          ...updatedActor.stats,
+          STR: (updatedActor.stats.STR ?? 0) - (deltas.STR ?? 0),
+          TOU: (updatedActor.stats.TOU ?? 0) - (deltas.TOU ?? 0),
+          AGI: (updatedActor.stats.AGI ?? 0) - (deltas.AGI ?? 0),
+        },
+      };
+    }
+    const hadSizeTrait = instance.params?.hadSizeTrait;
+    const previousSize = instance.params?.previousSize;
+    if (typeof previousSize === "number") {
+      const updatedTraits = { ...updatedActor.traits };
+      if (hadSizeTrait) {
+        updatedTraits["trait:size"] = { size: previousSize };
+      } else {
+        delete updatedTraits["trait:size"];
+      }
+      updatedActor = { ...updatedActor, traits: updatedTraits };
+    }
+  }
+
+  if (conditionId === "weave_of_fate") {
+    const originalFp = instance.params?.originalFatePoints ?? 0;
+    const tempFate = instance.params?.tempFate ?? 0;
+    const currentFp = updatedActor.resources.fatePoints ?? 0;
+    const removeAmount = currentFp > originalFp ? Math.min(tempFate, currentFp - originalFp) : 0;
+    if (removeAmount > 0) {
+      const newFp = Math.max(0, currentFp - removeAmount);
+      updatedActor = {
+        ...updatedActor,
+        resources: {
+          ...updatedActor.resources,
+          fatePoints: newFp,
+          fateProtectionActive: newFp > 0 ? updatedActor.resources.fateProtectionActive : false,
+        },
+      };
+    }
+  }
+
+  return updatedActor;
+}
+
+export function clearCombatEndConditions(
+  save: GameSave,
+  participants: ActorId[]
+): { actorsById: GameSave["actorsById"]; partyActors: ActorId[] } {
   const clearedActorsById = { ...save.actorsById };
+  let partyActors = [...(save.party?.actors ?? [])];
   for (const actorId of participants) {
     const actor = clearedActorsById[actorId];
     if (!actor) continue;
@@ -151,10 +228,11 @@ export function clearCombatEndConditions(save: GameSave, participants: ActorId[]
         if (conditionId !== "shock" && instance.untilTurnCounter === undefined) {
           continue;
         }
-        if (instance.source) {
-          updatedActor = removeUnnaturalCharacteristicsBySource(updatedActor, instance.source);
-        }
+        updatedActor = cleanupConditionRemoval(updatedActor, conditionId, instance);
         updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+        if (conditionId === "mind_control" && instance.params?.addedToParty) {
+          partyActors = partyActors.filter((id) => id !== actorId);
+        }
       }
     }
 
@@ -175,7 +253,106 @@ export function clearCombatEndConditions(save: GameSave, participants: ActorId[]
       clearedActorsById[actorId] = updatedActor;
     }
   }
-  return clearedActorsById;
+  return { actorsById: clearedActorsById, partyActors };
+}
+
+export function updateAuraEffects(save: GameSave): GameSave {
+  const combat = save.runtime.combat;
+  if (!combat?.active) return save;
+
+  const partyIds = new Set(save.party?.actors ?? []);
+  const isAlly = (casterId: ActorId, targetId: ActorId): boolean => {
+    const casterIsParty = partyIds.has(casterId);
+    return casterIsParty ? partyIds.has(targetId) : !partyIds.has(targetId);
+  };
+
+  const desired: Record<
+    string,
+    Record<string, { stacks: number; untilTurnCounter?: number; params?: Record<string, any> }>
+  > = {};
+
+  for (const casterId of combat.participants) {
+    const caster = save.actorsById[casterId];
+    if (!caster?.conditions) continue;
+    for (const [conditionId, instance] of Object.entries(caster.conditions)) {
+      const aura = instance.params?.aura;
+      if (!aura || typeof aura.radius !== "number") continue;
+      const radius = aura.radius;
+      if (radius <= 0) continue;
+      const includeCaster = aura.includeCaster !== false;
+      for (const targetId of combat.participants) {
+        if (!includeCaster && targetId === casterId) continue;
+        if (!isAlly(casterId, targetId)) continue;
+        const distance = footprintDistanceBetweenActors(save, casterId, targetId);
+        if (distance > radius) continue;
+        desired[targetId] = desired[targetId] || {};
+        const current = desired[targetId][conditionId];
+        const stacks = instance.stacks ?? 1;
+        const untilTurnCounter = instance.untilTurnCounter;
+        const params = instance.params
+          ? Object.fromEntries(Object.entries(instance.params).filter(([key]) => key !== "aura"))
+          : undefined;
+        if (!current || stacks > current.stacks || (untilTurnCounter ?? 0) > (current.untilTurnCounter ?? 0)) {
+          desired[targetId][conditionId] = { stacks, untilTurnCounter, params };
+        }
+      }
+    }
+  }
+
+  let updatedSave: GameSave = save;
+  for (const actorId of combat.participants) {
+    const actor = updatedSave.actorsById[actorId];
+    if (!actor) continue;
+    let updatedActor = actor;
+    const wanted = desired[actorId] ?? {};
+
+    if (actor.conditions) {
+      for (const [conditionId, instance] of Object.entries(actor.conditions)) {
+        if (!instance.params?.auraApplied) continue;
+        if (!wanted[conditionId]) {
+          updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+          continue;
+        }
+        const desiredEntry = wanted[conditionId];
+        updatedActor = addConditionToActor(
+          updatedActor,
+          conditionId as any,
+          desiredEntry.stacks,
+          desiredEntry.untilTurnCounter,
+          instance.source,
+          { ...(desiredEntry.params ?? {}), auraApplied: true }
+        );
+        delete wanted[conditionId];
+      }
+    }
+
+    for (const [conditionId, data] of Object.entries(wanted)) {
+      const conditionKey = conditionId as ConditionId;
+      if (actor.conditions?.[conditionKey] && !actor.conditions?.[conditionKey]?.params?.auraApplied) {
+        continue;
+      }
+      updatedActor = addConditionToActor(
+        updatedActor,
+        conditionKey as any,
+        data.stacks,
+        data.untilTurnCounter,
+        "aura:applied",
+        { ...(data.params ?? {}), auraApplied: true }
+      );
+    }
+
+    if (updatedActor !== actor) {
+      updatedSave = {
+        ...updatedSave,
+        actorsById: {
+          ...updatedSave.actorsById,
+          [actorId]: updatedActor,
+        },
+      };
+    }
+  }
+
+  return updatedSave;
 }
 
 /**
@@ -703,11 +880,15 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
           tags: ["combat:state=end", `combat:outcome=${outcome}`, ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
-    const clearedActorsById = clearCombatEndConditions(save, combat.participants);
+    const { actorsById: clearedActorsById, partyActors } = clearCombatEndConditions(save, combat.participants);
 
     let updatedSave = {
       ...save,
       actorsById: clearedActorsById,
+      party: {
+        ...save.party,
+        actors: partyActors,
+      },
       runtime: {
         ...save.runtime,
         combat: undefined,
@@ -1241,11 +1422,30 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
       }
 
       for (const { conditionId, source } of conditionsToRemove) {
-        // For steel_body and warp_speed, remove characteristics from trait before removing condition
-        if ((conditionId === "steel_body" || conditionId === "warp_speed") && source) {
+        const conditionKey = conditionId as ConditionId;
+        const instance = currentActor.conditions?.[conditionKey];
+        if (instance) {
+          currentActor = cleanupConditionRemoval(currentActor, conditionId, instance);
+          if (conditionId === "mind_control" && instance.params?.addedToParty) {
+            const updatedPartyActors = (updatedSave.party?.actors ?? []).filter((id) => id !== currentTurnActorId);
+            const nextActiveActorId =
+              updatedSave.party?.activeActorId === currentTurnActorId
+                ? updatedPartyActors[0] ?? updatedSave.party?.activeActorId
+                : updatedSave.party?.activeActorId;
+            updatedSave = {
+              ...updatedSave,
+              party: {
+                ...updatedSave.party,
+                actors: updatedPartyActors,
+                activeActorId: nextActiveActorId,
+              },
+            };
+          }
+        } else if (source) {
           currentActor = removeUnnaturalCharacteristicsBySource(currentActor, source);
+          currentActor = removeTraitsBySource(currentActor, source);
         }
-        currentActor = removeConditionFromActor(currentActor, conditionId as any);
+        currentActor = removeConditionFromActor(currentActor, conditionKey as any);
       }
 
       if (conditionsToRemove.length > 0) {
@@ -1341,5 +1541,5 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
     updatedSave = appendCombatLog(updatedSave, turnHeader);
   }
 
-  return updatedSave;
+  return updateAuraEffects(updatedSave);
 }

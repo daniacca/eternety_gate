@@ -1,5 +1,5 @@
 import type { Effect, GameSave } from "../../types";
-import { getCurrentTurnActorId } from "../combat";
+import { getCurrentTurnActorId, updateAuraEffects } from "../combat";
 import { appendCombatLog } from "../narration";
 import { canPlaceActorAt } from "../footprint";
 import { getCellTerrain } from "../terrain";
@@ -231,5 +231,5 @@ export function combatMove(
   // Add narration to combat log
   updatedSave = appendCombatLog(updatedSave, logEntry);
 
-  return { save: updatedSave };
+  return { save: updateAuraEffects(updatedSave) };
 }

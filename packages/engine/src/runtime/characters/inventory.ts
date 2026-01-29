@@ -129,6 +129,9 @@ export function getActorCarryCapacityKg(save: GameSave, actorId: ActorId, storyP
  * Gets the equipped weapon ID from an actor
  */
 export function getEquippedWeaponId(actor: Actor): WeaponId | null {
+  if (actor.conditions?.beast_form) {
+    return null;
+  }
   if (actor.equipment?.mainHand?.kind === "weapon") {
     return actor.equipment.mainHand.id as WeaponId;
   }
@@ -139,6 +142,9 @@ export function getEquippedWeaponId(actor: Actor): WeaponId | null {
  * Gets the equipped armor ID from an actor
  */
 export function getEquippedArmorId(actor: Actor): ArmorId | null {
+  if (actor.conditions?.beast_form) {
+    return null;
+  }
   if (actor.equipment?.armor?.kind === "armor") {
     return actor.equipment.armor.id as ArmorId;
   }

@@ -277,6 +277,13 @@ export function applyCombatDamageIfHit(
     rawDamage += bonusDamage;
     damageFormula = damageFormula ? `${damageFormula} + ${bonusDamage} (Vengeance)` : `${bonusDamage} (Vengeance)`;
   }
+  if (mode === "MELEE" && hasCondition(attacker, "fiery_form")) {
+    const fieryBonus = rng.nextInt(1, 10);
+    rawDamage += fieryBonus;
+    damageFormula = damageFormula
+      ? `${damageFormula} + ${fieryBonus} (Fiery Form)`
+      : `${fieryBonus} (Fiery Form)`;
+  }
 
   // Get defender armor soak
   let { soak, armorId } = getActorArmor(save, defender);
@@ -289,6 +296,9 @@ export function applyCombatDamageIfHit(
   // Get weapon for penetration calculation
   const weaponForPenetration =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+  if (weaponForPenetration?.damageType === "energy" && hasCondition(defender, "fiery_form")) {
+    rawDamage = Math.ceil(rawDamage / 2);
+  }
   const isNaturalWeaponAttack =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon && isNaturalWeaponId(calculatedWeaponId);
   const usesWarpWeapons =
