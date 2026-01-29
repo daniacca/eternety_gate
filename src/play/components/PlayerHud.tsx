@@ -1,6 +1,14 @@
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import type { GameSave } from "@eg/engine";
-import { getActorWeapon, getActorArmor, calculateMaxHp, getCurrentHp, calculateMaxRf, getMagicPower } from "@eg/engine";
+import {
+  getActorWeapon,
+  getActorArmor,
+  calculateMaxHp,
+  getCurrentHp,
+  calculateMaxRf,
+  getMagicPower,
+  getModifierTotal,
+} from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
 import { loadCharacterCatalogs } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
@@ -26,6 +34,9 @@ const conditionLabels: Record<ConditionId, string> = {
   steel_body: "Corpo d'Acciaio",
   warp_speed: "Warp Speed",
   halvedMovement: "Movimento Dimezzato",
+  perfect_timing: "Tempismo Perfetto",
+  precognition: "Precognizione",
+  misfortune: "Sventura",
 };
 
 export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment, onToggleFateProtection }: PlayerHudProps) {
@@ -47,6 +58,19 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
   // Get equipment
   const weapon = getActorWeapon(save, activeActor);
   const armor = getActorArmor(save, activeActor);
+  let armorSoak = armor.soak;
+  if (activeActor.conditions?.misfortune) {
+    armorSoak = Math.ceil(armorSoak / 2);
+  }
+  const machineSoak = catalogs ? getModifierTotal(save, catalogs, activeActor.id, "combat.machineSoak") : 0;
+  const naturalArmor = catalogs ? getModifierTotal(save, catalogs, activeActor.id, "combat.naturalArmor") : 0;
+  const extraSoak = machineSoak > 0 ? machineSoak : naturalArmor;
+  const totalSoak = armorSoak + extraSoak;
+  const equippedArmor = activeActor.equipment?.armor;
+  const equippedArmorName =
+    equippedArmor && equippedArmor.kind !== "armor"
+      ? save.itemsById?.[equippedArmor.id]?.name || equippedArmor.id
+      : armor.name;
 
   // Get conditions
   const conditions = activeActor.conditions || {};
@@ -147,7 +171,7 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
           <Text style={styles.equipmentText}>{weapon.name}</Text>
           <Text style={styles.equipmentLabel}>Armor:</Text>
           <Text style={styles.equipmentText}>
-            {armor.armorId !== "none" ? `${armor.name} (Soak: ${armor.soak || 0})` : "None"}
+            {equippedArmor ? `${equippedArmorName} (Soak: ${totalSoak})` : `None (Soak: ${totalSoak})`}
           </Text>
         </View>
       ) : conditionEntries.length > 0 ? (
@@ -186,10 +210,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
     gap: 8,
-  },
-  containerNarrow: {
     flexWrap: "wrap",
     rowGap: 6,
+  },
+  containerNarrow: {
     paddingVertical: 6,
   },
   avatar: {
@@ -217,6 +241,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    flexShrink: 1,
   },
   hpLabel: {
     fontSize: 12,
@@ -232,6 +257,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    flexShrink: 1,
   },
   xpLabel: {
     fontSize: 12,
@@ -247,6 +273,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexWrap: "wrap",
+    flexShrink: 1,
   },
   fateLabel: {
     fontSize: 12,

@@ -36,12 +36,55 @@ export function ItemShop({ visible, save, actor, onClose, applySystemEffects }: 
     ]);
   };
 
+  const formatGrant = (grant: any): string => {
+    if (grant.type === "modifier") {
+      const labelMap: Record<string, string> = {
+        "combat.naturalArmor": "Natural Armor",
+        "magic.castBonus": "Casting Bonus",
+        "magic.channelBonus": "Channel Bonus",
+        "magic.pm": "PM",
+      };
+      const label = labelMap[grant.key] ?? grant.key ?? "Modifier";
+      const op = grant.op === "add" ? "+" : grant.op === "sub" ? "-" : grant.op ?? "+";
+      const value =
+        grant.valueRef === "magic.pm"
+          ? "PM"
+          : typeof grant.value === "number"
+            ? Math.abs(grant.value).toString()
+            : grant.value ?? "0";
+      return `${label}: ${op}${value}`;
+    }
+    if (grant.type === "trait") {
+      return `Trait: ${grant.traitId?.replace("trait:", "") ?? "unknown"}`;
+    }
+    if (grant.type === "unlockAction") {
+      return `Unlock: ${grant.actionId ?? "action"}`;
+    }
+    return grant.type ?? "Effect";
+  };
+
+  const getEntryEffects = (entry: ItemDefinition | Weapon | Armor): string[] => {
+    const effects: string[] = [];
+    if ("soak" in entry && typeof entry.soak === "number") {
+      effects.push(`Soak: ${entry.soak}`);
+    }
+    if ("penetration" in entry && typeof entry.penetration === "number") {
+      effects.push(`Pen: ${entry.penetration}`);
+    }
+    const grants = (entry as any).grants;
+    if (Array.isArray(grants) && grants.length > 0) {
+      effects.push(...grants.map(formatGrant));
+    }
+    return effects;
+  };
+
   const renderEntry = (kind: "item" | "weapon" | "armor", entry: ItemDefinition | Weapon | Armor) => {
     const price = getItemPrice(entry);
     const weight = entry.weight ?? 0;
     const canAfford = gold >= price;
     const canCarry = currentWeight + weight <= maxWeight;
     const canBuy = canAfford && canCarry && Boolean(applySystemEffects);
+    const effects = getEntryEffects(entry);
 
     return (
       <View key={entry.id} style={styles.card}>
@@ -51,6 +94,7 @@ export function ItemShop({ visible, save, actor, onClose, applySystemEffects }: 
             <Text style={styles.cardMeta}>
               {entry.rarity ?? "Common"} · {price} GP · {weight} kg
             </Text>
+            {effects.length > 0 && <Text style={styles.cardEffects}>Effetti: {effects.join(" · ")}</Text>}
           </View>
           <TouchableOpacity
             style={[styles.buyButton, !canBuy && styles.buyButtonDisabled]}
@@ -241,6 +285,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#94a3b8",
     marginTop: 4,
+  },
+  cardEffects: {
+    fontSize: 11,
+    color: "#cbd5f5",
+    marginTop: 6,
+    lineHeight: 16,
   },
   buyButton: {
     backgroundColor: "#2563eb",

@@ -69,6 +69,18 @@ const soullessAuraTalents = [
   },
 ];
 
+const doubleCastTalent = [
+  {
+    id: "talent:double_casting",
+    name: "Double Casting",
+    tier: 3,
+    xpCost: 1000,
+    prerequisites: [{ type: "hasTrait", traitId: "trait:weaver" }],
+    grants: [{ type: "unlockAction", actionId: "magic:doubleCast" }],
+    maxRank: 1,
+  },
+];
+
 describe("combatCastSpell - magic resistance", () => {
   it("should fully resist target when magic resistance >= manifested PM", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits });
@@ -184,7 +196,7 @@ describe("combatCastSpell - magic resistance", () => {
     const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
     const runtimeLog = result.save.runtime.runtimeLog ?? [];
     const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
-    expect(damageEntry?.tags?.includes("magic:overcast=2")).toBe(true);
+    expect(damageEntry?.tags?.includes("magic:overcast=0")).toBe(true);
   });
 
   it("should not overflow when target is inside an untouchable field", () => {
@@ -384,5 +396,543 @@ describe("combatCastSpell - From Beyond immunity", () => {
     const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
 
     expect(result.save.actorsById[target.id].resources.rf ?? 0).toBe(0);
+  });
+});
+
+describe("combatCastSpell - effect stat scaling", () => {
+  it("should add effect stat bonus to damage", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 55, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:flame_bolt": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:flame_bolt",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([45], [4, 7]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const runtimeLog = result.save.runtime.runtimeLog ?? [];
+    const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
+    expect(damageEntry?.rawDamage).toBe(16);
+  });
+
+  it("should add effect stat bonus to condition duration", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 55, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_force_bind": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_force_bind",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([45], [1]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const boundCondition = result.save.actorsById[target.id].conditions?.bound;
+    expect(boundCondition?.untilTurnCounter).toBe(8);
+  });
+});
+
+describe("combatCastSpell - fixed duration modifiers", () => {
+  it("should keep vates premonition duration fixed to 1 round base", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { PER: 90, WIL: 50, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:vates_premonition": true },
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const combatSave = startCombat(storyPack, save, [caster.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:vates_premonition",
+      targetSelection: { kind: "self" },
+    };
+
+    const rng = new FixedRng([10], [1]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const modifier = result.save.actorsById[caster.id].status.tempModifiers.find(
+      (mod) => mod.id === "spell:spell:vates_premonition:PC_1"
+    );
+    const turnCounter = result.save.runtime.combat?.turnCounter ?? 0;
+    const overcastTag = result.save.runtime.lastCheck?.tags?.find((tag) => tag.startsWith("magic:overcast="));
+    const overcast = overcastTag ? parseInt(overcastTag.split("=")[1] || "0", 10) : 0;
+    expect((modifier?.expires ?? 0) - turnCounter).toBe(1 + overcast);
+  });
+});
+
+describe("combatCastSpell - double cast", () => {
+  it("should cast two spells with a shared check", () => {
+    const storyPack = makeTestStoryPack({
+      traits: baseTraits,
+      talents: doubleCastTalent as any,
+    });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 60, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      talents: { "talent:double_casting": 1 },
+      spells: { "spell:flame_bolt": true, "spell:pyra_flame_control": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:flame_bolt",
+      secondarySpellId: "spell:pyra_flame_control",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([40], [3, 4, 2]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+
+    const runtimeLog = result.save.runtime.runtimeLog ?? [];
+    const damageEntries = runtimeLog.filter((entry) => entry.kind === "damage" && entry.defenderId === target.id);
+    expect(damageEntries.length).toBe(2);
+    expect(result.save.runtime.lastCheck?.tags?.includes("magic:doubleCast=1")).toBe(true);
+  });
+});
+
+describe("combatCastSpell - forced movement", () => {
+  it("should push target away from caster", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 60, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_force_push": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_force_push",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([40], [5]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    expect(result.save.runtime.combat?.positions?.[target.id]).toEqual({ x: 4, y: 1 });
+  });
+
+  it("should apply impact damage when blocked by non-walkable terrain", () => {
+    const storyPack = makeTestStoryPack({
+      traits: baseTraits,
+      grids: [
+        {
+          id: "arena_01",
+          width: 10,
+          height: 10,
+          defaults: { walkable: true, cover: "none", tileId: "plains" },
+          cells: {
+            "3,1": { walkable: false, cover: "none", tileId: "wall" },
+          },
+        },
+      ],
+      tiles: { plains: {}, wall: {} },
+    } as any);
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 60, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_force_push": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_force_push",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([40], [5, 4]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const runtimeLog = result.save.runtime.runtimeLog ?? [];
+    const impactEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.tags?.includes("magic:forcedMoveImpact=1"));
+    expect(impactEntry).toBeTruthy();
+    expect(result.save.runtime.combat?.positions?.[target.id]).toEqual({ x: 2, y: 1 });
+  });
+
+  it("should not move targets with size 8 or above", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 60, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_force_push": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+      traits: { "trait:size": { size: 8 } },
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_force_push",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([40], [5]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    expect(result.save.runtime.combat?.positions?.[target.id]).toEqual({ x: 2, y: 1 });
+  });
+
+  it("should apply prone only when overcast threshold is met", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 80, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_force_push": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 2, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_force_push",
+      targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+    };
+
+    const rng = new FixedRng([10], [5]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    expect(result.save.actorsById[target.id].conditions?.prone).toBeDefined();
+  });
+});
+
+describe("combatCastSpell - shockwave", () => {
+  it("should use effect stat bonus as radius and push targets", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 50, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:kinesis_shockwave": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { TOU: 0 } as any,
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 4, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:kinesis_shockwave",
+      targetSelection: { kind: "radius", centerPos: { x: 1, y: 1 } },
+    };
+
+    const rng = new FixedRng([20], [6]);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    expect(result.save.runtime.combat?.positions?.[target.id]).toEqual({ x: 9, y: 1 });
+    const runtimeLog = result.save.runtime.runtimeLog ?? [];
+    const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
+    expect(damageEntry).toBeTruthy();
   });
 });

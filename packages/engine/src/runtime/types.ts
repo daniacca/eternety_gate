@@ -65,7 +65,10 @@ export type ConditionId =
   | "force_field_overload"
   | "force_shield"
   | "steel_body"
-  | "warp_speed";
+  | "warp_speed"
+  | "perfect_timing"
+  | "precognition"
+  | "misfortune";
 
 export type ConditionInstance = {
   stacks?: number;
@@ -208,6 +211,7 @@ export type Effect =
       op: "combatCastSpell";
       actorId: ActorId;
       spellId: string;
+      secondarySpellId?: string;
       targetSelection: TargetSelection;
       castOptions?: {
         ignoreWeaverRequirement?: boolean;

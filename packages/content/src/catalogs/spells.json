@@ -53,7 +53,7 @@
     "rangeMode": "short",
     "targetShape": "single",
     "notes": "Spinge il bersaglio a terra",
-    "xpCost": 500,
+    "xpCost": 100,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -71,7 +71,7 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Rileva la presenza di magia",
-    "xpCost": 300,
+    "xpCost": 100,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -86,52 +86,6 @@
       "onSuccess": [{ "op": "setFlag", "key": "magic_sensed", "value": true }],
       "onFailure": []
     }
-  },
-  {
-    "id": "spell:soothe_wounds",
-    "name": "Lenire Ferite",
-    "discipline": "CORPUS",
-    "castTime": "standard",
-    "effectId": "effect:soothe_wounds",
-    "baseCN": 1,
-    "rangeMode": "touch",
-    "targetShape": "single",
-    "notes": "Ripristina una piccola quantità di HP",
-    "xpCost": 500,
-    "prerequisites": [
-      {
-        "type": "hasTrait",
-        "traitId": "trait:weaver"
-      }
-    ],
-    "usage": { "combat": true, "narrative": true },
-    "narrative": {
-      "target": "singleActor",
-      "requiresCheck": true,
-      "minDoSToSucceed": 0,
-      "onSuccess": [
-        { "op": "modifyResource", "actorId": "active", "resource": "wounds", "delta": -3, "scaleBy": "dos", "max": -10 }
-      ],
-      "onFailure": [{ "op": "modifyResource", "actorId": "active", "resource": "rf", "delta": 1 }]
-    }
-  },
-  {
-    "id": "spell:regenerate_minor",
-    "name": "Rigenerazione Minore",
-    "discipline": "CORPUS",
-    "castTime": "standard",
-    "effectId": "effect:soothe_wounds",
-    "baseCN": 1,
-    "rangeMode": "self",
-    "targetShape": "self",
-    "notes": "Ripristina una piccola quantità di HP",
-    "xpCost": 500,
-    "prerequisites": [
-      {
-        "type": "hasTrait",
-        "traitId": "trait:weaver"
-      }
-    ]
   },
   {
     "id": "spell:corpus_dragon_skin",
@@ -163,7 +117,7 @@
     "rangeSquares": 6,
     "radiusSquares": 2,
     "notes": "Esplosione devastante che infligge danni a tutti i bersagli nell'area",
-    "xpCost": 800,
+    "xpCost": 600,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -205,11 +159,30 @@
     "targetShape": "single",
     "rangeMultiplier": 2,
     "notes": "Hit the target with kinetic force",
-    "xpCost": 500,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_shockwave",
+    "name": "Shockwave",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_shockwave",
+    "baseCN": 2,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Blast centered on the caster that pushes targets away",
+    "xpCost": 400,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_push"
       }
     ]
   },
@@ -223,7 +196,7 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Grants temporary Force Field",
-    "xpCost": 700,
+    "xpCost": 600,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -242,7 +215,7 @@
     "targetShape": "single",
     "rangeSquares": 4,
     "notes": "Ranged disarm via opposed check",
-    "xpCost": 900,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -266,7 +239,7 @@
     "targetShape": "single",
     "rangeMultiplier": 2,
     "notes": "Binds target, preventing movement",
-    "xpCost": 600,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -285,12 +258,12 @@
     "discipline": "MENTIS",
     "castTime": "standard",
     "effectId": "effect:mentis_disrupt",
-    "baseCN": 1,
+    "baseCN": 0,
     "rangeMode": "short",
     "targetShape": "single",
     "rangeMultiplier": 2,
     "notes": "Applies fatigue to target",
-    "xpCost": 500,
+    "xpCost": 100,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -309,7 +282,7 @@
     "targetShape": "single",
     "rangeMultiplier": 2,
     "notes": "Opposed check to stun target",
-    "xpCost": 800,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -333,7 +306,7 @@
     "targetShape": "single",
     "rangeMultiplier": 2,
     "notes": "Applies -20 to all tests",
-    "xpCost": 900,
+    "xpCost": 400,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -356,7 +329,7 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Grants +20 to all tests until end of next round",
-    "xpCost": 600,
+    "xpCost": 400,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -370,8 +343,83 @@
     ]
   },
   {
+    "id": "spell:vates_perfect_timing",
+    "name": "Perfect Timing",
+    "discipline": "VATES",
+    "castTime": "standard",
+    "effectId": "effect:vates_perfect_timing",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Ranged attacks ignore cover for the duration",
+    "xpCost": 300,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "PER",
+        "value": 55
+      }
+    ]
+  },
+  {
+    "id": "spell:vates_precognition",
+    "name": "Precognition",
+    "discipline": "VATES",
+    "castTime": "standard",
+    "effectId": "effect:vates_precognition",
+    "baseCN": 3,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Roll twice and take the best result for checks and damage",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 45
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "PER",
+        "value": 45
+      }
+    ]
+  },
+  {
+    "id": "spell:vates_misfortune",
+    "name": "Misfortune",
+    "discipline": "VATES",
+    "castTime": "standard",
+    "effectId": "effect:vates_misfortune",
+    "baseCN": 3,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "rangeMultiplier": 2,
+    "notes": "Opposed Will check; target rolls twice and takes worst, armor soak halved",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      },
+      {
+        "type": "statAtLeast",
+        "stat": "WIL",
+        "value": 45
+      }
+    ]
+  },
+  {
     "id": "spell:corpus_mend",
-    "name": "Rigenerazione Minore",
+    "name": "Cura Ferite",
     "discipline": "CORPUS",
     "castTime": "standard",
     "effectId": "effect:corpus_mend",
@@ -379,36 +427,30 @@
     "rangeMode": "touch",
     "targetShape": "single",
     "rangeSquares": 1,
-    "notes": "Stronger heal (2d5) with +2 RF cost",
-    "xpCost": 700,
+    "notes": "Tocco curativo: 1d10 + bonus WIL, metà cura come Fatigue",
+    "xpCost": 400,
     "prerequisites": [
       {
-        "type": "hasSpell",
-        "spellId": "spell:soothe_wounds"
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
       }
     ]
   },
   {
-    "id": "spell:corpus_suture",
-    "name": "Sutura",
+    "id": "spell:regeneration",
+    "name": "Rigenerazione",
     "discipline": "CORPUS",
-    "castTime": "fullRound",
-    "effectId": "effect:corpus_suture",
-    "baseCN": 2,
-    "rangeMode": "touch",
-    "targetShape": "single",
-    "rangeSquares": 1,
-    "notes": "Full round strong heal (3d5) with +3 RF cost",
-    "xpCost": 1100,
+    "castTime": "standard",
+    "effectId": "effect:corpus_mend",
+    "baseCN": 1,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Autocura: 1d10 + bonus WIL, metà cura come Fatigue",
+    "xpCost": 400,
     "prerequisites": [
       {
-        "type": "hasSpell",
-        "spellId": "spell:corpus_mend"
-      },
-      {
-        "type": "statAtLeast",
-        "stat": "WIL",
-        "value": 40
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
       }
     ]
   },
@@ -422,15 +464,15 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Grants temporary Unnatural STR +1 and TOU +1",
-    "xpCost": 800,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasSpell",
-        "spellId": "spell:soothe_wounds"
+        "spellId": "spell:corpus_mend"
       },
       {
         "type": "statAtLeast",
-        "stat": "WIL",
+        "stat": "TOU",
         "value": 35
       }
     ]
@@ -445,22 +487,17 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Grants temporary Unnatural WS/BS/AGI +1",
-    "xpCost": 1000,
+    "xpCost": 300,
     "prerequisites": [
       {
         "type": "hasSpell",
         "spellId": "spell:corpus_steel_body"
-      },
-      {
-        "type": "statAtLeast",
-        "stat": "WIL",
-        "value": 40
       }
     ]
   },
   {
     "id": "spell:kinesis_unlock",
-    "name": "Sblocco Telecineti",
+    "name": "Sblocco",
     "discipline": "KINESIS",
     "castTime": "standard",
     "effectId": "effect:kinesis_force_push",
@@ -468,7 +505,7 @@
     "rangeMode": "touch",
     "targetShape": "single",
     "notes": "Manipola teleticamente i meccanismi di una serratura",
-    "xpCost": 400,
+    "xpCost": 100,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -494,7 +531,7 @@
     "rangeMode": "short",
     "targetShape": "single",
     "notes": "Legge i pensieri superficiali di un bersaglio",
-    "xpCost": 600,
+    "xpCost": 200,
     "prerequisites": [
       {
         "type": "hasSpell",
@@ -519,11 +556,11 @@
     "discipline": "PYRA",
     "castTime": "free",
     "effectId": "effect:pyra_flame_control_touch",
-    "baseCN": 1,
+    "baseCN": 0,
     "rangeMode": "touch",
     "targetShape": "single",
     "notes": "Accende una fiamma su materiale infiammabile",
-    "xpCost": 200,
+    "xpCost": 100,
     "prerequisites": [
       {
         "type": "hasTrait",

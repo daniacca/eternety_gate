@@ -1,6 +1,13 @@
 import { View, Text, Pressable } from "react-native";
 import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck } from "@eg/engine";
-import { hasUnlockedAction, loadCharacterCatalogs, getLearnedSpells, getNaturalAbilityWeapons } from "@eg/engine";
+import {
+  hasUnlockedAction,
+  loadCharacterCatalogs,
+  getLearnedSpells,
+  getNaturalAbilityWeapons,
+  getSpellById,
+  getEffectById,
+} from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
 import { useMemo, useState, useEffect } from "react";
 import { SpellPickerModal } from "./SpellPickerModal";
@@ -15,6 +22,7 @@ interface CombatControlProps {
   width: number;
   styles: any;
   onSpellTargetSelect: (spellId: string) => void;
+  onDoubleCastTargetSelect: (primarySpellId: string, secondarySpellId: string) => void;
   onRangedTargetSelect: (weaponId: string | null, modifiers?: CombatAttackCheck["modifiers"]) => void;
   targetingInfo?: {
     spellName: string;
@@ -26,6 +34,8 @@ interface CombatControlProps {
   onTargetDirection?: (dir: Direction8) => void;
   onTargetConfirm?: () => void;
   onTargetCancel?: () => void;
+  magicConductEnabled: boolean;
+  onToggleMagicConduct: (enabled: boolean) => void;
 }
 
 // Called Shot zone type
@@ -41,11 +51,14 @@ export function CombatControl({
   width,
   styles,
   onSpellTargetSelect,
+  onDoubleCastTargetSelect,
   onRangedTargetSelect,
   targetingInfo,
   onTargetDirection,
   onTargetConfirm,
   onTargetCancel,
+  magicConductEnabled,
+  onToggleMagicConduct,
 }: CombatControlProps) {
   const [spellPickerVisible, setSpellPickerVisible] = useState(false);
   const [activeSection, setActiveSection] = useState<"movement" | "attacks" | "stance" | "magic">("movement");
@@ -58,6 +71,9 @@ export function CombatControl({
     kind: "melee" | "ranged" | "calledShot" | "swift";
     mode: "MELEE" | "RANGED";
   } | null>(null);
+  const [spellPickerMode, setSpellPickerMode] = useState<"single" | "double">("single");
+  const [doubleCastStage, setDoubleCastStage] = useState<"primary" | "secondary" | null>(null);
+  const [doubleCastPrimaryId, setDoubleCastPrimaryId] = useState<string | null>(null);
 
   if (!model || !model.isCombatActive) return null;
 
@@ -88,12 +104,19 @@ export function CombatControl({
     : false;
   const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:cast") : false;
   const hasChannelUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:channel") : false;
+  const hasMagicConductUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:conduct")
+    : false;
+  const hasDoubleCastUnlock = catalogs
+    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:doubleCast")
+    : false;
   const hasCalledShotUnlock = catalogs
     ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:calledShot")
     : false;
 
   const activeActor = save.actorsById[save.party.activeActorId];
   const isWeaver = Boolean(activeActor?.traits?.["trait:weaver"]);
+  const fatePoints = activeActor?.resources?.fatePoints ?? 0;
   const channelingDoS =
     save.runtime.combat?.channeling?.actorId === save.party.activeActorId
       ? save.runtime.combat.channeling.accumulatedDoS
@@ -182,6 +205,10 @@ export function CombatControl({
   // Get learned spells
   const learnedSpells = catalogs ? getLearnedSpells(save, save.party.activeActorId, catalogs) : [];
   const hasLearnedSpells = learnedSpells.length > 0;
+  const canUseMagicConduct = hasMagicConductUnlock && fatePoints > 0 && model.actionAvailable;
+
+  const primaryDoubleCastSpell = doubleCastPrimaryId ? getSpellById(doubleCastPrimaryId) : null;
+  const primaryDoubleCastEffect = primaryDoubleCastSpell ? getEffectById(primaryDoubleCastSpell.effectId) : null;
 
   // Move pad grid structure: 3x3 with blank center
   const moveGrid = [
@@ -702,6 +729,9 @@ export function CombatControl({
                     ]}
                     onPress={() => {
                       if (hasMagicUnlock && hasLearnedSpells) {
+                        setSpellPickerMode("single");
+                        setDoubleCastStage(null);
+                        setDoubleCastPrimaryId(null);
                         setSpellPickerVisible(true);
                       }
                     }}
@@ -716,6 +746,51 @@ export function CombatControl({
                       Cast Spell
                     </Text>
                   </Pressable>
+                  <Pressable
+                    style={[
+                      styles.stanceButton,
+                      (!hasDoubleCastUnlock || !hasLearnedSpells || !model.actionAvailable) && styles.attackButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      if (hasDoubleCastUnlock && hasLearnedSpells && model.actionAvailable) {
+                        setSpellPickerMode("double");
+                        setDoubleCastStage("primary");
+                        setDoubleCastPrimaryId(null);
+                        setSpellPickerVisible(true);
+                      }
+                    }}
+                    disabled={!hasDoubleCastUnlock || !hasLearnedSpells || !model.actionAvailable}
+                  >
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!hasDoubleCastUnlock || !hasLearnedSpells) && styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Double Cast
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.stanceButton,
+                      (!canUseMagicConduct || !model.actionAvailable) && styles.attackButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      if (canUseMagicConduct && model.actionAvailable) {
+                        onToggleMagicConduct(!magicConductEnabled);
+                      }
+                    }}
+                    disabled={!canUseMagicConduct || !model.actionAvailable}
+                  >
+                    <Text
+                      style={[
+                        styles.attackButtonText,
+                        (!canUseMagicConduct || !model.actionAvailable) && styles.attackButtonTextDisabled,
+                      ]}
+                    >
+                      Magic Conduct: {magicConductEnabled ? "ON" : "OFF"}
+                    </Text>
+                  </Pressable>
                   {!hasChannelUnlock && (
                     <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Richiede Focus di Canalizzazione</Text>
                   )}
@@ -724,6 +799,14 @@ export function CombatControl({
                   )}
                   {hasMagicUnlock && !hasLearnedSpells && (
                     <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Nessun incantesimo imparato</Text>
+                  )}
+                  {hasMagicConductUnlock && fatePoints <= 0 && (
+                    <Text style={{ fontSize: 10, color: "#ff6b6b", marginTop: 4 }}>Fate Points insufficienti</Text>
+                  )}
+                  {hasDoubleCastUnlock && spellPickerMode === "double" && doubleCastStage === "secondary" && (
+                    <Text style={{ fontSize: 10, color: "#2563eb", marginTop: 4 }}>
+                      Seleziona un secondo incantesimo con stesso tipo e bersaglio.
+                    </Text>
                   )}
                   {channelingDoS > 0 && (
                     <Text style={{ fontSize: 11, color: "#2563eb", marginTop: 6 }}>
@@ -857,10 +940,46 @@ export function CombatControl({
         save={save}
         actorId={save.party.activeActorId}
         actionAvailable={model.actionAvailable}
-        onClose={() => setSpellPickerVisible(false)}
-        onSelectSpell={(spellId) => {
-          onSpellTargetSelect(spellId);
+        onClose={() => {
           setSpellPickerVisible(false);
+          setSpellPickerMode("single");
+          setDoubleCastStage(null);
+          setDoubleCastPrimaryId(null);
+        }}
+        title={
+          spellPickerMode === "double"
+            ? doubleCastStage === "secondary"
+              ? "Seleziona il secondo incantesimo"
+              : "Seleziona il primo incantesimo"
+            : "Seleziona Incantesimo"
+        }
+        filterSpells={
+          spellPickerMode === "double" && doubleCastStage === "secondary" && primaryDoubleCastSpell && primaryDoubleCastEffect
+            ? (spell) => {
+                if (spell.id === primaryDoubleCastSpell.id) return false;
+                if (spell.targetShape !== primaryDoubleCastSpell.targetShape) return false;
+                const effect = getEffectById(spell.effectId);
+                return Boolean(effect && effect.kind === primaryDoubleCastEffect.kind);
+              }
+            : undefined
+        }
+        closeOnSelect={spellPickerMode !== "double" || doubleCastStage === "secondary"}
+        onSelectSpell={(spellId) => {
+          if (spellPickerMode === "double") {
+            if (doubleCastStage === "primary") {
+              setDoubleCastPrimaryId(spellId);
+              setDoubleCastStage("secondary");
+            } else if (doubleCastStage === "secondary" && doubleCastPrimaryId) {
+              onDoubleCastTargetSelect(doubleCastPrimaryId, spellId);
+              setDoubleCastStage(null);
+              setDoubleCastPrimaryId(null);
+              setSpellPickerVisible(false);
+              setSpellPickerMode("single");
+            }
+          } else {
+            onSpellTargetSelect(spellId);
+            setSpellPickerVisible(false);
+          }
         }}
       />
 

@@ -57,6 +57,7 @@ export { getItemPrice, getAdjustedPrice, getBasePriceFromRarity } from "./runtim
 
 // Combat movement helpers
 export { distanceChebyshev, clampToGrid } from "./runtime/combat/movement";
+export { calculateInitialMovement } from "./runtime/combat/combat";
 export { isActorAlive } from "./runtime/characters/actors";
 export {
   getFootprintRadius,

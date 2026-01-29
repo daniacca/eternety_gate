@@ -62,20 +62,6 @@
     }
   },
   {
-    "id": "effect:soothe_wounds",
-    "discipline": "CORPUS",
-    "castingStat": "WIL",
-    "kind": "heal",
-    "baseDamageDice": {
-      "dice": 1,
-      "sides": 5
-    },
-    "baseDamageFlat": 0,
-    "specialFatigue": 1,
-    "rfOnSuccess": 1,
-    "description": "Ripristina HP (1d5) e applica +1 RF"
-  },
-  {
     "id": "effect:pyra_explosion",
     "discipline": "PYRA",
     "castingStat": "WIL",
@@ -105,6 +91,7 @@
     "id": "effect:kinesis_force_push",
     "discipline": "KINESIS",
     "castingStat": "WIL",
+    "effectStat": "WIL",
     "kind": "malediction",
     "baseDamageDice": {
       "dice": 1,
@@ -112,9 +99,16 @@
     },
     "baseDamageFlat": 0,
     "damageType": "impact",
+    "moveTarget": {
+      "mode": "awayFromCaster",
+      "distance": 2
+    },
     "applyConditions": [
       {
-        "conditionId": "prone"
+        "conditionId": "prone",
+        "trigger": {
+          "overcast": 3
+        }
       }
     ],
     "description": "Push/backlash simplified MVP"
@@ -215,37 +209,68 @@
     "tempModifier": {
       "scope": "all",
       "value": 20,
-      "durationRounds": 1
+      "durationRounds": 1,
+      "fixedDurationRounds": 1
     },
     "description": "Grants +20 to all tests until end of next round"
+  },
+  {
+    "id": "effect:vates_perfect_timing",
+    "discipline": "VATES",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "perfect_timing",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Ranged attacks ignore cover for the duration"
+  },
+  {
+    "id": "effect:vates_precognition",
+    "discipline": "VATES",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "precognition",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Roll twice and take the better result for checks and damage"
+  },
+  {
+    "id": "effect:vates_misfortune",
+    "discipline": "VATES",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "applyConditions": [
+      {
+        "conditionId": "misfortune",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Roll twice and take the worst result; armor soak is halved"
   },
   {
     "id": "effect:corpus_mend",
     "discipline": "CORPUS",
     "castingStat": "WIL",
+    "effectStat": "WIL",
     "kind": "heal",
     "baseDamageDice": {
-      "dice": 2,
-      "sides": 5
+      "dice": 1,
+      "sides": 10
     },
     "baseDamageFlat": 0,
-    "specialFatigue": 2,
-    "rfOnSuccess": 1,
-    "description": "Stronger heal (2d5) with +2 RF cost"
-  },
-  {
-    "id": "effect:corpus_suture",
-    "discipline": "CORPUS",
-    "castingStat": "WIL",
-    "kind": "heal",
-    "baseDamageDice": {
-      "dice": 3,
-      "sides": 5
-    },
-    "baseDamageFlat": 0,
-    "specialFatigue": 3,
-    "rfOnSuccess": 1,
-    "description": "Full round strong heal (3d5) with +3 RF cost"
+    "healFatigueRatio": 0.5,
+    "description": "Cura 1d10 + bonus WIL; metà della cura viene convertita in Fatigue per il caster"
   },
   {
     "id": "effect:corpus_steel_body",
@@ -272,5 +297,25 @@
       }
     ],
     "description": "Grants temporary Unnatural WS/BS/AGI +1"
+  },
+  {
+    "id": "effect:kinesis_shockwave",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 10
+    },
+    "baseDamageFlat": 0,
+    "damageType": "impact",
+    "moveTarget": {
+      "mode": "awayFromCaster",
+      "distance": "radius"
+    },
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "description": "Shockwave centered on caster that damages and pushes nearby targets"
   }
 ]

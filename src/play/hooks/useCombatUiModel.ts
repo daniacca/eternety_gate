@@ -4,6 +4,7 @@ import {
   getCurrentTurnActorId,
   getActorWeapon,
   getActorArmor,
+  calculateInitialMovement,
   distanceChebyshev,
   isActorAlive,
   getInventoryItemQty,
@@ -314,7 +315,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
 
     const agiBonus =
       pcActor && save.party.activeActorId
-        ? Math.max(1, getCharacteristicBonus(save, save.party.activeActorId, "AGI", catalogs))
+        ? Math.max(1, calculateInitialMovement(pcActor, save, catalogs))
         : 1;
 
     return {

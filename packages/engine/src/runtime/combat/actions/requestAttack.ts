@@ -1,6 +1,6 @@
 import type { Effect, GameSave, StoryPack, CombatAttackCheck, CheckResult } from "../../types";
 import { IRNG } from "../../rng";
-import { finalizeCombatIfEnded, getCurrentTurnActorId } from "../combat";
+import { clearCombatEndConditions, finalizeCombatIfEnded, getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendAttackNarration, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave, resolveActor } from "../../checks";
 import { applyCombatDamageIfHit } from "../damage";
@@ -22,6 +22,7 @@ import {
   isNaturalWeaponId,
 } from "../../characters/naturalWeapons";
 import { getNaturalAbilityWeaponMap, getNaturalAbilityWeapons } from "../../characters/naturalAbilities";
+import { hasCondition } from "../../conditions";
 
 const TALENT_TWO_WEAPON_WIELDER = "talent:two_weapon_wielder";
 const TALENT_AMBIDEXTROUS = "talent:ambidextrous";
@@ -270,6 +271,9 @@ export function combatRequestAttack(
         coverModifier = "HEAVY";
       }
     }
+  }
+  if (effect.mode === "RANGED" && attacker && hasCondition(attacker, "perfect_timing")) {
+    coverModifier = "NONE";
   }
 
   const buildCombatCheck = (
@@ -1104,6 +1108,9 @@ export function combatRequestAttack(
         if (enemiesAlive.length === 0 && partyAlive.length > 0) {
           const combatState = currentSave.runtime.combat;
           const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+          const clearedActorsById = combatState?.participants
+            ? clearCombatEndConditions(currentSave, combatState.participants)
+            : currentSave.actorsById;
           currentSave = appendCombatLog(currentSave, "Tutti i nemici presenti nell'area sono stati sconfitti.");
 
           const last = currentSave.runtime.lastCheck;
@@ -1126,6 +1133,7 @@ export function combatRequestAttack(
 
           currentSave = {
             ...currentSave,
+            actorsById: clearedActorsById,
             runtime: {
               ...currentSave.runtime,
               combat: undefined,
@@ -1136,6 +1144,9 @@ export function combatRequestAttack(
         } else if (partyAlive.length === 0) {
           const combatState = currentSave.runtime.combat;
           const endedSceneId = combatState?.startedBySceneId || currentSave.runtime.currentSceneId;
+          const clearedActorsById = combatState?.participants
+            ? clearCombatEndConditions(currentSave, combatState.participants)
+            : currentSave.actorsById;
           currentSave = appendCombatLog(currentSave, "Il party è stato annientato. Game over.");
 
           const last = currentSave.runtime.lastCheck;
@@ -1167,6 +1178,7 @@ export function combatRequestAttack(
 
           currentSave = {
             ...currentSave,
+            actorsById: clearedActorsById,
             runtime: {
               ...currentSave.runtime,
               combat: undefined,

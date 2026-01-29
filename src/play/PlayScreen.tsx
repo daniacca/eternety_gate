@@ -23,6 +23,7 @@ import {
   type CombatAttackCheck,
   buildSpellTargetSpec,
   computeTargetPreview,
+  getCharacteristicBonus,
   getSpellById,
   getEffectById,
   type TargetSpec,
@@ -33,6 +34,7 @@ import {
   useItem,
   getNaturalAbilityWeaponById,
   getSkillTrainingCost,
+  loadCharacterCatalogs,
   spendActorXp,
   type StatKey,
 } from "@eg/engine";
@@ -78,6 +80,7 @@ export function PlayScreen({
   type ActionTargetingState = {
     kind: "spell" | "item" | "ranged";
     spellId?: string;
+    secondarySpellId?: string;
     label: string;
     itemRef?: ItemRef;
     weaponId?: string | null;
@@ -104,12 +107,24 @@ export function PlayScreen({
   const [statShopVisible, setStatShopVisible] = useState(false);
   const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
   const [pendingChoice, setPendingChoice] = useState<ChoiceResolution | null>(null);
+  const [magicConductEnabled, setMagicConductEnabled] = useState(false);
+  const [combatRewards, setCombatRewards] = useState<{ title: string; lines: string[] } | null>(null);
   const { width, height } = useWindowDimensions();
   const normalizedBaseStatsRef = useRef(false);
+  const lastRewardKeyRef = useRef<string | null>(null);
+  const prevSaveRef = useRef<GameSave | null>(null);
+  const combatRewardSnapshotRef = useRef<Record<string, { xp: number; inventory: Map<string, number> }> | null>(
+    null
+  );
 
   useEffect(() => {
     normalizedBaseStatsRef.current = false;
     setSave(initialSave);
+    setCombatRewards(null);
+    setMagicConductEnabled(false);
+    lastRewardKeyRef.current = null;
+    prevSaveRef.current = null;
+    combatRewardSnapshotRef.current = null;
   }, [initialSave]);
 
   useEffect(() => {
@@ -123,6 +138,11 @@ export function PlayScreen({
     setStatShopVisible(false);
     setActionTargeting(null);
     setPendingChoice(null);
+    setCombatRewards(null);
+    setMagicConductEnabled(false);
+    lastRewardKeyRef.current = null;
+    prevSaveRef.current = null;
+    combatRewardSnapshotRef.current = null;
   }, [storyPack.id]);
 
   useEffect(() => {
@@ -160,9 +180,55 @@ export function PlayScreen({
     );
   }, [save]);
 
+  useEffect(() => {
+    const prev = prevSaveRef.current;
+    const prevCombatActive = prev?.runtime.combat?.active ?? false;
+    const currentCombatActive = save.runtime.combat?.active ?? false;
+    if (!prevCombatActive && currentCombatActive) {
+      combatRewardSnapshotRef.current = captureRewardsSnapshot(prev ?? save);
+    }
+
+    const prevCombatEnded = prev?.runtime.lastCheck?.tags?.includes("combat:state=end") ?? false;
+    const currentCombatEnded = save.runtime.lastCheck?.tags?.includes("combat:state=end") ?? false;
+    const endedByTransition = prevCombatActive && !currentCombatActive;
+    const endedByTag = !endedByTransition && currentCombatEnded && !prevCombatEnded;
+
+    if ((endedByTransition || endedByTag) && combatRewardSnapshotRef.current) {
+      const endedSceneId = save.runtime.combatEndedSceneId ?? prev?.runtime.combatEndedSceneId;
+      const rewardKey = [
+        endedSceneId ?? "none",
+        save.runtime.lastCheck?.checkId ?? "none",
+        save.runtime.lastCheck?.tags?.join("|") ?? "none",
+        String(save.runtime.rngCounter ?? 0),
+      ].join("|");
+      if (rewardKey !== lastRewardKeyRef.current && !combatRewards) {
+        const rewards = getCombatRewardsFromSnapshot(combatRewardSnapshotRef.current, save);
+        if (rewards) {
+          lastRewardKeyRef.current = rewardKey;
+          setCombatRewards(rewards);
+        }
+      }
+      combatRewardSnapshotRef.current = null;
+    }
+
+    prevSaveRef.current = save;
+  }, [save, combatRewards]);
+
   const { scene, text } = getCurrentScene(storyPackWithCatalogs, save);
   const choices = listAvailableChoices(storyPackWithCatalogs, save);
   const gameOver = save.runtime.gameOver;
+  const targetingCatalogs = useMemo(
+    () =>
+      loadCharacterCatalogs({
+        id: storyPackWithCatalogs.id,
+        weapons: storyPackWithCatalogs.weapons || [],
+        armors: storyPackWithCatalogs.armors || [],
+        skills: storyPackWithCatalogs.skills || [],
+        talents: storyPackWithCatalogs.talents || [],
+        traits: storyPackWithCatalogs.traits || [],
+      }),
+    [storyPackWithCatalogs]
+  );
 
   // Layout rules:
   // - Wide/landscape: 2 columns (map left, UI right)
@@ -203,6 +269,89 @@ export function PlayScreen({
     return false;
   };
 
+  const getItemLabel = (ref: ItemRef, dataSave: GameSave) => {
+    if (ref.kind === "weapon") {
+      return dataSave.weaponsById?.[ref.id]?.name ?? ref.id;
+    }
+    if (ref.kind === "armor") {
+      return dataSave.armorsById?.[ref.id]?.name ?? ref.id;
+    }
+    return dataSave.itemsById?.[ref.id]?.name ?? ref.id;
+  };
+
+  const collectInventoryCounts = (actor: GameSave["actorsById"][string]) => {
+    const counts = new Map<string, number>();
+    for (const itemRef of actor.inventory ?? []) {
+      const key = `${itemRef.kind}:${itemRef.id}`;
+      const qty = itemRef.qty ?? 1;
+      counts.set(key, (counts.get(key) ?? 0) + qty);
+    }
+    return counts;
+  };
+
+  const captureRewardsSnapshot = (sourceSave: GameSave) => {
+    const snapshot: Record<string, { xp: number; inventory: Map<string, number> }> = {};
+    const actorIds = sourceSave.party?.actors ?? [];
+    for (const actorId of actorIds) {
+      const actor = sourceSave.actorsById[actorId];
+      if (!actor) continue;
+      snapshot[actorId] = {
+        xp: actor.resources.xp ?? 0,
+        inventory: collectInventoryCounts(actor),
+      };
+    }
+    return snapshot;
+  };
+
+  const getCombatRewardsFromSnapshot = (
+    snapshot: Record<string, { xp: number; inventory: Map<string, number> }>,
+    nextSave: GameSave
+  ) => {
+    const partyActorIds = nextSave.party?.actors ?? [];
+    const xpLines: string[] = [];
+    const lootLines: string[] = [];
+
+    for (const actorId of partyActorIds) {
+      const nextActor = nextSave.actorsById[actorId];
+      if (!nextActor) continue;
+      const prevSnapshot = snapshot[actorId];
+      const prevXp = prevSnapshot?.xp ?? 0;
+
+      const xpDelta = (nextActor.resources.xp ?? 0) - prevXp;
+      if (xpDelta > 0) {
+        xpLines.push(`${nextActor.name}: +${xpDelta} XP`);
+      }
+
+      const prevCounts = prevSnapshot?.inventory ?? new Map<string, number>();
+      const nextCounts = collectInventoryCounts(nextActor);
+      for (const [key, nextCount] of nextCounts.entries()) {
+        const prevCount = prevCounts.get(key) ?? 0;
+        const delta = nextCount - prevCount;
+        if (delta > 0) {
+          const [kind, itemId] = key.split(":");
+          const sampleRef = (nextActor.inventory ?? []).find((ref) => ref.kind === kind && ref.id === itemId);
+          const itemLabel = sampleRef ? getItemLabel(sampleRef, nextSave) : itemId;
+          lootLines.push(`${nextActor.name}: ${itemLabel} x${delta}`);
+        }
+      }
+    }
+
+    const lines: string[] = [];
+    if (xpLines.length > 0) {
+      lines.push("XP ottenuta:");
+      lines.push(...xpLines.map((line) => `• ${line}`));
+    }
+    if (lootLines.length > 0) {
+      lines.push("Bottino:");
+      lines.push(...lootLines.map((line) => `• ${line}`));
+    }
+    if (lines.length === 0) {
+      lines.push("Nessuna ricompensa.");
+    }
+
+    return { title: "Ricompense", lines };
+  };
+
   const maybeAutosave = (prevSave: GameSave, nextSave: GameSave) => {
     if (!onAutosave) return;
     const reasons: AutosaveReason[] = [];
@@ -227,7 +376,7 @@ export function PlayScreen({
   };
 
   const handleChoice = (choiceId: string) => {
-    if (pendingChoice) return;
+    if (pendingChoice || combatRewards) return;
     if (choiceId === "HUB_START_BRUNHOLT") {
       onStorySwitch?.("oneshot_brunholt", save);
       return;
@@ -294,8 +443,9 @@ export function PlayScreen({
 
     const resolvedCheck =
       newSave.runtime.choiceCheckResults?.[choiceId] ?? newSave.runtime.lastPlayerCheck ?? newSave.runtime.lastCheck;
+    const isCombatEndCheck = resolvedCheck?.tags?.includes("combat:state=end");
 
-    if (resolvedCheck) {
+    if (resolvedCheck && !isCombatEndCheck) {
       const outcome = resolvedCheck.success ? "riuscita" : "fallita";
       const previousScene = storyPackWithCatalogs.scenes.find((entry) => entry.id === previousSceneId);
       const previousChoice = previousScene?.choices.find((entry) => entry.id === choiceId);
@@ -580,6 +730,23 @@ export function PlayScreen({
     }
   };
 
+  const buildSpellTargetSpecForUi = (
+    spell: ReturnType<typeof getSpellById>,
+    effectDef: ReturnType<typeof getEffectById>
+  ): TargetSpec => {
+    const cnBase = spell.baseCN;
+    const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
+    if (effectDef.radiusFromEffectStat && targetSpec.shape.kind === "radius") {
+      const effectStatKey = effectDef.effectStat ?? effectDef.castingStat;
+      const effectStatBonus = getCharacteristicBonus(save, save.party.activeActorId, effectStatKey, targetingCatalogs);
+      targetSpec.shape = {
+        ...targetSpec.shape,
+        radius: Math.max(0, effectStatBonus),
+      };
+    }
+    return targetSpec;
+  };
+
   const getEnemyTargetIds = (preview: TargetPreview) => {
     const partyIds = new Set(save.party.actors);
     return preview.affectedActorIds.filter((actorId) => {
@@ -652,14 +819,44 @@ export function PlayScreen({
     const spell = getSpellById(spellId);
     const effectDef = spell ? getEffectById(spell.effectId) : null;
     if (!spell || !effectDef) return;
-    const cnBase = spell.baseCN;
-    const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
-    const selection = buildInitialSelection(targetSpec);
+    const targetSpec = buildSpellTargetSpecForUi(spell, effectDef);
+    let selection = buildInitialSelection(targetSpec);
+    if (effectDef.centerOnCaster && targetSpec.shape.kind === "radius") {
+      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      if (casterPos) {
+        selection = { kind: "radius", centerPos: casterPos };
+      }
+    }
     const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
     setActionTargeting({
       kind: "spell",
       spellId,
       label: spell.name,
+      targetSpec,
+      selection,
+      preview,
+    });
+  };
+
+  const startDoubleCastTargeting = (primarySpellId: string, secondarySpellId: string) => {
+    const primarySpell = getSpellById(primarySpellId);
+    const primaryEffect = primarySpell ? getEffectById(primarySpell.effectId) : null;
+    const secondarySpell = getSpellById(secondarySpellId);
+    if (!primarySpell || !primaryEffect || !secondarySpell) return;
+    const targetSpec = buildSpellTargetSpecForUi(primarySpell, primaryEffect);
+    let selection = buildInitialSelection(targetSpec);
+    if (primaryEffect.centerOnCaster && targetSpec.shape.kind === "radius") {
+      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      if (casterPos) {
+        selection = { kind: "radius", centerPos: casterPos };
+      }
+    }
+    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    setActionTargeting({
+      kind: "spell",
+      spellId: primarySpellId,
+      secondarySpellId,
+      label: `Double Cast: ${primarySpell.name} + ${secondarySpell.name}`,
       targetSpec,
       selection,
       preview,
@@ -673,9 +870,14 @@ export function PlayScreen({
     const spell = getSpellById(spellId);
     const effectDef = spell ? getEffectById(spell.effectId) : null;
     if (!spell || !effectDef) return;
-    const cnBase = spell.baseCN;
-    const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
-    const selection = buildInitialSelection(targetSpec);
+    const targetSpec = buildSpellTargetSpecForUi(spell, effectDef);
+    let selection = buildInitialSelection(targetSpec);
+    if (effectDef.centerOnCaster && targetSpec.shape.kind === "radius") {
+      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      if (casterPos) {
+        selection = { kind: "radius", centerPos: casterPos };
+      }
+    }
     const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
     setActionTargeting({
       kind: "item",
@@ -750,14 +952,20 @@ export function PlayScreen({
   const confirmSpellTargeting = () => {
     if (!actionTargeting || !actionTargeting.preview.valid) return;
     if (actionTargeting.kind === "spell" && actionTargeting.spellId) {
+      const castOptions = magicConductEnabled ? { magicConduct: true } : undefined;
       applySystemEffects([
         {
           op: "combatCastSpell",
           actorId: save.party.activeActorId,
           spellId: actionTargeting.spellId,
           targetSelection: actionTargeting.selection as TargetSelection,
+          secondarySpellId: actionTargeting.secondarySpellId,
+          castOptions,
         },
       ]);
+      if (magicConductEnabled) {
+        setMagicConductEnabled(false);
+      }
     } else if (actionTargeting.kind === "item" && actionTargeting.itemRef) {
       applyItemUse(actionTargeting.itemRef, actionTargeting.selection as TargetSelection);
     } else if (actionTargeting.kind === "ranged") {
@@ -989,11 +1197,14 @@ export function PlayScreen({
         width={width}
         styles={styles}
         onSpellTargetSelect={startSpellTargeting}
+        onDoubleCastTargetSelect={startDoubleCastTargeting}
         onRangedTargetSelect={startRangedTargeting}
         targetingInfo={targetingInfo}
         onTargetDirection={handleTargetDirection}
         onTargetConfirm={confirmSpellTargeting}
         onTargetCancel={cancelSpellTargeting}
+        magicConductEnabled={magicConductEnabled}
+        onToggleMagicConduct={setMagicConductEnabled}
       />
     </View>
   );
@@ -1098,6 +1309,30 @@ export function PlayScreen({
         onEquip={handleEquipItem}
         onUnequip={handleUnequipItem}
       />
+
+      {/* Combat Rewards Modal */}
+      {combatRewards && (
+        <Modal visible transparent animationType="fade">
+          <View style={styles.choiceModalOverlay}>
+            <View style={styles.choiceModalContent}>
+              <Text style={styles.choiceModalTitle}>{combatRewards.title}</Text>
+              {combatRewards.lines.map((line, index) => (
+                <Text key={`${line}-${index}`} style={styles.choiceModalText}>
+                  {line}
+                </Text>
+              ))}
+              <Pressable
+                style={styles.choiceModalButton}
+                onPress={() => {
+                  setCombatRewards(null);
+                }}
+              >
+                <Text style={styles.choiceModalButtonText}>Continua</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Choice Resolution Modal */}
       {pendingChoice && (

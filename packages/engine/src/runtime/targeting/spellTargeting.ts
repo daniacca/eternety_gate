@@ -11,13 +11,13 @@ function rangeModeToMultiplier(rangeMode: string): number {
     case "touch":
       return 1;
     case "short":
-      return 2;
-    case "medium":
       return 3;
+    case "medium":
+      return 5;
     case "long":
-      return 4;
+      return 8;
     default:
-      return 2; // Default to medium
+      return 3; // Default to short
   }
 }
 

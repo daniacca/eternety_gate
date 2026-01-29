@@ -123,13 +123,7 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
   const logEntry =
     outcome === "victory" ? "Tutti i nemici presenti nell'area sono stati sconfitti." : "Il party è stato annientato. Game over.";
 
-  const clearedActorsById = { ...save.actorsById };
-  for (const actorId of combat.participants) {
-    const actor = clearedActorsById[actorId];
-    if (actor?.conditions?.shock) {
-      clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
-    }
-  }
+  const clearedActorsById = clearCombatEndConditions(save, combat.participants);
 
   const updatedSave: GameSave = {
     ...save,
@@ -143,6 +137,45 @@ export function finalizeCombatIfEnded(save: GameSave): GameSave {
   };
 
   return appendCombatLog(updatedSave, logEntry);
+}
+
+export function clearCombatEndConditions(save: GameSave, participants: ActorId[]): GameSave["actorsById"] {
+  const clearedActorsById = { ...save.actorsById };
+  for (const actorId of participants) {
+    const actor = clearedActorsById[actorId];
+    if (!actor) continue;
+    let updatedActor = actor;
+
+    if (actor.conditions) {
+      for (const [conditionId, instance] of Object.entries(actor.conditions)) {
+        if (conditionId !== "shock" && instance.untilTurnCounter === undefined) {
+          continue;
+        }
+        if (instance.source) {
+          updatedActor = removeUnnaturalCharacteristicsBySource(updatedActor, instance.source);
+        }
+        updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+      }
+    }
+
+    if (updatedActor.status?.tempModifiers?.length) {
+      const filteredMods = updatedActor.status.tempModifiers.filter((mod) => mod.expires === undefined);
+      if (filteredMods.length !== updatedActor.status.tempModifiers.length) {
+        updatedActor = {
+          ...updatedActor,
+          status: {
+            ...updatedActor.status,
+            tempModifiers: filteredMods,
+          },
+        };
+      }
+    }
+
+    if (updatedActor !== actor) {
+      clearedActorsById[actorId] = updatedActor;
+    }
+  }
+  return clearedActorsById;
 }
 
 /**
@@ -174,9 +207,9 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
     return Math.max(1, baseMove);
   }
 
-  const agiStatMod = catalogs ? getModifierTotal(save, catalogs, actor.id, "stat.AGI.testAdd") : 0;
-  const cappedAgi = applyArmorAgiCap(save, actor.id, actor.stats.AGI + agiStatMod);
-  let agiBonus = getCharacteristicBonusBase(cappedAgi);
+  const bonusAdd = catalogs ? getModifierTotal(save, catalogs, actor.id, "stat.AGI.bonusAdd") : 0;
+  const cappedAgi = applyArmorAgiCap(save, actor.id, actor.stats.AGI);
+  let agiBonus = getCharacteristicBonusBase(cappedAgi) + bonusAdd;
   if (catalogs && hasTalentHook(actor, catalogs, "sprint")) {
     agiBonus = Math.floor(agiBonus * 1.5);
   }
@@ -670,13 +703,7 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
           tags: ["combat:state=end", `combat:outcome=${outcome}`, ...(winnerId ? [`combat:winner=${winnerId}`] : [])],
         };
 
-    const clearedActorsById = { ...save.actorsById };
-    for (const actorId of combat.participants) {
-      const actor = clearedActorsById[actorId];
-      if (actor?.conditions?.shock) {
-        clearedActorsById[actorId] = removeConditionFromActor(actor, "shock");
-      }
-    }
+    const clearedActorsById = clearCombatEndConditions(save, combat.participants);
 
     let updatedSave = {
       ...save,

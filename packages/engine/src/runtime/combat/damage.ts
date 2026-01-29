@@ -1,4 +1,4 @@
-import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId, SingleCheck } from "../types";
+import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId, SingleCheck, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { performCheckWithSave, resolveActor } from "../checks";
@@ -17,6 +17,15 @@ import { getMagicPower } from "../magic/pm";
 import { getWeaponQuality, getWeaponQualityRank, hasWeaponQuality } from "../weaponQualities";
 import { consumeFateProtection, isFateProtectionActive } from "../characters/fate";
 import { hasTalentHook } from "../characters/talentModifiers";
+import { hasCondition } from "../conditions";
+
+function getDamageRollMode(attacker: Actor): "best" | "worst" | "normal" {
+  const hasPrecognition = hasCondition(attacker, "precognition");
+  const hasMisfortune = hasCondition(attacker, "misfortune");
+  if (hasPrecognition && !hasMisfortune) return "best";
+  if (hasMisfortune && !hasPrecognition) return "worst";
+  return "normal";
+}
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -238,7 +247,18 @@ export function applyCombatDamageIfHit(
 
   let fateDamageRerollUsed = false;
   let fateDamageRerollFrom: number | null = null;
+  const rollMode = getDamageRollMode(attacker);
   let damageOutcome = rollWeaponDamage();
+  if (rollMode !== "normal") {
+    const altOutcome = rollWeaponDamage();
+    const shouldUseAlt =
+      rollMode === "best"
+        ? altOutcome.rawDamage > damageOutcome.rawDamage
+        : altOutcome.rawDamage < damageOutcome.rawDamage;
+    if (shouldUseAlt) {
+      damageOutcome = altOutcome;
+    }
+  }
 
   if (isFateProtectionActive(attacker) && damageOutcome.rawDamage === 1) {
     const consumeResult = consumeFateProtection(updatedSave, attacker.id);
@@ -259,7 +279,10 @@ export function applyCombatDamageIfHit(
   }
 
   // Get defender armor soak
-  const { soak, armorId } = getActorArmor(save, defender);
+  let { soak, armorId } = getActorArmor(save, defender);
+  if (hasCondition(defender, "misfortune")) {
+    soak = Math.ceil(soak / 2);
+  }
   const machineSoak = catalogs ? getModifierTotal(save, catalogs, defender.id, "combat.machineSoak") : 0;
   const naturalArmorSoak = catalogs ? getModifierTotal(save, catalogs, defender.id, "combat.naturalArmor") : 0;
 
@@ -459,6 +482,9 @@ export function applyCombatDamageIfHit(
             ...(isCriticalSuccess ? ["combat:righteousFury=1", `combat:righteousFury:rolls=${rollsCount}`] : []),
             ...(isUnarmed ? ["combat:unarmed=1", "combat:fallbackWeapon=unarmed"] : []),
             ...(useFallbackWeapon ? ["combat:fallbackWeapon=improvised"] : []),
+            ...(rollMode !== "normal"
+              ? [rollMode === "best" ? "roll:advantage" : "roll:disadvantage"]
+              : []),
             ...((updatedDefender.resources.criticalDamage ?? 0) > 0
               ? [`combat:criticalDamage=${updatedDefender.resources.criticalDamage}`]
               : []),

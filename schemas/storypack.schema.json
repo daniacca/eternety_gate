@@ -340,6 +340,17 @@
               "resetParticipants": { "type": "boolean" }
             }
           }
+        },
+        {
+          "if": {
+            "properties": { "op": { "const": "combatCastSpell" } },
+            "required": ["op"]
+          },
+          "then": {
+            "properties": {
+              "secondarySpellId": { "type": "string" }
+            }
+          }
         }
       ]
     },

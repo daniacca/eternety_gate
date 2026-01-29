@@ -491,6 +491,23 @@
     "maxRank": 1
   },
   {
+    "id": "talent:double_casting",
+    "name": "Double Casting",
+    "description": "Unlocks Double Cast: cast two spells at once with a single check.",
+    "tier": 3,
+    "xpCost": 1000,
+    "tags": ["magic"],
+    "prerequisites": [
+      { "type": "statAtLeast", "stat": "WIL", "value": 50 },
+      { "type": "statAtLeast", "stat": "INT", "value": 50 },
+      { "type": "hasTrait", "traitId": "trait:weaver" },
+      { "type": "hasTalent", "talentId": "talent:casting_specialization" },
+      { "type": "hasTalent", "talentId": "talent:arcane_attunement_3" }
+    ],
+    "grants": [{ "type": "unlockAction", "actionId": "magic:doubleCast" }],
+    "maxRank": 1
+  },
+  {
     "id": "talent:whirlwind_of_death",
     "name": "Whirlwind of Death",
     "description": "Unlocks a melee action to strike each nearby enemy (up to your Weapon Skill Bonus).",

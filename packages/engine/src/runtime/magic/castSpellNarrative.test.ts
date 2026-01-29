@@ -28,7 +28,7 @@ function createTestSave(overrides: Partial<GameSave> = {}): GameSave {
     traits: { "trait:weaver": true },
     spells: {
       "spell:sense_magic": true,
-      "spell:soothe_wounds": true,
+      "spell:kinesis_unlock": true,
       "spell:pyra_ignite": true,
     },
     equipment: { mainHand: null, offHand: null, armor: null },
@@ -126,20 +126,19 @@ describe("runNarrativeSpell", () => {
     expect(newSave.runtime.rngCounter).toBeGreaterThan(0);
   });
 
-  it("should apply RF cost on casting", () => {
+  it("should not apply RF cost when CN <= PM", () => {
     const save = createTestSave();
     const rng = new RNG(42, 0);
 
     const { save: newSave, result } = runNarrativeSpell(
       save,
-      { spellId: "spell:soothe_wounds" },
+      { spellId: "spell:kinesis_unlock" },
       rng
     );
 
     expect(result.ok).toBe(true);
-    // Soothe wounds has rfOnSuccess: 1 in effect
     if (result.success) {
-      expect(newSave.actorsById.pc_test.resources.rf).toBeGreaterThanOrEqual(1);
+      expect(newSave.actorsById.pc_test.resources.rf).toBe(0);
     }
   });
 

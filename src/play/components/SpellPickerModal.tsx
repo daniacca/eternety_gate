@@ -12,6 +12,9 @@ interface SpellPickerModalProps {
   showLearnSpells?: boolean;
   onLearnSpell?: (spellId: string) => void;
   actionAvailable?: boolean;
+  title?: string;
+  filterSpells?: (spell: { id: string; targetShape: string; effectId: string }) => boolean;
+  closeOnSelect?: boolean;
 }
 
 export function SpellPickerModal({
@@ -23,6 +26,9 @@ export function SpellPickerModal({
   showLearnSpells = false,
   onLearnSpell,
   actionAvailable = true,
+  title = "Seleziona Incantesimo",
+  filterSpells,
+  closeOnSelect = true,
 }: SpellPickerModalProps) {
   const catalogs = loadCharacterCatalogs(sigilContentPack as any);
 
@@ -59,7 +65,9 @@ export function SpellPickerModal({
 
   const handleSpellSelect = (spellId: string) => {
     onSelectSpell(spellId);
-    onClose();
+    if (closeOnSelect) {
+      onClose();
+    }
   };
 
   const handleLearnSpell = (spellId: string) => {
@@ -68,11 +76,13 @@ export function SpellPickerModal({
     }
   };
 
+  const filteredLearnedSpells = filterSpells ? learnedSpells.filter(filterSpells) : learnedSpells;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
         <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, maxWidth: "90%", maxHeight: "80%" }}>
-          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 16 }}>Seleziona Incantesimo</Text>
+          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 16 }}>{title}</Text>
 
           {showLearnSpells ? (
             <ScrollView style={{ maxHeight: 400 }}>
@@ -129,12 +139,12 @@ export function SpellPickerModal({
             </ScrollView>
           ) : (
             <ScrollView style={{ maxHeight: 400 }}>
-              {learnedSpells.length === 0 ? (
+              {filteredLearnedSpells.length === 0 ? (
                 <Text style={{ fontSize: 14, color: "#666", textAlign: "center", padding: 20 }}>
-                  Nessun incantesimo imparato. Impara gli incantesimi dalla scheda personaggio.
+                  Nessun incantesimo disponibile. Impara gli incantesimi dalla scheda personaggio.
                 </Text>
               ) : (
-                learnedSpells.map((spell) => {
+                filteredLearnedSpells.map((spell) => {
                   const castCheck = canCastSpell(spell);
                   const castTimeLabel = getCastTimeLabel(spell.castTime);
 

@@ -29,7 +29,7 @@
     "id": "fullplate",
     "name": "Full Plate Armor",
     "rarity": "Uncommon",
-    "soak": 8,
+    "soak": 5,
     "agiMax": 35,
     "weight": 28,
     "tags": ["heavy"]

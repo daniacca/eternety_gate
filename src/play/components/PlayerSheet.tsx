@@ -15,6 +15,7 @@ import {
   getActorTalentsWithParams,
   canUseItem,
   getItemRefQty,
+  getModifierTotal,
 } from "@eg/engine";
 import { useState, useEffect } from "react";
 import type { ConditionId } from "@eg/engine";
@@ -47,6 +48,9 @@ const conditionLabels: Record<ConditionId, string> = {
   steel_body: "Corpo d'Acciaio",
   warp_speed: "Warp Speed",
   halvedMovement: "Movimento Dimezzato",
+  perfect_timing: "Tempismo Perfetto",
+  precognition: "Precognizione",
+  misfortune: "Sventura",
 };
 
 const statLabels: Record<string, string> = {
@@ -97,6 +101,15 @@ export function PlayerSheet({
   const rfMax = calculateMaxRf(save, activeActor, catalogs);
   const rf = activeActor.resources.rf;
   const pm = getMagicPower(save, activeActor.id, catalogs);
+  const armorData = getActorArmor(save, activeActor);
+  let armorSoak = armorData.soak;
+  if (activeActor.conditions?.misfortune) {
+    armorSoak = Math.ceil(armorSoak / 2);
+  }
+  const machineSoak = catalogs ? getModifierTotal(save, catalogs, activeActor.id, "combat.machineSoak") : 0;
+  const naturalArmor = catalogs ? getModifierTotal(save, catalogs, activeActor.id, "combat.naturalArmor") : 0;
+  const extraSoak = machineSoak > 0 ? machineSoak : naturalArmor;
+  const totalSoak = armorSoak + extraSoak;
   const learnedSpells = getLearnedSpells(save, activeActor.id, catalogs);
   const allSpells = getAllSpells();
   const currentXp = activeActor.resources.xp ?? 0;
@@ -298,6 +311,12 @@ export function PlayerSheet({
                 <Text style={styles.resourceLabel}>RF:</Text>
                 <Text style={styles.resourceValue}>
                   {rf}/{rfMax}
+                </Text>
+              </View>
+              <View style={styles.resourceRow}>
+                <Text style={styles.resourceLabel}>Soak:</Text>
+                <Text style={styles.resourceValue}>
+                  {totalSoak} (Armatura {armorSoak} + {machineSoak > 0 ? "Macchina" : "Naturale"} {extraSoak})
                 </Text>
               </View>
               <View style={styles.resourceRow}>
@@ -631,6 +650,11 @@ export function PlayerSheet({
                   <View style={styles.equipmentSlotInfo}>
                     <Text style={styles.equipmentLabel}>{label}:</Text>
                     <Text style={styles.equipmentValue}>{getItemName(item)}</Text>
+                    {slot === "armor" && (
+                      <Text style={styles.equipmentSubValue}>
+                        Soak: {totalSoak} (Armatura {armorSoak} + {machineSoak > 0 ? "Macchina" : "Naturale"} {extraSoak})
+                      </Text>
+                    )}
                   </View>
                   {item && applySystemEffects && (
                     <View style={styles.equipmentActions}>
@@ -855,9 +879,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   equipmentSlotInfo: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
+    flexDirection: "column",
+    gap: 4,
   },
   equipmentLabel: {
     fontSize: 14,
@@ -867,6 +890,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#333",
+  },
+  equipmentSubValue: {
+    fontSize: 12,
+    color: "#6b7280",
   },
   equipmentActions: {
     flexDirection: "row",

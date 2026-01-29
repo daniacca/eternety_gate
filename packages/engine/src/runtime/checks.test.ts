@@ -781,5 +781,47 @@ describe("checks", () => {
       expect(result?.dos).toBe(1); // Extra DoS
     });
   });
+
+  describe("roll mode conditions", () => {
+    it("should use advantage rolls for precognition", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "PC_1",
+        stats: { WIL: 50 } as any,
+        conditions: { precognition: { stacks: 1 } },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const check: SingleCheck = {
+        id: "check:precognition",
+        kind: "single",
+        actorRef: { mode: "byId", actorId: actor.id },
+        key: "WIL",
+        difficulty: "Challenging",
+      };
+      const rng = new FakeRng([90, 10]);
+      const result = performCheck(check, storyPack, save, rng);
+      expect(result?.roll).toBe(10);
+    });
+
+    it("should use disadvantage rolls for misfortune", () => {
+      const storyPack = makeTestStoryPack();
+      const actor = makeTestActor({
+        id: "PC_1",
+        stats: { WIL: 50 } as any,
+        conditions: { misfortune: { stacks: 1 } },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const check: SingleCheck = {
+        id: "check:misfortune",
+        kind: "single",
+        actorRef: { mode: "byId", actorId: actor.id },
+        key: "WIL",
+        difficulty: "Challenging",
+      };
+      const rng = new FakeRng([10, 90]);
+      const result = performCheck(check, storyPack, save, rng);
+      expect(result?.roll).toBe(90);
+    });
+  });
 });
 

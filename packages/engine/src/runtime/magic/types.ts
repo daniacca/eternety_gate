@@ -48,6 +48,7 @@ export type EffectDefinition = {
   id: string;
   discipline: Discipline;
   castingStat: StatKey; // Stat used for casting check (WIS, INT, RES, etc.)
+  effectStat?: StatKey; // Stat used for effect scaling (defaults to castingStat)
   kind: "damage" | "heal" | "fatigue" | "blessing" | "malediction"; // Semantic kind of effect
   baseDamageDice?: {
     dice: number; // Number of dice
@@ -55,13 +56,23 @@ export type EffectDefinition = {
   };
   baseDamageFlat?: number; // Flat damage bonus (default 0)
   damageType?: string; // Optional damage type
+  moveTarget?: {
+    mode: "awayFromCaster";
+    distance: number | "radius";
+  };
+  radiusFromEffectStat?: boolean;
+  centerOnCaster?: boolean;
   applyConditions?: Array<{
     conditionId: string;
     durationRounds?: number;
     value?: number;
+    trigger?: {
+      overcast?: number;
+    };
   }>;
   specialFatigue?: number; // Extra RF always applied on success
   rfOnSuccess?: number; // RF applied on successful cast (in addition to other RF rules)
+  healFatigueRatio?: number; // Ratio of healed wounds converted into Fatigue for caster
   opposed?: boolean; // If true, requires opposed check
   opposedStat?: StatKey; // Stat for defender's opposed check (defaults to same as castingStat)
   opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "Challenging")
@@ -73,6 +84,7 @@ export type EffectDefinition = {
     scope: "check" | "all";
     value: number;
     durationRounds: number;
+    fixedDurationRounds?: number;
   }; // Temporary modifier with duration
   specialOp?: string; // Special operation (e.g., "combatDisarmAtRange")
   description?: string;
