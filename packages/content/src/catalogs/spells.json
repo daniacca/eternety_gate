@@ -394,6 +394,153 @@
     ]
   },
   {
+    "id": "spell:santic_holy_fire",
+    "name": "Fuoco Sacro",
+    "discipline": "SANTIC",
+    "castTime": "standard",
+    "effectId": "effect:santic_holy_fire",
+    "baseCN": 3,
+    "rangeMode": "medium",
+    "targetShape": "cone",
+    "notes": "Cono di fuoco sacro: 1d10 + WPB",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:santic_sanctuary",
+    "name": "Santuario",
+    "discipline": "SANTIC",
+    "castTime": "standard",
+    "effectId": "effect:santic_sanctuary",
+    "baseCN": 5,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Aura protettiva che respinge i demoniaci",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:santic_daemonbane",
+    "name": "Scaccia Demoni",
+    "discipline": "SANTIC",
+    "castTime": "standard",
+    "effectId": "effect:santic_daemonbane",
+    "baseCN": 0,
+    "rangeMode": "long",
+    "targetShape": "single",
+    "notes": "Colpisce solo creature con instabilita spirituale",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:santic_word_of_god",
+    "name": "Parola di Dio",
+    "discipline": "SANTIC",
+    "castTime": "standard",
+    "effectId": "effect:santic_word_of_god",
+    "baseCN": 3,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Impedisce attacchi senza superare un test di Volonta",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_cursed_earth",
+    "name": "Terra Maledetta",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "standard",
+    "effectId": "effect:daemonology_cursed_earth",
+    "baseCN": 5,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Aura profana che potenzia il demoniaco",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_dark_flame",
+    "name": "Fiamma Oscura",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "standard",
+    "effectId": "effect:daemonology_dark_flame",
+    "baseCN": 3,
+    "rangeMode": "medium",
+    "targetShape": "cone",
+    "notes": "Cono di fiamme empie: 1d10 + WPB",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_infernal_gaze",
+    "name": "Sguardo Infernale",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "standard",
+    "effectId": "effect:daemonology_infernal_gaze",
+    "baseCN": 0,
+    "rangeMode": "medium",
+    "targetShape": "line",
+    "notes": "Raggio lineare con danno diretto su fallimento WIL",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_possession",
+    "name": "Possessione",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "fullRound",
+    "effectId": "effect:daemonology_possession",
+    "baseCN": 8,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Un'entita possiede il caster (Frenzy, Unnatural STR, Daemonic)",
+    "xpCost": 1200,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:vates_premonition",
     "name": "Presagio",
     "discipline": "VATES",

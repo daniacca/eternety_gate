@@ -58,6 +58,11 @@ const conditionLabels: Record<ConditionId, string> = {
   weave_of_fate: "Trama del Fato",
   invisibility: "Invisibilità",
   mind_control: "Controllo Mentale",
+  sanctuary: "Santuario",
+  sanctuary_debuff: "Santuario (Debolezza)",
+  cursed_earth: "Terra Maledetta",
+  word_of_god: "Parola di Dio",
+  possession: "Possessione",
 };
 
 const statLabels: Record<string, string> = {

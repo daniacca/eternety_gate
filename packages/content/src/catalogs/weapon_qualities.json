@@ -108,7 +108,14 @@
   {
     "id": "sanctified",
     "name": "Sanctified",
-    "description": "Counts as magical vs daemonic-spiritual targets and triggers spiritual instability test.",
+    "description": "Deals +2x Daemonic bonus damage against daemonic targets; triggers spiritual instability test if present.",
+    "paramsSchema": {},
+    "hooks": []
+  },
+  {
+    "id": "unholy",
+    "name": "Unholy",
+    "description": "Deals +2x Divine bonus damage against divine targets; triggers spiritual instability test if present.",
     "paramsSchema": {},
     "hooks": []
   },

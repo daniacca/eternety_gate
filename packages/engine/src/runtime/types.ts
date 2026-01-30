@@ -75,7 +75,12 @@ export type ConditionId =
   | "flight"
   | "weave_of_fate"
   | "invisibility"
-  | "mind_control";
+  | "mind_control"
+  | "sanctuary"
+  | "sanctuary_debuff"
+  | "cursed_earth"
+  | "word_of_god"
+  | "possession";
 
 export type ConditionInstance = {
   stacks?: number;

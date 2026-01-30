@@ -5,6 +5,7 @@ import { resolveActor } from "./resolve";
 import { computeTargetBreakdown } from "./target";
 import { rollD100CheckWithFate, type FateRerollContext, createFateRerollContext } from "./fate";
 import { computeCombatModifiersFromConditions, hasCondition } from "../conditions";
+import { getStatOrSkillValue } from "./values";
 import { getEquippedWeaponId } from "../characters/inventory";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { appendCombatLog, appendRuntimeLog } from "../combat/narration";
@@ -316,6 +317,49 @@ export function performCombatAttackCheck(
   const defender = resolveActor(check.defender.actorRef, save, storyPack);
   if (!attacker || !defender) return { result: null, save };
 
+  let updatedSave = save;
+
+  const wordOfGod = defender.conditions?.word_of_god;
+  if (wordOfGod?.params?.auraApplied) {
+    const wilBonus = typeof wordOfGod.params?.wilBonus === "number" ? wordOfGod.params.wilBonus : 0;
+    const overcast = typeof wordOfGod.params?.overcast === "number" ? wordOfGod.params.overcast : 0;
+    const penalty = -2 * wilBonus - 2 * overcast;
+    const targetValue = getStatOrSkillValue(attacker, "WIL", save, storyPack);
+    const preCheckContext = createFateRerollContext();
+    const preCheck = rollD100CheckWithFate(
+      `combat:wordOfGod:${attacker.id}:${defender.id}`,
+      attacker.id,
+      targetValue + penalty,
+      storyPack,
+      save,
+      rng,
+      preCheckContext
+    );
+    if (!preCheck) {
+      return { result: null, save: updatedSave };
+    }
+    if (preCheckContext.used && preCheckContext.actorId) {
+      updatedSave = consumeFateProtection(updatedSave, preCheckContext.actorId).save;
+    }
+    if (!preCheck.success) {
+      updatedSave = appendCombatLog(updatedSave, "La Parola di Dio respinge l'attacco.");
+      return {
+        result: {
+          checkId: check.id,
+          actorId: attacker.id,
+          roll: preCheck.roll,
+          target: preCheck.target,
+          success: false,
+          dos: preCheck.dos,
+          dof: preCheck.dof,
+          critical: preCheck.critical,
+          tags: [...preCheck.tags, "combat:blocked=wordOfGod"],
+        },
+        save: updatedSave,
+      };
+    }
+  }
+
   // Load catalogs for talent modifiers
   const catalogs: CharacterCatalogs | undefined =
     storyPack?.skills || storyPack?.talents || storyPack?.traits
@@ -565,8 +609,7 @@ export function performCombatAttackCheck(
     tags.push("combat:defense:parryBlocked=unwieldy");
   }
 
-  // Initialize updatedSave (will be updated if defense check is logged)
-  let updatedSave = save;
+  // updatedSave will be updated if defense check is logged
 
   // If no defense, HIT
   if (defenseType === "none" || !defenseSkillKey) {

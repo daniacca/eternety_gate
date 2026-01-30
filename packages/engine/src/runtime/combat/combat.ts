@@ -28,7 +28,8 @@ import { calculateMaxHp } from "../characters/hp";
 import { removeUnnaturalCharacteristicsBySource, removeTraitsBySource } from "../characters/traitHelpers";
 import { applyDamageToActor } from "./criticalDamage";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
-import { performCheckWithSave } from "../checks";
+import { performCheckWithSave, getStatOrSkillValue } from "../checks";
+import { rollD100Check } from "../checks/evaluation";
 import type { SingleCheck } from "../types";
 import { getModifierTotal } from "../characters/modifiers";
 import { hasTalentHook } from "../characters/talentModifiers";
@@ -261,6 +262,10 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
   const combat = save.runtime.combat;
   if (!combat?.active) return save;
 
+  let updatedSave: GameSave = save;
+  const rng = new RNG(save.runtime.rngSeed, save.runtime.rngCounter ?? 0);
+  let rngUsed = false;
+
   const partyIds = new Set(save.party?.actors ?? []);
   const isAlly = (casterId: ActorId, targetId: ActorId): boolean => {
     const casterIsParty = partyIds.has(casterId);
@@ -277,6 +282,7 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
     string,
     Record<string, { stacks: number; untilTurnCounter?: number; params?: Record<string, any> }>
   > = {};
+  const auraGroupWinners = new Map<ActorId, { kind: "sanctuary" | "cursed_earth"; power: number; sourceId: ActorId }>();
 
   for (const casterId of combat.participants) {
     const caster = save.actorsById[casterId];
@@ -288,12 +294,91 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
       const radius = aura.radius;
       if (radius <= 0) continue;
       const includeCaster = aura.includeCaster !== false;
+      const auraKind = instance.params?.auraKind as "sanctuary" | "cursed_earth" | "word_of_god" | undefined;
+      const auraPower = typeof instance.params?.auraPower === "number" ? instance.params?.auraPower : 0;
+
       for (const targetId of combat.participants) {
         if (!includeCaster && targetId === casterId) continue;
-        if (!isAlly(casterId, targetId)) continue;
+        if (!isAlly(casterId, targetId) && auraKind !== "cursed_earth" && auraKind !== "sanctuary") continue;
         if (isUnderAntiMagic(targetId)) continue;
         const distance = footprintDistanceBetweenActors(save, casterId, targetId);
         if (distance > radius) continue;
+
+        if (auraKind === "sanctuary" || auraKind === "cursed_earth") {
+          const current = auraGroupWinners.get(targetId);
+          if (!current || auraPower > current.power) {
+            if (current) {
+              const previousKey = current.kind === "sanctuary" ? "sanctuary" : "cursed_earth";
+              if (desired[targetId]?.[previousKey]) {
+                delete desired[targetId][previousKey];
+              }
+              if (current.kind === "sanctuary" && desired[targetId]?.["sanctuary_debuff"]) {
+                delete desired[targetId]["sanctuary_debuff"];
+              }
+            }
+            auraGroupWinners.set(targetId, { kind: auraKind, power: auraPower, sourceId: casterId });
+          } else if (current && auraPower < current.power) {
+            continue;
+          }
+        }
+
+        if (auraKind === "sanctuary") {
+          const targetActor = save.actorsById[targetId];
+          const isDaemonic = targetActor?.traits?.["trait:daemonic"] !== undefined;
+          if (isDaemonic && !isAlly(casterId, targetId)) {
+            const wilBonus = typeof instance.params?.wilBonus === "number" ? instance.params?.wilBonus : 0;
+            const overcast = typeof instance.params?.overcast === "number" ? instance.params?.overcast : 0;
+            const entryPenalty = -5 * wilBonus;
+            const targetValue = getStatOrSkillValue(targetActor, "WIL", save);
+            const entryCheck = rollD100Check(
+              `combat:sanctuary:entry:${targetId}`,
+              targetId,
+              targetValue + entryPenalty,
+              undefined,
+              rng
+            );
+            rngUsed = true;
+            if (!entryCheck || !entryCheck.success) {
+              continue;
+            }
+            const debuffValue = -5 * wilBonus - 5 * overcast;
+            desired[targetId] = desired[targetId] || {};
+            desired[targetId]["sanctuary_debuff"] = {
+              stacks: 1,
+              untilTurnCounter: instance.untilTurnCounter,
+              params: {
+                auraKind: "sanctuary",
+                auraPower,
+                modifierId: `aura:sanctuary:${casterId}:${targetId}`,
+                debuffValue,
+              },
+            };
+            continue;
+          }
+        }
+
+        if (auraKind === "cursed_earth") {
+          const targetActor = save.actorsById[targetId];
+          const isDaemonic = targetActor?.traits?.["trait:daemonic"] !== undefined;
+          if (!isDaemonic) {
+            continue;
+          }
+          const wilBonus = typeof instance.params?.wilBonus === "number" ? instance.params?.wilBonus : 0;
+          const daemonicBonus = Math.ceil(wilBonus / 2);
+          desired[targetId] = desired[targetId] || {};
+          desired[targetId]["cursed_earth"] = {
+            stacks: 1,
+            untilTurnCounter: instance.untilTurnCounter,
+            params: {
+              auraKind: "cursed_earth",
+              auraPower,
+              daemonicBonus,
+              ignoreInstability: true,
+            },
+          };
+          continue;
+        }
+
         desired[targetId] = desired[targetId] || {};
         const current = desired[targetId][conditionId];
         const stacks = instance.stacks ?? 1;
@@ -308,7 +393,6 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
     }
   }
 
-  let updatedSave: GameSave = save;
   for (const actorId of combat.participants) {
     const actor = updatedSave.actorsById[actorId];
     if (!actor) continue;
@@ -325,6 +409,19 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
         if (isUnderAntiMagic(actorId)) {
           updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
           continue;
+        }
+        if (conditionId === "sanctuary_debuff" && instance.params?.modifierId) {
+          const modifierId = instance.params.modifierId as string;
+          const filteredMods = (updatedActor.status.tempModifiers || []).filter((mod) => mod.id !== modifierId);
+          if (filteredMods.length !== (updatedActor.status.tempModifiers || []).length) {
+            updatedActor = {
+              ...updatedActor,
+              status: {
+                ...updatedActor.status,
+                tempModifiers: filteredMods,
+              },
+            };
+          }
         }
         if (!wanted[conditionId]) {
           updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
@@ -348,6 +445,26 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
       if (actor.conditions?.[conditionKey] && !actor.conditions?.[conditionKey]?.params?.auraApplied) {
         continue;
       }
+      if (conditionId === "sanctuary_debuff" && data.params?.modifierId) {
+        const modifierId = data.params.modifierId as string;
+        const existingMods = (updatedActor.status.tempModifiers || []).filter((mod) => mod.id !== modifierId);
+        updatedActor = {
+          ...updatedActor,
+          status: {
+            ...updatedActor.status,
+            tempModifiers: [
+              ...existingMods,
+              {
+                id: modifierId,
+                scope: "all",
+                key: null,
+                value: data.params?.debuffValue ?? 0,
+                expires: data.untilTurnCounter,
+              },
+            ],
+          },
+        };
+      }
       updatedActor = addConditionToActor(
         updatedActor,
         conditionKey as any,
@@ -367,6 +484,16 @@ export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs):
         },
       };
     }
+  }
+
+  if (rngUsed) {
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        rngCounter: rng.getCounter(),
+      },
+    };
   }
 
   return updatedSave;

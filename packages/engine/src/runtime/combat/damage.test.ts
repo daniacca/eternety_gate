@@ -204,6 +204,326 @@ describe("damage", () => {
       expect(damageResult.save.actorsById[defender.id].resources.wounds).toBe(0); // No wounds taken
     });
 
+    it("should apply sanctified bonus damage against daemonic targets", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        traits: { "trait:daemonic": { x: 4 } },
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Sanctified Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "sanctified" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(14);
+    });
+
+    it("should apply unholy bonus damage against divine targets", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        traits: { "trait:divine": { x: 3 } },
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Unholy Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "unholy" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(12);
+    });
+
+    it("should suppress unholy damage when sanctuary is active", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        conditions: { sanctuary: { stacks: 1, params: { auraApplied: true } } },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Unholy Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "unholy" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(0);
+    });
+
+    it("should apply sanctified bonus damage against daemonic targets", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        traits: { "trait:daemonic": { x: 4 } },
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Sanctified Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "sanctified" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      // Roll 1 on d10 and SB = 5 => raw 6, +8 sanctified bonus => 14
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(14);
+    });
+
+    it("should apply unholy bonus damage against divine targets", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        traits: { "trait:divine": { x: 3 } },
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Unholy Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "unholy" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      // Roll 1 on d10 and SB = 5 => raw 6, +6 unholy bonus => 12
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(12);
+    });
+
+    it("should suppress unholy damage when sanctuary is active", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({ id: "attacker" });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { wounds: 0, rf: 100, peq: 100 },
+        conditions: { sanctuary: { stacks: 1, params: { auraApplied: true } } },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "blade",
+        name: "Unholy Blade",
+        kind: "MELEE",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "energy",
+        penetration: 0,
+        qualities: [{ id: "unholy" }],
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { blade: weapon },
+      };
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE", weaponId: "blade" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: { allowParry: false, allowDodge: false, strategy: "autoBest" },
+      };
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 80,
+        success: true,
+        dos: 3,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.finalDamage).toBe(0);
+    });
+
     it("should apply Toxic trait to unarmed attacks", () => {
       const storyPack = makeTestStoryPack();
       const attacker = makeTestActor({

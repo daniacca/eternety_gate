@@ -233,6 +233,30 @@
     ]
   },
   {
+    "id": "trait:divine",
+    "name": "Divino",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "stat.tou.bonusAdd",
+        "op": "add",
+        "valueRef": "x"
+      },
+      {
+        "type": "modifier",
+        "key": "spirit.divine",
+        "op": "add",
+        "value": 1
+      }
+    ]
+  },
+  {
     "id": "trait:spiritual_instability",
     "name": "Instabilita Spirituale",
     "grants": [

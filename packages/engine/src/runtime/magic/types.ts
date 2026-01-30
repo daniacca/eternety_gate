@@ -4,7 +4,7 @@ import type { Prerequisite } from "../../content/catalogs";
 /**
  * Magic disciplines
  */
-export type Discipline = "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS";
+export type Discipline = "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS" | "SANTIC" | "DAEMONOLOGY";
 
 /**
  * Spell casting time (action economy)
@@ -73,6 +73,7 @@ export type EffectDefinition = {
   specialFatigue?: number; // Extra RF always applied on success
   rfOnSuccess?: number; // RF applied on successful cast (in addition to other RF rules)
   healFatigueRatio?: number; // Ratio of healed wounds converted into Fatigue for caster
+  damageQualities?: string[]; // Weapon-like qualities (e.g. sanctified, unholy)
   aura?: {
     applyToAllies?: boolean;
     radiusFromEffectStat?: boolean;

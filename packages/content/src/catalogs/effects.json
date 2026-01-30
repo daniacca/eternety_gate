@@ -457,6 +457,135 @@
     "description": "Permette al narratore di inviare visioni o messaggi"
   },
   {
+    "id": "effect:santic_holy_fire",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 10
+    },
+    "baseDamageFlat": 0,
+    "damageType": "energy",
+    "damageQualities": ["sanctified"],
+    "description": "Fuoco sacro che colpisce in cono"
+  },
+  {
+    "id": "effect:santic_sanctuary",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
+    "applyConditions": [
+      {
+        "conditionId": "sanctuary",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Aura sacra che protegge gli alleati e respinge i demoniaci"
+  },
+  {
+    "id": "effect:santic_daemonbane",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "specialOp": "combatDaemonbane",
+    "description": "Colpisce creature instabili spiritualmente con danno diretto"
+  },
+  {
+    "id": "effect:santic_word_of_god",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
+    "applyConditions": [
+      {
+        "conditionId": "word_of_god",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Aura che impone un test di Volonta prima di attaccare"
+  },
+  {
+    "id": "effect:daemonology_cursed_earth",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "aura": {
+      "applyToAllies": true,
+      "radiusFromEffectStat": true,
+      "includeCaster": true
+    },
+    "applyConditions": [
+      {
+        "conditionId": "cursed_earth",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Aura profana che potenzia il demoniaco e sopprime instabilita"
+  },
+  {
+    "id": "effect:daemonology_dark_flame",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "baseDamageDice": {
+      "dice": 1,
+      "sides": 10
+    },
+    "baseDamageFlat": 0,
+    "damageType": "energy",
+    "damageQualities": ["unholy"],
+    "description": "Fiamma empia che colpisce in cono"
+  },
+  {
+    "id": "effect:daemonology_infernal_gaze",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "specialOp": "combatInfernalGaze",
+    "description": "Sguardo infernale che infligge danno diretto su fallimento"
+  },
+  {
+    "id": "effect:daemonology_possession",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "possession",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Invoca un'entita che possiede il caster e lo mette in Frenzy"
+  },
+  {
     "id": "effect:kinesis_shockwave",
     "discipline": "KINESIS",
     "castingStat": "WIL",

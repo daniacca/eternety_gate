@@ -477,3 +477,57 @@ describe("combatRequestAttack AOE weapon qualities", () => {
     expect(result.save.actorsById["PC_2"].resources.wounds).toBe(0);
   });
 });
+
+describe("combatRequestAttack Word of God", () => {
+  it("blocks attack when pre-check fails", () => {
+    const storyPack = makeTestStoryPack();
+    const attacker = makeActor({
+      id: "PC_1",
+      stats: { WIL: 10, WS: 50 } as any,
+    });
+    const defenderBase = makeActor({
+      id: "NPC_1",
+      kind: "NPC",
+    });
+    const defender = {
+      ...defenderBase,
+      conditions: {
+        word_of_god: { stacks: 1, params: { auraApplied: true, wilBonus: 3, overcast: 2 } },
+      },
+    };
+
+    const save = prepareCombatSave(storyPack, attacker, defender);
+    const combat = save.runtime.combat!;
+    const saveWithPositions = {
+      ...save,
+      runtime: {
+        ...save.runtime,
+        combat: {
+          ...combat,
+          positions: {
+            [attacker.id]: { x: 0, y: 0 },
+            [defender.id]: { x: 1, y: 0 },
+          },
+        },
+      },
+    };
+    const rng = new FakeRng([100]);
+
+    const effect: Effect = {
+      op: "combatRequestAttack",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      mode: "MELEE",
+    };
+
+    const result = combatRequestAttack(
+      effect as Extract<Effect, { op: "combatRequestAttack" }>,
+      storyPack,
+      saveWithPositions,
+      rng
+    );
+    const tags = result.save.runtime.lastCheck?.tags ?? [];
+    expect(tags).toContain("combat:blocked=wordOfGod");
+    expect(result.save.actorsById[defender.id].resources.wounds).toBe(0);
+  });
+});

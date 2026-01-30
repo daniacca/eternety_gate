@@ -1700,6 +1700,8 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     effectDef.specialOp !== "combatHaemorrhage" &&
     effectDef.specialOp !== "combatControlMind" &&
     effectDef.specialOp !== "combatVisionOfTerror" &&
+    effectDef.specialOp !== "combatDaemonbane" &&
+    effectDef.specialOp !== "combatInfernalGaze" &&
     validTargetActors.length > 0
   ) {
     const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;
@@ -2102,6 +2104,146 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     return updatedSave;
   }
 
+  if (effectDef.specialOp === "combatDaemonbane" && validTargetActors.length > 0) {
+    const resistedTargetIds = new Set<ActorId>();
+    const baseOpposedStat = effectDef.opposedStat || "WIL";
+    const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
+
+    for (const target of validTargetActors) {
+      const hasInstability = target.actor.traits?.["trait:spiritual_instability"] !== undefined;
+      if (!hasInstability) {
+        const targetName = target.actor.name || target.actorId;
+        updatedSave = appendCombatLog(updatedSave, `${targetName} non è instabile spiritualmente.`);
+        resistedTargetIds.add(target.actorId);
+        continue;
+      }
+      const opposedStat = catalogs
+        ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
+        : baseOpposedStat;
+      const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+      const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const resistPenalty = -5 * effectStatBonus - 5 * targetOvercast;
+
+      const defenderCheck: SingleCheck = {
+        id: `combat:cast:daemonbane:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: opposedStat,
+        difficulty: opposedDifficulty,
+        modifier: magicResistanceBonus + untouchableDenyBonus + resistPenalty,
+      };
+
+      const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+        defenderCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:daemonbane:${spell.id}:${target.actorId}`
+      );
+
+      updatedSave = saveAfterDefenderCheck;
+
+      if (!defenderResult) {
+        resistedTargetIds.add(target.actorId);
+        continue;
+      }
+
+      const attackerDoS = effectiveDoS;
+      const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+
+      if (attackerDoS > defenderDoS) {
+        const damage = Math.max(0, effectStatBonus + defenderResult.dof);
+        const damageResult = applyDamageToActor(target.actor, damage, updatedSave, rng, storyPack, catalogs);
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: damageResult.updatedActor,
+          },
+        };
+        const targetName = target.actor.name || target.actorId;
+        updatedSave = appendCombatLog(updatedSave, `${targetName} subisce scaccia-demoni (${damage} danni).`);
+        if (damageResult.actorDied) {
+          updatedSave = appendCombatLog(updatedSave, `${targetName} viene bandito nell'Aethir.`);
+        }
+      } else {
+        resistedTargetIds.add(target.actorId);
+        const targetName = target.actor.name || target.actorId;
+        const resistedLog = `${targetName} resiste allo scaccia-demoni (${opposedStat}).`;
+        updatedSave = appendCombatLog(updatedSave, resistedLog);
+      }
+    }
+
+    validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    return updatedSave;
+  }
+
+  if (effectDef.specialOp === "combatInfernalGaze" && validTargetActors.length > 0) {
+    const resistedTargetIds = new Set<ActorId>();
+    const baseOpposedStat = effectDef.opposedStat || "WIL";
+    const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
+
+    for (const target of validTargetActors) {
+      const opposedStat = catalogs
+        ? getBestResistStat(target.actor, baseOpposedStat, updatedSave, catalogs)
+        : baseOpposedStat;
+      const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+      const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const resistPenalty = -5 * targetOvercast;
+
+      const defenderCheck: SingleCheck = {
+        id: `combat:cast:infernalGaze:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: opposedStat,
+        difficulty: opposedDifficulty,
+        modifier: magicResistanceBonus + untouchableDenyBonus + resistPenalty,
+      };
+
+      const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
+        defenderCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:infernalGaze:${spell.id}:${target.actorId}`
+      );
+
+      updatedSave = saveAfterDefenderCheck;
+
+      if (!defenderResult) {
+        resistedTargetIds.add(target.actorId);
+        continue;
+      }
+
+      const attackerDoS = effectiveDoS;
+      const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+
+      if (attackerDoS > defenderDoS) {
+        const damage = Math.max(0, defenderResult.dof);
+        const damageResult = applyDamageToActor(target.actor, damage, updatedSave, rng, storyPack, catalogs);
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: damageResult.updatedActor,
+          },
+        };
+        const targetName = target.actor.name || target.actorId;
+        updatedSave = appendCombatLog(updatedSave, `${targetName} subisce lo sguardo infernale (${damage} danni).`);
+      } else {
+        resistedTargetIds.add(target.actorId);
+        const targetName = target.actor.name || target.actorId;
+        const resistedLog = `${targetName} resiste allo sguardo infernale (${opposedStat}).`;
+        updatedSave = appendCombatLog(updatedSave, resistedLog);
+      }
+    }
+
+    validTargetActors = validTargetActors.filter((t) => !resistedTargetIds.has(t.actorId));
+    return updatedSave;
+  }
+
   // Force Field: block hostile spell effects before applying conditions or damage
   const shouldCheckForceField =
     effectDef.kind === "damage" || effectDef.kind === "fatigue" || effectDef.kind === "malediction";
@@ -2171,12 +2313,36 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
       const baseDamageFlat = (effectDef.baseDamageFlat ?? 0) + effectStatBonus;
       const scaled = scaleDamage(effectDef.baseDamageDice, baseDamageFlat, targetOvercast);
       let totalDamage = diceTotal + scaled.flatPlus;
-      if (
-        effectDef.kind === "damage" &&
-        effectDef.damageType === "energy" &&
-        hasCondition(target.actor, "fiery_form")
-      ) {
-        totalDamage = Math.ceil(totalDamage / 2);
+      const damageQualities = effectDef.damageQualities ?? [];
+      if (effectDef.kind === "damage") {
+        const daemonicParams = target.actor.traits?.["trait:daemonic"];
+        const baseDaemonic =
+          typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
+        const cursedBonus =
+          typeof target.actor.conditions?.cursed_earth?.params?.daemonicBonus === "number"
+            ? target.actor.conditions?.cursed_earth?.params?.daemonicBonus
+            : 0;
+        const daemonicBonus = baseDaemonic + cursedBonus;
+        const divineParams = target.actor.traits?.["trait:divine"];
+        const divineBonus =
+          typeof divineParams === "object" && typeof divineParams.x === "number" ? divineParams.x : 0;
+
+        if (damageQualities.includes("sanctified") && daemonicBonus > 0) {
+          totalDamage += 2 * daemonicBonus;
+        }
+        if (damageQualities.includes("unholy") && divineBonus > 0) {
+          totalDamage += 2 * divineBonus;
+        }
+        if (hasCondition(target.actor, "sanctuary")) {
+          if (damageQualities.includes("unholy")) {
+            totalDamage = 0;
+          } else {
+            totalDamage = Math.ceil(totalDamage / 2);
+          }
+        }
+        if (effectDef.damageType === "energy" && hasCondition(target.actor, "fiery_form")) {
+          totalDamage = Math.ceil(totalDamage / 2);
+        }
       }
 
       if (effectDef.kind === "heal") {
@@ -2227,6 +2393,50 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
           ],
         });
 
+        if (
+          storyPack &&
+          (damageQualities.includes("sanctified") || damageQualities.includes("unholy")) &&
+          target.actor.traits?.["trait:spiritual_instability"] !== undefined &&
+          !target.actor.conditions?.cursed_earth?.params?.ignoreInstability
+        ) {
+          const penalty = -10 - 5 * effectiveDoS;
+          const instabilityCheck: SingleCheck = {
+            id: `combat:spell:instability:${spell.id}:${target.actorId}`,
+            kind: "single",
+            actorRef: { mode: "byId", actorId: target.actorId },
+            key: "WIL",
+            difficulty: "Challenging",
+            modifier: penalty,
+          };
+          const { result: instabilityResult, save: saveAfterCheck } = performCheckWithSave(
+            instabilityCheck,
+            storyPack,
+            updatedSave,
+            rng,
+            resolutionId ? `${resolutionId}:sanctified` : undefined
+          );
+          updatedSave = saveAfterCheck;
+          if (instabilityResult && !instabilityResult.success) {
+            const backlashDamage = 1 + instabilityResult.dof;
+            const currentDefender = updatedSave.actorsById[target.actorId] ?? target.actor;
+            const instabilityDamageResult = applyDamageToActor(
+              currentDefender,
+              backlashDamage,
+              updatedSave,
+              rng,
+              storyPack,
+              catalogs
+            );
+            updatedSave = {
+              ...updatedSave,
+              actorsById: {
+                ...updatedSave.actorsById,
+                [target.actorId]: instabilityDamageResult.updatedActor,
+              },
+            };
+          }
+        }
+
         const targetName = target.actor.name || target.actorId;
         const maxHpActual = catalogs
           ? calculateMaxHp(updatedSave, target.actor, catalogs)
@@ -2253,9 +2463,13 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
         let effectiveTouBonus = baseTouBonus;
         if (effectDef.damageType !== "impact") {
           const daemonicParams = target.actor.traits?.["trait:daemonic"];
-          const daemonicBonus =
+          const baseDaemonic =
             typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
-          effectiveTouBonus = Math.max(0, baseTouBonus - daemonicBonus);
+          const cursedBonus =
+            typeof target.actor.conditions?.cursed_earth?.params?.daemonicBonus === "number"
+              ? target.actor.conditions?.cursed_earth?.params?.daemonicBonus
+              : 0;
+          effectiveTouBonus = Math.max(0, baseTouBonus - (baseDaemonic + cursedBonus));
         }
         let armorSoak =
           effectDef.damageType === "impact" ? getActorArmor(updatedSave, target.actor).soak : 0;
@@ -2757,6 +2971,19 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
             wilBonus: effectStatBonus,
           };
         }
+        if (
+          conditionSpec.conditionId === "sanctuary" ||
+          conditionSpec.conditionId === "cursed_earth" ||
+          conditionSpec.conditionId === "word_of_god"
+        ) {
+          conditionParams = {
+            ...(conditionParams ?? {}),
+            auraKind: conditionSpec.conditionId,
+            auraPower: effectiveDoS,
+            wilBonus: effectStatBonus,
+            overcast: targetOvercast,
+          };
+        }
 
         const shouldApplyCondition =
           conditionSpec.conditionId !== "giant_form" && conditionSpec.conditionId !== "weave_of_fate";
@@ -2931,6 +3158,23 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
               originalFatePoints: currentFp,
               tempFate: 1,
             }
+          );
+        }
+
+        if (conditionSpec.conditionId === "possession") {
+          const bonus = effectStatBonus + targetOvercast;
+          updatedTargetActor = addTraitsWithSource(
+            updatedTargetActor,
+            { "trait:daemonic": { x: bonus } },
+            spellSource
+          );
+          updatedTargetActor = addUnnaturalCharacteristics(updatedTargetActor, [{ stat: "STR", bonusX: bonus }], spellSource);
+          updatedTargetActor = addConditionToActor(
+            updatedTargetActor,
+            "frenzy",
+            1,
+            untilTurnCounter,
+            spellSource
           );
         }
 

@@ -285,6 +285,17 @@ export function applyCombatDamageIfHit(
       : `${fieryBonus} (Fiery Form)`;
   }
 
+  const daemonicParams = defender.traits?.["trait:daemonic"];
+  const baseDaemonic =
+    typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
+  const cursedBonus =
+    typeof defender.conditions?.cursed_earth?.params?.daemonicBonus === "number"
+      ? defender.conditions?.cursed_earth?.params?.daemonicBonus
+      : 0;
+  const daemonicBonus = baseDaemonic + cursedBonus;
+  const divineParams = defender.traits?.["trait:divine"];
+  const divineBonus = typeof divineParams === "object" && typeof divineParams.x === "number" ? divineParams.x : 0;
+
   // Get defender armor soak
   let { soak, armorId } = getActorArmor(save, defender);
   if (hasCondition(defender, "misfortune")) {
@@ -296,6 +307,23 @@ export function applyCombatDamageIfHit(
   // Get weapon for penetration calculation
   const weaponForPenetration =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
+  if (weaponForPenetration && hasWeaponQuality(weaponForPenetration, "sanctified") && daemonicBonus > 0) {
+    const bonus = 2 * daemonicBonus;
+    rawDamage += bonus;
+    damageFormula = damageFormula ? `${damageFormula} + ${bonus} (Sanctified)` : `${bonus} (Sanctified)`;
+  }
+  if (weaponForPenetration && hasWeaponQuality(weaponForPenetration, "unholy") && divineBonus > 0) {
+    const bonus = 2 * divineBonus;
+    rawDamage += bonus;
+    damageFormula = damageFormula ? `${damageFormula} + ${bonus} (Unholy)` : `${bonus} (Unholy)`;
+  }
+  if (hasCondition(defender, "sanctuary")) {
+    if (weaponForPenetration && hasWeaponQuality(weaponForPenetration, "unholy")) {
+      rawDamage = 0;
+    } else {
+      rawDamage = Math.ceil(rawDamage / 2);
+    }
+  }
   if (weaponForPenetration?.damageType === "energy" && hasCondition(defender, "fiery_form")) {
     rawDamage = Math.ceil(rawDamage / 2);
   }
@@ -357,8 +385,6 @@ export function applyCombatDamageIfHit(
     }
   }
   if (isMagicalSource) {
-    const daemonicParams = defender.traits?.["trait:daemonic"];
-    const daemonicBonus = typeof daemonicParams === "object" && typeof daemonicParams.x === "number" ? daemonicParams.x : 0;
     if (daemonicBonus > 0) {
       touBonus = Math.max(0, touBonus - daemonicBonus);
     }
@@ -627,9 +653,12 @@ export function applyCombatDamageIfHit(
       });
     }
 
-    if (hasWeaponQuality(weaponForHitEffects, "sanctified") && storyPack) {
+    const hasSanctified = weaponForHitEffects && hasWeaponQuality(weaponForHitEffects, "sanctified");
+    const hasUnholy = weaponForHitEffects && hasWeaponQuality(weaponForHitEffects, "unholy");
+    if ((hasSanctified || hasUnholy) && storyPack) {
       const hasInstability = defender.traits?.["trait:spiritual_instability"] !== undefined;
-      if (hasInstability) {
+      const ignoreInstability = defender.conditions?.cursed_earth?.params?.ignoreInstability === true;
+      if (hasInstability && !ignoreInstability) {
         const penalty = -10 - 5 * result.dos;
         const instabilityCheck: SingleCheck = {
           id: `combat:sanctified:instability:${defender.id}`,
