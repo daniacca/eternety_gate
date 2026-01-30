@@ -348,7 +348,7 @@
     "targetShape": "radius",
     "radiusSquares": 1,
     "notes": "Alleati nell'area diventano invisibili; penalita e bonus in mischia",
-    "xpCost": 700,
+    "xpCost": 200,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -366,7 +366,7 @@
     "rangeMode": "long",
     "targetShape": "single",
     "notes": "Il bersaglio resiste con WIL; se fallisce diventa controllabile",
-    "xpCost": 1400,
+    "xpCost": 800,
     "prerequisites": [
       {
         "type": "hasTrait",
@@ -385,7 +385,7 @@
     "targetShape": "radius",
     "radiusSquares": 3,
     "notes": "I nemici nell'area resistono alla paura o restano sotto shock",
-    "xpCost": 700,
+    "xpCost": 400,
     "prerequisites": [
       {
         "type": "hasTrait",
