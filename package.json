@@ -7,7 +7,9 @@
     "dev": "pnpm build:engine && expo start",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "pnpm build:engine",
+    "lint": "eslint .",
     "build:engine": "pnpm --filter @eg/engine build",
+    "build": "pnpm -r --filter \"./packages/**\" --if-present build",
     "validate:story": "pnpm --filter @eg/tools validate:story",
     "test": "pnpm -r test"
   },
@@ -32,7 +34,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@eslint/js": "^9.39.2",
     "@types/react": "19.1.11",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-jsonc": "^2.21.0",
+    "jsonc-eslint-parser": "^2.4.2",
     "typescript": "^5.9.2"
   },
   "overrides": {
