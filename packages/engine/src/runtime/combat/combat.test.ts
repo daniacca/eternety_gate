@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { startCombat, advanceCombatTurn, getCurrentTurnActorId, calculateInitialMovement } from "./combat";
+import { startCombat, advanceCombatTurn, getCurrentTurnActorId, calculateInitialMovement, updateAuraEffects } from "./combat";
 import { isActorAlive, getSizeMovementModifier } from "../characters/actors";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
@@ -132,6 +132,169 @@ describe("combat", () => {
       const result = startCombat(storyPack, save, ["PC_1"]);
 
       expect(result.runtime.combat).toBeUndefined();
+    });
+  });
+
+  describe("aura suppression", () => {
+    it("should negate buff auras inside anti-magic aura", () => {
+      const storyPack = makeTestStoryPack({
+        traits: [{ id: "trait:untouchable", name: "Untouchable", grants: [] }],
+        talents: [
+          {
+            id: "talent:soulless_aura_1",
+            name: "Soulless Aura I",
+            tier: 2,
+            xpCost: 1000,
+            prerequisites: [],
+            grants: [],
+            maxRank: 1,
+          },
+        ],
+      });
+      const caster = makeTestActor({
+        id: "PC_1",
+        stats: { WIL: 50, INI: 50 } as any,
+        conditions: {
+          steel_body: {
+            stacks: 1,
+            params: { aura: { radius: 5, includeCaster: true } },
+          },
+        },
+      });
+      const ally = makeTestActor({
+        id: "PC_2",
+        kind: "PC",
+        conditions: {
+          steel_body: { stacks: 1, params: { auraApplied: true } },
+        },
+      });
+      const antiMagic = makeTestActor({
+        id: "NPC_1",
+        kind: "NPC",
+        stats: { WIL: 50 } as any,
+        traits: { "trait:untouchable": {} },
+        talents: { "talent:soulless_aura_1": 1 },
+      });
+
+      const save = makeTestSave(storyPack, caster);
+      const saveWithActors = {
+        ...save,
+        party: { actors: [caster.id, ally.id], activeActorId: caster.id },
+        actorsById: {
+          ...save.actorsById,
+          [ally.id]: ally,
+          [antiMagic.id]: antiMagic,
+        },
+        runtime: {
+          ...save.runtime,
+          combat: {
+            active: true,
+            participants: [caster.id, ally.id, antiMagic.id],
+            currentIndex: 0,
+            round: 1,
+            grid: { width: 10, height: 10 },
+            positions: {
+              [caster.id]: { x: 1, y: 1 },
+              [ally.id]: { x: 2, y: 1 },
+              [antiMagic.id]: { x: 2, y: 2 },
+            },
+            turn: { moveRemaining: 3, actionAvailable: true },
+            turnCounter: 0,
+          },
+        },
+      };
+
+      const catalogs = loadCharacterCatalogs({
+        id: storyPack.id,
+        weapons: [],
+        armors: [],
+        skills: [],
+        talents: storyPack.talents || [],
+        traits: storyPack.traits || [],
+      });
+
+      const result = updateAuraEffects(saveWithActors, catalogs);
+      expect(result.actorsById[caster.id].conditions?.steel_body).toBeUndefined();
+      expect(result.actorsById[ally.id].conditions?.steel_body).toBeUndefined();
+    });
+
+    it("should keep buff aura when no anti-magic overlaps", () => {
+      const storyPack = makeTestStoryPack({
+        traits: [{ id: "trait:untouchable", name: "Untouchable", grants: [] }],
+        talents: [
+          {
+            id: "talent:soulless_aura_1",
+            name: "Soulless Aura I",
+            tier: 2,
+            xpCost: 1000,
+            prerequisites: [],
+            grants: [],
+            maxRank: 1,
+          },
+        ],
+      });
+      const caster = makeTestActor({
+        id: "PC_1",
+        stats: { WIL: 50, INI: 50 } as any,
+        conditions: {
+          steel_body: {
+            stacks: 1,
+            params: { aura: { radius: 5, includeCaster: true } },
+          },
+        },
+      });
+      const ally = makeTestActor({
+        id: "PC_2",
+        kind: "PC",
+      });
+      const antiMagic = makeTestActor({
+        id: "NPC_1",
+        kind: "NPC",
+        stats: { WIL: 50 } as any,
+        traits: { "trait:untouchable": {} },
+        talents: { "talent:soulless_aura_1": 1 },
+      });
+
+      const save = makeTestSave(storyPack, caster);
+      const saveWithActors = {
+        ...save,
+        party: { actors: [caster.id, ally.id], activeActorId: caster.id },
+        actorsById: {
+          ...save.actorsById,
+          [ally.id]: ally,
+          [antiMagic.id]: antiMagic,
+        },
+        runtime: {
+          ...save.runtime,
+          combat: {
+            active: true,
+            participants: [caster.id, ally.id, antiMagic.id],
+            currentIndex: 0,
+            round: 1,
+            grid: { width: 10, height: 10 },
+            positions: {
+              [caster.id]: { x: 1, y: 1 },
+              [ally.id]: { x: 2, y: 1 },
+              [antiMagic.id]: { x: 9, y: 9 },
+            },
+            turn: { moveRemaining: 3, actionAvailable: true },
+            turnCounter: 0,
+          },
+        },
+      };
+
+      const catalogs = loadCharacterCatalogs({
+        id: storyPack.id,
+        weapons: [],
+        armors: [],
+        skills: [],
+        talents: storyPack.talents || [],
+        traits: storyPack.traits || [],
+      });
+
+      const result = updateAuraEffects(saveWithActors, catalogs);
+      expect(result.actorsById[caster.id].conditions?.steel_body).toBeDefined();
+      expect(result.actorsById[ally.id].conditions?.steel_body?.params?.auraApplied).toBe(true);
     });
   });
 

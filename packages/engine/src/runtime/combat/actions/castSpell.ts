@@ -2661,7 +2661,7 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
   }
 
   if (effectDef.moveTarget) {
-    updatedSave = updateAuraEffects(updatedSave);
+    updatedSave = updateAuraEffects(updatedSave, catalogs);
   }
 
   // Apply conditions if effect has conditions
@@ -2979,7 +2979,7 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
   }
 
   if (effectDef.aura?.applyToAllies) {
-    updatedSave = updateAuraEffects(updatedSave);
+    updatedSave = updateAuraEffects(updatedSave, catalogs);
   }
 
   return updatedSave;

@@ -38,6 +38,7 @@ import {
   trackCombatSelfDamage,
 } from "./damageTracking";
 import { getUntouchableAuraImpact } from "./untouchableAura";
+import { getUntouchableAuraRadius } from "../characters/untouchable";
 import { getActorSize, getFootprintCells, getFootprintRadius, footprintDistanceBetweenActors } from "./footprint";
 import { posKey } from "../items/posKey";
 
@@ -256,7 +257,7 @@ export function clearCombatEndConditions(
   return { actorsById: clearedActorsById, partyActors };
 }
 
-export function updateAuraEffects(save: GameSave): GameSave {
+export function updateAuraEffects(save: GameSave, catalogs?: CharacterCatalogs): GameSave {
   const combat = save.runtime.combat;
   if (!combat?.active) return save;
 
@@ -264,6 +265,12 @@ export function updateAuraEffects(save: GameSave): GameSave {
   const isAlly = (casterId: ActorId, targetId: ActorId): boolean => {
     const casterIsParty = partyIds.has(casterId);
     return casterIsParty ? partyIds.has(targetId) : !partyIds.has(targetId);
+  };
+
+  const isUnderAntiMagic = (actorId: ActorId): boolean => {
+    if (getUntouchableAuraImpact(save, catalogs, actorId)) return true;
+    const selfRadius = getUntouchableAuraRadius(save, catalogs, actorId);
+    return selfRadius > 0;
   };
 
   const desired: Record<
@@ -277,12 +284,14 @@ export function updateAuraEffects(save: GameSave): GameSave {
     for (const [conditionId, instance] of Object.entries(caster.conditions)) {
       const aura = instance.params?.aura;
       if (!aura || typeof aura.radius !== "number") continue;
+      if (isUnderAntiMagic(casterId)) continue;
       const radius = aura.radius;
       if (radius <= 0) continue;
       const includeCaster = aura.includeCaster !== false;
       for (const targetId of combat.participants) {
         if (!includeCaster && targetId === casterId) continue;
         if (!isAlly(casterId, targetId)) continue;
+        if (isUnderAntiMagic(targetId)) continue;
         const distance = footprintDistanceBetweenActors(save, casterId, targetId);
         if (distance > radius) continue;
         desired[targetId] = desired[targetId] || {};
@@ -308,7 +317,15 @@ export function updateAuraEffects(save: GameSave): GameSave {
 
     if (actor.conditions) {
       for (const [conditionId, instance] of Object.entries(actor.conditions)) {
+        if (instance.params?.aura && isUnderAntiMagic(actorId)) {
+          updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+          continue;
+        }
         if (!instance.params?.auraApplied) continue;
+        if (isUnderAntiMagic(actorId)) {
+          updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
+          continue;
+        }
         if (!wanted[conditionId]) {
           updatedActor = removeConditionFromActor(updatedActor, conditionId as any);
           continue;
@@ -1541,5 +1558,5 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
     updatedSave = appendCombatLog(updatedSave, turnHeader);
   }
 
-  return updateAuraEffects(updatedSave);
+  return updateAuraEffects(updatedSave, catalogs);
 }
