@@ -45,14 +45,19 @@ export function combatEndTurn(
   };
   currentSave = advanceCombatTurn(currentSave, storyPack);
 
-  // Loop: run NPC turns until it's player's turn again
+  // Loop: run NPC turns until it's a player-controlled turn
   let safety = 0;
-  while (currentSave.runtime.combat?.active && getCurrentTurnActorId(currentSave) !== currentSave.party.activeActorId) {
-    const npcId = getCurrentTurnActorId(currentSave);
-    if (!npcId) break;
+  while (currentSave.runtime.combat?.active) {
+    const turnActorId = getCurrentTurnActorId(currentSave);
+    if (!turnActorId) break;
+
+    const partyIds = new Set(currentSave.party?.actors ?? []);
+    if (partyIds.has(turnActorId)) {
+      break;
+    }
 
     const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
-    currentSave = runNpcTurn(storyPack, currentSave, npcId, contentPack);
+    currentSave = runNpcTurn(storyPack, currentSave, turnActorId, contentPack);
     currentSave = advanceCombatTurn(currentSave, storyPack);
 
     safety++;

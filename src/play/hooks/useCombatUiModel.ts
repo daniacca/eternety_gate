@@ -19,6 +19,7 @@ export interface CombatUiModel {
   // Combat state
   isCombatActive: boolean;
   isPlayerTurn: boolean;
+  controlledActorId: string;
   currentTurnActorId: string | null;
   currentTurnActor: GameSave["actorsById"][string] | null;
   distance: number | null;
@@ -78,7 +79,9 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     // Basic combat state
     const currentTurnActorId = isCombatActive ? getCurrentTurnActorId(save) : null;
     const currentTurnActor = currentTurnActorId ? save.actorsById[currentTurnActorId] : null;
-    const isPlayerTurn = Boolean(isCombatActive && currentTurnActorId === save.party.activeActorId);
+    const partyIds = new Set(save.party.actors);
+    const isPlayerTurn = Boolean(isCombatActive && currentTurnActorId && partyIds.has(currentTurnActorId));
+    const controlledActorId = isPlayerTurn && currentTurnActorId ? currentTurnActorId : save.party.activeActorId;
     const moveRemaining = combat?.turn.moveRemaining ?? 0;
     const actionAvailable = combat?.turn.actionAvailable ?? false;
     // Get stance from stancesByActorId for current turn actor
@@ -88,9 +91,9 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     // Calculate distance (find closest alive NPC)
     let distance: number | null = null;
     if (isCombatActive && combat?.positions) {
-      const pcPos = combat.positions[save.party.activeActorId];
+      const pcPos = combat.positions[controlledActorId];
       const npcIds = combat.participants.filter((id) => {
-        if (id === save.party.activeActorId) return false;
+        if (partyIds.has(id)) return false;
         const actor = save.actorsById[id];
         return isActorAlive(actor);
       });
@@ -113,7 +116,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     }
 
     // Get actors
-    const pcActor = save.actorsById[save.party.activeActorId] || null;
+    const pcActor = save.actorsById[controlledActorId] || null;
     const npcActor = save.actorsById["NPC_DUMMY"] || null;
 
     // Get equipment info
@@ -133,7 +136,7 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     );
     const hasRangedWeapon = rangedWeapons.length > 0;
     const inventory = pcActor?.inventory ?? [];
-    const rechargeByActor = combat?.weaponRechargeUntilTurnCounterByActorId?.[save.party.activeActorId] || {};
+    const rechargeByActor = combat?.weaponRechargeUntilTurnCounterByActorId?.[controlledActorId] || {};
     const rangedWeaponStates = rangedWeapons.map((weapon) => {
       const rechargeTurns = getWeaponQualityRank(weapon, "recharge") ?? 0;
       const rechargeUntil = rechargeTurns > 0 ? rechargeByActor[weapon.id] : undefined;
@@ -156,10 +159,10 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     // Basic attack availability - check if any NPC is in melee range
     let canMelee = false;
     if (isCombatActive && combat?.positions) {
-      const pcPos = combat.positions[save.party.activeActorId];
+      const pcPos = combat.positions[controlledActorId];
       if (pcPos) {
         const npcIds = combat.participants.filter((id) => {
-          if (id === save.party.activeActorId) return false;
+          if (partyIds.has(id)) return false;
           const actor = save.actorsById[id];
           return isActorAlive(actor);
         });
@@ -251,9 +254,9 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
     // For ranged: must be in weapon range
     let selectedTargetId: string | null = null;
     if (isCombatActive && combat?.positions && isPlayerTurn && (canMelee || canRanged)) {
-      const pcPos = combat.positions[save.party.activeActorId];
+      const pcPos = combat.positions[controlledActorId];
       const npcIds = combat.participants.filter((id) => {
-        if (id === save.party.activeActorId) return false;
+        if (partyIds.has(id)) return false;
         const actor = save.actorsById[id];
         return isActorAlive(actor);
       });
@@ -313,14 +316,12 @@ export function useCombatUiModel(save: GameSave, combatChoices: Choice[], storyP
           })
         : undefined;
 
-    const agiBonus =
-      pcActor && save.party.activeActorId
-        ? Math.max(1, calculateInitialMovement(pcActor, save, catalogs))
-        : 1;
+    const agiBonus = pcActor ? Math.max(1, calculateInitialMovement(pcActor, save, catalogs)) : 1;
 
     return {
       isCombatActive,
       isPlayerTurn,
+      controlledActorId,
       currentTurnActorId,
       currentTurnActor,
       distance,

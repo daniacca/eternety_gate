@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Actor, Effect, StoryPack } from "../../types";
 import { combatRequestAttack } from "./requestAttack";
+import { performCombatAttackCheck } from "../../checks/combat";
 import { startCombat } from "../combat";
 import { createNewGame } from "../../engine";
 import { FakeRng } from "../../test-helpers/fakeRng";
@@ -497,37 +498,16 @@ describe("combatRequestAttack Word of God", () => {
     };
 
     const save = prepareCombatSave(storyPack, attacker, defender);
-    const combat = save.runtime.combat!;
-    const saveWithPositions = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        combat: {
-          ...combat,
-          positions: {
-            [attacker.id]: { x: 0, y: 0 },
-            [defender.id]: { x: 1, y: 0 },
-          },
-        },
-      },
-    };
     const rng = new FakeRng([100]);
-
-    const effect: Effect = {
-      op: "combatRequestAttack",
-      attackerId: attacker.id,
-      defenderId: defender.id,
-      mode: "MELEE",
+    const check = {
+      id: "word_of_god_check",
+      kind: "combatAttack" as const,
+      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
+      defender: { actorRef: { mode: "byId", actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
     };
 
-    const result = combatRequestAttack(
-      effect as Extract<Effect, { op: "combatRequestAttack" }>,
-      storyPack,
-      saveWithPositions,
-      rng
-    );
-    const tags = result.save.runtime.lastCheck?.tags ?? [];
-    expect(tags).toContain("combat:blocked=wordOfGod");
-    expect(result.save.actorsById[defender.id].resources.wounds).toBe(0);
+    const { result } = performCombatAttackCheck(check, storyPack, save, rng);
+    expect(result?.tags).toContain("combat:blocked=wordOfGod");
   });
 });

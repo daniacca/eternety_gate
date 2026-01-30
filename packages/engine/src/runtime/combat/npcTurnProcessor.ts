@@ -9,7 +9,6 @@ import type { ContentPack } from "../../content/types";
  * This ensures NPCs act immediately when it's their turn
  */
 export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameSave, contentPack?: ContentPack): GameSave {
-  const partyIds = new Set(save.party?.actors ?? []);
   let currentSave = save;
   let safety = 0;
 
@@ -19,6 +18,8 @@ export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameS
     if (!turnActorId) break;
 
     // Check if current turn actor is a party member (player-controlled)
+    // Party membership can change mid-combat (e.g., mind control), so recompute each loop.
+    const partyIds = new Set(currentSave.party?.actors ?? []);
     const isPlayerTurn = partyIds.has(turnActorId);
     if (isPlayerTurn) {
       // It's a player turn - stop processing

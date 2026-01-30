@@ -78,6 +78,7 @@ export function CombatControl({
   if (!model || !model.isCombatActive) return null;
 
   const combat = save.runtime.combat;
+  const controlledActorId = model.controlledActorId;
 
   // Load catalogs for action unlock checks
   const catalogs = useMemo(() => {
@@ -93,32 +94,30 @@ export function CombatControl({
   }, [storyPack]);
 
   // Check if actions are unlocked
-  const hasDisarmUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:disarm")
-    : false;
+  const hasDisarmUnlock = catalogs ? hasUnlockedAction(save, catalogs, controlledActorId, "combat:disarm") : false;
   const hasKnockdownUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:knockdown")
+    ? hasUnlockedAction(save, catalogs, controlledActorId, "combat:knockdown")
     : true; // Default to true if no catalogs (backward compatibility)
   const hasSwiftAttackUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:swiftAttack")
+    ? hasUnlockedAction(save, catalogs, controlledActorId, "combat:swiftAttack")
     : false;
-  const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:cast") : false;
-  const hasChannelUnlock = catalogs ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:channel") : false;
+  const hasMagicUnlock = catalogs ? hasUnlockedAction(save, catalogs, controlledActorId, "magic:cast") : false;
+  const hasChannelUnlock = catalogs ? hasUnlockedAction(save, catalogs, controlledActorId, "magic:channel") : false;
   const hasMagicConductUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:conduct")
+    ? hasUnlockedAction(save, catalogs, controlledActorId, "magic:conduct")
     : false;
   const hasDoubleCastUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "magic:doubleCast")
+    ? hasUnlockedAction(save, catalogs, controlledActorId, "magic:doubleCast")
     : false;
   const hasCalledShotUnlock = catalogs
-    ? hasUnlockedAction(save, catalogs, save.party.activeActorId, "combat:calledShot")
+    ? hasUnlockedAction(save, catalogs, controlledActorId, "combat:calledShot")
     : false;
 
-  const activeActor = save.actorsById[save.party.activeActorId];
+  const activeActor = save.actorsById[controlledActorId];
   const isWeaver = Boolean(activeActor?.traits?.["trait:weaver"]);
   const fatePoints = activeActor?.resources?.fatePoints ?? 0;
   const channelingDoS =
-    save.runtime.combat?.channeling?.actorId === save.party.activeActorId
+    save.runtime.combat?.channeling?.actorId === controlledActorId
       ? save.runtime.combat.channeling.accumulatedDoS
       : 0;
 
@@ -174,7 +173,7 @@ export function CombatControl({
       applySystemEffects([
         {
           op: "combatSwiftAttack",
-          attackerId: save.party.activeActorId,
+          attackerId: controlledActorId,
           defenderId: model.selectedTargetId,
           weaponId,
         },
@@ -195,7 +194,7 @@ export function CombatControl({
     applySystemEffects([
       {
         op: "combatRequestAttack",
-        attackerId: save.party.activeActorId,
+        attackerId: controlledActorId,
         defenderId: model.selectedTargetId,
         mode,
         weaponId,
@@ -203,7 +202,7 @@ export function CombatControl({
     ]);
   };
   // Get learned spells
-  const learnedSpells = catalogs ? getLearnedSpells(save, save.party.activeActorId, catalogs) : [];
+  const learnedSpells = catalogs ? getLearnedSpells(save, controlledActorId, catalogs) : [];
   const hasLearnedSpells = learnedSpells.length > 0;
   const canUseMagicConduct = hasMagicConductUnlock && fatePoints > 0 && model.actionAvailable;
 
@@ -308,7 +307,7 @@ export function CombatControl({
                                     {
                                       op: "combatMove",
                                       dir: move.dir.toUpperCase() as "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW",
-                                      actorId: save.party.activeActorId,
+                                      actorId: controlledActorId,
                                     },
                                   ]);
                                 }
@@ -338,9 +337,9 @@ export function CombatControl({
                       if (model.moveRemaining > 0) {
                         const hasProne = model.pcActor?.conditions?.prone;
                         if (hasProne) {
-                          applySystemEffects([{ op: "combatStandUp", actorId: save.party.activeActorId }]);
+                          applySystemEffects([{ op: "combatStandUp", actorId: controlledActorId }]);
                         } else {
-                          applySystemEffects([{ op: "combatGetProne", actorId: save.party.activeActorId }]);
+                          applySystemEffects([{ op: "combatGetProne", actorId: controlledActorId }]);
                         }
                       }
                     }}
@@ -356,7 +355,7 @@ export function CombatControl({
                     style={[styles.movementActionButton, model.moveRemaining <= 0 && styles.attackButtonDisabled]}
                     onPress={() => {
                       if (model.moveRemaining > 0) {
-                        applySystemEffects([{ op: "combatPickup", actorId: save.party.activeActorId }]);
+                        applySystemEffects([{ op: "combatPickup", actorId: controlledActorId }]);
                       }
                     }}
                     disabled={model.moveRemaining <= 0}
@@ -442,7 +441,7 @@ export function CombatControl({
                             applySystemEffects([
                               {
                                 op: "combatKnockdown",
-                                attackerId: save.party.activeActorId,
+                                attackerId: controlledActorId,
                                 defenderId: model.selectedTargetId,
                               },
                             ]);
@@ -516,7 +515,7 @@ export function CombatControl({
                             applySystemEffects([
                               {
                                 op: "combatDisarm",
-                                attackerId: save.party.activeActorId,
+                                attackerId: controlledActorId,
                                 defenderId: model.selectedTargetId,
                               },
                             ]);
@@ -713,7 +712,7 @@ export function CombatControl({
                     ]}
                     onPress={() => {
                       if (model.actionAvailable && hasChannelUnlock) {
-                        applySystemEffects([{ op: "combatChannel", actorId: save.party.activeActorId }]);
+                        applySystemEffects([{ op: "combatChannel", actorId: controlledActorId }]);
                       }
                     }}
                     disabled={!hasChannelUnlock || !model.actionAvailable}
@@ -938,7 +937,7 @@ export function CombatControl({
       <SpellPickerModal
         visible={spellPickerVisible}
         save={save}
-        actorId={save.party.activeActorId}
+        actorId={controlledActorId}
         actionAvailable={model.actionAvailable}
         onClose={() => {
           setSpellPickerVisible(false);
@@ -1061,7 +1060,7 @@ export function CombatControl({
                         applySystemEffects([
                           {
                             op: "combatRequestAttack",
-                            attackerId: save.party.activeActorId,
+                            attackerId: controlledActorId,
                             defenderId: model.selectedTargetId,
                             mode: pendingCalledShotMode,
                             weaponId: calledShotWeaponId,

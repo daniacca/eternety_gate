@@ -26,6 +26,7 @@ import {
   getCharacteristicBonus,
   getSpellById,
   getEffectById,
+  getCurrentTurnActorId,
   type TargetSpec,
   type TargetSelection,
   type TargetPreview,
@@ -730,6 +731,11 @@ export function PlayScreen({
     }
   };
 
+  const partyIds = new Set(save.party.actors);
+  const currentTurnActorId = save.runtime.combat?.active ? getCurrentTurnActorId(save) : null;
+  const controlledActorId =
+    currentTurnActorId && partyIds.has(currentTurnActorId) ? currentTurnActorId : save.party.activeActorId;
+
   const buildSpellTargetSpecForUi = (
     spell: ReturnType<typeof getSpellById>,
     effectDef: ReturnType<typeof getEffectById>
@@ -738,7 +744,7 @@ export function PlayScreen({
     const targetSpec = buildSpellTargetSpec(spell, effectDef, cnBase);
     if (effectDef.radiusFromEffectStat && targetSpec.shape.kind === "radius") {
       const effectStatKey = effectDef.effectStat ?? effectDef.castingStat;
-      const effectStatBonus = getCharacteristicBonus(save, save.party.activeActorId, effectStatKey, targetingCatalogs);
+      const effectStatBonus = getCharacteristicBonus(save, controlledActorId, effectStatKey, targetingCatalogs);
       targetSpec.shape = {
         ...targetSpec.shape,
         radius: Math.max(0, effectStatBonus),
@@ -759,7 +765,7 @@ export function PlayScreen({
 
   const buildRangedTargetSpec = (weaponId: string | null): TargetSpec | null => {
     if (!weaponId) return null;
-    const actor = save.actorsById[save.party.activeActorId];
+    const actor = save.actorsById[controlledActorId];
     const weapon = save.weaponsById?.[weaponId] || (actor ? getNaturalAbilityWeaponById(actor, weaponId) : null);
     if (!weapon || weapon.kind !== "RANGED") return null;
 
@@ -798,7 +804,7 @@ export function PlayScreen({
     if (!targetSpec || !weapon) return;
 
     const selection = buildInitialSelection(targetSpec);
-    let preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    let preview = computeTargetPreview(save, controlledActorId, targetSpec, selection);
     const enemyTargets = getEnemyTargetIds(preview);
     if (targetSpec.requiresActor && enemyTargets.length === 0) {
       preview = { ...preview, valid: false, reason: "no_targets" };
@@ -822,12 +828,12 @@ export function PlayScreen({
     const targetSpec = buildSpellTargetSpecForUi(spell, effectDef);
     let selection = buildInitialSelection(targetSpec);
     if (effectDef.centerOnCaster && targetSpec.shape.kind === "radius") {
-      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      const casterPos = save.runtime.combat?.positions[controlledActorId];
       if (casterPos) {
         selection = { kind: "radius", centerPos: casterPos };
       }
     }
-    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    const preview = computeTargetPreview(save, controlledActorId, targetSpec, selection);
     setActionTargeting({
       kind: "spell",
       spellId,
@@ -846,12 +852,12 @@ export function PlayScreen({
     const targetSpec = buildSpellTargetSpecForUi(primarySpell, primaryEffect);
     let selection = buildInitialSelection(targetSpec);
     if (primaryEffect.centerOnCaster && targetSpec.shape.kind === "radius") {
-      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      const casterPos = save.runtime.combat?.positions[controlledActorId];
       if (casterPos) {
         selection = { kind: "radius", centerPos: casterPos };
       }
     }
-    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    const preview = computeTargetPreview(save, controlledActorId, targetSpec, selection);
     setActionTargeting({
       kind: "spell",
       spellId: primarySpellId,
@@ -873,12 +879,12 @@ export function PlayScreen({
     const targetSpec = buildSpellTargetSpecForUi(spell, effectDef);
     let selection = buildInitialSelection(targetSpec);
     if (effectDef.centerOnCaster && targetSpec.shape.kind === "radius") {
-      const casterPos = save.runtime.combat?.positions[save.party.activeActorId];
+      const casterPos = save.runtime.combat?.positions[controlledActorId];
       if (casterPos) {
         selection = { kind: "radius", centerPos: casterPos };
       }
     }
-    const preview = computeTargetPreview(save, save.party.activeActorId, targetSpec, selection);
+    const preview = computeTargetPreview(save, controlledActorId, targetSpec, selection);
     setActionTargeting({
       kind: "item",
       spellId,
@@ -896,17 +902,17 @@ export function PlayScreen({
       const kind = current.targetSpec.shape.kind;
       if (kind === "touch") {
         const selection: TargetSelection = { kind: "touch", direction: dir };
-        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        const preview = computeTargetPreview(save, controlledActorId, current.targetSpec, selection);
         return { ...current, selection, preview };
       }
       if (kind === "line") {
         const selection: TargetSelection = { kind: "line", direction: dir };
-        const preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        const preview = computeTargetPreview(save, controlledActorId, current.targetSpec, selection);
         return { ...current, selection, preview };
       }
       if (kind === "cone") {
         const selection: TargetSelection = { kind: "cone", direction: dir };
-        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, controlledActorId, current.targetSpec, selection);
         if (current.kind === "ranged") {
           const enemyTargets = getEnemyTargetIds(preview);
           if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
@@ -925,7 +931,7 @@ export function PlayScreen({
       const kind = current.targetSpec.shape.kind;
       if (kind === "single") {
         const selection: TargetSelection = { kind: "single", targetPos: pos };
-        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, controlledActorId, current.targetSpec, selection);
         if (current.kind === "ranged") {
           const enemyTargets = getEnemyTargetIds(preview);
           if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
@@ -936,7 +942,7 @@ export function PlayScreen({
       }
       if (kind === "radius") {
         const selection: TargetSelection = { kind: "radius", centerPos: pos };
-        let preview = computeTargetPreview(save, save.party.activeActorId, current.targetSpec, selection);
+        let preview = computeTargetPreview(save, controlledActorId, current.targetSpec, selection);
         if (current.kind === "ranged") {
           const enemyTargets = getEnemyTargetIds(preview);
           if (current.targetSpec.requiresActor && enemyTargets.length === 0) {
@@ -956,7 +962,7 @@ export function PlayScreen({
       applySystemEffects([
         {
           op: "combatCastSpell",
-          actorId: save.party.activeActorId,
+          actorId: controlledActorId,
           spellId: actionTargeting.spellId,
           targetSelection: actionTargeting.selection as TargetSelection,
           secondarySpellId: actionTargeting.secondarySpellId,
@@ -974,7 +980,7 @@ export function PlayScreen({
       applySystemEffects([
         {
           op: "combatRequestAttack",
-          attackerId: save.party.activeActorId,
+          attackerId: controlledActorId,
           defenderId: enemyTargets[0],
           mode: "RANGED",
           weaponId: actionTargeting.weaponId ?? null,
