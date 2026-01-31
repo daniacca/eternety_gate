@@ -108,7 +108,7 @@ export function combatDrop(
         "ring2",
       ];
       const slotKey = slotKeys.find(
-        (slot) => actor.equipment?.[slot]?.kind === itemRef.kind && actor.equipment?.[slot]?.id === itemRef.id
+        (slot) => actor.equipment?.[slot]?.kind === itemRef?.kind && actor.equipment?.[slot]?.id === itemRef?.id
       );
       if (!slotKey) {
         return { save };
@@ -176,4 +176,3 @@ export function combatDrop(
 
   return { save: currentSave };
 }
-

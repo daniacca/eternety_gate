@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack } from "../../types";
+import type { Effect, GameSave, StatOrSkillKey, StoryPack } from "../../types";
 import type { IRNG } from "../../rng";
 import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog } from "../narration";
@@ -93,13 +93,13 @@ export function combatFrenzy(
 
   const filteredMods = (actor.status.tempModifiers || []).filter((mod) => !mod.id.startsWith(`frenzy:${actor.id}:`));
   const frenzyModifiers = [
-    { id: `frenzy:${actor.id}:WS`, scope: "check" as const, key: "WS", value: 10, expires },
-    { id: `frenzy:${actor.id}:STR`, scope: "check" as const, key: "STR", value: 10, expires },
-    { id: `frenzy:${actor.id}:TOU`, scope: "check" as const, key: "TOU", value: 10, expires },
-    { id: `frenzy:${actor.id}:WIL`, scope: "check" as const, key: "WIL", value: 10, expires },
-    { id: `frenzy:${actor.id}:BS`, scope: "check" as const, key: "BS", value: -20, expires },
-    { id: `frenzy:${actor.id}:INT`, scope: "check" as const, key: "INT", value: -20, expires },
-    { id: `frenzy:${actor.id}:CHA`, scope: "check" as const, key: "CHA", value: -20, expires },
+    { id: `frenzy:${actor.id}:WS`, scope: "check" as const, key: "WS" as StatOrSkillKey, value: 10, expires },
+    { id: `frenzy:${actor.id}:STR`, scope: "check" as const, key: "STR" as StatOrSkillKey, value: 10, expires },
+    { id: `frenzy:${actor.id}:TOU`, scope: "check" as const, key: "TOU" as StatOrSkillKey, value: 10, expires },
+    { id: `frenzy:${actor.id}:WIL`, scope: "check" as const, key: "WIL" as StatOrSkillKey, value: 10, expires },
+    { id: `frenzy:${actor.id}:BS`, scope: "check" as const, key: "BS" as StatOrSkillKey, value: -20, expires },
+    { id: `frenzy:${actor.id}:INT`, scope: "check" as const, key: "INT" as StatOrSkillKey, value: -20, expires },
+    { id: `frenzy:${actor.id}:CHA`, scope: "check" as const, key: "CHA" as StatOrSkillKey, value: -20, expires },
   ];
 
   const updatedActor = addConditionToActor(actor, "frenzy", 1, expires, "talent:frenzy");
