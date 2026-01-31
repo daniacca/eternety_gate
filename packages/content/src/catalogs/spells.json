@@ -167,6 +167,43 @@
     ]
   },
   {
+    "id": "spell:pyra_fire_shield",
+    "name": "Scudo di Fuoco",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:pyra_fire_shield",
+    "baseCN": 2,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Contraccolpo su attacchi a distanza riusciti",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_flame_control"
+      }
+    ]
+  },
+  {
+    "id": "spell:pyra_sunburst",
+    "name": "Raggio Solare",
+    "discipline": "PYRA",
+    "castTime": "standard",
+    "effectId": "effect:pyra_sunburst",
+    "baseCN": 3,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Bagliore accecante che indebolisce i nemici",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:flame_cone"
+      }
+    ]
+  },
+  {
     "id": "spell:kinesis_force_push",
     "name": "Spinta di Forza",
     "discipline": "KINESIS",
@@ -214,6 +251,24 @@
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Grants temporary Force Field",
+    "xpCost": 600,
+    "prerequisites": [
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_push"
+      }
+    ]
+  },
+  {
+    "id": "spell:kinesis_blink_step",
+    "name": "Blink Step",
+    "discipline": "KINESIS",
+    "castTime": "standard",
+    "effectId": "effect:kinesis_blink_step",
+    "baseCN": 2,
+    "rangeMode": "short",
+    "targetShape": "single",
+    "notes": "Teletrasporto breve",
     "xpCost": 600,
     "prerequisites": [
       {

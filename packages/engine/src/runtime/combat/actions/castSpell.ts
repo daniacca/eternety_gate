@@ -37,6 +37,7 @@ import { resolveForceFieldBlock } from "../forceField";
 import { trackCombatDamage } from "../damageTracking";
 import { getUntouchableAuraImpact } from "../untouchableAura";
 import { canPlaceActorAt, getActorSize } from "../footprint";
+import { distanceChebyshev } from "../movement";
 import { getCellTerrain } from "../terrain";
 import { getActorArmor } from "../equipment";
 import type { ContentPack } from "../../../content/types";
@@ -2104,6 +2105,109 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
     return updatedSave;
   }
 
+  if (effectDef.specialOp === "combatSunburst") {
+    const caster = updatedSave.actorsById[turnActorId];
+    if (caster) {
+      const baseDuration = Math.max(1, effectStatBonus + overcast);
+      const untilTurnCounter = combat.turnCounter + baseDuration;
+      const updatedCaster = addConditionToActor(
+        caster,
+        "sunburst",
+        1,
+        untilTurnCounter,
+        `spell:${spell.id}`,
+        { wilBonus: effectStatBonus }
+      );
+      updatedSave = {
+        ...updatedSave,
+        actorsById: {
+          ...updatedSave.actorsById,
+          [turnActorId]: updatedCaster,
+        },
+      };
+    }
+
+    for (const target of validTargetActors) {
+      if (target.actorId === turnActorId) continue;
+      const touPenalty = -(5 * effectStatBonus);
+      const touCheck: SingleCheck = {
+        id: `combat:sunburst:${spell.id}:${target.actorId}`,
+        kind: "single",
+        actorRef: { mode: "byId", actorId: target.actorId },
+        key: "TOU",
+        difficulty: "Challenging",
+        modifier: touPenalty,
+      };
+      const { result: touResult, save: saveAfterTou } = performCheckWithSave(
+        touCheck,
+        storyPack,
+        updatedSave,
+        rng,
+        `res:sunburst:${spell.id}:${target.actorId}`
+      );
+      updatedSave = saveAfterTou;
+      if (!touResult?.success) {
+        const blindDuration = 1 + Math.max(0, touResult?.dof ?? 0);
+        const untilTurnCounter = combat.turnCounter + blindDuration;
+        const blindedActor = addConditionToActor(
+          updatedSave.actorsById[target.actorId],
+          "blind",
+          1,
+          untilTurnCounter,
+          `spell:${spell.id}`
+        );
+        updatedSave = {
+          ...updatedSave,
+          actorsById: {
+            ...updatedSave.actorsById,
+            [target.actorId]: blindedActor,
+          },
+        };
+        const blindLog =
+          target.actor.kind === "PC"
+            ? "Sei accecato dal bagliore."
+            : `${target.actor.name || target.actorId} viene accecato dal bagliore.`;
+        updatedSave = appendCombatLog(updatedSave, blindLog);
+      }
+    }
+    return updatedSave;
+  }
+
+  if (effectDef.specialOp === "combatBlinkStep") {
+    const casterPos = updatedSave.runtime.combat?.positions[turnActorId];
+    const targetPos = targetSelection.kind === "single" ? targetSelection.targetPos : null;
+    if (!casterPos || !targetPos) {
+      return updatedSave;
+    }
+    const maxRange = Math.max(0, effectStatBonus * 2);
+    const dist = distanceChebyshev(casterPos, targetPos);
+    if (dist > maxRange) {
+      updatedSave = appendCombatLog(updatedSave, "Il bersaglio e' fuori portata.");
+      return updatedSave;
+    }
+    const canPlace = canPlaceActorAt(updatedSave, turnActorId, targetPos as any, terrainContentPack, false);
+    if (!canPlace) {
+      updatedSave = appendCombatLog(updatedSave, "Non puoi teletrasportarti in quella posizione.");
+      return updatedSave;
+    }
+    updatedSave = {
+      ...updatedSave,
+      runtime: {
+        ...updatedSave.runtime,
+        combat: {
+          ...updatedSave.runtime.combat,
+          positions: {
+            ...updatedSave.runtime.combat?.positions,
+            [turnActorId]: targetPos,
+          },
+        },
+      },
+    };
+    const casterName = updatedSave.actorsById[turnActorId]?.name || turnActorId;
+    updatedSave = appendCombatLog(updatedSave, `${casterName} si teletrasporta.`);
+    return updatedSave;
+  }
+
   if (effectDef.specialOp === "combatDaemonbane" && validTargetActors.length > 0) {
     const resistedTargetIds = new Set<ActorId>();
     const baseOpposedStat = effectDef.opposedStat || "WIL";
@@ -2969,6 +3073,13 @@ function applySpellEffectsForCast(params: SpellEffectApplyParams): GameSave {
           conditionParams = {
             ...(conditionParams ?? {}),
             wilBonus: effectStatBonus,
+          };
+        }
+        if (conditionSpec.conditionId === "fire_shield") {
+          conditionParams = {
+            ...(conditionParams ?? {}),
+            wilBonus: effectStatBonus,
+            overcast: targetOvercast,
           };
         }
         if (

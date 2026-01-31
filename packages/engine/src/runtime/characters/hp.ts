@@ -21,8 +21,20 @@ export function calculateMaxHp(
   const touBonus = getCharacteristicBonus(save, actor.id, "TOU", catalogs);
   const wilBonus = getCharacteristicBonus(save, actor.id, "WIL", catalogs);
 
-  // Base formula: Str Bonus + (2 * Tou Bonus) + Will Bonus
-  let maxHp = strBonus + (2 * touBonus) + wilBonus;
+  const sizeParams = actor.traits?.["trait:size"];
+  const size =
+    sizeParams && typeof sizeParams === "object" && typeof sizeParams.size === "number" ? sizeParams.size : 4;
+
+  // Base formula depends on size
+  const baseHp = size <= 2 ? strBonus + touBonus + wilBonus : strBonus + (2 * touBonus) + wilBonus;
+  let sizeMultiplier = 1;
+  if (size >= 6 && size <= 8) {
+    sizeMultiplier = 2;
+  } else if (size >= 9) {
+    sizeMultiplier = 4;
+  }
+
+  let maxHp = baseHp * sizeMultiplier;
 
   // Add Sound Constitution bonus: 2 HP per rank
   if (catalogs) {

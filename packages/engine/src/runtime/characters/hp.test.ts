@@ -24,6 +24,39 @@ describe("hp", () => {
       expect(calculateMaxHp(save, actor)).toBe(21);
     });
 
+    it("should scale max HP by size", () => {
+      const baseActor = makeTestActor({
+        id: "PC_1",
+        stats: {
+          STR: 50, // bonus = 5
+          TOU: 50, // bonus = 5
+          WIL: 50, // bonus = 5
+        },
+      });
+      const save = makeTestSave(storyPack, baseActor);
+
+      const sizeSmall = {
+        ...baseActor,
+        traits: { "trait:size": { size: 1 } },
+      };
+      // Size 1: STRB + TOUB + WPB = 5 + 5 + 5 = 15
+      expect(calculateMaxHp(save, sizeSmall)).toBe(15);
+
+      const sizeLarge = {
+        ...baseActor,
+        traits: { "trait:size": { size: 6 } },
+      };
+      // Size 6: 2 * (5 + 10 + 5) = 40
+      expect(calculateMaxHp(save, sizeLarge)).toBe(40);
+
+      const sizeHuge = {
+        ...baseActor,
+        traits: { "trait:size": { size: 9 } },
+      };
+      // Size 9: 4 * (5 + 10 + 5) = 80
+      expect(calculateMaxHp(save, sizeHuge)).toBe(80);
+    });
+
     it("should return at least 1 HP even with low stats", () => {
       const actor = makeTestActor({
         id: "PC_1",
@@ -176,7 +209,6 @@ describe("hp", () => {
         resources: {
           wounds: 5,
           rf: 0,
-          peq: 0,
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -196,7 +228,6 @@ describe("hp", () => {
         resources: {
           wounds: 25, // exceeds maxHp of 20
           rf: 0,
-          peq: 0,
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -215,7 +246,6 @@ describe("hp", () => {
         resources: {
           wounds: undefined as any,
           rf: 0,
-          peq: 0,
         },
       });
       const save = makeTestSave(storyPack, actor);
@@ -234,7 +264,6 @@ describe("hp", () => {
         resources: {
           wounds: 10,
           rf: 0,
-          peq: 0,
         },
         talents: {
           "talent:sound_constitution": 1,

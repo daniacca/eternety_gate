@@ -525,6 +525,12 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
     if (hasCondition(actor, "halvedMovement")) {
       baseMove = Math.max(1, Math.floor(baseMove / 2));
     }
+    const blindParams = actor.traits?.["trait:unnatural_sense"];
+    const senseRange = typeof blindParams === "object" && typeof blindParams.x === "number" ? blindParams.x : 0;
+    const isBlind = actor.conditions?.blind !== undefined || actor.traits?.["trait:blind"] !== undefined;
+    if (isBlind && senseRange <= 0) {
+      baseMove = Math.max(1, Math.floor(baseMove / 2));
+    }
     return Math.max(1, baseMove);
   }
 
@@ -539,6 +545,12 @@ export function calculateInitialMovement(actor: Actor, save: GameSave, catalogs?
   
   // Called Shot to legs: halve movement
   if (hasCondition(actor, "halvedMovement")) {
+    baseMove = Math.max(1, Math.floor(baseMove / 2));
+  }
+  const blindParams = actor.traits?.["trait:unnatural_sense"];
+  const senseRange = typeof blindParams === "object" && typeof blindParams.x === "number" ? blindParams.x : 0;
+  const isBlind = actor.conditions?.blind !== undefined || actor.traits?.["trait:blind"] !== undefined;
+  if (isBlind && senseRange <= 0) {
     baseMove = Math.max(1, Math.floor(baseMove / 2));
   }
   

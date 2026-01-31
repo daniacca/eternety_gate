@@ -88,6 +88,31 @@
     "description": "Touch heat burst"
   },
   {
+    "id": "effect:pyra_fire_shield",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "fire_shield",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Scudo di fuoco: contraccolpo su colpi a distanza"
+  },
+  {
+    "id": "effect:pyra_sunburst",
+    "discipline": "PYRA",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "specialOp": "combatSunburst",
+    "description": "Bagliore accecante che colpisce i nemici nell'area"
+  },
+  {
     "id": "effect:kinesis_force_push",
     "discipline": "KINESIS",
     "castingStat": "WIL",
@@ -125,6 +150,15 @@
       }
     ],
     "description": "Grants temporary Force Field (Campo di Forza) based on overcast"
+  },
+  {
+    "id": "effect:kinesis_blink_step",
+    "discipline": "KINESIS",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "specialOp": "combatBlinkStep",
+    "description": "Teletrasporta il caster a breve distanza"
   },
   {
     "id": "effect:corpus_dragon_skin",

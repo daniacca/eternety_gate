@@ -344,6 +344,22 @@
     "grants": []
   },
   {
+    "id": "trait:blind",
+    "name": "Cecita",
+    "grants": []
+  },
+  {
+    "id": "trait:unnatural_sense",
+    "name": "Sensi Innaturali",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": []
+  },
+  {
     "id": "trait:from_beyond",
     "name": "Da Oltre",
     "grants": []

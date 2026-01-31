@@ -27,6 +27,15 @@ import {
   hasTalentHook,
 } from "../characters/talentModifiers";
 
+function getUnnaturalSenseRange(actor: Actor): number {
+  const params = actor.traits?.["trait:unnatural_sense"];
+  return typeof params === "object" && typeof params.x === "number" ? params.x : 0;
+}
+
+function isActorBlind(actor: Actor): boolean {
+  return actor.conditions?.blind !== undefined || actor.traits?.["trait:blind"] !== undefined;
+}
+
 /**
  * Centralized function to compute attack target and modifiers
  * Returns: { target: number; tags: string[]; modifier: number }
@@ -88,6 +97,10 @@ export function computeAttackTarget(
   const combatDistance = footprintDistanceBetweenActors(save, attacker.id, defender.id);
   const isCloseRangeShot = check.attacker.mode === "RANGED" && check.modifiers?.closeRangeShot && combatDistance <= 1;
   const effectiveMode = isCloseRangeShot ? "MELEE" : check.attacker.mode;
+  const attackerSenseRange = getUnnaturalSenseRange(attacker);
+  const defenderSenseRange = getUnnaturalSenseRange(defender);
+  const attackerBlindActive = isActorBlind(attacker) && (attackerSenseRange <= 0 || combatDistance > attackerSenseRange);
+  const defenderBlindActive = isActorBlind(defender) && (defenderSenseRange <= 0 || combatDistance > defenderSenseRange);
 
   // Range band modifier (RANGED only)
   // Global rule based on Chebyshev distance:
@@ -253,6 +266,15 @@ export function computeAttackTarget(
     }
   }
 
+  if (attackerBlindActive && effectiveMode === "MELEE") {
+    combatModifier -= 30;
+    modifierTags.push("combat:mod:blind:melee=-30");
+  }
+  if (defenderBlindActive && effectiveMode === "MELEE") {
+    combatModifier += 30;
+    modifierTags.push("combat:mod:blind:target=+30");
+  }
+
   // Apply fatigue penalty from conditions (capped at -30)
   // Relentless talent reduces fatigue penalty tiers
   const fatiguePenaltyReduction = catalogs ? getFatiguePenaltyReduction(save, catalogs, attacker.id) : 0;
@@ -271,9 +293,13 @@ export function computeAttackTarget(
       ? defender.conditions?.invisibility?.params?.wilBonus
       : 0;
   if (defenderInvisibilityBonus > 0) {
-    const invisPenalty = -5 * defenderInvisibilityBonus;
-    combatModifier += invisPenalty;
-    modifierTags.push(`combat:mod:invisibleTarget=${invisPenalty}`);
+    if (attackerSenseRange <= 0 || combatDistance > attackerSenseRange) {
+      const invisPenalty = -5 * defenderInvisibilityBonus;
+      combatModifier += invisPenalty;
+      modifierTags.push(`combat:mod:invisibleTarget=${invisPenalty}`);
+    } else {
+      modifierTags.push("combat:mod:invisibleTarget=0 (Unnatural Sense)");
+    }
   }
 
   const attackerInvisibilityBonus =
@@ -281,9 +307,13 @@ export function computeAttackTarget(
       ? attacker.conditions?.invisibility?.params?.wilBonus
       : 0;
   if (attackerInvisibilityBonus > 0 && effectiveMode === "MELEE") {
-    const invisBonus = 5 * attackerInvisibilityBonus;
-    combatModifier += invisBonus;
-    modifierTags.push(`combat:mod:invisibleAttacker=+${invisBonus}`);
+    if (defenderSenseRange <= 0 || combatDistance > defenderSenseRange) {
+      const invisBonus = 5 * attackerInvisibilityBonus;
+      combatModifier += invisBonus;
+      modifierTags.push(`combat:mod:invisibleAttacker=+${invisBonus}`);
+    } else {
+      modifierTags.push("combat:mod:invisibleAttacker=+0 (Unnatural Sense)");
+    }
   }
 
   // Combat Master: defender talent that gives attackers -20 to hit in melee
@@ -293,6 +323,16 @@ export function computeAttackTarget(
       combatModifier += combatMasterPenalty; // Already negative from talent
       modifierTags.push(`combat:mod:combatMaster=${combatMasterPenalty}`);
     }
+  }
+
+  const sunburstWilBonus =
+    typeof defender.conditions?.sunburst?.params?.wilBonus === "number"
+      ? defender.conditions?.sunburst?.params?.wilBonus
+      : 0;
+  if (sunburstWilBonus > 0 && effectiveMode === "RANGED") {
+    const sunburstPenalty = -10 * sunburstWilBonus;
+    combatModifier += sunburstPenalty;
+    modifierTags.push(`combat:mod:sunburst=${sunburstPenalty}`);
   }
 
   const attackTarget = breakdown.target + combatModifier;
@@ -358,6 +398,28 @@ export function performCombatAttackCheck(
         save: updatedSave,
       };
     }
+  }
+
+  const combatDistance = footprintDistanceBetweenActors(save, attacker.id, defender.id);
+  const attackerSenseRange = getUnnaturalSenseRange(attacker);
+  const attackerBlindActive =
+    isActorBlind(attacker) && (attackerSenseRange <= 0 || combatDistance > attackerSenseRange);
+  if (check.attacker.mode === "RANGED" && attackerBlindActive) {
+    updatedSave = appendCombatLog(updatedSave, "Sei accecato e non riesci a mirare.");
+    return {
+      result: {
+        checkId: check.id,
+        actorId: attacker.id,
+        roll: 0,
+        target: 0,
+        success: false,
+        dos: 0,
+        dof: 0,
+        critical: "none",
+        tags: ["combat:blocked=blind"],
+      },
+      save: updatedSave,
+    };
   }
 
   // Load catalogs for talent modifiers
@@ -651,8 +713,15 @@ export function performCombatAttackCheck(
     typeof attacker.conditions?.invisibility?.params?.wilBonus === "number"
       ? attacker.conditions?.invisibility?.params?.wilBonus
       : 0;
-  const defenseInvisPenalty = attackerInvisibilityBonus > 0 ? -5 * attackerInvisibilityBonus : 0;
-  const defenseTarget = defenseBreakdown.target + parryBonus + defenseInvisPenalty;
+  const defenderSenseRange = getUnnaturalSenseRange(defender);
+  const defenderBlindActive =
+    isActorBlind(defender) && (defenderSenseRange <= 0 || combatDistance > defenderSenseRange);
+  const defenseInvisPenalty =
+    attackerInvisibilityBonus > 0 && (defenderSenseRange <= 0 || combatDistance > defenderSenseRange)
+      ? -5 * attackerInvisibilityBonus
+      : 0;
+  const defenseBlindPenalty = defenderBlindActive ? -30 : 0;
+  const defenseTarget = defenseBreakdown.target + parryBonus + defenseInvisPenalty + defenseBlindPenalty;
 
   const defenseFateContext = createFateRerollContext();
   const defenseResult = rollD100CheckWithFate(
@@ -694,6 +763,7 @@ export function performCombatAttackCheck(
           ...(shieldMasteryBonus > 0 ? [`combat:defCalc:shieldMastery=+${shieldMasteryBonus}`] : []),
           ...(parryQualityBonus !== 0 ? [`combat:defCalc:weaponQuality=${parryQualityBonus}`] : []),
           ...(defenseInvisPenalty !== 0 ? [`combat:defCalc:invisibleAttacker=${defenseInvisPenalty}`] : []),
+          ...(defenseBlindPenalty !== 0 ? [`combat:defCalc:blind=${defenseBlindPenalty}`] : []),
           ...defenseResult.tags.filter((tag) => tag.startsWith("fate:")),
         ],
       };

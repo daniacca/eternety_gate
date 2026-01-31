@@ -12,7 +12,7 @@ describe("damage", () => {
     it("should not apply damage when check result is unsuccessful", () => {
       const storyPack = makeTestStoryPack();
       const attacker = makeTestActor({ id: "attacker" });
-      const defender = makeTestActor({ id: "defender", resources: { wounds: 0, rf: 100, peq: 100 } });
+      const defender = makeTestActor({ id: "defender", resources: { wounds: 0, rf: 100 } });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
         ...save,
@@ -98,7 +98,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -152,19 +152,20 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const armor: Armor = {
         id: "leather",
         name: "Leather Armor",
         soak: 3,
+        weight: 1,
       };
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
         ...save,
         actorsById: {
           ...save.actorsById,
-          [defender.id]: { ...defender, equipment: { ...defender.equipment, armor: { kind: "armor", id: "leather" } } },
+          [defender.id]: { ...defender, equipment: { ...defender.equipment, armor: { kind: "armor" as const, id: "leather" } } },
         },
         armorsById: { leather: armor },
       };
@@ -210,7 +211,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         traits: { "trait:daemonic": { x: 4 } },
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         stats: { TOU: 0 } as any,
       });
       const weapon: Weapon = {
@@ -263,7 +264,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         traits: { "trait:divine": { x: 3 } },
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         stats: { TOU: 0 } as any,
       });
       const weapon: Weapon = {
@@ -315,7 +316,7 @@ describe("damage", () => {
       const attacker = makeTestActor({ id: "attacker" });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+          resources: { wounds: 0, rf: 100 },
         conditions: { sanctuary: { stacks: 1, params: { auraApplied: true } } },
         stats: { TOU: 0 } as any,
       });
@@ -369,7 +370,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         traits: { "trait:daemonic": { x: 4 } },
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         stats: { TOU: 0 } as any,
       });
       const weapon: Weapon = {
@@ -423,7 +424,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         traits: { "trait:divine": { x: 3 } },
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         stats: { TOU: 0 } as any,
       });
       const weapon: Weapon = {
@@ -476,7 +477,7 @@ describe("damage", () => {
       const attacker = makeTestActor({ id: "attacker" });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         conditions: { sanctuary: { stacks: 1, params: { auraApplied: true } } },
         stats: { TOU: 0 } as any,
       });
@@ -534,7 +535,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         stats: { TOU: 0 } as any,
-        resources: { wounds: 0, rf: 0, peq: 100 },
+        resources: { wounds: 0, rf: 0 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -655,7 +656,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -735,7 +736,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         stats: { TOU: 0 }, // TOU 0 to avoid reduction
-        resources: { wounds: 100, rf: 100, peq: 100 }, // Already at 0 HP (assuming maxHp=100)
+        resources: { wounds: 100, rf: 100 }, // Already at 0 HP (assuming maxHp=100)
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -822,6 +823,7 @@ describe("damage", () => {
         id: "leather",
         name: "Leather Armor",
         soak: 5,
+        weight: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -830,7 +832,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 50, rf: 100, peq: 100 }, // Assuming maxHp=100
+        resources: { wounds: 50, rf: 100 }, // Assuming maxHp=100
         equipment: { armor: { kind: "armor", id: "leather" } },
       });
       const save = {
@@ -899,12 +901,13 @@ describe("damage", () => {
         id: "leather",
         name: "Leather Armor",
         soak: 2,
+        weight: 1,
       };
       const naturalArmorTrait: Trait = {
         id: "trait:natural_armour",
         name: "Natural Armor",
         params: { armor: { type: "number", required: true } },
-        grants: [{ type: "modifier", key: "combat.naturalArmor", op: "add", valueRef: "armor" }],
+        grants: [{ type: "modifier", key: "combat.naturalArmor", value: 0, op: "add", valueRef: "armor" }],
       };
       const catalogs: CharacterCatalogs = { skills: [], talents: [], traits: [naturalArmorTrait] };
       const attacker = makeTestActor({
@@ -914,7 +917,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         equipment: { armor: { kind: "armor", id: "leather" } },
         traits: { "trait:natural_armour": { armor: 3 } },
       });
@@ -983,13 +986,13 @@ describe("damage", () => {
         id: "trait:natural_armour",
         name: "Natural Armor",
         params: { armor: { type: "number", required: true } },
-        grants: [{ type: "modifier", key: "combat.naturalArmor", op: "add", valueRef: "armor" }],
+        grants: [{ type: "modifier", key: "combat.naturalArmor", value: 0, op: "add", valueRef: "armor" }],
       };
       const machineTrait: Trait = {
         id: "trait:machine",
         name: "Machine",
         params: { x: { type: "number", required: true } },
-        grants: [{ type: "modifier", key: "combat.machineSoak", op: "add", valueRef: "x" }],
+        grants: [{ type: "modifier", key: "combat.machineSoak", value: 0, op: "add", valueRef: "x" }],
       };
       const catalogs: CharacterCatalogs = {
         skills: [],
@@ -1003,7 +1006,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         traits: {
           "trait:natural_armour": { armor: 3 },
           "trait:machine": { x: 4 },
@@ -1073,6 +1076,7 @@ describe("damage", () => {
         id: "plate",
         name: "Plate Armor",
         soak: 20,
+        weight: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -1080,7 +1084,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         equipment: { armor: { kind: "armor", id: "plate" } },
       });
       const save = {
@@ -1144,7 +1148,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 95, rf: 100, peq: 100 }, // Assuming maxHp=100, 5 damage will KO
+        resources: { wounds: 95, rf: 100 }, // Assuming maxHp=100, 5 damage will KO
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -1222,6 +1226,7 @@ describe("damage", () => {
         id: "leather",
         name: "Leather Armor",
         soak: 3,
+        weight: 1,
       };
       const attacker = makeTestActor({
         id: "attacker",
@@ -1229,7 +1234,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
         equipment: { armor: { kind: "armor", id: "leather" } },
       });
       const save = {
@@ -1328,7 +1333,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = {
         ...makeTestSave(storyPack, attacker),
@@ -1412,7 +1417,7 @@ describe("damage", () => {
       });
       const defender = makeTestActor({
         id: "defender",
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = {
         ...makeTestSave(storyPack, attacker),
@@ -1490,7 +1495,7 @@ describe("damage", () => {
       const defender = makeTestActor({
         id: "defender",
         stats: { TOU: 0 } as any,
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -1572,7 +1577,7 @@ describe("damage", () => {
         id: "defender",
         stats: { TOU: 0 } as any,
         equipment: { armor: { kind: "armor", id: armor.id } },
-        resources: { wounds: 0, rf: 100, peq: 100 },
+        resources: { wounds: 0, rf: 100 },
       });
       const save = makeTestSave(storyPack, attacker);
       const saveWithBoth = {
@@ -1623,6 +1628,67 @@ describe("damage", () => {
       );
 
       expect(damageResult.finalDamage).toBe(4);
+    });
+
+    it("should apply fire shield backlash on ranged hit", () => {
+      const storyPack = makeTestStoryPack();
+      const attacker = makeTestActor({
+        id: "attacker",
+        resources: { wounds: 0, rf: 100 },
+      });
+      const defender = makeTestActor({
+        id: "defender",
+        resources: { wounds: 0, rf: 100 },
+        conditions: { fire_shield: { params: { wilBonus: 3, overcast: 2 } } },
+        stats: { TOU: 0 } as any,
+      });
+      const weapon: Weapon = {
+        id: "bow",
+        name: "Bow",
+        kind: "RANGED",
+        damage: { tier: "single", add: 0, bonus: "SB" },
+        damageType: "impact",
+        penetration: 0,
+        range: 8,
+      };
+      const save = makeTestSave(storyPack, attacker);
+      const saveWithBoth = {
+        ...save,
+        actorsById: {
+          ...save.actorsById,
+          [defender.id]: defender,
+        },
+        weaponsById: { bow: weapon },
+      };
+      const d100For1 = FakeRng.d100ForNextInt(1, 1, 10);
+      const rng = new FakeRng([d100For1]);
+
+      const check: CombatAttackCheck = {
+        id: "test_check",
+        kind: "combatAttack",
+        attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "RANGED", weaponId: "bow" },
+        defender: { actorRef: { mode: "byId", actorId: defender.id } },
+        defense: {
+          allowParry: undefined,
+          allowDodge: undefined,
+          strategy: "autoBest",
+        },
+      };
+
+      const result: CheckResult = {
+        checkId: "test_check",
+        actorId: attacker.id,
+        roll: 10,
+        target: 50,
+        success: true,
+        dos: 4,
+        dof: 0,
+        critical: "none",
+        tags: [],
+      };
+
+      const damageResult = applyCombatDamageIfHit(check, result, saveWithBoth, rng);
+      expect(damageResult.save.actorsById[attacker.id].resources.wounds).toBe(5);
     });
   });
 });
