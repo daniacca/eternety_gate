@@ -5,6 +5,28 @@ import jsoncParser from "jsonc-eslint-parser";
 import jsonc from "eslint-plugin-jsonc";
 
 const jsFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const nodeGlobals = {
+  module: "readonly",
+  require: "readonly",
+  __dirname: "readonly",
+  console: "readonly",
+  process: "readonly",
+};
+const browserGlobals = {
+  window: "readonly",
+  localStorage: "readonly",
+  __DEV__: "readonly",
+};
+const testGlobals = {
+  describe: "readonly",
+  it: "readonly",
+  expect: "readonly",
+  beforeEach: "readonly",
+  afterEach: "readonly",
+  beforeAll: "readonly",
+  afterAll: "readonly",
+  vi: "readonly",
+};
 
 export default [
   {
@@ -13,6 +35,11 @@ export default [
   {
     ...js.configs.recommended,
     files: jsFileGlobs,
+    languageOptions: {
+      globals: {
+        console: "readonly",
+      },
+    },
   },
   {
     files: ["**/*.{ts,tsx}"],
@@ -29,6 +56,67 @@ export default [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
+    files: ["app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: browserGlobals,
+    },
+  },
+  {
+    files: ["**/*.test.{ts,tsx}"],
+    languageOptions: {
+      globals: testGlobals,
+    },
+  },
+  {
+    files: ["babel.config.js", "metro.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: nodeGlobals,
+    },
+  },
+  {
+    files: ["packages/engine/src/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}", "packages/tools/src/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["src/play/**/*.{ts,tsx}", "packages/engine/src/runtime/magic/catalogs.ts"],
+    languageOptions: {
+      globals: {
+        require: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: ["packages/tools/src/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: nodeGlobals,
     },
   },
   {

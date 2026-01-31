@@ -1,4 +1,4 @@
-import type { GameSave, Actor, CheckResult, RuntimeLogEntry, ActorId } from "../types";
+import type { GameSave, Actor, CheckResult, RuntimeLogEntry } from "../types";
 
 const MAX_LOG = 50;
 

@@ -1,4 +1,4 @@
-import type { GameSave, RuntimeLogEntry } from "@eg/engine";
+import type { RuntimeLogEntry } from "@eg/engine";
 
 /**
  * Gets the last check entry from runtimeLog for party/player actors.

@@ -4,7 +4,6 @@ import type { ChoiceHandler } from "./types";
 import { applyEffects } from "../effects";
 import { performCheckWithSave } from "../checks";
 import { getCurrentScene } from "../selectors";
-import { distanceChebyshev } from "../combat/movement";
 import { validateAndApplyRangedModifiers } from "../combat/validation";
 import { footprintDistanceBetweenActors } from "../combat/footprint";
 import { resolveActor } from "../checks";

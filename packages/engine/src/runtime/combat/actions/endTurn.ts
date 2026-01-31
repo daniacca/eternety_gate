@@ -1,5 +1,5 @@
 import type { Effect, GameSave, StoryPack } from "../../types";
-import { IRNG, RNG } from "../../rng";
+import { IRNG } from "../../rng";
 import { getCurrentTurnActorId, advanceCombatTurn } from "../combat";
 import { appendCombatLog } from "../narration";
 import { runNpcTurn } from "../npcAi";
@@ -56,7 +56,6 @@ export function combatEndTurn(
       break;
     }
 
-    const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
     currentSave = runNpcTurn(storyPack, currentSave, turnActorId, contentPack);
     currentSave = advanceCombatTurn(currentSave, storyPack);
 

@@ -24,7 +24,7 @@ interface StatShopProps {
   onIncreaseStat: (stat: StatKey, cost: number) => void;
 }
 
-export function StatShop({ visible, save, actor, onClose, onIncreaseStat }: StatShopProps) {
+export function StatShop({ visible, save: _save, actor, onClose, onIncreaseStat }: StatShopProps) {
   const currentXp = actor?.resources?.xp ?? 0;
   const baseStats = actor?.resources?.baseStats ?? {};
 

@@ -1,5 +1,5 @@
 import type { Effect, GameSave, StoryPack, Actor } from "../types";
-import type { CharacterCatalogs, Talent } from "../../content/catalogs";
+import type { CharacterCatalogs } from "../../content/catalogs";
 import { loadCharacterCatalogs, getTalentById } from "../../content/loadCatalogs";
 import { evaluatePrerequisites, resolveTalentUniquenessKey, TalentParams, getTalentUniquenessRank } from "../characters/prerequisites";
 import { getActorXp, spendActorXp, grantActorXp } from "../characters/xp";

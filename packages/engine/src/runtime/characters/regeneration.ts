@@ -4,7 +4,7 @@ import { performCheckWithSave } from "../checks";
 import type { StoryPack, SingleCheck } from "../types";
 import type { IRNG } from "../rng";
 import { appendRuntimeLog } from "../combat/narration";
-import { calculateMaxHp, getCurrentHp } from "./hp";
+import { calculateMaxHp } from "./hp";
 
 /**
  * Processes regeneration trait for an actor at turn start/end

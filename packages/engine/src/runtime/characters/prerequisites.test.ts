@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { evaluatePrerequisites } from "./prerequisites";
+import {
+  evaluatePrerequisites,
+  hasTrait,
+  hasTalentRank,
+  statAtLeast,
+} from "./prerequisites";
 import { makeTestActor } from "../test-helpers/makeTestActor";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
@@ -32,16 +37,6 @@ describe("talent prerequisites and armor AGI cap", () => {
     expect(result.valid).toBe(true);
   });
 });
-import { describe, it, expect } from "vitest";
-import {
-  evaluatePrerequisites,
-  hasTrait,
-  hasTalentRank,
-  statAtLeast,
-} from "./prerequisites";
-import { makeTestSave } from "../test-helpers/makeTestSave";
-import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
-import { makeTestActor } from "../test-helpers/makeTestActor";
 import type { CharacterCatalogs, Prerequisite } from "../../content/catalogs";
 
 describe("prerequisites", () => {

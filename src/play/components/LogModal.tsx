@@ -17,7 +17,7 @@ type UnifiedLogEntry =
   | { type: "damage"; entry: Extract<RuntimeLogEntry, { kind: "damage" }> }
   | { type: "system"; entry: Extract<RuntimeLogEntry, { kind: "system" }> };
 
-export function LogModal({ visible, onClose, check, save }: LogModalProps) {
+export function LogModal({ visible, onClose, check: _check, save }: LogModalProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const { width } = useWindowDimensions();
   const isNarrow = width < 700;

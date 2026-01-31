@@ -3,7 +3,7 @@ import { calculateMaxHp, calculateMaxRf, getCurrentHp } from "./hp";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
-import type { CharacterCatalogs, Talent } from "../../content/catalogs";
+import type { CharacterCatalogs } from "../../content/catalogs";
 
 describe("hp", () => {
   const storyPack = makeTestStoryPack();

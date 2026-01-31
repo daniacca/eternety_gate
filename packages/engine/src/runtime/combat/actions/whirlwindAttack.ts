@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, CombatAttackCheck, CheckResult } from "../../types";
+import type { Effect, GameSave, StoryPack, CombatAttackCheck } from "../../types";
 import { IRNG } from "../../rng";
 import { finalizeCombatIfEnded, getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, nextRuntimeSeq } from "../narration";

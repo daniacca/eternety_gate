@@ -270,7 +270,7 @@ export function applyCombatDamageIfHit(
     }
   }
 
-  let { rawDamage, weaponName, calculatedWeaponId, damageRolls, damageFormula } = damageOutcome;
+  let { rawDamage, calculatedWeaponId, damageRolls, damageFormula } = damageOutcome;
   const bonusDamage = damageOptions?.bonusDamage ?? 0;
   const bonusPenetration = damageOptions?.bonusPenetration ?? 0;
   if (bonusDamage > 0) {

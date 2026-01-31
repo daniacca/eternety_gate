@@ -91,16 +91,6 @@ const shieldMasteryTalent: Talent = {
   maxRank: 2,
 };
 
-const combatMasterTalent: Talent = {
-  id: "talent:combat_master",
-  name: "Combat Master",
-  tier: 2,
-  xpCost: 1000,
-  prerequisites: [],
-  grants: [{ type: "modifier", key: "combat.meleeToBeHitPenalty", op: "add", value: -20 }],
-  maxRank: 1,
-};
-
 const crushingBlowTalent: Talent = {
   id: "talent:crushing_blow",
   name: "Crushing Blow",
@@ -151,16 +141,6 @@ const relentlessTalent: Talent = {
   maxRank: 1,
 };
 
-const leapUpTalent: Talent = {
-  id: "talent:leap_up",
-  name: "Leap Up",
-  tier: 1,
-  xpCost: 500,
-  prerequisites: [],
-  grants: [{ type: "modifier", key: "combat.leapUp", op: "add", value: 1 }],
-  maxRank: 1,
-};
-
 const resistanceTalent: Talent = {
   id: "talent:resistance",
   name: "Resistance",
@@ -171,16 +151,6 @@ const resistanceTalent: Talent = {
   maxRank: 1,
   chosenParam: { paramKey: "chosenType", options: ["poison", "magic", "disease", "fear"] },
   uniquenessKey: "resistance:<chosenType>",
-};
-
-const channellingFocusTalent: Talent = {
-  id: "talent:channelling_focus",
-  name: "Channelling Focus",
-  tier: 1,
-  xpCost: 500,
-  prerequisites: [],
-  grants: [{ type: "modifier", key: "magic.channelBonus", op: "add", value: 10 }],
-  maxRank: 1,
 };
 
 const castingSpecTalent: Talent = {

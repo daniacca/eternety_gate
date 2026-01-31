@@ -5,7 +5,7 @@ import { evaluateCondition } from "../conditions";
 export function applyFireWorldEvents(
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  _rng: IRNG
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const worldEvents = storyPack.systems.worldEvents || {};
   let currentSave = save;

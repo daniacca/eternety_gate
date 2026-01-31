@@ -1711,11 +1711,8 @@ describe("Combat damage application", () => {
     // Target = WS 60 + Challenging 0 = 60, roll 20 => DoS = floor((60-20)/10) = 4
     // Damage = max(1, 1 + 4) = 5
     // HP after = max(0, 10 - 5) = 5
-    const fakeRng = new FakeRng([20]);
-
     // We need to find a seed that produces a HIT
     // Let's try seed 1 and see if it works, otherwise we'll search
-    let testSeed = 1;
     let foundHit = false;
     let finalSave: GameSave | null = null;
 
@@ -1727,7 +1724,6 @@ describe("Combat damage application", () => {
       const result = performCheck(check, storyPack, testSave, rng);
 
       if (result && result.success) {
-        testSeed = seed;
         foundHit = true;
         // Apply the choice to get the full damage application
         const saveWithSeed = { ...combatSave, runtime: { ...combatSave.runtime, rngSeed: seed, rngCounter: 0 } };
@@ -3436,6 +3432,7 @@ describe("Combat system", () => {
     // Verify turn advanced after combat action
     const finalTurnActorId = getCurrentTurnActorId(afterAttack);
     // Should be NPC_1's turn now (or back to PC_1 if NPC acted and combat ended)
+    expect(["NPC_1", "PC_1"]).toContain(finalTurnActorId);
     expect(afterAttack.runtime.combat?.active).toBeDefined();
   });
 

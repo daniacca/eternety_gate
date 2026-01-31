@@ -239,7 +239,7 @@ export function PlayScreen({
   const isNarrow = !isWide; // used for sizing + some responsive tweaks
   const isPhone = width < 420;
 
-  const styles = useMemo(() => createStyles({ width, height, isNarrow, isPhone }), [width, height, isNarrow, isPhone]);
+  const styles = useMemo(() => createStyles({ height, isNarrow, isPhone }), [height, isNarrow, isPhone]);
 
   const backgroundConfig: BackgroundSourceConfig = useMemo(
     () => ({
@@ -1369,12 +1369,10 @@ export function PlayScreen({
 }
 
 const createStyles = ({
-  width,
   height,
   isNarrow,
   isPhone,
 }: {
-  width: number;
   height: number;
   isNarrow: boolean;
   isPhone: boolean;

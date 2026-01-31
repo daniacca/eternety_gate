@@ -44,8 +44,8 @@ type CalledShotZone = "head" | "arms" | "body" | "legs";
 export function CombatControl({
   model,
   save,
-  combatChoices,
-  handleChoice,
+  combatChoices: _combatChoices,
+  handleChoice: _handleChoice,
   applySystemEffects,
   storyPack,
   width,
@@ -236,7 +236,6 @@ export function CombatControl({
   };
 
   // Determine if we should use row layout (wide screen)
-  const useRowLayout = width >= 900;
   // Determine if we should stack attacks and stance vertically (narrow screen)
   const useNarrowLayout = width < 600;
   const isPhone = width < 420;

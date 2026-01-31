@@ -3,7 +3,7 @@ import { applyGrants, resolveGrantValueRef } from "./grants";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
-import type { CharacterCatalogs, Grant, Trait } from "../../content/catalogs";
+import type { CharacterCatalogs, Grant } from "../../content/catalogs";
 
 describe("grants", () => {
   const storyPack = makeTestStoryPack();

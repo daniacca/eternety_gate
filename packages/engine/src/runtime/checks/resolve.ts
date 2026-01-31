@@ -1,12 +1,5 @@
-import type {
-  ActorRef,
-  StatOrSkillKey,
-  GameSave,
-  Actor,
-  StoryPack,
-} from "../types";
+import type { ActorRef, GameSave, Actor, StoryPack } from "../types";
 import { getStatOrSkillValue } from "./values";
-import { getSkillBaseStat } from "./skills";
 
 /**
  * Resolves an ActorRef to an Actor

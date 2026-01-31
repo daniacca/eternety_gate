@@ -1,7 +1,6 @@
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import type { GameSave, Effect, ItemRef, StatKey } from "@eg/engine";
 import {
-  getActorWeapon,
   getActorArmor,
   getCharacteristicBonus,
   loadCharacterCatalogs,
@@ -20,9 +19,7 @@ import {
 import { useState, useEffect } from "react";
 import type { ConditionId } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
-import skillsCatalog from "@eg/content/src/catalogs/skills.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
-import traitsCatalog from "@eg/content/src/catalogs/traits.json";
 import { TalentShop } from "./TalentShop";
 
 interface PlayerSheetProps {

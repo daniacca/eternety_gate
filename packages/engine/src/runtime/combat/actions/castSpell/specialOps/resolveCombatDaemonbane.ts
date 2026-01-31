@@ -14,8 +14,6 @@ export function resolveCombatDaemonbane(params: SpecialOpParams): SpecialOpResul
     storyPack,
     rng,
     catalogs,
-    combat,
-    turnActorId,
     spell,
     effectDef,
     effectiveDoS,

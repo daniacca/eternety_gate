@@ -5,7 +5,7 @@ import { canPlaceActorAt } from "../../../footprint";
 import type { SpecialOpParams, SpecialOpResult } from "../types";
 
 export function resolveCombatBlinkStep(params: SpecialOpParams): SpecialOpResult | null {
-  const { save, turnActorId, spell, effectDef, effectStatBonus, targetSelection, terrainContentPack } = params;
+  const { save, turnActorId, effectDef, effectStatBonus, targetSelection, terrainContentPack } = params;
   if (effectDef.specialOp !== "combatBlinkStep") {
     return null;
   }

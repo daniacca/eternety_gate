@@ -1,4 +1,4 @@
-import type { GameSave, ActorId, Actor } from "../types";
+import type { GameSave, Actor } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { getCharacteristicBonus } from "./bonuses";
 import { getTalentById } from "../../content/loadCatalogs";

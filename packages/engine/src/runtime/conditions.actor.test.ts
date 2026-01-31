@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   hasCondition,
-  getCondition,
   getStacks,
   addConditionToActor,
   removeConditionFromActor,
   computeCombatModifiersFromConditions,
 } from "./conditions";
 import { makeTestActor } from "./test-helpers/makeTestActor";
-import { applyEffect, applyEffects } from "./effects";
+import { applyEffect } from "./effects";
 import { makeTestSave } from "./test-helpers/makeTestSave";
 import { makeTestStoryPack } from "./test-helpers/makeTestStoryPack";
 import { RNG } from "./rng";

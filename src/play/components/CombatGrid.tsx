@@ -9,12 +9,10 @@ import {
   getCurrentHp,
   loadCharacterCatalogs,
   loadTerrainCatalogs,
-  isActorAlive,
   getActorFootprint,
   getActorSize,
   getFootprintRadius,
   getCellTerrain,
-  getGrid,
 } from "@eg/engine";
 import { InitiativeOrderPanel } from "./InitiativeOrderPanel";
 import { sigilContentPack } from "@eg/content/src";
@@ -110,7 +108,6 @@ export function CombatGrid({
 
   // Load terrain catalogs
   const terrainCatalogs = loadTerrainCatalogs(sigilContentPack);
-  const gridDef = getGrid(save, sigilContentPack);
 
   // Deterministic hash function for variant selection
   // Returns a stable hash value for the given string
@@ -492,8 +489,6 @@ export function CombatGrid({
               {radius > 0 && !isDead && footprint.map((cell, idx) => {
                 const cellX = cell.x * cellWidth;
                 const cellY = cell.y * cellHeight;
-                const isCenter = cell.x === pos.x && cell.y === pos.y;
-                
                 return (
                   <View
                     key={`footprint-${actorId}-${idx}`}

@@ -3,7 +3,7 @@ import { getSkillTarget } from "./skills";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
-import type { CharacterCatalogs, Skill } from "../../content/catalogs";
+import type { CharacterCatalogs } from "../../content/catalogs";
 
 describe("skills", () => {
   const storyPack = makeTestStoryPack();

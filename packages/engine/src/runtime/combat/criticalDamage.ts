@@ -27,7 +27,7 @@ export function applyCriticalDamageTiers(
   save: GameSave,
   rng: IRNG,
   storyPack?: StoryPack,
-  catalogs?: CharacterCatalogs
+  _catalogs?: CharacterCatalogs
 ): {
   emittedEffects: Effect[];
   actorDied: boolean;
@@ -226,7 +226,6 @@ export function applyDamageToActor(
   // Calculate max HP first to determine if Die Hard should trigger
   const maxHp = catalogs ? calculateMaxHp(save, actor, catalogs) : actor.derived?.hpMax ?? 100;
   const woundsBefore = actor.resources.wounds ?? 0;
-  const hpBefore = maxHp - woundsBefore;
 
   // Normalize wounds if they exceed maxHp (shouldn't happen, but handle it)
   const normalizedWoundsBefore = Math.min(maxHp, woundsBefore);

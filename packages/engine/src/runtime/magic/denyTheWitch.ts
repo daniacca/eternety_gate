@@ -1,4 +1,4 @@
-import type { GameSave, Actor, ActorId, SingleCheck, CheckResult, StatKey } from "../types";
+import type { GameSave, Actor, SingleCheck, CheckResult, StatKey } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { hasTalentHook } from "../characters/talentModifiers";

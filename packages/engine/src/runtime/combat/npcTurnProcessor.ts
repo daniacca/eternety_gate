@@ -1,5 +1,4 @@
-import type { StoryPack, GameSave, ActorId } from "../types";
-import { RNG } from "../rng";
+import type { StoryPack, GameSave } from "../types";
 import { getCurrentTurnActorId, advanceCombatTurn } from "./combat";
 import { runNpcTurn } from "./npcAi";
 import type { ContentPack } from "../../content/types";
@@ -27,7 +26,6 @@ export function processNpcTurnsUntilPlayerTurn(storyPack: StoryPack, save: GameS
     }
 
     // It's an NPC turn - run it
-    const npcRng = new RNG(currentSave.runtime.rngSeed, currentSave.runtime.rngCounter || 0);
     currentSave = runNpcTurn(storyPack, currentSave, turnActorId, contentPack);
 
     // Advance to next turn

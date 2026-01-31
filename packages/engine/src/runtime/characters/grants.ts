@@ -7,9 +7,9 @@ import { getTraitById } from "../../content/loadCatalogs";
  */
 export function applyGrants(
   save: GameSave,
-  catalogs: CharacterCatalogs,
-  actorId: ActorId,
-  grants: Grant[]
+  _catalogs: CharacterCatalogs,
+  _actorId: ActorId,
+  _grants: Grant[]
 ): GameSave {
   // Grants are applied via modifiers system, not directly modifying actor
   // The modifier resolver will read from actor.talents and actor.traits

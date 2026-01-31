@@ -4,7 +4,7 @@ import { makeTestSave } from "./test-helpers/makeTestSave";
 import { makeTestStoryPack } from "./test-helpers/makeTestStoryPack";
 import { makeTestActor } from "./test-helpers/makeTestActor";
 import { FakeRng } from "./test-helpers/fakeRng";
-import type { SingleCheck, OpposedCheck, SequenceCheck, MagicChannelCheck, MagicEffectCheck, CombatAttackCheck } from "./types";
+import type { SingleCheck, OpposedCheck, SequenceCheck, MagicChannelCheck, MagicEffectCheck } from "./types";
 
 describe("checks", () => {
   describe("resolveActor", () => {

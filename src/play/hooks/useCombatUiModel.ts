@@ -8,7 +8,6 @@ import {
   distanceChebyshev,
   isActorAlive,
   getInventoryItemQty,
-  getCharacteristicBonus,
   loadCharacterCatalogs,
   getNaturalAbilityWeapons,
   getWeaponQualityRank,

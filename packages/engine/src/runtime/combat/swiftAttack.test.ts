@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import type { GameSave, StoryPack, Effect } from "../types";
+import type { StoryPack, Effect } from "../types";
 import { combatSwiftAttack } from "./actions";
 import { FakeRng } from "../test-helpers/fakeRng";
 import { makeTestSave } from "../test-helpers/makeTestSave";
 import { makeTestStoryPack } from "../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../test-helpers/makeTestActor";
-import type { CharacterCatalogs, Talent } from "../../content/catalogs";
+import type { Talent } from "../../content/catalogs";
 
 describe("combatSwiftAttack", () => {
   const createStoryPackWithCatalogs = (): StoryPack & { talents: Talent[] } => {

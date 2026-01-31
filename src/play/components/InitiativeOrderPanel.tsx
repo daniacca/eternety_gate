@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import type { GameSave } from "@eg/engine";
 import { getCurrentTurnActorId, calculateMaxHp, getCurrentHp, loadCharacterCatalogs } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
@@ -9,9 +9,6 @@ interface InitiativeOrderPanelProps {
 }
 
 export function InitiativeOrderPanel({ save, styles: parentStyles }: InitiativeOrderPanelProps) {
-  const { width } = useWindowDimensions();
-  const isNarrow = width < 600;
-
   const combat = save.runtime.combat;
   if (!combat?.active || !combat.participants || combat.participants.length === 0) {
     return null;
@@ -42,7 +39,7 @@ export function InitiativeOrderPanel({ save, styles: parentStyles }: InitiativeO
     <View style={parentStyles.initiativeOrderPanel}>
       <Text style={styles.title}>Initiative Order</Text>
       <View style={styles.list}>
-        {participantInfo.map((info, index) => (
+        {participantInfo.map((info) => (
           <View
             key={info.actorId}
             style={[

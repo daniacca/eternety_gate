@@ -7,10 +7,16 @@ import {
   loadCharacterCatalogs,
   canLearnSpell,
   getSkillTrainingCost,
+  type ContentPack,
   type Actor,
   type ItemRef,
   type StatKey,
+  type Talent,
+  type Skill,
+  type Weapon,
 } from "@eg/engine";
+import type { Grant, Prerequisite } from "@eg/engine/src/content/catalogs";
+import type { Discipline, SpellDefinition } from "@eg/engine/src/runtime/magic/types";
 import { sigilContentPack } from "@eg/content/src";
 import weaponsCatalog from "@eg/content/src/catalogs/weapons.json";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
@@ -58,7 +64,7 @@ export default function NewGameWizard() {
 
   const baseStat = DIFFICULTY_BASE[difficulty];
   const xpBudget = archetype === "Human" ? 2000 : 1500;
-  const catalogs = useMemo(() => loadCharacterCatalogs(sigilContentPack as any), []);
+  const catalogs = useMemo(() => loadCharacterCatalogs(sigilContentPack as ContentPack), []);
   const isWeaver = traitChoice === "weaver";
 
   useEffect(() => {
@@ -78,18 +84,10 @@ export default function NewGameWizard() {
     return 250 - spent;
   }, [manualStats, baseStat]);
 
-  const totalSkillRanks = useMemo(() => {
-    return Object.values(skillRanks).reduce((sum, value) => sum + value, 0);
-  }, [skillRanks]);
-
-  const totalTalentRanks = useMemo(() => {
-    return Object.values(selectedTalents).reduce((sum, value) => sum + value, 0);
-  }, [selectedTalents]);
-
   const totalTalentXp = useMemo(() => {
     return Object.entries(selectedTalents).reduce((sum, [talentId, rank]) => {
       if (rank <= 0) return sum;
-      const talent = (talentsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === talentId);
+      const talent = (talentsCatalog as Talent[]).find((entry) => entry.id === talentId);
       return sum + (talent?.xpCost ?? 0) * rank;
     }, 0);
   }, [selectedTalents]);
@@ -106,7 +104,7 @@ export default function NewGameWizard() {
 
   const totalSpellXp = useMemo(() => {
     return selectedSpells.reduce((sum, spellId) => {
-      const spell = (spellsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === spellId);
+      const spell = (spellsCatalog as SpellDefinition[]).find((entry) => entry.id === spellId);
       return sum + (spell?.xpCost ?? 0);
     }, 0);
   }, [selectedSpells]);
@@ -227,7 +225,7 @@ export default function NewGameWizard() {
   const prereqActor = useMemo<Actor | null>(() => {
     if (!effectiveStats || !archetype) return null;
     const size = archetype === "Halfling" ? 3 : 4;
-    const traits: Record<string, any> = {
+    const traits: Actor["traits"] = {
       "trait:size": { size },
     };
     if (traitChoice === "weaver") traits["trait:weaver"] = true;
@@ -267,7 +265,13 @@ export default function NewGameWizard() {
     if (!prereqActor) return null;
     const storyPack = getStoryPackById("sigil_hub");
     if (!storyPack) return null;
-    return createNewGame(storyPack, 1, { actors: [prereqActor.id], activeActorId: prereqActor.id }, { [prereqActor.id]: prereqActor }, sigilContentPack as any);
+    return createNewGame(
+      storyPack,
+      1,
+      { actors: [prereqActor.id], activeActorId: prereqActor.id },
+      { [prereqActor.id]: prereqActor },
+      sigilContentPack as ContentPack
+    );
   }, [prereqActor]);
 
   const spellPrereqActor = useMemo<Actor | null>(() => {
@@ -291,16 +295,14 @@ export default function NewGameWizard() {
       1,
       { actors: [spellPrereqActor.id], activeActorId: spellPrereqActor.id },
       { [spellPrereqActor.id]: spellPrereqActor },
-      sigilContentPack as any
+      sigilContentPack as ContentPack
     );
   }, [spellPrereqActor]);
 
   const availableTalents = useMemo(() => {
     if (!prereqActor || !prereqSave) return [];
-    return (talentsCatalog as Array<{ id: string; name: string; prerequisites?: any[]; maxRank?: number }>).filter((talent) => {
+    return (talentsCatalog as Talent[]).filter((talent) => {
       const prerequisites = talent.prerequisites || [];
-      const currentRank = selectedTalents[talent.id] ?? 0;
-      const maxRank = talent.maxRank ?? 1;
       if (prerequisites.length === 0) return true;
       return evaluatePrerequisites(prereqSave, catalogs, prereqActor, prerequisites).valid;
     });
@@ -460,8 +462,8 @@ export default function NewGameWizard() {
     });
   };
 
-  const spellDisciplines = useMemo(() => {
-    const values = Array.from(new Set((spellsCatalog as Array<{ discipline: string }>).map((spell) => spell.discipline)));
+  const spellDisciplines = useMemo<Discipline[]>(() => {
+    const values = Array.from(new Set((spellsCatalog as SpellDefinition[]).map((spell) => spell.discipline)));
     return values.sort();
   }, []);
 
@@ -472,8 +474,8 @@ export default function NewGameWizard() {
   }, [activeSpellDiscipline, spellDisciplines]);
 
   const spellsByDiscipline = useMemo(() => {
-    const grouped: Record<string, Array<any>> = {};
-    (spellsCatalog as Array<any>).forEach((spell) => {
+    const grouped: Record<string, SpellDefinition[]> = {};
+    (spellsCatalog as SpellDefinition[]).forEach((spell) => {
       grouped[spell.discipline] = grouped[spell.discipline] || [];
       grouped[spell.discipline].push(spell);
     });
@@ -490,7 +492,7 @@ export default function NewGameWizard() {
       setSelectedSpells((current) => current.filter((id) => id !== spellId));
       return;
     }
-    const spell = (spellsCatalog as Array<{ id: string; xpCost?: number }>).find((entry) => entry.id === spellId);
+    const spell = (spellsCatalog as SpellDefinition[]).find((entry) => entry.id === spellId);
     const cost = spell?.xpCost ?? 0;
     if (remainingXp < cost) return;
     const canLearn = canLearnSpell(spellPrereqSave, catalogs, spellPrereqActor.id, spellId);
@@ -530,7 +532,7 @@ export default function NewGameWizard() {
 
   const ensureAmmoForWeapons = (equipment: Actor["equipment"], inventory: ItemRef[]) => {
     const ammoByWeaponId = new Map<string, string>();
-    (weaponsCatalog as Array<{ id: string; ammo?: { itemId: string } }>).forEach((weapon) => {
+    (weaponsCatalog as Weapon[]).forEach((weapon) => {
       if (weapon.ammo?.itemId) {
         ammoByWeaponId.set(weapon.id, weapon.ammo.itemId);
       }
@@ -564,7 +566,7 @@ export default function NewGameWizard() {
     const inventory = [...loadout.inventory];
     ensureAmmoForWeapons(loadout.equipment, inventory);
     const size = archetype === "Halfling" ? 3 : 4;
-    const traits: Record<string, any> = {
+    const traits: Actor["traits"] = {
       "trait:size": { size },
     };
     if (traitChoice === "weaver") traits["trait:weaver"] = true;
@@ -621,7 +623,7 @@ export default function NewGameWizard() {
     });
     const seed = hashToSeed(seedSource);
 
-    const save = createNewGame(hubPack, seed, party, { [actor.id]: actor }, sigilContentPack as any);
+    const save = createNewGame(hubPack, seed, party, { [actor.id]: actor }, sigilContentPack as ContentPack);
 
     const now = new Date().toISOString();
     const slotId = `save_${Date.now()}`;
@@ -775,7 +777,6 @@ export default function NewGameWizard() {
                   return <Text style={styles.emptyText}>No talents available for this character.</Text>;
                 }
                 const currentRank = selectedTalents[talent.id] ?? 0;
-                const isSelected = currentRank > 0;
                 const prereqs = talent.prerequisites || [];
                 const grants = talent.grants || [];
                 const maxRank = talent.maxRank ?? 1;
@@ -783,7 +784,7 @@ export default function NewGameWizard() {
                 const paramValue = chosenParam ? selectedTalentParams[talent.id]?.[chosenParam.paramKey] : undefined;
                 const paramRanks = chosenParam ? selectedTalentParamRanks[talent.id] || {} : {};
                 const talentCost = talent.xpCost ?? 0;
-                const formatPrereq = (prereq: any) => {
+                const formatPrereq = (prereq: Prerequisite) => {
                   switch (prereq.type) {
                     case "statAtLeast":
                       return `${prereq.stat} ≥ ${prereq.value}`;
@@ -791,15 +792,19 @@ export default function NewGameWizard() {
                       return `Talent: ${prereq.talentId}`;
                     case "hasTalentRank":
                       return `Talent: ${prereq.talentId} (Rank ${prereq.minRank}+)`;
+                    case "hasSkillRank":
+                      return `Skill: ${prereq.skillId} (Rank ${prereq.minRank}+)`;
                     case "hasTrait":
                       return `Trait: ${prereq.traitId}`;
                     case "hasSpell":
                       return `Spell: ${prereq.spellId}`;
+                    case "notHasTalentWithParam":
+                      return `Talent: ${prereq.talentId} (Not ${prereq.paramKey}=${prereq.paramValue})`;
                     default:
                       return "Special requirement";
                   }
                 };
-                const formatGrant = (grant: any) => {
+                const formatGrant = (grant: Grant) => {
                   if (grant.type === "modifier") {
                     const suffix = grant.valueRef ? ` (${grant.valueRef})` : "";
                     return `Modifier: ${grant.key} ${grant.op} ${grant.value}${suffix}`;
@@ -826,7 +831,7 @@ export default function NewGameWizard() {
                     {grants.length === 0 ? (
                       <Text style={styles.summaryText}>No direct effects.</Text>
                     ) : (
-                      grants.map((grant: any, idx: number) => (
+                      grants.map((grant: Grant, idx: number) => (
                         <Text key={`${talent.id}-grant-${idx}`} style={styles.summaryText}>
                           • {formatGrant(grant)}
                         </Text>
@@ -836,7 +841,7 @@ export default function NewGameWizard() {
                     {prereqs.length === 0 ? (
                       <Text style={styles.summaryText}>None</Text>
                     ) : (
-                      prereqs.map((prereq: any, idx: number) => (
+                      prereqs.map((prereq: Prerequisite, idx: number) => (
                         <Text key={`${talent.id}-req-${idx}`} style={styles.summaryText}>
                           • {formatPrereq(prereq)}
                         </Text>
@@ -988,7 +993,7 @@ export default function NewGameWizard() {
 
           <Text style={styles.subTitle}>Assign Skill Ranks</Text>
           <View style={styles.statsList}>
-            {(skillsCatalog as Array<{ id: string; name: string; baseStat: string; prerequisites?: any[] }>).map((skill) => {
+            {(skillsCatalog as Skill[]).map((skill) => {
               const rank = skillRanks[skill.id] ?? 0;
               const trainingCost = getSkillTrainingCost(rank);
               const prerequisites = skill.prerequisites || [];

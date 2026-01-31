@@ -61,7 +61,7 @@ export function applyChooseRunVariant(
 export function applyVariantStartEffects(
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  _rng: IRNG
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const variantId = save.state.runVariant?.id;
   if (!variantId) {

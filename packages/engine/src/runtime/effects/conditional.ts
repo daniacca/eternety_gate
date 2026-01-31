@@ -6,7 +6,7 @@ export function applyConditionalEffects(
   effect: Extract<Effect, { op: "conditionalEffects" }>,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  _rng: IRNG
 ): { save: GameSave; emittedEffects?: Effect[] } {
   for (const case_ of effect.cases) {
     if (evaluateCondition(case_.when, save)) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import type { GameSave } from "@eg/engine";
+import type { ContentPack, GameSave } from "@eg/engine";
 import { createNewGame } from "@eg/engine";
 import { sigilContentPack } from "@eg/content/src";
 import { PlayScreen } from "../src/play/PlayScreen";
@@ -54,7 +54,7 @@ export default function PlayRoute() {
     load();
   }, [params.saveId, params.debug]);
 
-  const handleAutosave = async (save: GameSave, reasons: string[]) => {
+  const handleAutosave = async (save: GameSave, _reasons: string[]) => {
     if (state.status !== "ready") return;
     const updated = await upsertSaveSlot({
       ...state.slot,
@@ -69,12 +69,13 @@ export default function PlayRoute() {
   const handleStorySwitch = async (nextStoryId: string, currentSave: GameSave) => {
     const nextPack = getStoryPackById(nextStoryId);
     if (!nextPack) return;
+    const contentPack = sigilContentPack as ContentPack;
     const newSave = createNewGame(
       nextPack,
       currentSave.runtime.rngSeed,
       currentSave.party,
       currentSave.actorsById,
-      sigilContentPack as any
+      contentPack
     );
     if (state.status === "ready") {
       const updated = await upsertSaveSlot({ ...state.slot, save: newSave });
@@ -126,7 +127,7 @@ export default function PlayRoute() {
     <PlayScreen
       initialSave={state.save}
       storyPack={storyPack}
-      contentPack={sigilContentPack as any}
+      contentPack={sigilContentPack as ContentPack}
       onAutosave={handleAutosave}
       onStorySwitch={handleStorySwitch}
       onReturnToHub={handleReturnToHub}

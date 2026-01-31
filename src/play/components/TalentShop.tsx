@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from "react-native";
 import { useState, useMemo } from "react";
-import type { GameSave, Effect, Actor, Talent, CharacterCatalogs, TalentId } from "@eg/engine";
+import type { GameSave, Effect, Actor, Talent, TalentId } from "@eg/engine";
 import { canAcquireTalent, getActorTalentsWithParams, loadCharacterCatalogs, getTalentById } from "@eg/engine";
 import talentsCatalog from "@eg/content/src/catalogs/talents.json";
 import { sigilContentPack } from "@eg/content/src";

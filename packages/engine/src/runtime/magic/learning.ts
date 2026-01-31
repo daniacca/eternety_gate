@@ -100,7 +100,7 @@ export function learnSpell(
 export function getLearnedSpells(
   save: GameSave,
   actorId: ActorId,
-  catalogs?: CharacterCatalogs
+  _catalogs?: CharacterCatalogs
 ): SpellDefinition[] {
   const actor = save.actorsById[actorId];
   if (!actor || !actor.spells) {

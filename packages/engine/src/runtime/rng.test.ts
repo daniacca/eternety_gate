@@ -151,7 +151,7 @@ describe("RNG", () => {
   describe("seekability", () => {
     it("should allow seeking by creating new RNG with different counter", () => {
       const rng1 = new RNG(12345, 0);
-      const roll1 = rng1.rollD100();
+      const _roll1 = rng1.rollD100();
       const roll2 = rng1.rollD100();
       const roll3 = rng1.rollD100();
 

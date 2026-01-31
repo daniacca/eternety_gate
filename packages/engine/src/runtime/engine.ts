@@ -1,4 +1,4 @@
-import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, ItemDefinition, ItemId, CheckResult } from "./types";
+import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, CheckResult } from "./types";
 import { evaluateConditions } from "./conditions";
 import { RNG } from "./rng";
 import { appendCombatLog } from "./combat/narration";

@@ -1,4 +1,4 @@
-import type { GameSave, ActorId, Position } from "../types";
+import type { GameSave, ActorId } from "../types";
 import type { TargetSpec, TargetingDefinition, TargetResolution, Point, Direction9 } from "./types";
 import { distanceChebyshev } from "../combat/movement";
 import { getActorFootprint, footprintIntersects } from "../combat/footprint";

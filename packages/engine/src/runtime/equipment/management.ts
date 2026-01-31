@@ -39,7 +39,7 @@ function resolveEquipmentCatalogs(save: GameSave, catalogs?: EquipmentCatalogs):
 }
 
 function normalizeItemRefForEquip(itemRef: ItemRef): ItemRef {
-  const { qty, ...rest } = itemRef;
+  const { qty: _qty, ...rest } = itemRef;
   return rest;
 }
 

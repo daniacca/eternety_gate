@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { GameSave, ActorId } from "../types";
+import type { GameSave } from "../types";
 import { getActorsInRange } from "./getActorsInRange";
-import { RNG } from "../rng";
 
 describe("getActorsInRange", () => {
   const createMockSave = (): GameSave => {
