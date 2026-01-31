@@ -5,6 +5,7 @@ import {
   loadCharacterCatalogs,
   getLearnedSpells,
   getNaturalAbilityWeapons,
+  getNaturalWeaponProfileFromActor,
   getSpellById,
   getEffectById,
 } from "@eg/engine";
@@ -139,6 +140,12 @@ export function CombatControl({
     if (mode === "MELEE") {
       if (mainWeaponId) options.push({ id: mainWeaponId, name: mainWeapon?.name || mainWeaponId });
       if (offWeaponId) options.push({ id: offWeaponId, name: offWeapon?.name || offWeaponId });
+      if (!mainWeaponId && !offWeaponId && activeActor) {
+        const naturalWeapon = getNaturalWeaponProfileFromActor(activeActor);
+        if (naturalWeapon) {
+          options.push({ id: naturalWeapon.id, name: naturalWeapon.name || "Natural Weapons" });
+        }
+      }
       for (const ability of naturalAbilityOptions.filter((weapon) => weapon.kind === "MELEE")) {
         options.push({ id: ability.id, name: ability.name });
       }

@@ -584,6 +584,16 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
           );
         }
 
+        if (conditionSpec.conditionId === "avatar") {
+          const bonus = effectStatBonus + targetOvercast;
+          updatedTargetActor = addTraitsWithSource(
+            updatedTargetActor,
+            { "trait:divine": { x: bonus } },
+            spellSource
+          );
+          updatedTargetActor = addUnnaturalCharacteristics(updatedTargetActor, [{ stat: "STR", bonusX: bonus }], spellSource);
+        }
+
         updatedSave = {
           ...updatedSave,
           actorsById: {

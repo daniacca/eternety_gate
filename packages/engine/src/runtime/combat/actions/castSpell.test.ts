@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { combatCastSpell } from "./castSpell";
+import { getEffectById, getSpellById } from "../../magic/catalogs";
 import { makeTestStoryPack } from "../../test-helpers/makeTestStoryPack";
 import { makeTestActor } from "../../test-helpers/makeTestActor";
 import { makeTestSave } from "../../test-helpers/makeTestSave";
@@ -203,7 +204,7 @@ describe("combatCastSpell - magic resistance", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits, talents: soullessAuraTalents as any });
     const caster = makeTestActor({
       id: "PC_1",
-      stats: { WIL: 70, INI: 50 } as any,
+      stats: { WIL: 80, INI: 50 } as any,
       traits: { "trait:weaver": {} },
       spells: { "spell:flame_bolt": true },
     });
@@ -574,7 +575,7 @@ describe("combatCastSpell - double cast", () => {
     });
     const caster = makeTestActor({
       id: "PC_1",
-      stats: { WIL: 60, INI: 50 } as any,
+      stats: { WIL: 70, INI: 50 } as any,
       traits: { "trait:weaver": {} },
       talents: { "talent:double_casting": 1 },
       spells: { "spell:flame_bolt": true, "spell:pyra_flame_control": true },
@@ -1133,5 +1134,126 @@ describe("combatCastSpell - mentis additions", () => {
 
     expect(result.save.actorsById[targetA.id].conditions?.shock).toBeDefined();
     expect(result.save.actorsById[targetB.id].conditions?.shock).toBeDefined();
+  });
+});
+
+describe("combatCastSpell - summon and daemonology additions", () => {
+  it("should summon a divine spirit with expected setup", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 80, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:santic_summon": true },
+    });
+
+    const spellDef = getSpellById("spell:santic_summon");
+    const effectDef = getEffectById("effect:santic_summon");
+    expect(spellDef).toBeTruthy();
+    expect(effectDef?.specialOp).toBe("combatSummonDivine");
+
+    const save = makeTestSave(storyPack, caster);
+    const combatSave = startCombat(storyPack, save, [caster.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 3, y: 3 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:santic_summon",
+      targetSelection: { kind: "self" },
+    };
+
+    const rng = new FixedRng([1], []);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    const summonId = Object.keys(result.save.actorsById).find((id) => id.startsWith("SUMMON_DIVINE_"));
+    expect(summonId).toBeTruthy();
+    if (!summonId) return;
+
+    const summoned = result.save.actorsById[summonId];
+    expect(summoned.traits?.["trait:divine"]).toBeTruthy();
+    expect(summoned.traits?.["trait:flyer"]).toBeTruthy();
+    expect(summoned.traits?.["trait:natural_armour"]).toBeTruthy();
+    expect(summoned.equipment?.mainHand?.id).toBe("sanctified_greatblade");
+    expect(summoned.spells?.["spell:santic_holy_fire"]).toBeTruthy();
+    expect(summoned.spells?.["spell:corpus_mend"]).toBeTruthy();
+    expect(result.save.runtime.combat?.participants).toContain(summonId);
+    expect(result.save.party.actors).toContain(summonId);
+    expect(result.save.runtime.combat?.positions?.[summonId]).toBeDefined();
+    expect(summoned.conditions?.summoned).toBeDefined();
+  });
+
+  it("should apply soul rend to divine targets", () => {
+    const storyPack = makeTestStoryPack({ traits: baseTraits });
+    const caster = makeTestActor({
+      id: "PC_1",
+      stats: { WIL: 70, INI: 50 } as any,
+      traits: { "trait:weaver": {} },
+      spells: { "spell:daemonology_soul_rend": true },
+    });
+    const target = makeTestActor({
+      id: "NPC_1",
+      kind: "NPC",
+      stats: { WIL: 25, INI: 30 } as any,
+      traits: { "trait:divine": { x: 2 } },
+    });
+
+    const save = makeTestSave(storyPack, caster);
+    const saveWithTarget = {
+      ...save,
+      actorsById: {
+        ...save.actorsById,
+        [target.id]: target,
+      },
+    };
+    const combatSave = startCombat(storyPack, saveWithTarget, [caster.id, target.id]);
+    const combat = combatSave.runtime.combat!;
+    const casterIndex = combat.participants.indexOf(caster.id);
+    const saveWithPositions = {
+      ...combatSave,
+      runtime: {
+        ...combatSave.runtime,
+        combat: {
+          ...combat,
+          currentIndex: casterIndex,
+          positions: {
+            [caster.id]: { x: 1, y: 1 },
+            [target.id]: { x: 4, y: 1 },
+          },
+          turn: {
+            ...combat.turn,
+            actionAvailable: true,
+          },
+        },
+      },
+    };
+
+    const effect: Effect = {
+      op: "combatCastSpell",
+      actorId: caster.id,
+      spellId: "spell:daemonology_soul_rend",
+      targetSelection: { kind: "single", targetPos: { x: 4, y: 1 } },
+    };
+
+    const rng = new FixedRng([1, 95], []);
+    const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
+    expect(result.save.actorsById[target.id].resources.wounds).toBeGreaterThan(0);
   });
 });

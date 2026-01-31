@@ -230,6 +230,8 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
     effectDef.specialOp !== "combatVisionOfTerror" &&
     effectDef.specialOp !== "combatDaemonbane" &&
     effectDef.specialOp !== "combatInfernalGaze" &&
+    effectDef.specialOp !== "combatHellchain" &&
+    effectDef.specialOp !== "combatSoulRend" &&
     validTargetActors.length > 0
   ) {
     const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;

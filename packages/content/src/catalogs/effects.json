@@ -559,6 +559,42 @@
     "description": "Aura che impone un test di Volonta prima di attaccare"
   },
   {
+    "id": "effect:santic_avatar",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "applyConditions": [
+      {
+        "conditionId": "avatar",
+        "durationRounds": 0
+      }
+    ],
+    "description": "Invoca uno spirito divino che potenzia il corpo senza Frenzy"
+  },
+  {
+    "id": "effect:santic_holocaust",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "damageType": "energy",
+    "damageQualities": ["sanctified"],
+    "radiusFromEffectStat": true,
+    "centerOnCaster": true,
+    "specialOp": "combatHolocaust",
+    "description": "Esplosione sacra che devasta l'area e colpisce il caster con un contraccolpo"
+  },
+  {
+    "id": "effect:santic_summon",
+    "discipline": "SANTIC",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "specialOp": "combatSummonDivine",
+    "description": "Evoca uno spirito divino alleato"
+  },
+  {
     "id": "effect:daemonology_cursed_earth",
     "discipline": "DAEMONOLOGY",
     "castingStat": "WIL",
@@ -618,6 +654,35 @@
       }
     ],
     "description": "Invoca un'entita che possiede il caster e lo mette in Frenzy"
+  },
+  {
+    "id": "effect:daemonology_hellchain",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "malediction",
+    "specialOp": "combatHellchain",
+    "description": "Catene infernali che immobilizzano il bersaglio"
+  },
+  {
+    "id": "effect:daemonology_soul_rend",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "damage",
+    "opposed": true,
+    "opposedStat": "WIL",
+    "specialOp": "combatSoulRend",
+    "description": "Lacerazione dell'anima contro creature divine"
+  },
+  {
+    "id": "effect:daemonology_summon",
+    "discipline": "DAEMONOLOGY",
+    "castingStat": "WIL",
+    "effectStat": "WIL",
+    "kind": "blessing",
+    "specialOp": "combatSummonDaemon",
+    "description": "Evoca un demone alleato"
   },
   {
     "id": "effect:kinesis_shockwave",

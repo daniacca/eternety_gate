@@ -83,7 +83,9 @@ export type ConditionId =
   | "sanctuary_debuff"
   | "cursed_earth"
   | "word_of_god"
-  | "possession";
+  | "possession"
+  | "avatar"
+  | "summoned";
 
 export type ConditionInstance = {
   stacks?: number;
@@ -833,6 +835,9 @@ export type CombatState = {
 
   // Initial HP when combat started (for UI display of max HP)
   initialHpByActorId?: Record<ActorId, number>;
+
+  // Initiative rolls by actor (used for mid-combat joins)
+  initiativeByActorId?: Record<ActorId, { iniBonus: number; iniRoll: number; iniScore: number }>;
 
   // Damage tracking since last turn start (used for spiritual instability)
   damageTakenSinceLastTurnByActorId?: Record<ActorId, number>;

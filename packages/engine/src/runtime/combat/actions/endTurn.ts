@@ -21,7 +21,8 @@ export function combatEndTurn(
   }
 
   const turnActorId = getCurrentTurnActorId(save);
-  if (!turnActorId || turnActorId !== save.party.activeActorId) {
+  const partyIds = new Set(save.party?.actors ?? []);
+  if (!turnActorId || !partyIds.has(turnActorId)) {
     // Not player's turn - ignore
     return { save };
   }
@@ -51,8 +52,8 @@ export function combatEndTurn(
     const turnActorId = getCurrentTurnActorId(currentSave);
     if (!turnActorId) break;
 
-    const partyIds = new Set(currentSave.party?.actors ?? []);
-    if (partyIds.has(turnActorId)) {
+    const loopPartyIds = new Set(currentSave.party?.actors ?? []);
+    if (loopPartyIds.has(turnActorId)) {
       break;
     }
 

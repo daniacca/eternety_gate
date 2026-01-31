@@ -4,8 +4,13 @@ import { resolveCombatControlMind } from "./specialOps/resolveCombatControlMind"
 import { resolveCombatDaemonbane } from "./specialOps/resolveCombatDaemonbane";
 import { resolveCombatDisarmAtRange } from "./specialOps/resolveCombatDisarmAtRange";
 import { resolveCombatHaemorrhage } from "./specialOps/resolveCombatHaemorrhage";
+import { resolveCombatHellchain } from "./specialOps/resolveCombatHellchain";
 import { resolveCombatInfernalGaze } from "./specialOps/resolveCombatInfernalGaze";
+import { resolveCombatHolocaust } from "./specialOps/resolveCombatHolocaust";
 import { resolveCombatPurgeConditions } from "./specialOps/resolveCombatPurgeConditions";
+import { resolveCombatSoulRend } from "./specialOps/resolveCombatSoulRend";
+import { resolveCombatSummonDaemon } from "./specialOps/resolveCombatSummonDaemon";
+import { resolveCombatSummonDivine } from "./specialOps/resolveCombatSummonDivine";
 import { resolveCombatSunburst } from "./specialOps/resolveCombatSunburst";
 import { resolveCombatVisionOfTerror } from "./specialOps/resolveCombatVisionOfTerror";
 
@@ -29,7 +34,12 @@ const specialOpHandlers: SpecialOpHandler[] = [
   resolveCombatVisionOfTerror,
   resolveCombatSunburst,
   resolveCombatBlinkStep,
+  resolveCombatHolocaust,
   resolveCombatDaemonbane,
+  resolveCombatSoulRend,
   resolveCombatInfernalGaze,
   resolveCombatDisarmAtRange,
+  resolveCombatHellchain,
+  resolveCombatSummonDivine,
+  resolveCombatSummonDaemon,
 ];

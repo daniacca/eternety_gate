@@ -523,6 +523,61 @@
     ]
   },
   {
+    "id": "spell:santic_avatar",
+    "name": "Avatar",
+    "discipline": "SANTIC",
+    "castTime": "fullRound",
+    "effectId": "effect:santic_avatar",
+    "baseCN": 5,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Invoca uno spirito divino nel corpo del caster (senza Frenzy)",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:santic_holocaust",
+    "name": "Olocausto",
+    "discipline": "SANTIC",
+    "castTime": "fullRound",
+    "effectId": "effect:santic_holocaust",
+    "baseCN": 8,
+    "rangeMode": "self",
+    "targetShape": "radius",
+    "radiusSquares": 1,
+    "notes": "Esplosione sacra centrata sul caster con contraccolpo",
+    "xpCost": 1200,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:santic_summon",
+    "name": "Evoca Spirito Divino",
+    "discipline": "SANTIC",
+    "castTime": "fullRound",
+    "effectId": "effect:santic_summon",
+    "baseCN": 7,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Evoca uno spirito divino alleato",
+    "xpCost": 900,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
     "id": "spell:daemonology_cursed_earth",
     "name": "Terra Maledetta",
     "discipline": "DAEMONOLOGY",
@@ -588,6 +643,60 @@
     "targetShape": "self",
     "notes": "Un'entita possiede il caster (Frenzy, Unnatural STR, Daemonic)",
     "xpCost": 1200,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_hellchain",
+    "name": "Catene Infernali",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "standard",
+    "effectId": "effect:daemonology_hellchain",
+    "baseCN": 4,
+    "rangeMode": "medium",
+    "targetShape": "single",
+    "notes": "Immobilizza il bersaglio con catene infernali",
+    "xpCost": 700,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_soul_rend",
+    "name": "Lacerazione dell'Anima",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "standard",
+    "effectId": "effect:daemonology_soul_rend",
+    "baseCN": 5,
+    "rangeMode": "long",
+    "targetShape": "single",
+    "notes": "Danni diretti contro creature divine",
+    "xpCost": 800,
+    "prerequisites": [
+      {
+        "type": "hasTrait",
+        "traitId": "trait:weaver"
+      }
+    ]
+  },
+  {
+    "id": "spell:daemonology_summon",
+    "name": "Evoca Demone",
+    "discipline": "DAEMONOLOGY",
+    "castTime": "fullRound",
+    "effectId": "effect:daemonology_summon",
+    "baseCN": 7,
+    "rangeMode": "self",
+    "targetShape": "self",
+    "notes": "Evoca un demone alleato",
+    "xpCost": 900,
     "prerequisites": [
       {
         "type": "hasTrait",

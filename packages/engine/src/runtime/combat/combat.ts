@@ -235,6 +235,9 @@ export function clearCombatEndConditions(
         if (conditionId === "mind_control" && instance.params?.addedToParty) {
           partyActors = partyActors.filter((id) => id !== actorId);
         }
+        if (conditionId === "summoned") {
+          partyActors = partyActors.filter((id) => id !== actorId);
+        }
       }
     }
 
@@ -651,6 +654,17 @@ export function startCombat(
 
   const orderedIds = initiatives.map((entry) => entry.id);
   const currentTurnActorId = orderedIds[0];
+  const initiativeByActorId = initiatives.reduce<Record<ActorId, { iniBonus: number; iniRoll: number; iniScore: number }>>(
+    (acc, entry) => {
+      acc[entry.id] = {
+        iniBonus: entry.iniBonus,
+        iniRoll: entry.iniRoll,
+        iniScore: entry.iniScore,
+      };
+      return acc;
+    },
+    {}
+  );
 
   // Initialize grid: load from catalog if gridId provided, use explicit grid, or default to 10x10
   let combatGrid: Grid;
@@ -827,6 +841,7 @@ export function startCombat(
     weaponRechargeUntilTurnCounterByActorId: {},
     equippedThisRoundByActorId: {},
     initialHpByActorId,
+    initiativeByActorId,
     damageTakenSinceLastTurnByActorId: {},
     damageDealtSinceLastTurnByActorId: {},
   };
@@ -1596,6 +1611,37 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
                 activeActorId: nextActiveActorId,
               },
             };
+          }
+          if (conditionId === "summoned") {
+            const updatedPartyActors = (updatedSave.party?.actors ?? []).filter((id) => id !== currentTurnActorId);
+            updatedSave = {
+              ...updatedSave,
+              party: {
+                ...updatedSave.party,
+                actors: updatedPartyActors,
+                activeActorId: updatedSave.party?.activeActorId ?? currentTurnActorId,
+              },
+              runtime: {
+                ...updatedSave.runtime,
+                combat: {
+                  ...updatedSave.runtime.combat!,
+                  positions: Object.fromEntries(
+                    Object.entries(updatedSave.runtime.combat!.positions).filter(([id]) => id !== currentTurnActorId)
+                  ),
+                },
+              },
+            };
+            currentActor = {
+              ...currentActor,
+              resources: {
+                ...currentActor.resources,
+                isDead: true,
+              },
+            };
+            updatedSave = appendCombatLog(
+              updatedSave,
+              `${currentActor.name || currentTurnActorId} torna nel nulla.`
+            );
           }
         } else if (source) {
           currentActor = removeUnnaturalCharacteristicsBySource(currentActor, source);
