@@ -50,7 +50,7 @@ describe("canLearnSpell prerequisites", () => {
     };
     const save = createSave(actor);
 
-    const result = canLearnSpell(save, catalogs, actor.id, "spell:flame_bolt");
+    const result = canLearnSpell(save, catalogs, actor.id, "spell:santic_sanctuary");
     expect(result.canLearn).toBe(false);
   });
 
@@ -64,13 +64,13 @@ describe("canLearnSpell prerequisites", () => {
       skills: {},
       talents: {},
       traits: {},
-      spells: { "spell:pyra_flame_control": true },
+      spells: { "spell:santic_holy_fire": true },
       equipment: {},
       status: { conditions: [], tempModifiers: [] },
     };
     const save = createSave(actor);
 
-    const result = canLearnSpell(save, catalogs, actor.id, "spell:flame_bolt");
+    const result = canLearnSpell(save, catalogs, actor.id, "spell:santic_sanctuary");
     expect(result.canLearn).toBe(false);
   });
 
@@ -84,13 +84,13 @@ describe("canLearnSpell prerequisites", () => {
       skills: {},
       talents: {},
       traits: { "trait:weaver": true },
-      spells: { "spell:pyra_flame_control": true },
+      spells: { "spell:santic_holy_fire": true },
       equipment: {},
       status: { conditions: [], tempModifiers: [] },
     };
     const save = createSave(actor);
 
-    const result = canLearnSpell(save, catalogs, actor.id, "spell:flame_bolt");
+    const result = canLearnSpell(save, catalogs, actor.id, "spell:santic_sanctuary");
     expect(result.canLearn).toBe(true);
   });
 });

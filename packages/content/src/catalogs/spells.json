@@ -18,6 +18,10 @@
       {
         "type": "hasSpell",
         "spellId": "spell:pyra_flame_control"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fiery_form"
       }
     ]
   },
@@ -36,6 +40,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_flame_control"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fiery_form"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_sunburst"
       },
       {
         "type": "hasSpell",
@@ -102,6 +118,22 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_warp_speed"
       }
     ]
   },
@@ -122,6 +154,26 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_flame_control"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fiery_form"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_sunburst"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:flame_bolt"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fire_shield"
       },
       {
         "type": "hasSpell",
@@ -181,6 +233,18 @@
       {
         "type": "hasSpell",
         "spellId": "spell:pyra_flame_control"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fiery_form"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_sunburst"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:flame_bolt"
       }
     ]
   },
@@ -199,7 +263,11 @@
     "prerequisites": [
       {
         "type": "hasSpell",
-        "spellId": "spell:flame_cone"
+        "spellId": "spell:pyra_flame_control"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:pyra_fiery_form"
       }
     ]
   },
@@ -238,6 +306,10 @@
       {
         "type": "hasSpell",
         "spellId": "spell:kinesis_force_push"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_bind"
       }
     ]
   },
@@ -256,6 +328,10 @@
       {
         "type": "hasSpell",
         "spellId": "spell:kinesis_force_push"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_bind"
       }
     ]
   },
@@ -274,6 +350,14 @@
       {
         "type": "hasSpell",
         "spellId": "spell:kinesis_force_push"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_bind"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_flight"
       }
     ]
   },
@@ -295,6 +379,10 @@
         "spellId": "spell:kinesis_force_push"
       },
       {
+        "type": "hasSpell",
+        "spellId": "spell:kinesis_force_bind"
+      },
+      {
         "type": "statAtLeast",
         "stat": "WS",
         "value": 35
@@ -314,10 +402,6 @@
     "notes": "Binds target, preventing movement",
     "xpCost": 300,
     "prerequisites": [
-      {
-        "type": "hasSpell",
-        "spellId": "spell:kinesis_force_push"
-      },
       {
         "type": "statAtLeast",
         "stat": "WIL",
@@ -408,6 +492,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_disrupt"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_suggestion"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_sensory_distortion"
       }
     ]
   },
@@ -426,6 +522,26 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_disrupt"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_suggestion"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_sensory_distortion"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_vision_of_terror"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_veil_invisibility"
       }
     ]
   },
@@ -445,6 +561,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_disrupt"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_suggestion"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:mentis_sensory_distortion"
       }
     ]
   },
@@ -482,6 +610,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
       }
     ]
   },
@@ -500,6 +632,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
       }
     ]
   },
@@ -519,6 +655,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
       }
     ]
   },
@@ -537,6 +677,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_sanctuary"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_word_of_god"
       }
     ]
   },
@@ -546,7 +698,7 @@
     "discipline": "SANTIC",
     "castTime": "fullRound",
     "effectId": "effect:santic_holocaust",
-    "baseCN": 8,
+    "baseCN": 12,
     "rangeMode": "self",
     "targetShape": "radius",
     "radiusSquares": 1,
@@ -556,6 +708,30 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_sanctuary"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_word_of_god"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_daemonbane"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_avatar"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_summon"
       }
     ]
   },
@@ -565,7 +741,7 @@
     "discipline": "SANTIC",
     "castTime": "fullRound",
     "effectId": "effect:santic_summon",
-    "baseCN": 7,
+    "baseCN": 12,
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Evoca uno spirito divino alleato",
@@ -574,6 +750,26 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_holy_fire"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_sanctuary"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_word_of_god"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_daemonbane"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:santic_avatar"
       }
     ]
   },
@@ -629,6 +825,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_dark_flame"
       }
     ]
   },
@@ -647,6 +847,22 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_dark_flame"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_cursed_earth"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_infernal_gaze"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_soul_rend"
       }
     ]
   },
@@ -665,6 +881,22 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_dark_flame"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_cursed_earth"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_infernal_gaze"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_possession"
       }
     ]
   },
@@ -683,6 +915,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_dark_flame"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_cursed_earth"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_infernal_gaze"
       }
     ]
   },
@@ -692,7 +936,7 @@
     "discipline": "DAEMONOLOGY",
     "castTime": "fullRound",
     "effectId": "effect:daemonology_summon",
-    "baseCN": 7,
+    "baseCN": 12,
     "rangeMode": "self",
     "targetShape": "self",
     "notes": "Evoca un demone alleato",
@@ -701,6 +945,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_dark_flame"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_cursed_earth"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:daemonology_infernal_gaze"
       }
     ]
   },
@@ -719,6 +975,10 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_vision"
       },
       {
         "type": "statAtLeast",
@@ -744,6 +1004,10 @@
         "traitId": "trait:weaver"
       },
       {
+        "type": "hasSpell",
+        "spellId": "spell:vates_vision"
+      },
+      {
         "type": "statAtLeast",
         "stat": "PER",
         "value": 55
@@ -765,6 +1029,18 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_vision"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_premonition"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_perfect_timing"
       },
       {
         "type": "statAtLeast",
@@ -796,6 +1072,18 @@
         "traitId": "trait:weaver"
       },
       {
+        "type": "hasSpell",
+        "spellId": "spell:vates_vision"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_premonition"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_perfect_timing"
+      },
+      {
         "type": "statAtLeast",
         "stat": "WIL",
         "value": 45
@@ -817,6 +1105,26 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_vision"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_premonition"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_perfect_timing"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_precognition"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:vates_misfortune"
       }
     ]
   },
@@ -900,6 +1208,10 @@
         "spellId": "spell:corpus_mend"
       },
       {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
+      },
+      {
         "type": "statAtLeast",
         "stat": "TOU",
         "value": 35
@@ -921,6 +1233,14 @@
       {
         "type": "hasSpell",
         "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
       }
     ]
   },
@@ -940,6 +1260,22 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_warp_speed"
       }
     ]
   },
@@ -959,6 +1295,22 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_warp_speed"
       }
     ]
   },
@@ -977,6 +1329,34 @@
       {
         "type": "hasTrait",
         "traitId": "trait:weaver"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_mend"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:regeneration"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_steel_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_warp_speed"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_dragon_skin"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_purity_of_body"
+      },
+      {
+        "type": "hasSpell",
+        "spellId": "spell:corpus_haemorrhage"
       }
     ]
   },

@@ -283,7 +283,7 @@ describe("combatCastSpell - magic conduct", () => {
     });
     const caster = makeTestActor({
       id: "PC_1",
-      stats: { WIL: 80, INI: 50 } as any,
+      stats: { WIL: 300, INI: 50 } as any,
       traits: { "trait:weaver": {} },
       talents: { "talent:magic_conduct": 1 },
       resources: { fatePoints: 2 },
@@ -825,7 +825,7 @@ describe("combatCastSpell - forced movement", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits });
     const caster = makeTestActor({
       id: "PC_1",
-      stats: { WIL: 80, INI: 50 } as any,
+      stats: { WIL: 300, INI: 50 } as any,
       traits: { "trait:weaver": {} },
       spells: { "spell:kinesis_force_push": true },
     });
@@ -1142,9 +1142,16 @@ describe("combatCastSpell - summon and daemonology additions", () => {
     const storyPack = makeTestStoryPack({ traits: baseTraits });
     const caster = makeTestActor({
       id: "PC_1",
-      stats: { WIL: 80, INI: 50 } as any,
+      stats: { WIL: 300, INI: 50 } as any,
       traits: { "trait:weaver": {} },
-      spells: { "spell:santic_summon": true },
+      spells: {
+        "spell:santic_holy_fire": true,
+        "spell:santic_sanctuary": true,
+        "spell:santic_word_of_god": true,
+        "spell:santic_daemonbane": true,
+        "spell:santic_avatar": true,
+        "spell:santic_summon": true,
+      },
     });
 
     const spellDef = getSpellById("spell:santic_summon");
