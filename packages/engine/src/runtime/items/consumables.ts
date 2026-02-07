@@ -1,5 +1,5 @@
 import type { GameSave, ActorId, ItemRef, StoryPack } from "../types";
-import type { TargetSelection } from "../combat/targeting/types";
+import type { TargetSelection } from "../targeting/core/types";
 import type { IRNG } from "../rng";
 import { getActorInventory, removeInventoryItemQty } from "../characters/inventory";
 import { appendCombatLog, appendRuntimeLog } from "../combat/narration";

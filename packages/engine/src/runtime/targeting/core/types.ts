@@ -32,3 +32,9 @@ export type TargetPreview = {
   affectedCells: Position[];
   affectedActorIds: ActorId[];
 };
+
+export type TargetResolution = {
+  targetActorIds: ActorId[];
+  targetPoints: Position[];
+  invalidReason?: string;
+};

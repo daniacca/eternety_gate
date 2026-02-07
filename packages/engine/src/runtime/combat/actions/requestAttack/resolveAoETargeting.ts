@@ -1,6 +1,6 @@
 import type { CombatAttackCheck, Effect, GameSave } from "../../../types";
 import type { TargetPreview, TargetSpec } from "../../targeting/types";
-import { computeTargetPreview } from "../../targeting/computeTargeting";
+import { computeTargetPreview } from "../../../targeting/computeTargeting";
 import { distanceChebyshev } from "../../movement";
 import { footprintDistanceBetweenActors } from "../../footprint";
 import { validateAndApplyRangedModifiers } from "../../validation";

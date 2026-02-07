@@ -1,7 +1,7 @@
 import type { ActorId } from "../../../types";
 import type { TargetSelection, TargetPreview, TargetSpec } from "../../targeting/types";
 import type { ContentPack } from "../../../../content/types";
-import { buildSpellTargetSpec, computeTargetPreview } from "../../targeting/computeTargeting";
+import { buildSpellTargetSpec, computeTargetPreview } from "../../../targeting/computeTargeting";
 import { getActorsInRange } from "../../../targeting/getActorsInRange";
 import { appendCombatLog, appendRuntimeLog } from "../../narration";
 import { getMagicResistanceAgainstSpell } from "../../../magic/resistance";

@@ -1,4 +1,4 @@
-import type { TargetSelection } from "./combat/targeting/types";
+import type { TargetSelection } from "./targeting/core/types";
 
 // Runtime Types for Eternity Gate Engine
 // This is the single source of truth for all engine types.

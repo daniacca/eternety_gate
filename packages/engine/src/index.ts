@@ -140,7 +140,7 @@ export {
   getWeaponQualityRank,
 } from "./runtime/weaponQualities";
 
-// Targeting types (legacy + new combat targeting)
+// Targeting types (legacy + core targeting)
 export type {
   TargetSpec as LegacyTargetSpec,
   TargetingDefinition,
@@ -149,7 +149,7 @@ export type {
   Point,
 } from "./runtime/targeting/types";
 export { getActorsInRange } from "./runtime/targeting/getActorsInRange";
-export type { TargetSpec, TargetSelection, TargetPreview, Direction8 } from "./runtime/combat/targeting/types";
+export type { TargetSpec, TargetSelection, TargetPreview, Direction8 } from "./runtime/targeting/core/types";
 export {
   buildSpellTargetSpec,
   computeTargetPreview,
@@ -160,7 +160,7 @@ export {
   getCellsInRadius,
   getCellsInTouch,
   isWithinRange,
-} from "./runtime/combat/targeting/computeTargeting";
+} from "./runtime/targeting/computeTargeting";
 
 // Types
 export type * from "./runtime/types";
