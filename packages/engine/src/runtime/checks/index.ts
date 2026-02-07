@@ -61,49 +61,13 @@ export function performCheckWithSave(
   const fateContext = createFateRerollContext();
   let outcome: CheckOutcome;
 
-  switch (check.kind) {
-    case "single": {
-      const result = performSingleCheck(check, storyPack, save, rng, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "multi": {
-      const result = performMultiCheck(check, storyPack, save, rng, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "condition": {
-      const result = performConditionCheck(check, storyPack, save);
-      outcome = { result, save };
-      break;
-    }
-    case "opposed": {
-      const result = performOpposedCheck(check, storyPack, save, rng, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "sequence": {
-      const result = performSequenceCheck(check, storyPack, save, rng, performCheckResult, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "magicChannel": {
-      const result = performMagicChannelCheck(check, storyPack, save, rng, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "magicEffect": {
-      const result = performMagicEffectCheck(check, storyPack, save, rng, fateContext);
-      outcome = { result, save };
-      break;
-    }
-    case "combatAttack":
-      // performCombatAttackCheck logs defense checks internally (if defender is party member)
-      // The attack check itself will be logged by centralized logging below
-      outcome = performCombatAttackCheck(check, storyPack, save, rng, resolutionId, fateContext);
-      break;
-    default:
-      throw new Error(`Unknown check kind: ${(check as any).kind}`);
+  if (check.kind === "combatAttack") {
+    // performCombatAttackCheck logs defense checks internally (if defender is party member)
+    // The attack check itself will be logged by centralized logging below
+    outcome = performCombatAttackCheck(check, storyPack, save, rng, resolutionId, fateContext);
+  } else {
+    const result = performCheckResult(check, storyPack, save, rng, fateContext, resolutionId);
+    outcome = { result, save };
   }
 
   if (fateContext.used && fateContext.actorId) {
