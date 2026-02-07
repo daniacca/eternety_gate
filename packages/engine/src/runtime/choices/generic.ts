@@ -17,9 +17,9 @@ import type { ContentPack } from "../../content/types";
 function updateMagicState(
   check: Check,
   result: NonNullable<ReturnType<typeof performCheckWithSave>>["result"],
-  save: GameSave
+  save: GameSave,
 ): GameSave {
-  if (check.kind === "magicChannel" && result.success) {
+  if (check.kind === "magicChannel" && result && result.success) {
     const currentMagic = save.runtime.magic || { accumulatedDoS: 0 };
     return {
       ...save,
@@ -32,7 +32,7 @@ function updateMagicState(
     };
   }
 
-  if (check.kind === "magicEffect" && result.success) {
+  if (check.kind === "magicEffect" && result?.success) {
     const currentMagic = save.runtime.magic || { accumulatedDoS: 0 };
     const requiredDoS = (check as any).castingNumberDoS;
 
@@ -63,7 +63,7 @@ export const handleGenericChoice: ChoiceHandler = (
   storyPack: StoryPack,
   save: GameSave,
   rng: IRNG,
-  contentPack?: ContentPack
+  contentPack?: ContentPack,
 ): GameSave => {
   const { scene } = getCurrentScene(storyPack, save);
   let currentSave = { ...save };
@@ -210,7 +210,7 @@ export const handleGenericChoice: ChoiceHandler = (
               currentSave,
               dist,
               check.id,
-              currentSave.party.activeActorId
+              currentSave.party.activeActorId,
             );
             if (blockedCheck) {
               currentSave = {

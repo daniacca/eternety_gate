@@ -91,10 +91,7 @@ describe("fate points", () => {
       tags: [],
     };
 
-    const rng = new FakeRng([
-      FakeRng.d100ForNextInt(1, 1, 10),
-      FakeRng.d100ForNextInt(7, 1, 10),
-    ]);
+    const rng = new FakeRng([FakeRng.d100ForNextInt(1, 1, 10), FakeRng.d100ForNextInt(7, 1, 10)]);
 
     const damageOutcome = applyCombatDamageIfHit(check, result, save, rng, storyPack);
     expect(damageOutcome.finalDamage).toBe(7);

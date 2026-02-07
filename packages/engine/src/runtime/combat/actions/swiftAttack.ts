@@ -42,7 +42,7 @@ export function combatSwiftAttack(
   effect: Extract<Effect, { op: "combatSwiftAttack" }>,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -206,12 +206,11 @@ export function combatSwiftAttack(
   if (!canDualWield && !mainWeaponId && !offWeaponId && weaponIdsToUse.length === 1) {
     const requestedWeaponId = weaponIdsToUse[0];
     const shouldUseNatural =
-      !requestedWeaponId ||
-      isNaturalWeaponId(requestedWeaponId) ||
-      !currentSave.weaponsById?.[requestedWeaponId];
+      !requestedWeaponId || isNaturalWeaponId(requestedWeaponId) || !currentSave.weaponsById?.[requestedWeaponId];
     if (shouldUseNatural) {
-      const naturalWeapon =
-        catalogs ? getNaturalWeaponProfile(currentSave, catalogs, attacker.id) : getNaturalWeaponProfileFromActor(attacker);
+      const naturalWeapon = catalogs
+        ? getNaturalWeaponProfile(currentSave, catalogs, attacker.id)
+        : getNaturalWeaponProfileFromActor(attacker);
       if (naturalWeapon) {
         currentSave = {
           ...currentSave,
@@ -224,7 +223,7 @@ export function combatSwiftAttack(
       }
     }
   }
-  const dualWieldPenalty = canDualWield ? dualPenalty ?? 0 : 0;
+  const dualWieldPenalty = canDualWield ? (dualPenalty ?? 0) : 0;
 
   const buildCheck = (weaponId: string | null, suffix: string): CombatAttackCheck => {
     const modifiers = dualWieldPenalty !== 0 ? { hitBonus: dualWieldPenalty } : undefined;
@@ -287,7 +286,13 @@ export function combatSwiftAttack(
     const check = buildCheck(weaponId, suffix);
     const attackResolutionId = `${resolutionId}${suffix}`;
 
-    const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng, attackResolutionId);
+    const { result, save: afterCheckSave } = performCheckWithSave(
+      check,
+      storyPack,
+      currentSave,
+      rng,
+      attackResolutionId,
+    );
     if (!result) {
       continue;
     }
@@ -326,7 +331,7 @@ export function combatSwiftAttack(
           rng,
           storyPack,
           hitResolutionId,
-          catalogs
+          catalogs,
         );
 
         currentSave = damageResult.save;
@@ -336,7 +341,8 @@ export function combatSwiftAttack(
           if (deadActor) {
             const pcDied = deadActor.kind === "PC";
             const partyActors = currentSave.party.actors.map((id) => currentSave.actorsById[id]).filter(Boolean);
-            const allPartyDead = partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
+            const allPartyDead =
+              partyActors.length > 0 && partyActors.every((actor) => actor.resources.isDead === true);
 
             if (pcDied || allPartyDead) {
               currentSave = {
@@ -381,7 +387,12 @@ export function combatSwiftAttack(
               const endCheck: CheckResult = last
                 ? {
                     ...last,
-                    tags: [...last.tags, "combat:state=end", "combat:outcome=victory", `combat:winner=${partyAlive[0]}`],
+                    tags: [
+                      ...last.tags,
+                      "combat:state=end",
+                      "combat:outcome=victory",
+                      `combat:winner=${partyAlive[0]}`,
+                    ],
                   }
                 : {
                     checkId: "combat:end",

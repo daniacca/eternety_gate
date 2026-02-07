@@ -35,7 +35,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30 } as any,
-        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
+        resources: { wounds: 100, rf: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -125,7 +125,7 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50 } as any,
-        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
+        resources: { wounds: 100, rf: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
 
@@ -384,7 +384,7 @@ describe("combat", () => {
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
+        resources: { wounds: 100, rf: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -406,12 +406,12 @@ describe("combat", () => {
       const actor1 = makeTestActor({
         id: "PC_1",
         stats: { INI: 50, AGI: 50 } as any,
-        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
+        resources: { wounds: 100, rf: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const actor2 = makeTestActor({
         id: "NPC_1",
         stats: { INI: 30, AGI: 30 } as any,
-        resources: { wounds: 100, rf: 0, peq: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
+        resources: { wounds: 100, rf: 0, isDead: true }, // wounds = maxHp (100) means HP = 0, dead
       });
       const save = makeTestSave(storyPack, actor1);
       const saveWithBoth = {
@@ -499,7 +499,6 @@ describe("combat", () => {
           wounds: 0,
           isDead: true,
           rf: 0,
-          peq: 0,
         },
       });
 
@@ -517,7 +516,6 @@ describe("combat", () => {
           wounds: 0,
           isDead: false,
           rf: 0,
-          peq: 0,
         },
       });
 
@@ -530,7 +528,6 @@ describe("combat", () => {
         resources: {
           wounds: 0,
           rf: 0,
-          peq: 0,
         },
       });
 

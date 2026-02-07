@@ -1,5 +1,6 @@
 import type { StoryPack, GameSave } from "../types";
-import { getCurrentTurnActorId, advanceCombatTurn } from "./combat";
+import { getCurrentTurnActorId } from "./combat";
+import { advanceCombatTurn } from "./combat/advanceCombatTurn";
 import { runNpcTurn } from "./npcAi";
 import type { ContentPack } from "../../content/types";
 

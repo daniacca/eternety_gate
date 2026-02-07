@@ -1,6 +1,7 @@
 import type { Effect, GameSave, StoryPack } from "../../types";
 import { IRNG } from "../../rng";
-import { getCurrentTurnActorId, advanceCombatTurn } from "../combat";
+import { getCurrentTurnActorId } from "../combat";
+import { advanceCombatTurn } from "../combat/advanceCombatTurn";
 import { appendCombatLog } from "../narration";
 import { runNpcTurn } from "../npcAi";
 import type { ContentPack } from "../../../content/types";

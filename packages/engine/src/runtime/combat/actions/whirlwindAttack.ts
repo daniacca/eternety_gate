@@ -20,7 +20,7 @@ export function combatWhirlwindAttack(
   effect: Extract<Effect, { op: "combatWhirlwindAttack" }>,
   storyPack: StoryPack,
   save: GameSave,
-  rng: IRNG
+  rng: IRNG,
 ): { save: GameSave; emittedEffects?: Effect[] } {
   const combat = save.runtime.combat;
   if (!combat?.active) {
@@ -134,14 +134,17 @@ export function combatWhirlwindAttack(
     };
   }
 
-  const wsBonus = catalogs ? getCharacteristicBonus(save, attacker.id, "WS", catalogs) : getCharacteristicBonus(save, attacker.id, "WS");
+  const wsBonus = catalogs
+    ? getCharacteristicBonus(save, attacker.id, "WS", catalogs)
+    : getCharacteristicBonus(save, attacker.id, "WS");
   const maxTargets = Math.max(1, wsBonus);
   const targets = meleeTargets.slice(0, maxTargets);
 
   let weaponId = effect.weaponId ?? getEquippedWeaponId(attacker);
   if (!weaponId || (isNaturalWeaponId(weaponId) && !save.weaponsById?.[weaponId])) {
-    const naturalWeapon =
-      catalogs ? getNaturalWeaponProfile(save, catalogs, attacker.id) : getNaturalWeaponProfileFromActor(attacker);
+    const naturalWeapon = catalogs
+      ? getNaturalWeaponProfile(save, catalogs, attacker.id)
+      : getNaturalWeaponProfileFromActor(attacker);
     if (naturalWeapon) {
       weaponId = naturalWeapon.id;
     }
@@ -165,8 +168,9 @@ export function combatWhirlwindAttack(
   };
 
   if (weaponId && weaponId !== "unarmed" && currentSave.weaponsById?.[weaponId] == null) {
-    const naturalWeapon =
-      catalogs ? getNaturalWeaponProfile(currentSave, catalogs, attacker.id) : getNaturalWeaponProfileFromActor(attacker);
+    const naturalWeapon = catalogs
+      ? getNaturalWeaponProfile(currentSave, catalogs, attacker.id)
+      : getNaturalWeaponProfileFromActor(attacker);
     if (naturalWeapon) {
       currentSave = {
         ...currentSave,
@@ -188,7 +192,7 @@ export function combatWhirlwindAttack(
   const attackerName = attacker.name || effect.attackerId;
   currentSave = appendCombatLog(
     currentSave,
-    attacker.kind === "PC" ? "Ti lanci in una raffica di colpi!" : `${attackerName} si lancia in una raffica di colpi!`
+    attacker.kind === "PC" ? "Ti lanci in una raffica di colpi!" : `${attackerName} si lancia in una raffica di colpi!`,
   );
 
   for (const targetId of targets) {
@@ -214,7 +218,13 @@ export function combatWhirlwindAttack(
     };
 
     const attackResolutionId = `${resolutionId}:${targetId}`;
-    const { result, save: afterCheckSave } = performCheckWithSave(check, storyPack, currentSave, rng, attackResolutionId);
+    const { result, save: afterCheckSave } = performCheckWithSave(
+      check,
+      storyPack,
+      currentSave,
+      rng,
+      attackResolutionId,
+    );
     if (!result) {
       continue;
     }
@@ -242,7 +252,7 @@ export function combatWhirlwindAttack(
       rng,
       storyPack,
       attackResolutionId,
-      catalogs
+      catalogs,
     );
     currentSave = damageResult.save;
 

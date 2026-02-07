@@ -165,7 +165,10 @@ describe("damage", () => {
         ...save,
         actorsById: {
           ...save.actorsById,
-          [defender.id]: { ...defender, equipment: { ...defender.equipment, armor: { kind: "armor" as const, id: "leather" } } },
+          [defender.id]: {
+            ...defender,
+            equipment: { ...defender.equipment, armor: { kind: "armor" as const, id: "leather" } },
+          },
         },
         armorsById: { leather: armor },
       };
@@ -316,7 +319,7 @@ describe("damage", () => {
       const attacker = makeTestActor({ id: "attacker" });
       const defender = makeTestActor({
         id: "defender",
-          resources: { wounds: 0, rf: 100 },
+        resources: { wounds: 0, rf: 100 },
         conditions: { sanctuary: { stacks: 1, params: { auraApplied: true } } },
         stats: { TOU: 0 } as any,
       });
@@ -729,7 +732,7 @@ describe("damage", () => {
     it("should apply critical damage tiers only once when crossing thresholds", () => {
       const storyPack = makeTestStoryPack();
       // Use STR 10 (SB 1) so: roll 2 + SB 1 = 3 damage, roll 1 + SB 1 = 2 damage
-      const attacker = makeTestActor({ 
+      const attacker = makeTestActor({
         id: "attacker",
         stats: { STR: 10 }, // SB 1
       });
@@ -785,8 +788,10 @@ describe("damage", () => {
       expect(damageResult1.save.actorsById[defender.id].resources.criticalDamage).toBe(3);
       expect(damageResult1.save.actorsById[defender.id].resources.criticalTierApplied).toBe(3);
       // Should have fatigue (tier 1) and bleeding (tier 3)
-      const fatigueStacks1 = damageResult1.effects?.filter((e) => e.op === "addCondition" && e.condition === "fatigue").length || 0;
-      const bleedingStacks1 = damageResult1.effects?.filter((e) => e.op === "addCondition" && e.condition === "bleeding").length || 0;
+      const fatigueStacks1 =
+        damageResult1.effects?.filter((e) => e.op === "addCondition" && e.condition === "fatigue").length || 0;
+      const bleedingStacks1 =
+        damageResult1.effects?.filter((e) => e.op === "addCondition" && e.condition === "bleeding").length || 0;
       expect(fatigueStacks1).toBeGreaterThan(0);
       expect(bleedingStacks1).toBe(1);
 
@@ -797,8 +802,10 @@ describe("damage", () => {
       expect(damageResult2.save.actorsById[defender.id].resources.criticalDamage).toBe(5);
       expect(damageResult2.save.actorsById[defender.id].resources.criticalTierApplied).toBe(5);
       // Should NOT reapply tier 1-3 effects (no new fatigue/bleeding)
-      const fatigueStacks2 = damageResult2.effects?.filter((e) => e.op === "addCondition" && e.condition === "fatigue").length || 0;
-      const bleedingStacks2 = damageResult2.effects?.filter((e) => e.op === "addCondition" && e.condition === "bleeding").length || 0;
+      const fatigueStacks2 =
+        damageResult2.effects?.filter((e) => e.op === "addCondition" && e.condition === "fatigue").length || 0;
+      const bleedingStacks2 =
+        damageResult2.effects?.filter((e) => e.op === "addCondition" && e.condition === "bleeding").length || 0;
       expect(fatigueStacks2).toBe(0); // No new fatigue
       expect(bleedingStacks2).toBe(0); // No new bleeding
       // Tier 7: normal Toughness test; fail => die
@@ -1519,10 +1526,7 @@ describe("damage", () => {
           },
         ],
       };
-      const rng = new FakeRng([
-        FakeRng.d100ForNextInt(1, 1, 5),
-        FakeRng.d100ForNextInt(5, 1, 5),
-      ]);
+      const rng = new FakeRng([FakeRng.d100ForNextInt(1, 1, 5), FakeRng.d100ForNextInt(5, 1, 5)]);
 
       const check: CombatAttackCheck = {
         id: "test_check",
@@ -1624,7 +1628,7 @@ describe("damage", () => {
         undefined,
         undefined,
         false,
-        { bonusDamage: 3, bonusPenetration: 3 }
+        { bonusDamage: 3, bonusPenetration: 3 },
       );
 
       expect(damageResult.finalDamage).toBe(4);

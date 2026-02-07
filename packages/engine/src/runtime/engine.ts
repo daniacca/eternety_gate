@@ -2,7 +2,7 @@ import type { StoryPack, GameSave, Party, Actor, Choice, ChoiceId, ActorId, Chec
 import { evaluateConditions } from "./conditions";
 import { RNG } from "./rng";
 import { appendCombatLog } from "./combat/narration";
-import { startCombat, advanceCombatTurn, getCurrentTurnActorId } from "./combat/combat";
+import { startCombat, getCurrentTurnActorId, advanceCombatTurn } from "./combat/combat";
 import { runNpcTurn } from "./combat/npcAi";
 import { distanceChebyshev, clampToGrid } from "./combat/movement";
 import type { ContentPack } from "../content/types";

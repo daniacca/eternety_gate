@@ -8,7 +8,10 @@ import { computeAttackTarget, performCombatAttackCheck } from "../checks/combat"
 import { applyCombatDamageIfHit } from "./damage";
 import { calculateWeaponDamage } from "./equipment";
 
-function makeCombatState(participants: ActorId[], stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">): CombatState {
+function makeCombatState(
+  participants: ActorId[],
+  stancesByActorId?: Record<ActorId, "defend" | "allOut" | "aim">,
+): CombatState {
   const positions = participants.reduce<Record<ActorId, { x: number; y: number }>>((acc, id, index) => {
     acc[id] = { x: index, y: 0 };
     return acc;
@@ -115,7 +118,10 @@ describe("weapon qualities", () => {
       ...save,
       actorsById: {
         ...save.actorsById,
-        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "sword" } } },
+        [defender.id]: {
+          ...defender,
+          equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "sword" } },
+        },
       },
       weaponsById: { whip: flexibleWeapon, sword: parryWeapon },
       runtime: {
@@ -199,7 +205,10 @@ describe("weapon qualities", () => {
       ...save,
       actorsById: {
         ...save.actorsById,
-        [defender.id]: { ...defender, equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "maul" } } },
+        [defender.id]: {
+          ...defender,
+          equipment: { ...defender.equipment, mainHand: { kind: "weapon" as const, id: "maul" } },
+        },
       },
       weaponsById: { maul: unwieldyWeapon },
       runtime: {
@@ -614,7 +623,7 @@ describe("defense selection", () => {
     const { save: afterCheck } = performCombatAttackCheck(check, storyPack, saveWithBoth, rng);
     const runtimeLog = afterCheck.runtime.runtimeLog ?? [];
     const defenseLog = runtimeLog.find(
-      (entry) => entry.kind === "check" && entry.check?.checkId?.includes(":defense:")
+      (entry) => entry.kind === "check" && entry.check?.checkId?.includes(":defense:"),
     );
     expect(defenseLog?.check?.tags?.some((tag) => tag === "combat:defCalc:invisibleAttacker=-15")).toBe(true);
   });

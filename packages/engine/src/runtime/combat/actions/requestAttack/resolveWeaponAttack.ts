@@ -218,9 +218,7 @@ export function resolveWeaponAttack(
   const isMagicFueled = hasWeaponQuality(weaponForQuality, "magic_fueled");
   const magicFueledRank = getWeaponQualityRank(weaponForQuality, "magic_fueled") ?? 1;
   const vengeanceDamageOptions =
-    effect.vengeanceShot && result.success
-      ? { bonusDamage: result.dos, bonusPenetration: result.dos }
-      : undefined;
+    effect.vengeanceShot && result.success ? { bonusDamage: result.dos, bonusPenetration: result.dos } : undefined;
 
   let damageResult = { save: currentSave, didApplyDamage: false, targetKo: false } as ReturnType<
     typeof applyCombatDamageIfHit
