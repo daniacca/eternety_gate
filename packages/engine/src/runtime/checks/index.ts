@@ -22,7 +22,7 @@ function performCheckResult(
   save: GameSave,
   rng: IRNG,
   fateContext?: FateRerollContext,
-  resolutionId?: string
+  resolutionId?: string,
 ): CheckResult {
   switch (check.kind) {
     case "single":
@@ -56,7 +56,7 @@ export function performCheckWithSave(
   storyPack: StoryPack | undefined,
   save: GameSave,
   rng: IRNG,
-  resolutionId?: string
+  resolutionId?: string,
 ): CheckOutcome {
   const fateContext = createFateRerollContext();
   let outcome: CheckOutcome;

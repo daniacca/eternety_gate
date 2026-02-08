@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, SingleCheck, CheckResult } from "../../../types";
+import type { Effect, GameSave, StoryPack, SingleCheck } from "../../../types";
 import type { IRNG } from "../../../rng";
 import { getCurrentTurnActorId } from "../../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../../narration";
@@ -18,6 +18,7 @@ import { hasTrait } from "../../../characters/prerequisites";
 import { getUntouchableAuraImpact } from "../../untouchableAura";
 import { applySpellEffectsForCast } from "./effects";
 import { combatDoubleCastSpell } from "./doubleCast";
+import { applyBlockedCheck, buildBlockedCheck } from "./blockedCheck";
 
 export function combatCastSpell(
   effect: Extract<Effect, { op: "combatCastSpell" }>,
@@ -42,25 +43,12 @@ export function combatCastSpell(
   const turnActorId = getCurrentTurnActorId(save);
   if (!turnActorId || turnActorId !== effect.actorId) {
     // Not caster's turn
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: effect.actorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
-    };
+    const blockedCheck = buildBlockedCheck("combat:castSpell:blocked", effect.actorId, [
+      "combat:blocked=notYourTurn",
+      `combat:turn=${turnActorId || "unknown"}`,
+    ]);
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(save, blockedCheck),
     };
   }
 
@@ -82,47 +70,15 @@ export function combatCastSpell(
     return { save };
   }
   if (actor.conditions?.frenzy) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=frenzy"],
-    };
+    const blockedCheck = buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=frenzy"]);
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(save, blockedCheck),
     };
   }
   if (actor.conditions?.beast_form) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=beastForm"],
-    };
+    const blockedCheck = buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=beastForm"]);
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(save, blockedCheck),
     };
   }
 
@@ -144,59 +100,24 @@ export function combatCastSpell(
   // Check if actor has magic gate trait (unlocks magic actions)
   // Note: Check for "magic:cast" action unlock (trait:weaver grants this)
   if (catalogs && !castOptions?.ignoreWeaverRequirement && !hasUnlockedAction(save, catalogs, turnActorId, "magic:cast")) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=noMagicGate"],
+    const blockedCheck = buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=noMagicGate"]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: "Non puoi lanciare incantesimi: ti manca il tratto magico necessario.",
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: "Non puoi lanciare incantesimi: ti manca il tratto magico necessario.",
-      turnCounter: combat.turnCounter,
-    });
-    return { save: updatedSave };
   }
 
   // Check if spell is learned
   if (!hasLearnedSpell(actor, effect.spellId)) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=spellNotLearned"],
+    const blockedCheck = buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=spellNotLearned"]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: `Non conosci l'incantesimo: ${spell.name}`,
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: `Non conosci l'incantesimo: ${spell.name}`,
-      turnCounter: combat.turnCounter,
-    });
-    // DO NOT consume action or reset channeling on failure
-    return { save: updatedSave };
   }
 
   // Check action economy
@@ -204,122 +125,58 @@ export function combatCastSpell(
     // Free spell: check if already used this turn
     const freeSpellUsed = combat.freeSpellUsedThisTurn?.[turnActorId] ?? false;
     if (freeSpellUsed) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:castSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=freeSpellUsed"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=freeSpellUsed"])
+        ),
       };
     }
   } else {
     // Standard or Full Round: check action availability
     if (!combat.turn.actionAvailable) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:castSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=noAction"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=noAction"])
+        ),
       };
     }
   }
 
   const shockedActor = save.actorsById[turnActorId];
   if (shockedActor?.conditions?.shock && spell.castTime === "fullRound") {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:castSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=shock"],
-    };
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(
+        save,
+        buildBlockedCheck("combat:castSpell:blocked", turnActorId, ["combat:blocked=shock"])
+      ),
     };
   }
 
   let currentSave = save;
   if (castOptions?.magicConduct) {
     if (catalogs && !hasUnlockedAction(save, catalogs, turnActorId, "magic:conduct")) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:castSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=actionNotUnlocked", "magic:conduct=1"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:castSpell:blocked", turnActorId, [
+            "combat:blocked=actionNotUnlocked",
+            "magic:conduct=1",
+          ])
+        ),
       };
     }
     const fatePoints = actor.resources.fatePoints ?? 0;
     if (fatePoints <= 0) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:castSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=noFatePoint", "magic:conduct=1"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:castSpell:blocked", turnActorId, [
+            "combat:blocked=noFatePoint",
+            "magic:conduct=1",
+          ])
+        ),
       };
     }
     currentSave = {

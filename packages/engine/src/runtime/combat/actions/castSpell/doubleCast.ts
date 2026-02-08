@@ -1,4 +1,4 @@
-import type { Effect, GameSave, StoryPack, SingleCheck, CheckResult } from "../../../types";
+import type { Effect, GameSave, StoryPack, SingleCheck } from "../../../types";
 import type { IRNG } from "../../../rng";
 import { getCurrentTurnActorId } from "../../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../../narration";
@@ -18,6 +18,7 @@ import type { TargetSelection } from "../../../targeting/core/types";
 import { hasTrait } from "../../../characters/prerequisites";
 import { getUntouchableAuraImpact } from "../../untouchableAura";
 import { applySpellEffectsForCast } from "./effects";
+import { applyBlockedCheck, buildBlockedCheck } from "./blockedCheck";
 
 export function combatDoubleCastSpell(
   effect: Extract<Effect, { op: "combatCastSpell" }> & { secondarySpellId: string },
@@ -32,25 +33,14 @@ export function combatDoubleCastSpell(
 
   const turnActorId = getCurrentTurnActorId(save);
   if (!turnActorId || turnActorId !== effect.actorId) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: effect.actorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=notYourTurn", `combat:turn=${turnActorId || "unknown"}`],
-    };
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(
+        save,
+        buildBlockedCheck("combat:doubleCastSpell:blocked", effect.actorId, [
+          "combat:blocked=notYourTurn",
+          `combat:turn=${turnActorId || "unknown"}`,
+        ])
+      ),
     };
   }
 
@@ -59,25 +49,11 @@ export function combatDoubleCastSpell(
     return { save };
   }
   if (actor.conditions?.frenzy) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=frenzy"],
-    };
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(
+        save,
+        buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=frenzy"])
+      ),
     };
   }
 
@@ -108,111 +84,46 @@ export function combatDoubleCastSpell(
       : undefined;
 
   if (catalogs && !castOptions?.ignoreWeaverRequirement && !hasUnlockedAction(save, catalogs, turnActorId, "magic:cast")) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=noMagicGate"],
+    const blockedCheck = buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=noMagicGate"]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: "Non puoi lanciare incantesimi: ti manca il tratto magico necessario.",
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: "Non puoi lanciare incantesimi: ti manca il tratto magico necessario.",
-      turnCounter: combat.turnCounter,
-    });
-    return { save: updatedSave };
   }
 
   if (catalogs && !hasUnlockedAction(save, catalogs, turnActorId, "magic:doubleCast")) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=actionNotUnlocked", "magic:doubleCast=1"],
+    const blockedCheck = buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, [
+      "combat:blocked=actionNotUnlocked",
+      "magic:doubleCast=1",
+    ]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: "Non puoi lanciare un doppio incantesimo: azione non sbloccata.",
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: "Non puoi lanciare un doppio incantesimo: azione non sbloccata.",
-      turnCounter: combat.turnCounter,
-    });
-    return { save: updatedSave };
   }
 
   if (!hasLearnedSpell(actor, primarySpell.id)) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=spellNotLearned"],
+    const blockedCheck = buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=spellNotLearned"]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: `Non conosci l'incantesimo: ${primarySpell.name}`,
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: `Non conosci l'incantesimo: ${primarySpell.name}`,
-      turnCounter: combat.turnCounter,
-    });
-    return { save: updatedSave };
   }
 
   if (!hasLearnedSpell(actor, secondarySpell.id)) {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=spellNotLearned"],
+    const blockedCheck = buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=spellNotLearned"]);
+    return {
+      save: applyBlockedCheck(save, blockedCheck, {
+        message: `Non conosci l'incantesimo: ${secondarySpell.name}`,
+        turnCounter: combat.turnCounter,
+      }),
     };
-    let updatedSave: GameSave = {
-      ...save,
-      runtime: {
-        ...save.runtime,
-        lastCheck: blockedCheck,
-      },
-    };
-    updatedSave = appendRuntimeLog(updatedSave, {
-      kind: "system",
-      message: `Non conosci l'incantesimo: ${secondarySpell.name}`,
-      turnCounter: combat.turnCounter,
-    });
-    return { save: updatedSave };
   }
 
   if (primaryEffectDef.kind !== secondaryEffectDef.kind) {
@@ -246,120 +157,56 @@ export function combatDoubleCastSpell(
   if (actionCastTime === "free") {
     const freeSpellUsed = combat.freeSpellUsedThisTurn?.[turnActorId] ?? false;
     if (freeSpellUsed) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:doubleCastSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=freeSpellUsed"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=freeSpellUsed"])
+        ),
       };
     }
   } else {
     if (!combat.turn.actionAvailable) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:doubleCastSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=noAction"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=noAction"])
+        ),
       };
     }
   }
 
   if (actor.conditions?.shock && actionCastTime === "fullRound") {
-    const blockedCheck: CheckResult = {
-      checkId: "combat:doubleCastSpell:blocked",
-      actorId: turnActorId,
-      roll: 0,
-      target: 0,
-      success: false,
-      dos: 0,
-      dof: 0,
-      critical: "none",
-      tags: ["combat:blocked=shock"],
-    };
     return {
-      save: {
-        ...save,
-        runtime: {
-          ...save.runtime,
-          lastCheck: blockedCheck,
-        },
-      },
+      save: applyBlockedCheck(
+        save,
+        buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, ["combat:blocked=shock"])
+      ),
     };
   }
 
   let currentSave = save;
   if (castOptions?.magicConduct) {
     if (catalogs && !hasUnlockedAction(save, catalogs, turnActorId, "magic:conduct")) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:doubleCastSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=actionNotUnlocked", "magic:conduct=1"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, [
+            "combat:blocked=actionNotUnlocked",
+            "magic:conduct=1",
+          ])
+        ),
       };
     }
     const fatePoints = actor.resources.fatePoints ?? 0;
     if (fatePoints <= 0) {
-      const blockedCheck: CheckResult = {
-        checkId: "combat:doubleCastSpell:blocked",
-        actorId: turnActorId,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=noFatePoint", "magic:conduct=1"],
-      };
       return {
-        save: {
-          ...save,
-          runtime: {
-            ...save.runtime,
-            lastCheck: blockedCheck,
-          },
-        },
+        save: applyBlockedCheck(
+          save,
+          buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, [
+            "combat:blocked=noFatePoint",
+            "magic:conduct=1",
+          ])
+        ),
       };
     }
     currentSave = {

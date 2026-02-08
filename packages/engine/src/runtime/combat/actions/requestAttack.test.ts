@@ -79,18 +79,17 @@ function prepareCombatSave(storyPack: StoryPack, attacker: Actor, defender: Acto
     armors: [],
   };
 
-  const baseSave = createNewGame(storyPack, 123, party, { [attacker.id]: attacker, [defender.id]: defender }, contentPack);
-  const combatSave = startCombat(
+  const baseSave = createNewGame(
     storyPack,
-    baseSave,
-    [attacker.id, defender.id],
-    undefined,
-    { width: 6, height: 6 },
-    [
-      { actorId: attacker.id, x: 0, y: 0 },
-      { actorId: defender.id, x: 3, y: 0 },
-    ]
+    123,
+    party,
+    { [attacker.id]: attacker, [defender.id]: defender },
+    contentPack,
   );
+  const combatSave = startCombat(storyPack, baseSave, [attacker.id, defender.id], undefined, { width: 6, height: 6 }, [
+    { actorId: attacker.id, x: 0, y: 0 },
+    { actorId: defender.id, x: 3, y: 0 },
+  ]);
 
   const combat = combatSave.runtime.combat!;
   const attackerIndex = combat.participants.indexOf(attacker.id);
@@ -157,7 +156,7 @@ function prepareAoECombatSave(storyPack: StoryPack, actors: Actor[]) {
       { actorId: "PC_2", x: 1, y: 0 },
       { actorId: "NPC_1", x: 2, y: 0 },
       { actorId: "NPC_2", x: 2, y: 1 },
-    ]
+    ],
   );
 
   const combat = combatSave.runtime.combat!;
@@ -386,8 +385,7 @@ describe("combatRequestAttack recharge quality", () => {
 
     const first = combatRequestAttack(effect, storyPack, save, rng);
     const combat = first.save.runtime.combat!;
-    const rechargeUntil =
-      combat.weaponRechargeUntilTurnCounterByActorId?.[attacker.id]?.["recharge_bow"];
+    const rechargeUntil = combat.weaponRechargeUntilTurnCounterByActorId?.[attacker.id]?.["recharge_bow"];
     expect(rechargeUntil).toBe((combat.turnCounter ?? 0) + 2);
 
     const saveWithActionReset = {
@@ -412,7 +410,7 @@ describe("combatRequestAttack recharge quality", () => {
         ...first.save.runtime,
         combat: {
           ...combat,
-          turnCounter: rechargeUntil ?? (combat.turnCounter ?? 0),
+          turnCounter: rechargeUntil ?? combat.turnCounter ?? 0,
           turn: {
             ...combat.turn,
             actionAvailable: true,
@@ -502,9 +500,9 @@ describe("combatRequestAttack Word of God", () => {
     const check = {
       id: "word_of_god_check",
       kind: "combatAttack" as const,
-      attacker: { actorRef: { mode: "byId", actorId: attacker.id }, mode: "MELEE" },
-      defender: { actorRef: { mode: "byId", actorId: defender.id } },
-      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" },
+      attacker: { actorRef: { mode: "byId" as const, actorId: attacker.id }, mode: "MELEE" as const },
+      defender: { actorRef: { mode: "byId" as const, actorId: defender.id } },
+      defense: { allowParry: true, allowDodge: true, strategy: "autoBest" as const },
     };
 
     const { result } = performCombatAttackCheck(check, storyPack, save, rng);
