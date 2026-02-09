@@ -1,4 +1,5 @@
 import type { StatKey } from "../types";
+import type { HookDefinition } from "../hooks/types";
 import type { Prerequisite } from "../../content/catalogs";
 
 /**
@@ -39,6 +40,7 @@ export type SpellDefinition = {
   notes?: string;
   xpCost: number; // XP cost to learn this spell
   prerequisites?: Prerequisite[]; // Prerequisites to learn this spell
+  hooks?: HookDefinition[];
 };
 
 /**
@@ -95,6 +97,7 @@ export type EffectDefinition = {
   }; // Temporary modifier with duration
   specialOp?: string; // Special operation (e.g., "combatDisarmAtRange")
   description?: string;
+  hooks?: HookDefinition[];
 };
 
 /**

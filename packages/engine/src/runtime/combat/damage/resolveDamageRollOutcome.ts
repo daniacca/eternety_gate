@@ -1,4 +1,4 @@
-import type { Actor, CheckResult, GameSave, WeaponId } from "../../types";
+import type { Actor, GameSave, WeaponId } from "../../types";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import type { IRNG } from "../../rng";
 import { consumeFateProtection, isFateProtectionActive } from "../../characters/fate";
@@ -11,14 +11,15 @@ export function resolveDamageRollOutcome(params: {
   weaponId: WeaponId | "unarmed" | "improvised" | null;
   mode: "MELEE" | "RANGED";
   rollsCount: number;
-  result: CheckResult;
   rng: IRNG;
   catalogs?: CharacterCatalogs;
   resolutionId?: string;
-  isUnarmed: boolean;
   useFallbackWeapon: boolean;
-  hasUnarmedSpecialist: boolean;
   rollMode: "best" | "worst" | "normal";
+  extraDice: number;
+  rerollOnes: boolean;
+  allowFateReroll: boolean;
+  fateRerollThreshold: number;
 }): {
   updatedSave: GameSave;
   outcome: ReturnType<typeof rollWeaponDamage>["outcome"];
@@ -32,14 +33,15 @@ export function resolveDamageRollOutcome(params: {
     weaponId,
     mode,
     rollsCount,
-    result,
     rng,
     catalogs,
     resolutionId,
-    isUnarmed,
     useFallbackWeapon,
-    hasUnarmedSpecialist,
     rollMode,
+    extraDice,
+    rerollOnes,
+    allowFateReroll,
+    fateRerollThreshold,
   } = params;
 
   let nextSave = updatedSave;
@@ -55,13 +57,12 @@ export function resolveDamageRollOutcome(params: {
       weaponId,
       mode,
       rollsCount,
-      result,
       rng,
       catalogs,
       resolutionId,
-      isUnarmed,
       useFallbackWeapon,
-      hasUnarmedSpecialist,
+      extraDice,
+      rerollOnes,
     },
     accurateLogged,
   );
@@ -78,13 +79,12 @@ export function resolveDamageRollOutcome(params: {
         weaponId,
         mode,
         rollsCount,
-        result,
         rng,
         catalogs,
         resolutionId,
-        isUnarmed,
         useFallbackWeapon,
-        hasUnarmedSpecialist,
+        extraDice,
+        rerollOnes,
       },
       accurateLogged,
     );
@@ -100,7 +100,7 @@ export function resolveDamageRollOutcome(params: {
     }
   }
 
-  if (isFateProtectionActive(attacker) && damageOutcome.rawDamage === 1) {
+  if (allowFateReroll && isFateProtectionActive(attacker) && damageOutcome.rawDamage === fateRerollThreshold) {
     const consumeResult = consumeFateProtection(nextSave, attacker.id);
     if (consumeResult.consumed) {
       nextSave = consumeResult.save;
@@ -114,13 +114,12 @@ export function resolveDamageRollOutcome(params: {
           weaponId,
           mode,
           rollsCount,
-          result,
           rng,
           catalogs,
           resolutionId,
-          isUnarmed,
           useFallbackWeapon,
-          hasUnarmedSpecialist,
+          extraDice,
+          rerollOnes,
         },
         accurateLogged,
       );

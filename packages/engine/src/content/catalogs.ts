@@ -1,4 +1,5 @@
-import type { StatKey } from "../runtime/types";
+import type { StatKey, ConditionId } from "../runtime/types";
+import type { HookDefinition } from "../runtime/hooks/types";
 
 export type SkillId = string;
 export type TalentId = string;
@@ -53,6 +54,7 @@ export type Talent = {
   chosenParam?: TalentChosenParam;
   // Unique key to prevent stacking same choices (e.g., "resistance:<type>")
   uniquenessKey?: string;
+  hooks?: HookDefinition[];
 };
 
 export type TraitParams = Record<string, any>;
@@ -62,6 +64,7 @@ export type Trait = {
   name: string;
   grants: Grant[];
   params?: Record<string, { type: string; required?: boolean; min?: number; max?: number }>;
+  hooks?: HookDefinition[];
 };
 
 export type WeaponQuality = {
@@ -69,7 +72,14 @@ export type WeaponQuality = {
   name: string;
   description: string;
   paramsSchema?: Record<string, { type: string; required?: boolean; min?: number; max?: number }>;
-  hooks?: string[];
+  hooks?: HookDefinition[];
+};
+
+export type ConditionDefinition = {
+  id: ConditionId;
+  name?: string;
+  description?: string;
+  hooks?: HookDefinition[];
 };
 
 export type CharacterCatalogs = {

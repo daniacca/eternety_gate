@@ -9,11 +9,12 @@ import { computeFinalAliveParticipants } from "./computeFinalAliveParticipants";
 import { computeNextTurnSelection } from "./computeNextTurnSelection";
 import { resetStancesForNewTurn } from "./resetStancesForNewTurn";
 import { updateLastCheckForNewTurn } from "./updateLastCheckForNewTurn";
-import { applyStunnedEffect } from "./applyStunnedEffect";
-import { applyBleedingEffect } from "./applyBleedingEffect";
-import { handleBoundEscape } from "./handleBoundEscape";
-import { handleSpiritualInstability } from "./handleSpiritualInstability";
-import { removeExpiredConditions } from "./removeExpiredConditions";
+import { handleDeathAfterDamage } from "./handleDeathAfterDamage";
+import { runHooks } from "../../../hooks";
+import { RNG } from "../../../rng";
+import { buildTurnStartFacts } from "../../../hooks/facts";
+import { calculateMaxHp } from "../../../characters/hp";
+import { addConditionToActor } from "../../../conditions";
 
 /**
  * Advances combat turn, removes KO participants, and ends combat if needed
@@ -127,68 +128,81 @@ export function advanceCombatTurn(save: GameSave, storyPack?: StoryPack): GameSa
     const isPlayerActor = currentActor.kind === "PC";
     const actorName = currentActor.name || currentTurnActorId;
 
-    const stunnedResult = applyStunnedEffect(updatedSave, currentTurnActorId, newTurnCounter, newTurnState);
-    updatedSave = stunnedResult.updatedSave;
-    newTurnState = stunnedResult.newTurnState;
+    const rng = new RNG(updatedSave.runtime.rngSeed, updatedSave.runtime.rngCounter ?? 0);
+    const maxHpBefore = catalogs ? calculateMaxHp(updatedSave, currentActor, catalogs) : currentActor.derived?.hpMax ?? 100;
+    const woundsBefore = currentActor.resources.wounds ?? 0;
+    const hpBefore = maxHpBefore - woundsBefore;
+    const hadBleeding = Boolean(currentActor.conditions?.bleeding);
 
-    const bleedingResult = applyBleedingEffect({
-      updatedSave,
-      currentActor,
-      currentTurnActorId,
-      last,
-      prevActorId,
-      storyPack,
-      isPlayerActor,
-      actorName,
-      advanceFn: (nextSave) => advanceCombatTurn(nextSave, storyPack),
-    });
-    if (bleedingResult.earlyReturn) {
-      return bleedingResult.earlyReturn;
-    }
-    updatedSave = bleedingResult.updatedSave;
-    currentActor = bleedingResult.currentActor;
-
-    const boundResult = handleBoundEscape({
-      updatedSave,
-      currentActor,
-      currentTurnActorId,
-      newTurnCounter,
-      newTurnState,
-      storyPack,
-      isPlayerActor,
-      actorName,
-    });
-    updatedSave = boundResult.updatedSave;
-    currentActor = boundResult.currentActor;
-    newTurnState = boundResult.newTurnState;
-
-    const spiritualResult = handleSpiritualInstability({
-      updatedSave,
-      currentActor,
-      currentTurnActorId,
-      newTurnCounter,
+    const turnStartHooks = runHooks("turn-start", {
+      save: updatedSave,
       storyPack,
       catalogs,
-      last,
-      prevActorId,
-      isPlayerActor,
-      actorName,
-      advanceFn: (nextSave) => advanceCombatTurn(nextSave, storyPack),
+      rng,
+      defender: currentActor,
+      turnCounter: newTurnCounter,
+      facts: buildTurnStartFacts({ save: updatedSave, actor: currentActor, turnCounter: newTurnCounter, catalogs }),
     });
-    if (spiritualResult.earlyReturn) {
-      return spiritualResult.earlyReturn;
+    updatedSave = turnStartHooks.save;
+    if (turnStartHooks.turnStateOverride) {
+      newTurnState = {
+        ...newTurnState,
+        ...turnStartHooks.turnStateOverride,
+      };
     }
-    updatedSave = spiritualResult.updatedSave;
-    currentActor = spiritualResult.currentActor;
+    if (turnStartHooks.effects.length > 0) {
+      for (const effect of turnStartHooks.effects) {
+        if (effect.op === "addCondition") {
+          const actorToUpdate = updatedSave.actorsById[effect.actorId];
+          if (actorToUpdate) {
+            const updatedActorWithCondition = addConditionToActor(
+              actorToUpdate,
+              effect.condition,
+              effect.stacks,
+              effect.durationTurns,
+              effect.source,
+            );
+            updatedSave = {
+              ...updatedSave,
+              actorsById: {
+                ...updatedSave.actorsById,
+                [effect.actorId]: updatedActorWithCondition,
+              },
+            };
+          }
+        }
+      }
+    }
+    currentActor = updatedSave.actorsById[currentTurnActorId] ?? currentActor;
 
-    const removalResult = removeExpiredConditions({
-      updatedSave,
-      currentActor,
-      currentTurnActorId,
-      newTurnCounter,
-    });
-    updatedSave = removalResult.updatedSave;
-    currentActor = removalResult.currentActor;
+    if (hadBleeding) {
+      const maxHpAfter = catalogs ? calculateMaxHp(updatedSave, currentActor, catalogs) : currentActor.derived?.hpMax ?? 100;
+      const hpAfter = maxHpAfter - (currentActor.resources.wounds ?? 0);
+      if (hpAfter === 0 && hpBefore > 0) {
+        const criticalLog = isPlayerActor
+          ? "Sei entrato nella traccia del danno critico!"
+          : `${actorName} è entrato nella traccia del danno critico!`;
+        updatedSave = appendCombatLog(updatedSave, criticalLog);
+      }
+    }
+
+    if (turnStartHooks.actorDied) {
+      const deathResult = handleDeathAfterDamage({
+        updatedSave,
+        currentTurnActorId,
+        prevActorId,
+        last,
+        storyPack,
+        isPlayerActor,
+        actorName,
+        advanceFn: (nextSave) => advanceCombatTurn(nextSave, storyPack),
+      });
+      if (deathResult) {
+        return deathResult;
+      }
+    }
+
+    currentActor = updatedSave.actorsById[currentTurnActorId] ?? currentActor;
   }
 
   const updatedStancesByActorId = resetStancesForNewTurn(combat, prevActorId, currentTurnActorId);

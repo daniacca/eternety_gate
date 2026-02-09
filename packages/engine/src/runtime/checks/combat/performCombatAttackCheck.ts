@@ -5,7 +5,6 @@ import { resolveActor } from "../resolve";
 import { computeTargetBreakdown } from "../target";
 import { rollD100CheckWithFate, type FateRerollContext, createFateRerollContext } from "../fate";
 import { hasCondition } from "../../conditions";
-import { getStatOrSkillValue } from "../values";
 import { getEquippedWeaponId } from "../../characters/inventory";
 import { footprintDistanceBetweenActors } from "../../combat/footprint";
 import { appendCombatLog, appendRuntimeLog } from "../../combat/narration";
@@ -19,6 +18,8 @@ import { getShieldMasteryParryBonus } from "../../characters/talentModifiers";
 import { getUnnaturalSenseRange, isActorBlind } from "./utils";
 import { computeAttackTarget } from "./computeAttackTarget";
 import { resolveAttackStatKey } from "./resolveAttackStatKey";
+import { runHooks } from "../../hooks";
+import { buildCombatCheckFacts } from "../../hooks/facts";
 
 /**
  * Performs a combat attack check and returns the result and the updated game save.
@@ -45,69 +46,6 @@ export function performCombatAttackCheck(
 
   let updatedSave = save;
 
-  const wordOfGod = defender.conditions?.word_of_god;
-  if (wordOfGod?.params?.auraApplied) {
-    const wilBonus = typeof wordOfGod.params?.wilBonus === "number" ? wordOfGod.params.wilBonus : 0;
-    const overcast = typeof wordOfGod.params?.overcast === "number" ? wordOfGod.params.overcast : 0;
-    const penalty = -2 * wilBonus - 2 * overcast;
-    const targetValue = getStatOrSkillValue(attacker, "WIL", save, storyPack);
-    const preCheckContext = createFateRerollContext();
-    const preCheck = rollD100CheckWithFate(
-      `combat:wordOfGod:${attacker.id}:${defender.id}`,
-      attacker.id,
-      targetValue + penalty,
-      storyPack,
-      save,
-      rng,
-      preCheckContext,
-    );
-    if (!preCheck) {
-      return { result: null, save: updatedSave };
-    }
-    if (preCheckContext.used && preCheckContext.actorId) {
-      updatedSave = consumeFateProtection(updatedSave, preCheckContext.actorId).save;
-    }
-    if (!preCheck.success) {
-      updatedSave = appendCombatLog(updatedSave, "La Parola di Dio respinge l'attacco.");
-      return {
-        result: {
-          checkId: check.id,
-          actorId: attacker.id,
-          roll: preCheck.roll,
-          target: preCheck.target,
-          success: false,
-          dos: preCheck.dos,
-          dof: preCheck.dof,
-          critical: preCheck.critical,
-          tags: [...preCheck.tags, "combat:blocked=wordOfGod"],
-        },
-        save: updatedSave,
-      };
-    }
-  }
-
-  const combatDistance = footprintDistanceBetweenActors(save, attacker.id, defender.id);
-  const attackerSenseRange = getUnnaturalSenseRange(attacker);
-  const attackerBlindActive =
-    isActorBlind(attacker) && (attackerSenseRange <= 0 || combatDistance > attackerSenseRange);
-  if (check.attacker.mode === "RANGED" && attackerBlindActive) {
-    updatedSave = appendCombatLog(updatedSave, "Sei accecato e non riesci a mirare.");
-    return {
-      result: {
-        checkId: check.id,
-        actorId: attacker.id,
-        roll: 0,
-        target: 0,
-        success: false,
-        dos: 0,
-        dof: 0,
-        critical: "none",
-        tags: ["combat:blocked=blind"],
-      },
-      save: updatedSave,
-    };
-  }
-
   // Load catalogs for talent modifiers
   const catalogs: CharacterCatalogs | undefined =
     storyPack?.skills || storyPack?.talents || storyPack?.traits
@@ -120,6 +58,22 @@ export function performCombatAttackCheck(
           traits: storyPack.traits || [],
         })
       : undefined;
+
+  const preHookResult = runHooks("pre-check", {
+    save: updatedSave,
+    storyPack,
+    rng,
+    check,
+    attacker,
+    defender,
+    facts: buildCombatCheckFacts({ check, attacker, defender, save: updatedSave, storyPack, catalogs }),
+  });
+  updatedSave = preHookResult.save;
+  if (preHookResult.checkResult !== undefined) {
+    return { result: preHookResult.checkResult, save: updatedSave };
+  }
+
+  const combatDistance = footprintDistanceBetweenActors(save, attacker.id, defender.id);
 
   // Compute attack target using centralized function
   const {

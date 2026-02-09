@@ -2,7 +2,8 @@ import type { ActorId, CheckResult, GameSave, StoryPack } from "../types";
 import type { IRNG } from "../rng";
 import { evaluateRoll } from "./evaluation";
 import { isFateProtectionActive } from "../characters/fate";
-import { hasCondition } from "../conditions";
+import { runHooks } from "../hooks";
+import { buildActorFacts, buildPostCheckFacts } from "../hooks/facts";
 
 export type FateRerollContext = {
   used: boolean;
@@ -34,7 +35,7 @@ export function rollD100CheckWithFate(
   rng: IRNG,
   context?: FateRerollContext
 ): CheckResult {
-  const rollMode = getRollMode(save, actorId);
+  const rollMode = getRollMode(save, actorId, storyPack);
   const firstRoll = rollD100WithMode(rng, rollMode);
   const firstResult = evaluateRoll(firstRoll.roll, target, storyPack, checkId, actorId);
 
@@ -53,21 +54,26 @@ export function rollD100CheckWithFate(
       if (reroll.tags.length > 0) {
         rerollResult.tags.push(...reroll.tags);
       }
+      applyPostCheckTags(save, storyPack, actorId, rerollResult);
       markFateUsed(context, actorId);
       return rerollResult;
     }
   }
 
+  applyPostCheckTags(save, storyPack, actorId, firstResult);
   return firstResult;
 }
 
-function getRollMode(save: GameSave, actorId: ActorId): "best" | "worst" | "normal" {
+function getRollMode(save: GameSave, actorId: ActorId, storyPack: StoryPack | undefined): "best" | "worst" | "normal" {
   const actor = save.actorsById[actorId];
   if (!actor) return "normal";
-  const hasPrecognition = hasCondition(actor, "precognition");
-  const hasMisfortune = hasCondition(actor, "misfortune");
-  if (hasPrecognition && !hasMisfortune) return "best";
-  if (hasMisfortune && !hasPrecognition) return "worst";
+  const hookResult = runHooks("pre-check", {
+    save,
+    storyPack,
+    attacker: actor,
+    facts: buildActorFacts("attacker", actor),
+  });
+  if (hookResult.rollMode) return hookResult.rollMode;
   return "normal";
 }
 
@@ -84,4 +90,25 @@ function rollD100WithMode(
   const roll = mode === "best" ? Math.min(rollA, rollB) : Math.max(rollA, rollB);
   const tagPrefix = mode === "best" ? "roll:advantage" : "roll:disadvantage";
   return { roll, tags: [tagPrefix, `${tagPrefix}:rolls=${rollA},${rollB}`] };
+}
+
+function applyPostCheckTags(
+  save: GameSave,
+  storyPack: StoryPack | undefined,
+  actorId: ActorId,
+  result: CheckResult | null
+): void {
+  if (!result) return;
+  const actor = save.actorsById[actorId];
+  if (!actor) return;
+  const hookResult = runHooks("post-check", {
+    save,
+    storyPack,
+    attacker: actor,
+    result,
+    facts: buildPostCheckFacts(result),
+  });
+  if (hookResult.tags.length > 0) {
+    result.tags.push(...hookResult.tags);
+  }
 }

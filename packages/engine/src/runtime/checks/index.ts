@@ -10,6 +10,8 @@ import { performCombatAttackCheck } from "./combat";
 import { appendRuntimeLog } from "../combat/narration";
 import { createFateRerollContext, type FateRerollContext } from "./fate";
 import { consumeFateProtection } from "../characters/fate";
+import { runHooks } from "../hooks";
+import { buildPostCheckFacts } from "../hooks/facts";
 
 /**
  * Outcome of a check execution, including the result and updated save state
@@ -58,6 +60,7 @@ export function performCheckWithSave(
   rng: IRNG,
   resolutionId?: string,
 ): CheckOutcome {
+  runHooks("pre-check", { save, storyPack, rng, check, facts: { "check.kind": check.kind } });
   const fateContext = createFateRerollContext();
   let outcome: CheckOutcome;
 
@@ -105,10 +108,28 @@ export function performCheckWithSave(
   // Centralized logging: log check if party member performed it
   // This applies to ALL check kinds (attack, parry/dodge, knockdown, disarm, narrative, magic, etc.)
   // Defense checks are already logged inside performCombatAttackCheck when defender is party member
-  const updatedSave = logCheckIfPartyMember(outcome.save, outcome.result, resolutionId);
+  let updatedSave = logCheckIfPartyMember(outcome.save, outcome.result, resolutionId);
+
+  const postHookResult = runHooks("post-check", {
+    save: updatedSave,
+    storyPack,
+    rng,
+    check,
+    result: outcome.result,
+    facts: outcome.result ? buildPostCheckFacts(outcome.result) : undefined,
+  });
+  updatedSave = postHookResult.save;
+
+  const updatedResult =
+    outcome.result && postHookResult.tags.length > 0
+      ? {
+          ...outcome.result,
+          tags: [...outcome.result.tags, ...postHookResult.tags],
+        }
+      : outcome.result;
 
   return {
-    result: outcome.result,
+    result: updatedResult,
     save: updatedSave,
   };
 }

@@ -5,6 +5,7 @@ import { advanceCombatTurn } from "../combat/advanceCombatTurn";
 import { appendCombatLog } from "../narration";
 import { runNpcTurn } from "../npcAi";
 import type { ContentPack } from "../../../content/types";
+import { runHooks } from "../../hooks";
 
 /**
  * Ends the current turn and advances to next actor, running NPC turns until player's turn
@@ -45,6 +46,15 @@ export function combatEndTurn(
       combatCycleStartIndex: cycleStart,
     },
   };
+
+  runHooks("turn-end", {
+    save: currentSave,
+    storyPack,
+    rng,
+    attacker: actor,
+    turnCounter: currentSave.runtime.combat?.turnCounter ?? 0,
+  });
+
   currentSave = advanceCombatTurn(currentSave, storyPack);
 
   // Loop: run NPC turns until it's a player-controlled turn

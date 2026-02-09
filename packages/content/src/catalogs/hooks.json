@@ -1,0 +1,1077 @@
+[
+  {
+    "id": "hook:check:precognition",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "attacker.condition.precognition", "op": "truthy" },
+        { "fact": "attacker.condition.misfortune", "op": "falsy" }
+      ]
+    },
+    "effects": [{ "op": "setRollMode", "mode": "best" }]
+  },
+  {
+    "id": "hook:check:misfortune",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "attacker.condition.misfortune", "op": "truthy" },
+        { "fact": "attacker.condition.precognition", "op": "falsy" }
+      ]
+    },
+    "effects": [{ "op": "setRollMode", "mode": "worst" }]
+  },
+  {
+    "id": "hook:combat:wordOfGodGate",
+    "type": "pre-check",
+    "ref": { "type": "condition", "id": "word_of_god" },
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.wordOfGodActive", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "gateCheck",
+        "actor": "attacker",
+        "key": "WIL",
+        "modifierRef": "combat.wordOfGodPenalty",
+        "failTag": "combat:blocked=wordOfGod",
+        "failLog": "La Parola di Dio respinge l'attacco."
+      }
+    ]
+  },
+  {
+    "id": "hook:combat:blindRangedBlock",
+    "type": "pre-check",
+    "ref": { "type": "condition", "id": "blind" },
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.blindRangedBlocked", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      { "op": "blockCheck", "reason": "blind" },
+      { "op": "logMessage", "message": "Sei accecato e non riesci a mirare." }
+    ]
+  },
+  {
+    "id": "hook:combat:outnumbering:3",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.outnumbering", "op": "gte", "value": 3 }
+      ],
+      "none": [{ "fact": "defender.talentHook.multiFight", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": 20 },
+      { "op": "addTag", "tag": "combat:mod:outnumbering=+20" }
+    ]
+  },
+  {
+    "id": "hook:combat:outnumbering:2",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.outnumbering", "op": "gte", "value": 2 },
+        { "fact": "combat.outnumbering", "op": "lt", "value": 3 }
+      ],
+      "none": [{ "fact": "defender.talentHook.multiFight", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": 10 },
+      { "op": "addTag", "tag": "combat:mod:outnumbering=+10" }
+    ]
+  },
+  {
+    "id": "hook:combat:outnumbering:multiFight",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.outnumbering", "op": "gte", "value": 2 },
+        { "fact": "defender.talentHook.multiFight", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:outnumbering=+0 (Multi Fight)" }]
+  },
+  {
+    "id": "hook:combat:rangeBand:pointBlank",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "POINT_BLANK" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": 30 },
+      { "op": "addTag", "tag": "combat:mod:rangeBand:POINT_BLANK=+30" }
+    ]
+  },
+  {
+    "id": "hook:combat:rangeBand:short",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "SHORT" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": 20 },
+      { "op": "addTag", "tag": "combat:mod:rangeBand:SHORT=+20" }
+    ]
+  },
+  {
+    "id": "hook:combat:rangeBand:normal",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "NORMAL" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:rangeBand:NORMAL=+0" }]
+  },
+  {
+    "id": "hook:combat:rangeBand:long",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "LONG" }
+      ],
+      "none": [{ "fact": "attacker.marksman", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -20 },
+      { "op": "addTag", "tag": "combat:mod:rangeBand:LONG=-20" }
+    ]
+  },
+  {
+    "id": "hook:combat:rangeBand:long:marksman",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "LONG" },
+        { "fact": "attacker.marksman", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:rangeBand:LONG=+0 (Marksman)" }]
+  },
+  {
+    "id": "hook:combat:rangeBand:extreme",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "EXTREME" }
+      ],
+      "none": [{ "fact": "attacker.marksman", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -40 },
+      { "op": "addTag", "tag": "combat:mod:rangeBand:EXTREME=-40" }
+    ]
+  },
+  {
+    "id": "hook:combat:rangeBand:extreme:marksman",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.rangeBand", "op": "eq", "value": "EXTREME" },
+        { "fact": "attacker.marksman", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:rangeBand:EXTREME=+0 (Marksman)" }]
+  },
+  {
+    "id": "hook:combat:cover:perfectTiming",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "in", "value": ["LIGHT", "HEAVY"] },
+        { "fact": "attacker.condition.perfect_timing", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tagRef": "tag.combat.coverPerfectTiming" }]
+  },
+  {
+    "id": "hook:combat:cover:light",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "eq", "value": "LIGHT" }
+      ],
+      "none": [
+        { "fact": "attacker.condition.perfect_timing", "op": "truthy" },
+        { "fact": "attacker.deadeye", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -10 },
+      { "op": "addTag", "tag": "combat:mod:cover:LIGHT=-10" }
+    ]
+  },
+  {
+    "id": "hook:combat:cover:light:deadeye",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "eq", "value": "LIGHT" },
+        { "fact": "attacker.deadeye", "op": "truthy" }
+      ],
+      "none": [{ "fact": "attacker.condition.perfect_timing", "op": "truthy" }]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:cover:LIGHT=+0 (Deadeye)" }]
+  },
+  {
+    "id": "hook:combat:cover:heavy",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "eq", "value": "HEAVY" }
+      ],
+      "none": [
+        { "fact": "attacker.condition.perfect_timing", "op": "truthy" },
+        { "fact": "attacker.deadeye", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -20 },
+      { "op": "addTag", "tag": "combat:mod:cover:HEAVY=-20" }
+    ]
+  },
+  {
+    "id": "hook:combat:cover:heavy:deadeye",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "eq", "value": "HEAVY" },
+        { "fact": "attacker.deadeye", "op": "truthy" }
+      ],
+      "none": [{ "fact": "attacker.condition.perfect_timing", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -10 },
+      { "op": "addTag", "tag": "combat:mod:cover:HEAVY=-10 (Deadeye)" }
+    ]
+  },
+  {
+    "id": "hook:combat:cover:none",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.cover", "op": "eq", "value": "NONE" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tag": "combat:mod:cover:NONE=+0" }]
+  },
+  {
+    "id": "hook:combat:calledShot:head",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.calledShot", "op": "truthy" },
+        { "fact": "combat.calledShotZone", "op": "eq", "value": "head" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -30 },
+      { "op": "addTag", "tag": "combat:mod:calledShot=-30" },
+      { "op": "addTag", "tagRef": "tag.combat.calledShotZone" }
+    ]
+  },
+  {
+    "id": "hook:combat:calledShot:body",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.calledShot", "op": "truthy" },
+        { "fact": "combat.calledShotZone", "op": "neq", "value": "head" }
+      ]
+    },
+    "effects": [
+      { "op": "addCheckTargetMod", "value": -20 },
+      { "op": "addTag", "tag": "combat:mod:calledShot=-20" },
+      { "op": "addTag", "tagRef": "tag.combat.calledShotZone" }
+    ]
+  },
+  {
+    "id": "hook:combat:aim:bonus",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "check.kind", "op": "eq", "value": "combatAttack" },
+        { "fact": "combat.aimBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addCheckTargetMod", "valueRef": "combat.aimBonus" }]
+  },
+  {
+    "id": "hook:combat:aim:tag",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "tag.combat.aim", "op": "truthy" }] },
+    "effects": [{ "op": "addTag", "tagRef": "tag.combat.aim" }]
+  },
+  {
+    "id": "hook:combat:aim:accurateTag",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "tag.combat.accurate", "op": "truthy" }] },
+    "effects": [{ "op": "addTag", "tagRef": "tag.combat.accurate" }]
+  },
+  {
+    "id": "hook:combat:hitBonus",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.hitBonus", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.hitBonus" },
+      { "op": "addTag", "tagRef": "tag.combat.hitBonus" }
+    ]
+  },
+  {
+    "id": "hook:combat:unarmedPenalty",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.unarmedPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.unarmedPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.unarmed" }
+    ]
+  },
+  {
+    "id": "hook:combat:untouchableAura",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.untouchableApplies", "op": "truthy" }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.untouchablePenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.untouchable" },
+      { "op": "addTag", "tagRef": "tag.combat.untouchableWeaver" }
+    ]
+  },
+  {
+    "id": "hook:combat:defendStance",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.defendPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.defendPenalty" },
+      { "op": "addTag", "tag": "combat:mod:defenderStance:defend=-20" }
+    ]
+  },
+  {
+    "id": "hook:combat:prone",
+    "type": "pre-check",
+    "ref": { "type": "condition", "id": "prone" },
+    "when": { "any": [{ "fact": "combat.proneModifier", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.proneModifier" },
+      { "op": "addTag", "tagRef": "tag.combat.prone" }
+    ]
+  },
+  {
+    "id": "hook:combat:blindMelee",
+    "type": "pre-check",
+    "ref": { "type": "condition", "id": "blind" },
+    "when": { "any": [{ "fact": "combat.blindMeleeModifier", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.blindMeleeModifier" },
+      { "op": "addTag", "tagRef": "tag.combat.blindAttacker" },
+      { "op": "addTag", "tagRef": "tag.combat.blindTarget" }
+    ]
+  },
+  {
+    "id": "hook:combat:fatigue",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.fatiguePenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.fatiguePenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.fatigue" }
+    ]
+  },
+  {
+    "id": "hook:combat:invisibilityTarget",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.invisibleTargetPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.invisibleTargetPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.invisibleTarget" }
+    ]
+  },
+  {
+    "id": "hook:combat:invisibilityTarget:tagOnly",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "combat.invisibleTargetPenalty", "op": "eq", "value": 0 },
+        { "fact": "tag.combat.invisibleTarget", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tagRef": "tag.combat.invisibleTarget" }]
+  },
+  {
+    "id": "hook:combat:invisibilityAttacker",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.invisibleAttackerBonus", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.invisibleAttackerBonus" },
+      { "op": "addTag", "tagRef": "tag.combat.invisibleAttacker" }
+    ]
+  },
+  {
+    "id": "hook:combat:invisibilityAttacker:tagOnly",
+    "type": "pre-check",
+    "when": {
+      "all": [
+        { "fact": "combat.invisibleAttackerBonus", "op": "eq", "value": 0 },
+        { "fact": "tag.combat.invisibleAttacker", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "addTag", "tagRef": "tag.combat.invisibleAttacker" }]
+  },
+  {
+    "id": "hook:combat:combatMaster",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.combatMasterPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.combatMasterPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.combatMaster" }
+    ]
+  },
+  {
+    "id": "hook:combat:sunburst",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.sunburstPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.sunburstPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.sunburst" }
+    ]
+  },
+  {
+    "id": "hook:combat:magicFueledNonWeaver",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.magicFueledPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.magicFueledPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.magicFueled" }
+    ]
+  },
+  {
+    "id": "hook:combat:magicFueledAura",
+    "type": "pre-check",
+    "when": { "any": [{ "fact": "combat.magicFueledAuraPenalty", "op": "neq", "value": 0 }] },
+    "effects": [
+      { "op": "addCheckTargetMod", "valueRef": "combat.magicFueledAuraPenalty" },
+      { "op": "addTag", "tagRef": "tag.combat.magicFueledAura" }
+    ]
+  },
+  {
+    "id": "hook:check:doublesTag",
+    "type": "post-check",
+    "when": { "all": [{ "fact": "check.isDoubles", "op": "truthy" }] },
+    "effects": [{ "op": "addTag", "tag": "doubles" }]
+  },
+  {
+    "id": "hook:check:epicSuccessTag",
+    "type": "post-check",
+    "when": { "all": [{ "fact": "check.critical", "op": "eq", "value": "epicSuccess" }] },
+    "effects": [{ "op": "addTag", "tag": "epicSuccess" }]
+  },
+  {
+    "id": "hook:check:epicFailTag",
+    "type": "post-check",
+    "when": { "all": [{ "fact": "check.critical", "op": "eq", "value": "epicFail" }] },
+    "effects": [{ "op": "addTag", "tag": "epicFail" }]
+  },
+  {
+    "id": "hook:damage:bonusDamage",
+    "type": "pre-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.bonusDamage", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.bonusDamage" }]
+  },
+  {
+    "id": "hook:damage:fieryForm",
+    "type": "pre-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.fieryBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.fieryBonus" }]
+  },
+  {
+    "id": "hook:damage:sanctifiedBonus",
+    "type": "pre-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.sanctifiedBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.sanctifiedBonus" }]
+  },
+  {
+    "id": "hook:damage:unholyBonus",
+    "type": "pre-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.unholyBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.unholyBonus" }]
+  },
+  {
+    "id": "hook:damage:sanctuaryZero",
+    "type": "pre-damage",
+    "priority": 10,
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.sanctuaryZero", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleDamage", "value": 0 }]
+  },
+  {
+    "id": "hook:damage:sanctuaryHalf",
+    "type": "pre-damage",
+    "priority": 10,
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.sanctuaryHalf", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleDamage", "value": 0.5 }]
+  },
+  {
+    "id": "hook:damage:energyVsFiery",
+    "type": "pre-damage",
+    "priority": 10,
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.energyFieryHalf", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleDamage", "value": 0.5 }]
+  },
+  {
+    "id": "hook:damage:forceBonus",
+    "type": "pre-damage",
+    "ref": { "type": "weaponQuality", "id": "force" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.forceBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.forceBonus" }]
+  },
+  {
+    "id": "hook:damage:magicFueledBonus",
+    "type": "pre-damage",
+    "ref": { "type": "weaponQuality", "id": "magic_fueled" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "apply" },
+        { "fact": "damage.magicFueledBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageMod", "valueRef": "damage.magicFueledBonus" }]
+  },
+  {
+    "id": "hook:damage:accurateExtraDice",
+    "type": "pre-damage",
+    "ref": { "type": "weaponQuality", "id": "accurate" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "roll" },
+        { "fact": "damage.accurateExtraDice", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addDamageExtraDice", "valueRef": "damage.accurateExtraDice" }]
+  },
+  {
+    "id": "hook:damage:unarmedSpecialistReroll",
+    "type": "pre-damage",
+    "ref": { "type": "talent", "id": "talent:unarmed_specialist" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "roll" },
+        { "fact": "damage.isUnarmed", "op": "truthy" },
+        { "fact": "attacker.talentHook.unarmedSpecialist", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "setDamageRerollOnes", "enabled": true }]
+  },
+  {
+    "id": "hook:damage:precognitionRoll",
+    "type": "pre-damage",
+    "ref": { "type": "condition", "id": "precognition" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "roll" },
+        { "fact": "attacker.condition.precognition", "op": "truthy" },
+        { "fact": "attacker.condition.misfortune", "op": "falsy" }
+      ]
+    },
+    "effects": [{ "op": "setDamageRollMode", "mode": "best" }]
+  },
+  {
+    "id": "hook:damage:misfortuneRoll",
+    "type": "pre-damage",
+    "ref": { "type": "condition", "id": "misfortune" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "roll" },
+        { "fact": "attacker.condition.misfortune", "op": "truthy" },
+        { "fact": "attacker.condition.precognition", "op": "falsy" }
+      ]
+    },
+    "effects": [{ "op": "setDamageRollMode", "mode": "worst" }]
+  },
+  {
+    "id": "hook:damage:fateReroll",
+    "type": "pre-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "roll" },
+        { "fact": "damage.fateProtectionActive", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "enableDamageReroll", "threshold": 1 }]
+  },
+  {
+    "id": "hook:damage:misfortuneSoak",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.misfortuneSoakHalf", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleSoak", "value": 0.5 }]
+  },
+  {
+    "id": "hook:damage:extraSoak",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.extraSoak", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addSoakMod", "valueRef": "damage.extraSoak" }]
+  },
+  {
+    "id": "hook:damage:forcePenBonus",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.forcePenBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addPenetrationMod", "valueRef": "damage.forcePenBonus" }]
+  },
+  {
+    "id": "hook:damage:magicFueledPenBonus",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.magicFueledPenBonus", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addPenetrationMod", "valueRef": "damage.magicFueledPenBonus" }]
+  },
+  {
+    "id": "hook:damage:bonusPenetration",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.bonusPenetration", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addPenetrationMod", "valueRef": "damage.bonusPenetration" }]
+  },
+  {
+    "id": "hook:damage:razorSharp",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.razorSharpActive", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scalePenetration", "value": 2 }]
+  },
+  {
+    "id": "hook:damage:warpWeaponsBypass",
+    "type": "pre-reduction",
+    "ref": { "type": "trait", "id": "trait:warp_weapons" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.usesWarpWeapons", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleSoak", "value": 0 }]
+  },
+  {
+    "id": "hook:damage:unarmedSoakDouble",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.unarmedSoakDouble", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleSoak", "value": 2 }]
+  },
+  {
+    "id": "hook:damage:felling",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.fellingPenalty", "op": "lt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addTouBonusMod", "valueRef": "damage.fellingPenalty" }]
+  },
+  {
+    "id": "hook:damage:magicSourceDaemonic",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.daemonicPenalty", "op": "lt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addTouBonusMod", "valueRef": "damage.daemonicPenalty" }]
+  },
+  {
+    "id": "hook:damage:sanctifiedSpiritual",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.spiritualPenalty", "op": "lt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addTouBonusMod", "valueRef": "damage.spiritualPenalty" }]
+  },
+  {
+    "id": "hook:damage:magicResistance",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.magicResistancePenalty", "op": "lt", "value": 0 }
+      ]
+    },
+    "effects": [{ "op": "addFinalDamageMod", "valueRef": "damage.magicResistancePenalty" }]
+  },
+  {
+    "id": "hook:damage:calledShotHead",
+    "type": "pre-reduction",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "reduction" },
+        { "fact": "damage.calledShotHead", "op": "truthy" }
+      ]
+    },
+    "effects": [{ "op": "scaleFinalDamage", "value": 2 }]
+  },
+  {
+    "id": "hook:postDamage:calledShotArms",
+    "type": "post-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.calledShotZone", "op": "eq", "value": "arms" },
+        { "fact": "damage.didApplyDamage", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "emitEffect",
+        "effect": {
+          "op": "combatDisarm",
+          "attackerId": "$attacker",
+          "defenderId": "$defender"
+        }
+      },
+      { "op": "logMessage", "messageRef": "log.calledShotArms" }
+    ]
+  },
+  {
+    "id": "hook:postDamage:calledShotLegs",
+    "type": "post-damage",
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.calledShotZone", "op": "eq", "value": "legs" },
+        { "fact": "damage.didApplyDamage", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "emitEffect",
+        "effect": {
+          "op": "addCondition",
+          "actorId": "$defender",
+          "condition": "prone",
+          "source": "calledShot:legs"
+        }
+      },
+      {
+        "op": "emitEffect",
+        "effect": {
+          "op": "addCondition",
+          "actorId": "$defender",
+          "condition": "halvedMovement",
+          "durationTurns": 2,
+          "source": "calledShot:legs"
+        }
+      },
+      { "op": "logMessage", "messageRef": "log.calledShotLegs" }
+    ]
+  },
+  {
+    "id": "hook:postDamage:fireShield",
+    "type": "post-damage",
+    "ref": { "type": "condition", "id": "fire_shield" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.fireShieldDamage", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [
+      {
+        "op": "applyDirectDamage",
+        "actor": "attacker",
+        "amountRef": "damage.fireShieldDamage",
+        "logMessageRef": "log.fireShield"
+      }
+    ]
+  },
+  {
+    "id": "hook:postDamage:shocking",
+    "type": "post-damage",
+    "ref": { "type": "weaponQuality", "id": "shocking" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.weapon.shocking", "op": "truthy" },
+        { "fact": "damage.didApplyDamage", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "addCondition",
+        "actor": "defender",
+        "condition": "fatigue",
+        "stacksRef": "damage.shockingFatigue",
+        "source": "weapon:shocking"
+      },
+      {
+        "op": "addCondition",
+        "actor": "defender",
+        "condition": "stunned",
+        "durationTurnsRef": "damage.shockingStunned",
+        "source": "weapon:shocking"
+      },
+      { "op": "logMessage", "messageRef": "log.shocking" }
+    ]
+  },
+  {
+    "id": "hook:postDamage:instability",
+    "type": "post-damage",
+    "ref": { "type": "weaponQuality", "id": "sanctified" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.instabilityApplies", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "checkAndDamage",
+        "actor": "defender",
+        "key": "WIL",
+        "modifierRef": "damage.instabilityModifier",
+        "onSuccessLogRef": "log.instabilitySuccess",
+        "onFailureLogRef": "log.instabilityFailure",
+        "damageBase": 1,
+        "addDof": true,
+        "damageLogRef": "log.instabilityDamage"
+      }
+    ]
+  },
+  {
+    "id": "hook:postDamage:toxic",
+    "type": "post-damage",
+    "ref": { "type": "weaponQuality", "id": "toxic" },
+    "when": {
+      "all": [
+        { "fact": "damage.stage", "op": "eq", "value": "post" },
+        { "fact": "damage.toxicApplies", "op": "truthy" }
+      ]
+    },
+    "effects": [
+      {
+        "op": "checkAndDamage",
+        "actor": "defender",
+        "key": "TOU",
+        "modifierRef": "damage.toxicModifier",
+        "onSuccessLogRef": "log.toxicSuccess",
+        "onFailureLogRef": "log.toxicFailure",
+        "damageRollMin": 1,
+        "damageRollMax": 10,
+        "damageLogRef": "log.toxicDamage"
+      }
+    ]
+  },
+  {
+    "id": "hook:damage:dieHard",
+    "type": "pre-apply-damage",
+    "ref": { "type": "talent", "id": "talent:die_hard" },
+    "when": {
+      "all": [
+        { "fact": "defender.talentHook.dieHard", "op": "truthy" },
+        { "fact": "defender.fateProtectionActive", "op": "truthy" },
+        { "fact": "defender.fatePoints", "op": "gt", "value": 0 },
+        { "fact": "damage.amount", "op": "gt", "value": 0 }
+      ],
+      "any": [
+        { "fact": "damage.projectedHpAfter", "op": "lte", "value": 0 },
+        { "fact": "damage.hpBefore", "op": "lte", "value": 0 }
+      ]
+    },
+    "effects": [
+      { "op": "consumeFateProtection", "actor": "defender" },
+      { "op": "blockDamage", "reason": "dieHard" }
+    ]
+  },
+  {
+    "id": "hook:turnStart:stunned",
+    "type": "turn-start",
+    "ref": { "type": "condition", "id": "stunned" },
+    "when": {
+      "all": [{ "fact": "defender.condition.stunnedActive", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "logMessage", "messageRef": "log.turnStartStunned" },
+      { "op": "setTurnState", "moveRemaining": 0, "actionAvailable": false }
+    ]
+  },
+  {
+    "id": "hook:turnStart:bleeding",
+    "type": "turn-start",
+    "ref": { "type": "condition", "id": "bleeding" },
+    "when": {
+      "all": [
+        { "fact": "defender.condition.bleeding", "op": "truthy" },
+        { "fact": "damage.bleeding", "op": "gt", "value": 0 }
+      ]
+    },
+    "effects": [
+      {
+        "op": "applyDirectDamage",
+        "actor": "defender",
+        "amountRef": "damage.bleeding",
+        "logMessageRef": "log.turnStartBleeding",
+        "trackSelfDamage": true
+      }
+    ]
+  },
+  {
+    "id": "hook:turnStart:bound",
+    "type": "turn-start",
+    "ref": { "type": "condition", "id": "bound" },
+    "when": {
+      "all": [{ "fact": "defender.condition.boundActive", "op": "truthy" }]
+    },
+    "effects": [
+      { "op": "setTurnState", "moveRemaining": 0 },
+      {
+        "op": "checkAndRemoveCondition",
+        "actor": "defender",
+        "key": "STR",
+        "difficulty": "-20",
+        "checkIdRef": "check.boundEscapeId",
+        "condition": "bound",
+        "onSuccessLogRef": "log.turnStartBoundEscape",
+        "onFailureLogRef": "log.turnStartBoundFail"
+      }
+    ]
+  },
+  {
+    "id": "hook:turnStart:spiritualInstability",
+    "type": "turn-start",
+    "ref": { "type": "trait", "id": "trait:spiritual_instability" },
+    "priority": 10,
+    "when": {
+      "all": [
+        { "fact": "defender.trait.trait:spiritual_instability", "op": "truthy" },
+        { "fact": "damageTracking.taken", "op": "gt", "value": 0 },
+        { "fact": "damageTracking.dealt", "op": "lte", "value": 0 }
+      ]
+    },
+    "effects": [
+      {
+        "op": "checkAndDamage",
+        "actor": "defender",
+        "key": "WIL",
+        "difficulty": "Challenging",
+        "modifierRef": "instability.auraPenalty",
+        "checkIdRef": "instability.checkId",
+        "damageBase": 1,
+        "addDof": true,
+        "damageLogRef": "log.instabilityDamage",
+        "runtimeLogMessageRef": "log.instabilityRuntime",
+        "runtimeLogTags": ["spirit:instability"],
+        "runtimeLogTagRef": "tag.instabilityAura",
+        "includeDamageTag": true
+      }
+    ]
+  },
+  {
+    "id": "hook:turnStart:resetDamageTracking",
+    "type": "turn-start",
+    "priority": 100,
+    "effects": [{ "op": "resetCombatDamageTracking", "actor": "defender" }]
+  },
+  {
+    "id": "hook:turnStart:expireConditions",
+    "type": "turn-start",
+    "priority": 200,
+    "effects": [{ "op": "removeExpiredConditions", "actor": "defender" }]
+  }
+]

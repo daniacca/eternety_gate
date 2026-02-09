@@ -1,13 +1,11 @@
-import type { GameSave, WeaponId, Actor, CheckResult } from "../../types";
+import type { GameSave, WeaponId, Actor } from "../../types";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import type { IRNG } from "../../rng";
 import { calculateWeaponDamage } from "../equipment";
 import { getCharacteristicBonus } from "../../characters/bonuses";
 import { getRangedDamageBonusFromMightyShot } from "../../characters/mightyShot";
 import { appendRuntimeLog } from "../narration";
-import { getMagicPower } from "../../magic/pm";
 import { hasWeaponQuality } from "../../weaponQualities";
-import { hasTrait } from "../../characters/prerequisites";
 
 export type DamageRollOutcome = {
   rawDamage: number;
@@ -24,13 +22,12 @@ export type DamageRollContext = {
   weaponId: WeaponId | "unarmed" | "improvised" | null;
   mode: "MELEE" | "RANGED";
   rollsCount: number;
-  result: CheckResult;
   rng: IRNG;
   catalogs?: CharacterCatalogs;
   resolutionId?: string;
-  isUnarmed: boolean;
   useFallbackWeapon: boolean;
-  hasUnarmedSpecialist: boolean;
+  extraDice: number;
+  rerollOnes: boolean;
 };
 
 export function rollWeaponDamage(
@@ -44,13 +41,12 @@ export function rollWeaponDamage(
     weaponId,
     mode,
     rollsCount,
-    result,
     rng,
     catalogs,
     resolutionId,
-    isUnarmed,
     useFallbackWeapon,
-    hasUnarmedSpecialist,
+    extraDice,
+    rerollOnes,
   } = context;
 
   let nextSave = updatedSave;
@@ -83,39 +79,24 @@ export function rollWeaponDamage(
     damageFormula = formulaParts.join(" + ");
   } else {
     const weaponForQualities = weaponId && weaponId !== "unarmed" ? save.weaponsById?.[weaponId] : null;
-    const hasAccurate = hasWeaponQuality(weaponForQualities, "accurate");
-    const hasMagicFueled = hasWeaponQuality(weaponForQualities, "magic_fueled");
-    const accurateExtraDice = hasAccurate ? Math.floor(result.dos / 2) : 0;
     const hasTearing = hasWeaponQuality(weaponForQualities, "tearing");
-    const forceBonus =
-      hasWeaponQuality(weaponForQualities, "force") && hasTrait(attacker, "trait:weaver", save)
-        ? getMagicPower(save, attacker.id, catalogs)
-        : 0;
-    const magicFueledBonus =
-      hasMagicFueled && hasTrait(attacker, "trait:weaver", save) ? getMagicPower(save, attacker.id, catalogs) : 0;
 
     const damageCalc = calculateWeaponDamage(save, attacker, weaponId, rng, mode, rollsCount, catalogs, {
       tearing: hasTearing,
-      extraDice: accurateExtraDice,
-      rerollOnes: isUnarmed && hasUnarmedSpecialist,
+      extraDice,
+      rerollOnes,
     });
     rawDamage = damageCalc.rawDamage;
-    if (forceBonus > 0) {
-      rawDamage += forceBonus;
-    }
-    if (magicFueledBonus > 0) {
-      rawDamage += magicFueledBonus;
-    }
     weaponName = damageCalc.weaponName;
     calculatedWeaponId = damageCalc.weaponId;
 
-    if (accurateExtraDice > 0 && !accurateLogged) {
+    if (extraDice > 0 && !accurateLogged) {
       nextSave = appendRuntimeLog(nextSave, {
         kind: "system",
-        message: `Accurate: +${accurateExtraDice}d10 damage dice`,
+        message: `Accurate: +${extraDice}d10 damage dice`,
         turnCounter: save.runtime.combat?.turnCounter ?? 0,
         resolutionId,
-        tags: ["weapon:accurate", `extraDice=${accurateExtraDice}`],
+        tags: ["weapon:accurate", `extraDice=${extraDice}`],
       });
       accurateLogged = true;
     }
@@ -150,11 +131,8 @@ export function rollWeaponDamage(
         }
       }
 
-      if (accurateExtraDice > 0) {
-        formulaParts.push(`${accurateExtraDice}d10 (Accurate)`);
-      }
-      if (forceBonus > 0) {
-        formulaParts.push(`${forceBonus} (Force)`);
+      if (extraDice > 0) {
+        formulaParts.push(`${extraDice}d10 (Accurate)`);
       }
       damageFormula = formulaParts.join(" + ");
     } else {
@@ -162,9 +140,6 @@ export function rollWeaponDamage(
       const formulaParts: string[] = ["1d5"];
       if (strBonus > 0) {
         formulaParts.push(`${strBonus} (STR)`);
-      }
-      if (forceBonus > 0) {
-        formulaParts.push(`${forceBonus} (Force)`);
       }
       damageFormula = formulaParts.join(" + ");
     }

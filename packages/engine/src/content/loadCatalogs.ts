@@ -8,6 +8,7 @@ import type {
   GridDefinition,
   TileDefinition,
   WeaponQuality,
+  ConditionDefinition,
 } from "./catalogs";
 import type { ItemDefinition, Weapon, Armor, ItemId, WeaponId, ArmorId } from "../runtime/types";
 
@@ -72,6 +73,13 @@ export function loadEquipmentCatalogs(contentPack: ContentPack): {
  */
 export function loadWeaponQualities(contentPack: ContentPack): Record<string, WeaponQuality> {
   return contentPack.weaponQualities ? indexById(contentPack.weaponQualities) : {};
+}
+
+/**
+ * Loads condition catalog from a content pack
+ */
+export function loadConditionCatalogs(contentPack: ContentPack): Record<string, ConditionDefinition> {
+  return contentPack.conditions ? indexById(contentPack.conditions) : {};
 }
 
 /**

@@ -534,6 +534,8 @@ export type StoryPack = {
   talents?: any[];
   traits?: any[];
   weaponQualities?: any[];
+  hooks?: any[];
+  conditions?: any[];
   grids?: any[];
   tiles?: any;
 

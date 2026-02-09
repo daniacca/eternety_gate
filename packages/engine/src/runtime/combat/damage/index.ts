@@ -1,4 +1,4 @@
-import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId, Actor } from "../../types";
+import type { GameSave, CombatAttackCheck, CheckResult, Effect, StoryPack, WeaponId } from "../../types";
 import type { CharacterCatalogs } from "../../../content/catalogs";
 import type { IRNG } from "../../rng";
 import { resolveActor } from "../../checks";
@@ -6,22 +6,12 @@ import { appendRuntimeLog } from "../narration";
 import { getEquippedWeaponId } from "../../characters/inventory";
 import { applyDamageToActor } from "../criticalDamage";
 import { getWeaponQuality } from "../../weaponQualities";
-import { hasTalentHook } from "../../characters/talentModifiers";
-import { hasCondition } from "../../conditions";
 import { resolveDamageRollOutcome } from "./resolveDamageRollOutcome";
 import { computeDamageAfterReductions } from "./computeDamageAfterReductions";
 import { finalizeDamageApplication } from "./finalizeDamageApplication";
-import { applyWeaponOnHitEffects } from "./applyWeaponOnHitEffects";
-import { applyCalledShotEffects } from "./applyCalledShotEffects";
-import { applyFireShieldBacklash } from "./applyFireShieldBacklash";
-
-function getDamageRollMode(attacker: Actor): "best" | "worst" | "normal" {
-  const hasPrecognition = hasCondition(attacker, "precognition");
-  const hasMisfortune = hasCondition(attacker, "misfortune");
-  if (hasPrecognition && !hasMisfortune) return "best";
-  if (hasMisfortune && !hasPrecognition) return "worst";
-  return "normal";
-}
+import { buildDamageFacts } from "../../hooks/facts";
+import { runHooks } from "../../hooks";
+import { buildPostDamageFacts } from "../../hooks/facts";
 
 /**
  * Applies combat damage when a combatAttack check hits
@@ -103,9 +93,41 @@ export function applyCombatDamageIfHit(
     }
   }
 
-  const hasUnarmedSpecialist = catalogs ? hasTalentHook(attacker, catalogs, "unarmedSpecialist") : false;
-
-  const rollMode = getDamageRollMode(attacker);
+  const rollMode: "best" | "worst" | "normal" = "normal";
+  const preliminaryWeaponId: WeaponId | "unarmed" | "improvised" =
+    useFallbackWeapon ? "improvised" : weaponId ?? "unarmed";
+  const rollFacts = buildDamageFacts({
+    save,
+    attacker,
+    defender,
+    check,
+    weaponForPenetration:
+      preliminaryWeaponId !== "unarmed" && preliminaryWeaponId !== "improvised"
+        ? save.weaponsById?.[preliminaryWeaponId]
+        : null,
+    rawDamage: 0,
+    damageOptions,
+    catalogs,
+    isMagicalSource,
+    resultDos: result.dos,
+    mode,
+    rng,
+    isUnarmed,
+    useFallbackWeapon,
+    calculatedWeaponId: preliminaryWeaponId,
+  });
+  const rollHookResult = runHooks("pre-damage", {
+    save: updatedSave,
+    storyPack,
+    rng,
+    attacker,
+    defender,
+    weapon,
+    facts: {
+      ...rollFacts,
+      "damage.stage": "roll",
+    },
+  });
   const rollOutcome = resolveDamageRollOutcome({
     save,
     updatedSave,
@@ -113,14 +135,15 @@ export function applyCombatDamageIfHit(
     weaponId,
     mode,
     rollsCount,
-    result,
     rng,
     catalogs,
     resolutionId,
-    isUnarmed,
     useFallbackWeapon,
-    hasUnarmedSpecialist,
-    rollMode,
+    rollMode: rollHookResult.damageRollMode ?? rollMode,
+    extraDice: rollHookResult.damageExtraDice,
+    rerollOnes: rollHookResult.damageRerollOnes,
+    allowFateReroll: rollHookResult.allowDamageReroll,
+    fateRerollThreshold: rollHookResult.damageRerollThreshold ?? 1,
   });
   updatedSave = rollOutcome.updatedSave;
   let { rawDamage, calculatedWeaponId, damageRolls, damageFormula } = rollOutcome.outcome;
@@ -132,19 +155,32 @@ export function applyCombatDamageIfHit(
     updatedSave,
     attacker,
     defender,
-    check,
     rawDamage,
     damageFormula,
     calculatedWeaponId,
     useFallbackWeapon,
     isUnarmed,
-    resultDos: result.dos,
-    mode,
-    damageOptions,
-    rng,
     catalogs,
-    isMagicalSource,
-    resolutionId,
+    facts: {
+      ...buildDamageFacts({
+        save,
+        attacker,
+        defender,
+        check,
+        weaponForPenetration: calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null,
+        rawDamage,
+        damageOptions,
+        catalogs,
+        isMagicalSource,
+        resultDos: result.dos,
+        mode,
+        rng,
+        isUnarmed,
+        useFallbackWeapon,
+        calculatedWeaponId,
+      }),
+      "damage.stage": "apply",
+    },
   });
   updatedSave = reductionResult.updatedSave;
   rawDamage = reductionResult.rawDamage;
@@ -205,55 +241,42 @@ export function applyCombatDamageIfHit(
   const didApplyDamage = postDamage.didApplyDamage;
   const maxHp = postDamage.maxHp;
 
-  // Weapon qualities: on-hit effects (only if final damage >= 1)
   const weaponForHitEffects =
     calculatedWeaponId !== "unarmed" && !useFallbackWeapon ? save.weaponsById?.[calculatedWeaponId] : null;
-  const onHitResult = applyWeaponOnHitEffects({
+  const postDamageHookResult = runHooks("post-damage", {
     save: updatedSave,
+    storyPack,
+    rng,
+    catalogs,
     attacker,
-    defender,
-    weaponForHitEffects,
+    defender: updatedDefender,
+    weapon: weaponForHitEffects,
     isUnarmed,
     isNaturalWeaponAttack,
     didApplyDamage,
     resultDos: result.dos,
-    rng,
-    storyPack,
-    catalogs,
-    resolutionId,
+    finalDamage,
+    check,
+    facts: buildPostDamageFacts({
+      save: updatedSave,
+      attacker,
+      defender: updatedDefender,
+      check,
+      weaponForHitEffects,
+      isUnarmed,
+      isNaturalWeaponAttack,
+      didApplyDamage,
+      resultDos: result.dos,
+      finalDamage,
+      rng,
+      storyPack,
+    }),
   });
-  updatedSave = onHitResult.save;
-  if (onHitResult.effects.length > 0) {
-    emittedEffects.push(...onHitResult.effects);
-  }
-  if (onHitResult.actorDied) {
+  updatedSave = postDamageHookResult.save;
+  if (postDamageHookResult.actorDied) {
     actorDied = true;
   }
-
-  const calledShotResult = applyCalledShotEffects({
-    save: updatedSave,
-    check,
-    attacker,
-    defender,
-    didApplyDamage,
-    finalDamage,
-  });
-  updatedSave = calledShotResult.save;
-
-  const fireShieldResult = applyFireShieldBacklash({
-    save: updatedSave,
-    check,
-    attacker,
-    defender: updatedDefender,
-    rng,
-    storyPack,
-    catalogs,
-    effects: emittedEffects,
-  });
-  updatedSave = fireShieldResult.save;
-
-  // Combine emitted effects with Called Shot effects
-  const allEffects = [...(fireShieldResult.effects || []), ...calledShotResult.effects];
+  const allEffects = [...emittedEffects, ...postDamageHookResult.effects];
 
   // Log damage roll if damage was applied
   if (didApplyDamage && finalDamage > 0) {

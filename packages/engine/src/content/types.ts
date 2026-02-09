@@ -1,5 +1,5 @@
 import type { Weapon, Armor, ItemDefinition } from "../runtime/types";
-import type { Skill, Talent, Trait, GridDefinition, TileDefinition, WeaponQuality } from "./catalogs";
+import type { Skill, Talent, Trait, GridDefinition, TileDefinition, WeaponQuality, ConditionDefinition } from "./catalogs";
 
 /**
  * Content Pack: defines base weapons, armors, and other content
@@ -13,6 +13,7 @@ export type ContentPack = {
   talents?: Talent[];
   traits?: Trait[];
   weaponQualities?: WeaponQuality[];
+  conditions?: ConditionDefinition[];
   grids?: GridDefinition[];
   tiles?: Record<string, TileDefinition>;
 };

@@ -1,13 +1,12 @@
 import type { Effect, GameSave } from "../../../types";
 import { getActorSize, getFootprintRadius } from "../../footprint";
 import { getCellTerrain } from "../../terrain";
-import { hasCondition } from "../../../conditions";
 
 export function computeCoverModifier(
   effect: Extract<Effect, { op: "combatRequestAttack" }>,
   save: GameSave,
   defenderPos: { x: number; y: number },
-  attacker: GameSave["actorsById"][string],
+  _attacker: GameSave["actorsById"][string],
 ): "NONE" | "LIGHT" | "HEAVY" {
   let coverModifier: "NONE" | "LIGHT" | "HEAVY" = "NONE";
   if (effect.mode === "RANGED") {
@@ -27,9 +26,6 @@ export function computeCoverModifier(
         coverModifier = "HEAVY";
       }
     }
-  }
-  if (effect.mode === "RANGED" && attacker && hasCondition(attacker, "perfect_timing")) {
-    coverModifier = "NONE";
   }
   return coverModifier;
 }

@@ -68,7 +68,6 @@ export function evaluateRoll(
     if (epic && roll === epic.success) {
       critical = "epicSuccess";
       dos = epic.treatAsDoS;
-      tags.push("epicSuccess");
     }
   }
   // Check for auto-fail
@@ -81,7 +80,6 @@ export function evaluateRoll(
     if (epic && roll === epic.fail) {
       critical = "epicFail";
       dof = Math.max(1, Math.floor((roll - target) / 10));
-      tags.push("epicFail");
     }
   }
   // Normal roll
@@ -92,13 +90,6 @@ export function evaluateRoll(
     } else {
       dof = Math.floor((roll - target) / 10);
     }
-  }
-
-  // Check for doubles (phenomena)
-  const tens = Math.floor(roll / 10);
-  const ones = roll % 10;
-  if (tens === ones && roll >= 11) {
-    tags.push("doubles");
   }
 
   return {

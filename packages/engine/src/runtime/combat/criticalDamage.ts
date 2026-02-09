@@ -3,9 +3,10 @@ import type { CharacterCatalogs } from "../../content/catalogs";
 import type { IRNG } from "../rng";
 import { performCheckWithSave } from "../checks";
 import { calculateMaxHp } from "../characters/hp";
-import { hasTalentHook } from "../characters/talentModifiers";
-import { isFateProtectionActive } from "../characters/fate";
 import { getCharacteristicBonus } from "../characters/bonuses";
+import { hasTalentHook } from "../characters/talentModifiers";
+import { runHooks } from "../hooks";
+import { buildApplyDamageFacts } from "../hooks/facts";
 
 /**
  * Applies critical damage tier effects and determines if actor dies.
@@ -235,30 +236,20 @@ export function applyDamageToActor(
   const projectedWoundsAfter = Math.min(maxHp, woundsBefore + damage);
   const projectedHpAfter = maxHp - projectedWoundsAfter;
 
-  // Die Hard talent: spend 1 Fate Point to completely ignore damage
-  // ONLY triggers if damage would reduce HP to <= 0 (including already at 0 HP)
-  if (catalogs && damage > 0 && (projectedHpAfter <= 0 || normalizedHpBefore <= 0)) {
-    const hasDieHard = hasTalentHook(actor, catalogs, "dieHard");
-    const fatePoints = actor.resources.fatePoints ?? 0;
-
-    if (hasDieHard && fatePoints > 0 && isFateProtectionActive(actor)) {
-      // Spend fate point and negate damage completely
-      const updatedActor: Actor = {
-        ...actor,
-        resources: {
-          ...actor.resources,
-          fatePoints: fatePoints - 1,
-          fateProtectionActive: false,
-        },
-      };
-
-      return {
-        updatedActor,
-        effects: [],
-        actorDied: false,
-        dieHardUsed: true,
-      };
-    }
+  const preApplyHooks = runHooks("pre-apply-damage", {
+    save,
+    catalogs,
+    defender: actor,
+    facts: buildApplyDamageFacts({ save, actor, damage, catalogs }),
+  });
+  if (preApplyHooks.blocked) {
+    const updatedActor = preApplyHooks.save.actorsById[actor.id] ?? actor;
+    return {
+      updatedActor,
+      effects: [],
+      actorDied: false,
+      dieHardUsed: preApplyHooks.blockReason === "dieHard",
+    };
   }
 
   // True Grit talent: reduce critical damage by TOU bonus (minimum 1 critical damage)
