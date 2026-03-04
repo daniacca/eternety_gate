@@ -182,6 +182,36 @@
     ]
   },
   {
+    "id": "trait:enhanced_magic_circuit",
+    "name": "Circuito Magico Potenziato",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "grants": [
+      {
+        "type": "modifier",
+        "key": "magic.mcMax",
+        "op": "add",
+        "valueRef": "x"
+      }
+    ]
+  },
+  {
+    "id": "trait:magic_core",
+    "name": "Nucleo Magico",
+    "params": {
+      "x": {
+        "type": "number",
+        "required": true,
+        "min": 1
+      }
+    },
+    "grants": []
+  },
+  {
     "id": "trait:force_field",
     "name": "Campo di Forza",
     "params": {

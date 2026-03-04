@@ -1,8 +1,22 @@
-import type { ActorId, GameSave } from "../types";
+import type { ActorId, GameSave, MagicDensityTier } from "../types";
 import type { CharacterCatalogs } from "../../content/catalogs";
 import { footprintDistanceBetweenActors } from "./footprint";
 import { isActorAlive } from "../characters/actors";
 import { getUntouchableAuraRadius, getUntouchableEffectiveWilBonus, isUntouchable } from "../characters/untouchable";
+
+/**
+ * Effective magic density for an actor: if inside an untouchable (anti-magic) aura,
+ * returns "almostNull" so channel DoS → 0 MC; otherwise returns baseDensity.
+ */
+export function getEffectiveMagicDensity(
+  save: GameSave,
+  catalogs: CharacterCatalogs | undefined,
+  actorId: ActorId,
+  baseDensity: MagicDensityTier
+): MagicDensityTier {
+  const impact = getUntouchableAuraImpact(save, catalogs, actorId);
+  return impact ? "almostNull" : baseDensity;
+}
 
 export type UntouchableAuraImpact = {
   sourceId: ActorId;

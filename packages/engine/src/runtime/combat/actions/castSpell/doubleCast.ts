@@ -5,9 +5,13 @@ import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../../narrati
 import { performCheckWithSave } from "../../../checks";
 import { getSpellById, getEffectById } from "../../../magic/catalogs";
 import { getMagicPower } from "../../../magic/pm";
+import { getMcMax, getMcCurrent, setMcCurrent, ensureMcReserve } from "../../../magic/od";
+import { getMagicDensity, channelDoSToMc } from "../../../magic/density";
+import { getEffectiveMagicDensity } from "../../untouchableAura";
+import { getMcSpentForMode, getCastModifierForMode, getOvercastLevel } from "../../../magic/castModes";
 import { applyFatigue } from "../../../characters/fatigue";
 import { getCharacteristicBonus } from "../../../characters/bonuses";
-import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../../magic/phenomena";
+import { getPhenomenaTrigger, getPhenomenaSeverityFromDof, getPhenomenaSeverity, rollPhenomena } from "../../../magic/phenomena";
 import { hasLearnedSpell } from "../../../magic/learning";
 import { hasUnlockedAction } from "../../../characters/actions";
 import type { CharacterCatalogs } from "../../../../content/catalogs";
@@ -16,6 +20,8 @@ import { buildSpellTargetSpec, computeTargetPreview } from "../../../targeting/c
 import { getActorsInRange } from "../../../targeting/getActorsInRange";
 import type { TargetSelection } from "../../../targeting/core/types";
 import { hasTrait } from "../../../characters/prerequisites";
+import { getModifierTotal } from "../../../characters/modifiers";
+import { getCastingSpecializationBonus } from "../../../characters/talentModifiers";
 import { getUntouchableAuraImpact } from "../../untouchableAura";
 import { applySpellEffectsForCast } from "./effects";
 import { applyBlockedCheck, buildBlockedCheck } from "./blockedCheck";
@@ -226,21 +232,69 @@ export function combatDoubleCastSpell(
 
   const targetSelection: TargetSelection = effect.targetSelection;
 
+  if (catalogs) {
+    currentSave = ensureMcReserve(currentSave, turnActorId, catalogs);
+  }
+  const actorWithMc = currentSave.actorsById[turnActorId]!;
+  const totalCN = primarySpell.baseCN + secondarySpell.baseCN;
+  const pm = getMagicPower(currentSave, turnActorId, catalogs);
+  const mode = castOptions?.castMode ?? "FETTERED";
+  const mcSpent = getMcSpentForMode(mode, totalCN, pm);
+  const mcMax = getMcMax(currentSave, turnActorId, catalogs);
+  const currentMc = getMcCurrent(actorWithMc, mcMax);
+  const baseDensity = getMagicDensity(currentSave);
+  const density = catalogs ? getEffectiveMagicDensity(currentSave, catalogs, turnActorId, baseDensity) : baseDensity;
   const channeling = combat.channeling;
   const channelDoS = channeling?.actorId === turnActorId ? channeling.accumulatedDoS : 0;
+  const mcFromMana = channelDoSToMc(channelDoS, density);
+  const availableMc = mcFromMana + currentMc;
+  if (availableMc < mcSpent) {
+    const saveWithChannelCleared = {
+      ...currentSave,
+      runtime: {
+        ...currentSave.runtime,
+        combat: currentSave.runtime.combat
+          ? { ...currentSave.runtime.combat, channeling: undefined }
+          : undefined,
+      },
+    };
+    return {
+      save: applyBlockedCheck(saveWithChannelCleared, buildBlockedCheck("combat:doubleCastSpell:blocked", turnActorId, [
+        "combat:blocked=insufficientMC",
+        `magic:mcRequired=${mcSpent}`,
+        `magic:mcAvailable=${availableMc}`,
+      ]), {
+        message: `MC insufficienti (servono ${mcSpent}, disponibili ${availableMc}).`,
+        turnCounter: combat.turnCounter,
+      }),
+    };
+  }
+
 
   const castingPenaltyModifier = actor.status.tempModifiers?.find((mod) => mod.id === "phenomena:castingPenalty");
   const hasCastingPenalty = !!castingPenaltyModifier;
 
   let auraPenalty = 0;
-  if (catalogs && hasTrait(actor, "trait:weaver", save)) {
-    const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
+  if (catalogs && hasTrait(actorWithMc, "trait:weaver", currentSave)) {
+    const impact = getUntouchableAuraImpact(currentSave, catalogs, turnActorId);
     if (impact) {
       auraPenalty = impact.penalty;
     }
   }
-
-  const totalCN = primarySpell.baseCN + secondarySpell.baseCN;
+  const flatCastBonus = catalogs ? getModifierTotal(currentSave, catalogs, turnActorId, "magic.castBonus") : 0;
+  const primaryDiscipline = (primaryEffectDef as { discipline?: string }).discipline;
+  const secondaryDiscipline = (secondaryEffectDef as { discipline?: string }).discipline;
+  const discList: Array<"PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS"> = ["PYRA", "KINESIS", "MENTIS", "VATES", "CORPUS"];
+  const primaryDiscBonus =
+    catalogs && primaryDiscipline && discList.includes(primaryDiscipline as any)
+      ? getCastingSpecializationBonus(currentSave, catalogs, turnActorId, primaryDiscipline as "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS")
+      : 0;
+  const secondaryDiscBonus =
+    catalogs && secondaryDiscipline && discList.includes(secondaryDiscipline as any)
+      ? getCastingSpecializationBonus(currentSave, catalogs, turnActorId, secondaryDiscipline as "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS")
+      : 0;
+  const castModifier =
+    getCastModifierForMode(pm, mcSpent) + auraPenalty + flatCastBonus + primaryDiscBonus + secondaryDiscBonus;
 
   const castingCheck: SingleCheck = {
     id: `combat:doubleCast:${primarySpell.id}:${secondarySpell.id}:${turnActorId}`,
@@ -248,7 +302,7 @@ export function combatDoubleCastSpell(
     actorRef: { mode: "byId", actorId: turnActorId },
     key: primaryEffectDef.castingStat,
     difficulty: "Challenging",
-    modifier: auraPenalty !== 0 ? auraPenalty : undefined,
+    modifier: castModifier !== 0 ? castModifier : undefined,
   };
 
   const { save: saveWithSeq, seq } = nextRuntimeSeq(currentSave);
@@ -293,28 +347,41 @@ export function combatDoubleCastSpell(
     };
   }
 
+  const success = result.success;
   const castDoS = result.dos;
-  let effectiveDoS = castDoS + channelDoS;
-  const baseSuccess = effectiveDoS >= totalCN;
-  if (baseSuccess && castOptions?.magicConduct) {
-    const magicConductBonus = rng.nextInt(1, 5);
-    effectiveDoS += magicConductBonus;
+  const effectiveDoS = castDoS + channelDoS;
+  const magicConductBonus = success && castOptions?.magicConduct ? rng.nextInt(1, 5) : 0;
+  if (magicConductBonus > 0) {
     saveAfterPenaltyRemoval = appendRuntimeLog(saveAfterPenaltyRemoval, {
       kind: "system",
-      message: `Magic Conduct: +${magicConductBonus} DoS`,
+      message: `Magic Conduct: +${magicConductBonus} MC (potenziale overcast)`,
       turnCounter: combat.turnCounter,
       resolutionId,
-      tags: ["magic:conduct", `dosBonus=${magicConductBonus}`],
+      tags: ["magic:conduct", `mcBonus=${magicConductBonus}`],
     });
   }
+  const effectiveMcSpent = mcSpent + magicConductBonus;
+  // Double cast: extra MC split 50/50 between spells (round down each), overcast per spell = floor(extraMC/2)
+  const extraMC = castOptions?.noOvercast ? 0 : Math.max(0, effectiveMcSpent - totalCN);
+  const primaryExtraMc = Math.floor(extraMC / 2);
+  const secondaryExtraMc = extraMC - primaryExtraMc;
+  const overcastPrimary = castOptions?.noOvercast ? 0 : Math.floor(primaryExtraMc / 2);
+  const overcastSecondary = castOptions?.noOvercast ? 0 : Math.floor(secondaryExtraMc / 2);
 
-  const success = baseSuccess;
-  const rawOvercast = Math.max(0, effectiveDoS - totalCN);
-  const overcast = castOptions?.noOvercast ? 0 : Math.ceil(rawOvercast / 2);
+  const mcFromManaUsed = Math.min(effectiveMcSpent, mcFromMana);
+  const mcFromOd = effectiveMcSpent - mcFromManaUsed;
+  const casterForMc = saveAfterPenaltyRemoval.actorsById[turnActorId];
+  const mcAfterCheck = casterForMc ? getMcCurrent(casterForMc, mcMax) : currentMc;
+  saveAfterPenaltyRemoval = setMcCurrent(saveAfterPenaltyRemoval, turnActorId, mcAfterCheck - mcFromOd, mcMax);
 
-  const pm = getMagicPower(saveAfterPenaltyRemoval, turnActorId, catalogs);
-  const phenomenaTriggered = shouldTriggerPhenomena(result);
-  const phenomenaSeverity = phenomenaTriggered ? getPhenomenaSeverity(totalCN, pm, effectiveDoS) : null;
+  const phenomenaTriggered = getPhenomenaTrigger(mode, result);
+  const phenomenaSeverityTier =
+    phenomenaTriggered && result.dof >= 2
+      ? getPhenomenaSeverityFromDof(result.dof, mode)
+      : phenomenaTriggered
+        ? ("mild" as const)
+        : null;
+  const phenomenaSeverity = phenomenaTriggered ? (phenomenaSeverityTier === "major" || phenomenaSeverityTier === "moderate" ? "severe" : "mild") : null;
 
   let updatedSave = saveAfterPenaltyRemoval;
 
@@ -358,7 +425,9 @@ export function combatDoubleCastSpell(
 
   let phenomenaResult: { save: GameSave; kind: string; description: string } | null = null;
   if (phenomenaTriggered) {
-    phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
+    const severityForRoll =
+      phenomenaSeverityTier && phenomenaSeverityTier !== "mild" ? phenomenaSeverityTier : undefined;
+    phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs, severityForRoll);
     updatedSave = phenomenaResult.save;
     const phenomenaDesc = phenomenaResult.description;
     const severity = phenomenaSeverity || "mild";
@@ -427,7 +496,10 @@ export function combatDoubleCastSpell(
             `magic:effect=${secondaryEffectDef.id}`,
             `magic:cn=${totalCN}`,
             `magic:dosTotal=${effectiveDoS}`,
-            `magic:overcast=${overcast}`,
+            `magic:overcastPrimary=${overcastPrimary}`,
+            `magic:overcastSecondary=${overcastSecondary}`,
+            `magic:mcSpent=${effectiveMcSpent}`,
+            `magic:castMode=${mode}`,
             `magic:kind=${primaryEffectDef.kind}`,
             "magic:doubleCast=1",
             ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
@@ -445,10 +517,10 @@ export function combatDoubleCastSpell(
     actorAfterCheck.kind === "PC"
       ? `Lanci Doppio Incantesimo: ${primarySpell.name} + ${secondarySpell.name} (CN ${totalCN}) → SUCCESSO (DoS: ${castDoS}${
           channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""
-        } = ${effectiveDoS}, Overcast: ${overcast})`
+        } = ${effectiveDoS}, Overcast: ${overcastPrimary}/${overcastSecondary})`
       : `${actorName} lancia Doppio Incantesimo: ${primarySpell.name} + ${secondarySpell.name} (CN ${totalCN}) → SUCCESSO (DoS: ${castDoS}${
           channelDoS > 0 ? ` + Channel: ${channelDoS}` : ""
-        } = ${effectiveDoS}, Overcast: ${overcast})`;
+        } = ${effectiveDoS}, Overcast: ${overcastPrimary}/${overcastSecondary})`;
   updatedSave = appendCombatLog(updatedSave, castSummaryLog);
 
   let sharedTargetSelection = targetSelection;
@@ -547,7 +619,10 @@ export function combatDoubleCastSpell(
             `magic:effect=${secondaryEffectDef.id}`,
             `magic:cn=${totalCN}`,
             `magic:dosTotal=${effectiveDoS}`,
-            `magic:overcast=${overcast}`,
+            `magic:overcastPrimary=${overcastPrimary}`,
+            `magic:overcastSecondary=${overcastSecondary}`,
+            `magic:mcSpent=${effectiveMcSpent}`,
+            `magic:castMode=${mode}`,
             `magic:kind=${primaryEffectDef.kind}`,
             "magic:doubleCast=1",
             ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
@@ -557,6 +632,9 @@ export function combatDoubleCastSpell(
     };
     return { save: updatedSave };
   }
+
+  const primaryEmittedMC = primarySpell.baseCN + primaryExtraMc;
+  const secondaryEmittedMC = secondarySpell.baseCN + secondaryExtraMc;
 
   updatedSave = applySpellEffectsForCast({
     save: updatedSave,
@@ -568,8 +646,9 @@ export function combatDoubleCastSpell(
     spell: primarySpell,
     effectDef: primaryEffectDef,
     cnBase: primarySpell.baseCN,
+    emittedMC: primaryEmittedMC,
     effectiveDoS,
-    overcast,
+    overcast: overcastPrimary,
     resolutionId,
     targetSelection: sharedTargetSelection,
     phenomenaResult: null,
@@ -586,8 +665,9 @@ export function combatDoubleCastSpell(
     spell: secondarySpell,
     effectDef: secondaryEffectDef,
     cnBase: secondarySpell.baseCN,
+    emittedMC: secondaryEmittedMC,
     effectiveDoS,
-    overcast,
+    overcast: overcastSecondary,
     resolutionId,
     targetSelection: sharedTargetSelection,
     phenomenaResult: null,
@@ -614,7 +694,10 @@ export function combatDoubleCastSpell(
           `magic:effect=${secondaryEffectDef.id}`,
           `magic:cn=${totalCN}`,
           `magic:dosTotal=${effectiveDoS}`,
-          `magic:overcast=${overcast}`,
+          `magic:overcastPrimary=${overcastPrimary}`,
+          `magic:overcastSecondary=${overcastSecondary}`,
+          `magic:mcSpent=${effectiveMcSpent}`,
+          `magic:castMode=${mode}`,
           `magic:kind=${primaryEffectDef.kind}`,
           "magic:doubleCast=1",
           ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),

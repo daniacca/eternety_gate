@@ -235,6 +235,9 @@ export type Effect =
         skipRfCost?: boolean;
         noOvercast?: boolean;
         magicConduct?: boolean;
+        castMode?: CastMode;
+        /** When true (e.g. scroll): no MC consumed, overcast = 0. Spell uses item's contained energy. */
+        fromScroll?: boolean;
       };
     }
   | {
@@ -278,6 +281,10 @@ export type Effect =
       spellId: string;
       casterId?: ActorId; // Default = party.activeActorId
       targetActorId?: ActorId; // For singleActor targets
+    }
+  | {
+      /** Restores MC_CURRENT to MC_MAX for all party actors. Invoke from rest/camp scene or end-of-day choice. */
+      op: "longRest";
     };
 
 /* ---------- ActorRef ---------- */
@@ -391,6 +398,12 @@ export type MagicEffectCheck = {
   successText?: string[];
   failureText?: string[];
 };
+
+/** Cast mode: FETTERED = CN only; FULL_POWER = PM (min CN); PUSH = PM+2, always phenomena */
+export type CastMode = "FETTERED" | "FULL_POWER" | "PUSH";
+
+/** Ambient magic density: DoS per MC conversion rate (e.g. Normal 3→1, Very Dense 1→1) */
+export type MagicDensityTier = "normal" | "concentrated" | "veryDense" | "rarefied" | "almostNull";
 
 export type CombatMode = "MELEE" | "RANGED";
 export type DefenseStrategy = "autoBest" | "preferParry" | "preferDodge";
@@ -666,6 +679,10 @@ export type Actor = {
     xpSpent?: number; // Lifetime XP spent
     baseStats?: Partial<Record<StatKey, number>>; // Starting stats used for training costs
     gold?: number; // Gold coins held by this actor
+    /** Od reserve: max Magic Charges (MC) for this actor. Computed from INT+WIL+CHA bonus + modifiers if not set. */
+    mcMax?: number;
+    /** Od reserve: current Magic Charges (MC). Regenerates on Long Rest. */
+    mcCurrent?: number;
   };
 
   /**
@@ -844,6 +861,9 @@ export type CombatState = {
   // Damage tracking since last turn start (used for spiritual instability)
   damageTakenSinceLastTurnByActorId?: Record<ActorId, number>;
   damageDealtSinceLastTurnByActorId?: Record<ActorId, number>;
+
+  /** Ambient magic density for channel DoS → MC conversion. Default "normal". */
+  magicDensity?: MagicDensityTier;
 
   // Magic channeling state
   channeling?: {

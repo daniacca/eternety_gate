@@ -23,6 +23,7 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
     spell,
     effectDef,
     cnBase,
+    emittedMC,
     overcast,
     resolutionId,
     effectStatBonus,
@@ -161,28 +162,28 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
   let validTargetActors = [...targetActors];
 
   const targetOvercastById = new Map<ActorId, number>();
-  const manifestedPM = cnBase + overcast;
-
+  // Magic resistance: compare MR to emitted MC. If MR >= emitted MC → spell negated. If MR < emitted MC,
+  // effective MC = emitted MC - MR; if effective MC < cnBase → negated; else effective overcast = floor((effective MC - cnBase) / 2).
   if (catalogs && targetActors.length > 0) {
     const resistedByMr = new Set<ActorId>();
 
     for (const target of targetActors) {
       const mr = getMagicResistanceAgainstSpell(updatedSave, target.actorId, turnActorId, catalogs);
-      if (mr >= manifestedPM) {
+      if (mr >= emittedMC) {
         resistedByMr.add(target.actorId);
         const targetName = target.actor.name || target.actorId;
-        const resistedLog = `${targetName} resiste alla magia (RM ${mr} >= PM ${manifestedPM}).`;
+        const resistedLog = `${targetName} resiste alla magia (RM ${mr} >= MC emessa ${emittedMC}).`;
         updatedSave = appendCombatLog(updatedSave, resistedLog);
 
         updatedSave = appendRuntimeLog(updatedSave, {
           kind: "system",
-          message: `Magic resistance: ${target.actorId} resists ${spell.id} (MR ${mr} >= PM ${manifestedPM})`,
+          message: `Magic resistance: ${target.actorId} resists ${spell.id} (MR ${mr} >= emitted MC ${emittedMC})`,
           turnCounter: combat.turnCounter,
           resolutionId,
           tags: [
             "magic:resisted",
             `magic:mr=${mr}`,
-            `magic:pm=${manifestedPM}`,
+            `magic:emittedMC=${emittedMC}`,
             `magic:spell=${spell.id}`,
             `magic:target=${target.actorId}`,
           ],
@@ -190,7 +191,31 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
         continue;
       }
 
-      const effectiveOvercastForTarget = mr > 0 ? Math.max(0, overcast - mr) : overcast;
+      const effectiveMC = emittedMC - mr;
+      if (effectiveMC < cnBase) {
+        resistedByMr.add(target.actorId);
+        const targetName = target.actor.name || target.actorId;
+        const resistedLog = `${targetName} resiste alla magia (MC effettiva ${effectiveMC} < CN ${cnBase}).`;
+        updatedSave = appendCombatLog(updatedSave, resistedLog);
+
+        updatedSave = appendRuntimeLog(updatedSave, {
+          kind: "system",
+          message: `Magic resistance: ${target.actorId} resists ${spell.id} (effective MC ${effectiveMC} < CN ${cnBase})`,
+          turnCounter: combat.turnCounter,
+          resolutionId,
+          tags: [
+            "magic:resisted",
+            `magic:mr=${mr}`,
+            `magic:emittedMC=${emittedMC}`,
+            `magic:effectiveMC=${effectiveMC}`,
+            `magic:spell=${spell.id}`,
+            `magic:target=${target.actorId}`,
+          ],
+        });
+        continue;
+      }
+
+      const effectiveOvercastForTarget = Math.floor((effectiveMC - cnBase) / 2);
       targetOvercastById.set(target.actorId, effectiveOvercastForTarget);
     }
 

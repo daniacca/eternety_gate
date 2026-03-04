@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck } from "@eg/engine";
+import type { GameSave, Choice, Effect, StoryPack, Direction8, CombatAttackCheck, CastMode } from "@eg/engine";
 import {
   hasUnlockedAction,
   loadCharacterCatalogs,
@@ -8,6 +8,11 @@ import {
   getNaturalWeaponProfileFromActor,
   getSpellById,
   getEffectById,
+  getMcMax,
+  getMcCurrent,
+  getMagicPower,
+  getMagicDensity,
+  channelDoSToMc,
 } from "@eg/engine";
 import { CombatUiModel } from "../hooks/useCombatUiModel";
 import { useMemo, useState, useEffect } from "react";
@@ -37,6 +42,8 @@ interface CombatControlProps {
   onTargetCancel?: () => void;
   magicConductEnabled: boolean;
   onToggleMagicConduct: (enabled: boolean) => void;
+  castMode: CastMode;
+  onCastModeChange: (mode: CastMode) => void;
 }
 
 // Called Shot zone type
@@ -60,6 +67,8 @@ export function CombatControl({
   onTargetCancel,
   magicConductEnabled,
   onToggleMagicConduct,
+  castMode,
+  onCastModeChange,
 }: CombatControlProps) {
   const [spellPickerVisible, setSpellPickerVisible] = useState(false);
   const [activeSection, setActiveSection] = useState<"movement" | "attacks" | "stance" | "magic">("movement");
@@ -121,6 +130,11 @@ export function CombatControl({
     save.runtime.combat?.channeling?.actorId === controlledActorId
       ? save.runtime.combat.channeling.accumulatedDoS
       : 0;
+  const mcMax = isWeaver && activeActor && catalogs ? getMcMax(save, controlledActorId, catalogs) : 0;
+  const mcCurrent = isWeaver && activeActor ? getMcCurrent(activeActor, mcMax) : 0;
+  const pm = isWeaver && catalogs ? getMagicPower(save, controlledActorId, catalogs) : 0;
+  const density = getMagicDensity(save);
+  const mcFromMana = channelDoSToMc(channelingDoS, density);
 
   useEffect(() => {
     if (!isWeaver && activeSection === "magic") {
@@ -710,6 +724,46 @@ export function CombatControl({
             {isPhone ? <SectionHeader id="magic" title="Magic" /> : <Text style={styles.combatBlockTitle}>Magic</Text>}
             {(!isPhone || activeSection === "magic") && (
               <>
+                <View style={{ marginBottom: 8, gap: 4 }}>
+                  <Text style={{ fontSize: 11, color: "#374151" }}>
+                    MC: {mcCurrent}/{mcMax} · PM: {pm}
+                    {channelingDoS > 0 && ` · Channel: +${channelingDoS} DoS → ${mcFromMana} MC`}
+                    {" · "}
+                    {density === "normal"
+                      ? "Density: Normal"
+                      : density === "veryDense"
+                        ? "Very Dense"
+                        : density === "concentrated"
+                          ? "Concentrated"
+                          : density === "rarefied"
+                            ? "Rarefied"
+                            : "Almost Null"}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
+                    {(["FETTERED", "FULL_POWER", "PUSH"] as const).map((mode) => (
+                      <Pressable
+                        key={mode}
+                        style={{
+                          paddingVertical: 4,
+                          paddingHorizontal: 8,
+                          borderRadius: 6,
+                          backgroundColor: castMode === mode ? "#4a90e2" : "#e5e7eb",
+                        }}
+                        onPress={() => onCastModeChange(mode)}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "600",
+                            color: castMode === mode ? "#fff" : "#374151",
+                          }}
+                        >
+                          {mode === "FETTERED" ? "Fettered" : mode === "FULL_POWER" ? "Full Power" : "Push"}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
                 <View style={styles.stanceActions}>
                   <Pressable
                     style={[

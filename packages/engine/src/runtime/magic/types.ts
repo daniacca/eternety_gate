@@ -1,4 +1,4 @@
-import type { StatKey } from "../types";
+import type { StatKey, CastMode } from "../types";
 import type { HookDefinition } from "../hooks/types";
 import type { Prerequisite } from "../../content/catalogs";
 
@@ -191,6 +191,9 @@ export type NarrativeSpellRequest = {
   targetActorId?: string; // For singleActor target
   options?: {
     skipRfCost?: boolean;
+    castMode?: CastMode;
+    /** When true (e.g. scroll): no MC consumed, overcast = 0. */
+    fromScroll?: boolean;
   };
   context?: {
     sceneId?: string;

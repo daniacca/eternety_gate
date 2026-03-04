@@ -21,6 +21,8 @@ type SpellEffectApplyParams = {
   spell: ReturnType<typeof getSpellById>;
   effectDef: ReturnType<typeof getEffectById>;
   cnBase: number;
+  /** Emitted MC for this cast (for magic resistance). */
+  emittedMC: number;
   effectiveDoS: number;
   overcast: number;
   resolutionId: string;
@@ -79,6 +81,7 @@ function applySpellEffectsForCastRefactored(params: SpellEffectApplyParams): Gam
     spell,
     effectDef,
     cnBase,
+    emittedMC: params.emittedMC,
     effectiveDoS,
     overcast,
     effectStatBonus,

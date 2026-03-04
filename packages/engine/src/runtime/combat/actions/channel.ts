@@ -4,8 +4,11 @@ import { getCurrentTurnActorId } from "../combat";
 import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../narration";
 import { performCheckWithSave } from "../../checks";
 import type { CharacterCatalogs } from "../../../content/catalogs";
+import { loadCharacterCatalogs } from "../../../content/loadCatalogs";
 import { getUntouchableAuraImpact } from "../untouchableAura";
 import { hasTrait } from "../../characters/prerequisites";
+import { getChannelingBonus } from "../../characters/talentModifiers";
+import { isDoublesRoll, rollPhenomena } from "../../magic/phenomena";
 
 /**
  * Channeling action: Full Round Action
@@ -121,11 +124,15 @@ export function combatChannel(
   // Load catalogs for bonus calculation
   const catalogs: CharacterCatalogs | undefined =
     storyPack?.skills || storyPack?.talents || storyPack?.traits
-      ? {
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: storyPack.items || [],
+          weapons: storyPack.weapons || [],
+          armors: storyPack.armors || [],
           skills: storyPack.skills || [],
           talents: storyPack.talents || [],
           traits: storyPack.traits || [],
-        }
+        })
       : undefined;
 
   if (!actor) {
@@ -140,6 +147,8 @@ export function combatChannel(
       auraPenalty = impact.penalty;
     }
   }
+  const channelBonus = catalogs ? getChannelingBonus(save, catalogs, turnActorId) : 0;
+  const channelModifier = auraPenalty + channelBonus;
 
   // Create channeling check
   const channelingCheck: SingleCheck = {
@@ -148,7 +157,7 @@ export function combatChannel(
     actorRef: { mode: "byId", actorId: turnActorId },
     key: "SKILL:skill:channeling",
     difficulty: "Challenging",
-    modifier: auraPenalty !== 0 ? auraPenalty : undefined,
+    modifier: channelModifier !== 0 ? channelModifier : undefined,
   };
 
   // Generate resolutionId
@@ -168,26 +177,41 @@ export function combatChannel(
     return { save: afterCheckSave };
   }
 
-  // Update combat state: consume action and movement (Full Round Action)
   const currentChanneling = combat.channeling;
   const accumulatedDoS = currentChanneling?.actorId === turnActorId ? currentChanneling.accumulatedDoS : 0;
   const addedDoS = result.success ? Math.max(1, result.dos) : 0;
-  const newAccumulatedDoS = result.success ? accumulatedDoS + addedDoS : accumulatedDoS;
+
+  let newAccumulatedDoS: number;
+  let channelingState: typeof combat.channeling;
+  if (result.success) {
+    newAccumulatedDoS = accumulatedDoS + addedDoS;
+    channelingState = {
+      actorId: turnActorId,
+      accumulatedDoS: newAccumulatedDoS,
+      lastChannelTurnCounter: combat.turnCounter ?? 0,
+    };
+  } else {
+    newAccumulatedDoS = Math.max(0, accumulatedDoS - result.dof);
+    if (isDoublesRoll(result) && result.dof >= 1) {
+      channelingState = undefined;
+    } else {
+      channelingState =
+        newAccumulatedDoS > 0 && currentChanneling?.actorId === turnActorId
+          ? { ...currentChanneling, accumulatedDoS: newAccumulatedDoS }
+          : newAccumulatedDoS > 0
+            ? { actorId: turnActorId, accumulatedDoS: newAccumulatedDoS, lastChannelTurnCounter: combat.turnCounter ?? 0 }
+            : undefined;
+    }
+  }
 
   const updatedCombat = {
     ...combat,
     turn: {
       ...combat.turn,
-      actionAvailable: false, // Consume action
-      moveRemaining: 0, // Full Round Action: no movement
+      actionAvailable: false,
+      moveRemaining: 0,
     },
-    channeling: result.success
-      ? {
-          actorId: turnActorId,
-          accumulatedDoS: newAccumulatedDoS,
-          lastChannelTurnCounter: combat.turnCounter ?? 0,
-        }
-      : currentChanneling, // Keep existing channeling if failed
+    channeling: channelingState,
   };
 
   let updatedSave: GameSave = {
@@ -199,7 +223,12 @@ export function combatChannel(
     },
   };
 
-  // Add narration
+  if (isDoublesRoll(result) && result.dof >= 1 && !result.success) {
+    const phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
+    updatedSave = phenomenaResult.save;
+    updatedSave = appendCombatLog(updatedSave, `Fenomeno durante canalizzazione: ${phenomenaResult.description}`);
+  }
+
   if (result.success) {
     const logEntry =
       actor?.kind === "PC"

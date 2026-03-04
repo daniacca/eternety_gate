@@ -201,6 +201,7 @@ export function useItem(save: GameSave, actorId: ActorId, itemRef: ItemRef, cont
             ignoreWeaverRequirement: true,
             skipRfCost: true,
             noOvercast: true,
+            fromScroll: true,
           },
         },
         (context.storyPack ?? ({} as StoryPack)) as StoryPack,
@@ -223,7 +224,7 @@ export function useItem(save: GameSave, actorId: ActorId, itemRef: ItemRef, cont
         {
           spellId,
           casterId: actorId,
-          options: { skipRfCost: true },
+          options: { skipRfCost: true, fromScroll: true },
         },
         context.rng
       );

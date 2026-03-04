@@ -1,4 +1,4 @@
-import type { CheckResult, GameSave, ActorId } from "../types";
+import type { CheckResult, GameSave, ActorId, CastMode } from "../types";
 import type { IRNG } from "../rng";
 import { addConditionToActor } from "../conditions";
 import { applyFatigue } from "../characters/fatigue";
@@ -12,30 +12,52 @@ export function normalizeD100(roll: number): number {
   return roll === 0 ? 100 : roll;
 }
 
+/** Returns true if roll is doubles (11, 22, ..., 99, 00/100) */
+export function isDoublesRoll(check: CheckResult): boolean {
+  if (!check) return false;
+  const normalizedRoll = normalizeD100(check.roll);
+  const tens = Math.floor(normalizedRoll / 10);
+  const ones = normalizedRoll % 10;
+  return tens === ones;
+}
+
 /**
  * Checks if phenomena should trigger based on casting roll
  * Triggers on:
  * - Doubles on roll (11, 22, 33, ..., 99, 00/100)
  */
 export function shouldTriggerPhenomena(check: CheckResult): boolean {
-  if (!check) {
-    return false;
-  }
-
-  // Check for doubles (11, 22, 33, ..., 99, 00/100)
-  const roll = check.roll;
-  const normalizedRoll = normalizeD100(roll);
-  const tens = Math.floor(normalizedRoll / 10);
-  const ones = normalizedRoll % 10;
-  const isDoubles = tens === ones;
-
-  return isDoubles;
+  return isDoublesRoll(check);
 }
 
 /**
- * Determines phenomena severity
- * - Severe: if (cnBase > PM) OR (effectiveDoS < cnBase)  // "pushed" or failed
- * - Mild: otherwise
+ * Mode-based phenomena trigger:
+ * - FETTERED: only on bad failure (dof >= 2)
+ * - FULL_POWER: on doubles OR dof >= 2
+ * - PUSH: always
+ */
+export function getPhenomenaTrigger(mode: CastMode, check: CheckResult): boolean {
+  if (!check) return false;
+  if (mode === "PUSH") return true;
+  if (check.dof >= 2) return true;
+  if (mode === "FULL_POWER" && isDoublesRoll(check)) return true;
+  return false;
+}
+
+/**
+ * Severity from DoF (for miscast/bad failure):
+ * 2 DoF = minor, 3 = moderate, 4+ = major.
+ * Push mode can force at least moderate (caller may pass mode).
+ */
+export function getPhenomenaSeverityFromDof(dof: number, _mode?: CastMode): "minor" | "moderate" | "major" {
+  if (dof >= 4) return "major";
+  if (dof >= 3) return "moderate";
+  return "minor";
+}
+
+/**
+ * Legacy: severity from cn/pm/DoS (mild vs severe).
+ * Used when no mode/DoF-based severity is available.
  */
 export function getPhenomenaSeverity(cnBase: number, powerMagic: number, effectiveDoS: number): "mild" | "severe" {
   const isPushed = cnBase > powerMagic;
@@ -57,13 +79,15 @@ export function getPhenomenaSeverity(cnBase: number, powerMagic: number, effecti
  * @param actorId - The caster actor ID
  * @param rng - Random number generator
  * @param catalogs - Optional character catalogs
+ * @param severity - Optional severity (minor/moderate/major); future: scale backlash by severity
  * @returns Updated save and phenomena result
  */
 export function rollPhenomena(
   save: GameSave,
   actorId: ActorId,
   rng: IRNG,
-  catalogs?: any
+  catalogs?: any,
+  _severity?: "minor" | "moderate" | "major"
 ): {
   save: GameSave;
   kind: string;

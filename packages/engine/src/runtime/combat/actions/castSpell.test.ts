@@ -195,9 +195,8 @@ describe("combatCastSpell - magic resistance", () => {
 
     const rng = new FixedRng([42], [5, 5]);
     const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
-    const runtimeLog = result.save.runtime.runtimeLog ?? [];
-    const damageEntry = runtimeLog.find((entry) => entry.kind === "damage" && entry.defenderId === target.id);
-    expect(damageEntry?.tags?.includes("magic:overcast=0")).toBe(true);
+    // FETTERED + CN 1 => base overcast 0; resisted target gets targetOvercast 0
+    expect(result.save.runtime.lastCheck?.tags?.includes("magic:overcast=0")).toBe(true);
   });
 
   it("should not overflow when target is inside an untouchable field", () => {
@@ -828,6 +827,7 @@ describe("combatCastSpell - forced movement", () => {
       stats: { WIL: 300, INI: 50 } as any,
       traits: { "trait:weaver": {} },
       spells: { "spell:kinesis_force_push": true },
+      resources: { wounds: 0, rf: 0, peq: 100, mcMax: 35, mcCurrent: 35 },
     });
     const target = makeTestActor({
       id: "NPC_1",
@@ -869,6 +869,7 @@ describe("combatCastSpell - forced movement", () => {
       actorId: caster.id,
       spellId: "spell:kinesis_force_push",
       targetSelection: { kind: "single", targetPos: { x: 2, y: 1 } },
+      castOptions: { castMode: "FULL_POWER" }, // need overcast >= 3 for prone; WIL 300 => PM 30 => high overcast
     };
 
     const rng = new FixedRng([10], [5]);

@@ -131,11 +131,38 @@ Stances persist until the actor’s next turn:
 
 ## Magic Rules
 
+### Od Reserve (MC)
+
+- Every sentient has an **Od reserve**: **MC_MAX** and **MC_CURRENT** (Magic Charges).
+- **MC_MAX** = (INT bonus + WIL bonus + CHA bonus) × **Magic Core multiplier** + flat modifiers. Traits such as **Enhanced Magic Circuit(X)** add +X via modifier; **Magic Core(X)** multiplies the base sum by X (e.g. X=2 doubles the base). Talents such as **Arcane Pool** add +2 per rank (max 5 ranks) via modifier.
+- **MC_CURRENT** regenerates only on **Long Rest**.
+- Casting spends MC; channeled Mana (from Channeling) is converted to MC by **Magic Density** and spent first, then Od.
+
+### Cast Modes
+
+- **Fettered**: spend CN (minimum); safest, positive cast modifier when PM > CN.
+- **Full Power**: spend PM (at least CN); cast modifier 0; phenomena on doubles or ≥2 DoF.
+- **Push**: spend PM+2; cast modifier -20; **phenomena always**.
+
 ### Combat Magic
 
-- **Channeling** is a full-round action that builds DoS.
-- **Casting** consumes an action and may use stored DoS.
-- Traits (e.g., *Untouchable*) can affect channeling.
+- **Channeling** is a full-round action that accumulates DoS; DoS are converted to MC using **Magic Density** (e.g. Normal 3 DoS→1 MC). Channel DoS reset when the actor does a non-channel, non-cast action, or after casting.
+- **Casting** consumes MC (mana first, then Od), uses a d100 check with a **cast modifier** (PM − MC_SPENT)×10, and **overcast** = floor((MC_SPENT − CN)/2).
+- **Phenomena** trigger by mode: Fettered on ≥2 DoF; Full Power on doubles or ≥2 DoF; Push always. Severity (minor/moderate/major) from DoF.
+- **Anti-magic** (e.g. Untouchable aura): effective density **almost null** (channel gives 0 MC); cast still consumes Od and applies penalty.
+- **Magic Resistance (MR)**: Compare MR to **emitted MC** (the magic charges spent on this cast, from Mana and/or Od). If **MR ≥ emitted MC** the spell is **completely negated** on that target. If MR < emitted MC: **effective MC** = emitted MC − MR; if effective MC **< base CN** the spell is **negated** (reduction dropped it below minimum). Otherwise only the excess is dispersed; **effective overcast** for that target = floor((effective MC − CN) / 2).
+- **Scrolls and spell consumables**: Activating a scroll (or similar item) does **not** consume the caster's MC; the item provides the spell formula and the energy (treated as a cast at CN, overcast 0). The caster still rolls for success.
+- **Magic Conduct** (talent): On a successful cast, you may spend 1 Fate Point to add **+1d5 MC** to that cast; this increases overcast and the amount deducted from your reserve (channel first, then Od).
+- **Double cast**: Required base MC = **CN₁ + CN₂**. Extra MC (effective MC spent − total CN) is split **50/50** between the two spells (round down each share). Each spell's overcast = floor(its extra MC / 2). E.g. Full Power PM 8, spells CN 2 and CN 3 → total CN 5, MC spent 8, extra 3 → 1 and 2 extra per spell → overcast 0 and 1.
+- Traits (e.g., *Untouchable*) affect channeling and casting.
+
+### NPCs and bestiary
+
+- NPC weavers get **MC_MAX** from INT+WIL+CHA when not set (same as PCs). Templates can override **mcMax** (and **mcCurrent**) in resources for custom pools.
+
+### Save migration
+
+- Older saves without `mcMax`/`mcCurrent`: call **migrateSaveMcReserve(save, catalogs)** after load to set MC from INT+WIL+CHA.
 
 ### Narrative Magic
 

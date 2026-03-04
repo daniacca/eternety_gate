@@ -12,7 +12,9 @@ import type {
 import { getSpellById, getEffectById } from "./catalogs";
 import { hasLearnedSpell } from "./learning";
 import { getMagicPower } from "./pm";
-import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "./phenomena";
+import { getMcMax, getMcCurrent, setMcCurrent, ensureMcReserve } from "./od";
+import { getMcSpentForMode, getCastModifierForMode, getOvercastLevel } from "./castModes";
+import { getPhenomenaTrigger, getPhenomenaSeverityFromDof, getPhenomenaSeverity, rollPhenomena } from "./phenomena";
 import { performCheckWithSave } from "../checks";
 import { applyFatigue } from "../characters/fatigue";
 import { applyNarrativeOps } from "./applyNarrativeOps";
@@ -167,19 +169,40 @@ export function runNarrativeSpell(
   };
 
   const cnBase = spell.baseCN;
+  const fromScroll = request.options?.fromScroll === true;
   tags.push(`magic:cn=${cnBase}`);
 
-  // Calculate PM
+  if (catalogs && !fromScroll) {
+    save = ensureMcReserve(save, casterId, catalogs);
+  }
+  const casterWithMc = save.actorsById[casterId]!;
   const pm = getMagicPower(save, casterId, catalogs);
+  const mode = request.options?.castMode ?? "FETTERED";
+  const mcSpent = getMcSpentForMode(mode, cnBase, pm);
+  const mcMax = getMcMax(save, casterId, catalogs);
+  const currentMc = getMcCurrent(casterWithMc, mcMax);
+  if (!fromScroll && currentMc < mcSpent) {
+    return {
+      save,
+      result: {
+        ok: true,
+        success: false,
+        appliedOps: [],
+        logs: [`MC insufficienti (servono ${mcSpent}, disponibili ${currentMc}).`],
+        tags: [...tags, "magic:blocked=insufficientMC"],
+      },
+    };
+  }
   tags.push(`magic:pm=${pm}`);
 
-  // Perform casting check
+  const castModifier = getCastModifierForMode(pm, fromScroll ? cnBase : mcSpent);
   const castingCheck: SingleCheck = {
     id: `narrative:cast:${spell.id}:${casterId}`,
     kind: "single",
     actorRef: { mode: "byId", actorId: casterId },
     key: effect.castingStat,
     difficulty: "Challenging",
+    modifier: castModifier !== 0 ? castModifier : undefined,
   };
 
   logs.push("Canalizzi la Trama...");
@@ -207,30 +230,40 @@ export function runNarrativeSpell(
     };
   }
 
-  // Calculate effective DoS considering minDoSToSucceed
   const minDoS = narrativeConfig.minDoSToSucceed ?? 0;
   const castDoS = checkResult.dos;
   const effectiveDoS = castDoS;
   const success = checkResult.success && effectiveDoS >= minDoS;
+  const effectiveMcSpent = fromScroll ? 0 : mcSpent;
+  const overcast = fromScroll ? 0 : getOvercastLevel(effectiveMcSpent, cnBase);
+
+  // Consume MC (skip when fromScroll)
+  if (!fromScroll) {
+    const casterAfterCheck = updatedSave.actorsById[casterId];
+    const mcAfterCheck = casterAfterCheck ? getMcCurrent(casterAfterCheck, mcMax) : currentMc;
+    updatedSave = setMcCurrent(updatedSave, casterId, mcAfterCheck - mcSpent, mcMax);
+  }
 
   tags.push(`magic:roll=${checkResult.roll}`);
   tags.push(`magic:target=${checkResult.target}`);
   tags.push(`magic:dos=${effectiveDoS}`);
   tags.push(`magic:success=${success}`);
 
-  // Check for phenomena
-  const phenomenaTriggered = shouldTriggerPhenomena(checkResult);
-  const phenomenaSeverity = phenomenaTriggered
-    ? getPhenomenaSeverity(cnBase, pm, effectiveDoS)
-    : "none";
+  const phenomenaTriggered = getPhenomenaTrigger(mode, checkResult);
+  const phenomenaSeverityTier =
+    phenomenaTriggered && checkResult.dof >= 2
+      ? getPhenomenaSeverityFromDof(checkResult.dof, mode)
+      : phenomenaTriggered
+        ? getPhenomenaSeverity(cnBase, pm, effectiveDoS) === "severe"
+          ? ("moderate" as const)
+          : ("minor" as const)
+        : null;
+  const severityForResult: "none" | "minor" | "major" =
+    !phenomenaTriggered ? "none" : phenomenaSeverityTier === "major" ? "major" : "minor";
 
   let phenomenaResult: NarrativePhenomenaResult = {
     triggered: phenomenaTriggered,
-    severity: phenomenaTriggered
-      ? phenomenaSeverity === "severe"
-        ? "major"
-        : "minor"
-      : "none",
+    severity: severityForResult,
   };
 
   // Calculate RF cost
@@ -272,9 +305,10 @@ export function runNarrativeSpell(
     logs.push(`Affaticamento: +${rfToApply} RF`);
   }
 
-  // Apply phenomena if triggered
   if (phenomenaTriggered) {
-    const phenomenaRollResult = rollPhenomena(updatedSave, casterId, rng, catalogs);
+    const severityForRoll =
+      phenomenaSeverityTier && phenomenaSeverityTier !== "mild" ? phenomenaSeverityTier : undefined;
+    const phenomenaRollResult = rollPhenomena(updatedSave, casterId, rng, catalogs, severityForRoll);
     updatedSave = phenomenaRollResult.save;
     phenomenaResult.effectDescription = phenomenaRollResult.description;
     tags.push(`magic:phenomena=${phenomenaRollResult.kind}`);

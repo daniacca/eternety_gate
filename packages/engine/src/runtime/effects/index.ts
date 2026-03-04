@@ -38,6 +38,8 @@ import { applyConditionalEffects } from "./conditional";
 import { applyChooseRunVariant, applyVariantStartEffects } from "./variants";
 import { applyFireWorldEvents } from "./worldEvents";
 import { applyAddCondition, applyRemoveCondition } from "./actorConditions";
+import { applyLongRest } from "./longRest";
+import { loadCharacterCatalogs } from "../../content/loadCatalogs";
 
 /**
  * Effect handler function type
@@ -139,6 +141,20 @@ const effectHandlers: Record<Effect["op"], EffectHandler> = {
     handleGrantFatePoint(effect as Extract<Effect, { op: "grantFatePoint" }>, save),
   setFateProtection: (effect, _storyPack, save, _rng) =>
     handleSetFateProtection(effect as Extract<Effect, { op: "setFateProtection" }>, save),
+  longRest: (_effect, storyPack, save, _rng) => {
+    const catalogs = storyPack?.skills || storyPack?.talents || storyPack?.traits
+      ? loadCharacterCatalogs({
+          id: storyPack.id,
+          items: [],
+          weapons: [],
+          armors: [],
+          skills: storyPack.skills || [],
+          talents: storyPack.talents || [],
+          traits: storyPack.traits || [],
+        })
+      : undefined;
+    return { save: applyLongRest(save, catalogs) };
+  },
 };
 
 /**

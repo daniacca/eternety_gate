@@ -93,7 +93,9 @@
             "INI": { "type": "number" },
             "PER": { "type": "number" }
           }
-        }
+        },
+        "mcMax": { "type": "number", "description": "Od reserve: max Magic Charges (MC). INT+WIL+CHA bonus + modifiers." },
+        "mcCurrent": { "type": "number", "description": "Od reserve: current Magic Charges. Regenerates on Long Rest." }
       }
     },
     "skills": {

@@ -38,6 +38,7 @@ import {
   loadCharacterCatalogs,
   spendActorXp,
   type StatKey,
+  type CastMode,
 } from "@eg/engine";
 import { withCatalogs } from "../storypacks";
 import { sigilContentPack } from "@eg/content/src";
@@ -109,6 +110,7 @@ export function PlayScreen({
   const [actionTargeting, setActionTargeting] = useState<ActionTargetingState | null>(null);
   const [pendingChoice, setPendingChoice] = useState<ChoiceResolution | null>(null);
   const [magicConductEnabled, setMagicConductEnabled] = useState(false);
+  const [castMode, setCastMode] = useState<CastMode>("FETTERED");
   const [combatRewards, setCombatRewards] = useState<{ title: string; lines: string[] } | null>(null);
   const { width, height } = useWindowDimensions();
   const normalizedBaseStatsRef = useRef(false);
@@ -123,6 +125,7 @@ export function PlayScreen({
     setSave(initialSave);
     setCombatRewards(null);
     setMagicConductEnabled(false);
+    setCastMode("FETTERED");
     lastRewardKeyRef.current = null;
     prevSaveRef.current = null;
     combatRewardSnapshotRef.current = null;
@@ -141,6 +144,7 @@ export function PlayScreen({
     setPendingChoice(null);
     setCombatRewards(null);
     setMagicConductEnabled(false);
+    setCastMode("FETTERED");
     lastRewardKeyRef.current = null;
     prevSaveRef.current = null;
     combatRewardSnapshotRef.current = null;
@@ -958,7 +962,10 @@ export function PlayScreen({
   const confirmSpellTargeting = () => {
     if (!actionTargeting || !actionTargeting.preview.valid) return;
     if (actionTargeting.kind === "spell" && actionTargeting.spellId) {
-      const castOptions = magicConductEnabled ? { magicConduct: true } : undefined;
+      const castOptions = {
+        ...(magicConductEnabled ? { magicConduct: true } : {}),
+        castMode,
+      };
       applySystemEffects([
         {
           op: "combatCastSpell",
@@ -1211,6 +1218,8 @@ export function PlayScreen({
         onTargetCancel={cancelSpellTargeting}
         magicConductEnabled={magicConductEnabled}
         onToggleMagicConduct={setMagicConductEnabled}
+        castMode={castMode}
+        onCastModeChange={setCastMode}
       />
     </View>
   );

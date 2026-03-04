@@ -11,6 +11,8 @@ import {
   canLearnSpell,
   getLearnedSpells,
   getMagicPower,
+  getMcMax,
+  getMcCurrent,
   getActorTalentsWithParams,
   canUseItem,
   getItemRefQty,
@@ -113,6 +115,9 @@ export function PlayerSheet({
   const rfMax = calculateMaxRf(save, activeActor, catalogs);
   const rf = activeActor.resources.rf;
   const pm = getMagicPower(save, activeActor.id, catalogs);
+  const isWeaver = Boolean(activeActor.traits?.["trait:weaver"]);
+  const mcMax = isWeaver ? getMcMax(save, activeActor.id, catalogs) : 0;
+  const mcCurrent = isWeaver ? getMcCurrent(activeActor, mcMax) : 0;
   const armorData = getActorArmor(save, activeActor);
   let armorSoak = armorData.soak;
   if (activeActor.conditions?.misfortune) {
@@ -325,6 +330,18 @@ export function PlayerSheet({
                   {rf}/{rfMax}
                 </Text>
               </View>
+              {isWeaver && (
+                <>
+                  <View style={styles.resourceRow}>
+                    <Text style={styles.resourceLabel}>MC:</Text>
+                    <Text style={styles.resourceValue}>{mcCurrent}/{mcMax}</Text>
+                  </View>
+                  <View style={styles.resourceRow}>
+                    <Text style={styles.resourceLabel}>PM:</Text>
+                    <Text style={styles.resourceValue}>{pm}</Text>
+                  </View>
+                </>
+              )}
               <View style={styles.resourceRow}>
                 <Text style={styles.resourceLabel}>Soak:</Text>
                 <Text style={styles.resourceValue}>

@@ -855,5 +855,18 @@ describe("effects", () => {
       expect(result.state.flags.finalFlag).toBe(true);
     });
   });
+
+  describe("longRest", () => {
+    it("restores mcCurrent to computed mcMax for all party actors", () => {
+      const storyPack = makeTestStoryPack({ traits: [] });
+      const actor = makeTestActor({
+        resources: { wounds: 0, rf: 0, peq: 100, mcCurrent: 3 },
+      });
+      const save = makeTestSave(storyPack, actor);
+      const rng = new FakeRng([]);
+      const result = applyEffect({ op: "longRest" }, storyPack, save, rng);
+      expect(result.save.actorsById[actor.id].resources.mcCurrent).toBe(15);
+    });
+  });
 });
 

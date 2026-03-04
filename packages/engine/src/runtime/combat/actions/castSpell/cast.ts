@@ -5,9 +5,13 @@ import { appendCombatLog, appendRuntimeLog, nextRuntimeSeq } from "../../narrati
 import { performCheckWithSave } from "../../../checks";
 import { getSpellById, getEffectById } from "../../../magic/catalogs";
 import { getMagicPower } from "../../../magic/pm";
+import { getMcMax, getMcCurrent, setMcCurrent, ensureMcReserve } from "../../../magic/od";
+import { getMcSpentForMode, getCastModifierForMode, getOvercastLevel } from "../../../magic/castModes";
+import { getMagicDensity, channelDoSToMc } from "../../../magic/density";
+import { getEffectiveMagicDensity } from "../../untouchableAura";
 import { applyFatigue } from "../../../characters/fatigue";
 import { getCharacteristicBonus } from "../../../characters/bonuses";
-import { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "../../../magic/phenomena";
+import { getPhenomenaTrigger, getPhenomenaSeverityFromDof, getPhenomenaSeverity, rollPhenomena } from "../../../magic/phenomena";
 import { hasLearnedSpell } from "../../../magic/learning";
 import { hasUnlockedAction } from "../../../characters/actions";
 import type { CharacterCatalogs } from "../../../../content/catalogs";
@@ -16,6 +20,8 @@ import { buildSpellTargetSpec, computeTargetPreview } from "../../../targeting/c
 import type { TargetSpec, TargetSelection, TargetPreview } from "../../../targeting/core/types";
 import { hasTrait } from "../../../characters/prerequisites";
 import { getUntouchableAuraImpact } from "../../untouchableAura";
+import { getModifierTotal } from "../../../characters/modifiers";
+import { getCastingSpecializationBonus } from "../../../characters/talentModifiers";
 import { applySpellEffectsForCast } from "./effects";
 import { combatDoubleCastSpell } from "./doubleCast";
 import { applyBlockedCheck, buildBlockedCheck } from "./blockedCheck";
@@ -83,6 +89,7 @@ export function combatCastSpell(
   }
 
   const cnBase = spell.baseCN;
+  const fromScroll = castOptions?.fromScroll === true;
 
   // Load catalogs early for checks
   const catalogs: CharacterCatalogs | undefined =
@@ -194,6 +201,44 @@ export function combatCastSpell(
     };
   }
 
+  // Ensure MC reserve for caster (migration)
+  if (catalogs) {
+    currentSave = ensureMcReserve(currentSave, turnActorId, catalogs);
+  }
+  const actorWithMc = currentSave.actorsById[turnActorId]!;
+  const pm = getMagicPower(currentSave, turnActorId, catalogs);
+  const mode = castOptions?.castMode ?? "FETTERED";
+  const mcSpent = getMcSpentForMode(mode, cnBase, pm);
+  const mcMax = getMcMax(currentSave, turnActorId, catalogs);
+  const currentMc = getMcCurrent(actorWithMc, mcMax);
+  const baseDensity = getMagicDensity(currentSave);
+  const density = catalogs ? getEffectiveMagicDensity(currentSave, catalogs, turnActorId, baseDensity) : baseDensity;
+  const channeling = currentSave.runtime.combat?.channeling;
+  const channelDoS = channeling?.actorId === turnActorId ? channeling.accumulatedDoS : 0;
+  const mcFromMana = channelDoSToMc(channelDoS, density);
+  const availableMc = mcFromMana + currentMc;
+  if (!fromScroll && availableMc < mcSpent) {
+    const saveWithChannelCleared = {
+      ...currentSave,
+      runtime: {
+        ...currentSave.runtime,
+        combat: currentSave.runtime.combat
+          ? { ...currentSave.runtime.combat, channeling: undefined }
+          : undefined,
+      },
+    };
+    return {
+      save: applyBlockedCheck(saveWithChannelCleared, buildBlockedCheck("combat:castSpell:blocked", turnActorId, [
+        "combat:blocked=insufficientMC",
+        `magic:mcRequired=${mcSpent}`,
+        `magic:mcAvailable=${availableMc}`,
+      ]), {
+        message: `MC insufficienti (servono ${mcSpent}, disponibili ${availableMc}).`,
+        turnCounter: combat.turnCounter,
+      }),
+    };
+  }
+
   const effectStatKey = effectDef.effectStat ?? effectDef.castingStat;
   const effectStatBonus = getCharacteristicBonus(currentSave, turnActorId, effectStatKey, catalogs);
 
@@ -226,13 +271,7 @@ export function combatCastSpell(
     return { save: loggedSave };
   }
 
-  // Check channeling bonus
-  // Channeling persists until the actor does a non-channeling, non-casting action
-  // OR until they cast a spell (then it's consumed)
-  // Since channeling is only reset by non-channeling/non-casting actions, if it exists
-  // and belongs to this actor, it's still valid
-  const channeling = combat.channeling;
-  const channelDoS = channeling?.actorId === turnActorId ? channeling.accumulatedDoS : 0;
+  // Channel DoS (for log display); mcFromMana already computed above for availability
 
   // Check for casting penalty from phenomena (will be consumed after check)
   // Use stable ID "phenomena:castingPenalty"
@@ -241,12 +280,20 @@ export function combatCastSpell(
 
   // Untouchable aura penalty applies when a weaver casts within the aura
   let auraPenalty = 0;
-  if (catalogs && hasTrait(actor, "trait:weaver", save)) {
-    const impact = getUntouchableAuraImpact(save, catalogs, turnActorId);
+  if (catalogs && hasTrait(actorWithMc, "trait:weaver", currentSave)) {
+    const impact = getUntouchableAuraImpact(currentSave, catalogs, turnActorId);
     if (impact) {
       auraPenalty = impact.penalty;
     }
   }
+  const flatCastBonus = catalogs ? getModifierTotal(currentSave, catalogs, turnActorId, "magic.castBonus") : 0;
+  const discipline = (effectDef as { discipline?: string }).discipline;
+  const disciplineCastBonus =
+    catalogs && discipline && ["PYRA", "KINESIS", "MENTIS", "VATES", "CORPUS"].includes(discipline)
+      ? getCastingSpecializationBonus(currentSave, catalogs, turnActorId, discipline as "PYRA" | "KINESIS" | "MENTIS" | "VATES" | "CORPUS")
+      : 0;
+  const castModifier =
+    getCastModifierForMode(pm, fromScroll ? cnBase : mcSpent) + auraPenalty + flatCastBonus + disciplineCastBonus;
 
   // Create casting check
   const castingCheck: SingleCheck = {
@@ -255,7 +302,7 @@ export function combatCastSpell(
     actorRef: { mode: "byId", actorId: turnActorId },
     key: effectDef.castingStat,
     difficulty: "Challenging",
-    modifier: auraPenalty !== 0 ? auraPenalty : undefined,
+    modifier: castModifier !== 0 ? castModifier : undefined,
   };
 
   // Generate resolutionId
@@ -304,31 +351,41 @@ export function combatCastSpell(
     };
   }
 
-  // Calculate CN and effective DoS
+  // Success = check passed (no DoS gate)
+  const success = result.success;
   const castDoS = result.dos;
-  let effectiveDoS = castDoS + channelDoS;
-  const baseSuccess = effectiveDoS >= cnBase;
-  if (baseSuccess && castOptions?.magicConduct) {
-    const magicConductBonus = rng.nextInt(1, 5);
-    effectiveDoS += magicConductBonus;
+  const effectiveDoS = castDoS + channelDoS;
+  // Magic Conduct: add +1d5 MC to this cast (increases overcast and amount deducted)
+  const magicConductBonus = success && castOptions?.magicConduct ? rng.nextInt(1, 5) : 0;
+  if (magicConductBonus > 0) {
     saveAfterPenaltyRemoval = appendRuntimeLog(saveAfterPenaltyRemoval, {
       kind: "system",
-      message: `Magic Conduct: +${magicConductBonus} DoS`,
+      message: `Magic Conduct: +${magicConductBonus} MC (potenziale overcast)`,
       turnCounter: combat.turnCounter,
       resolutionId,
-      tags: ["magic:conduct", `dosBonus=${magicConductBonus}`],
+      tags: ["magic:conduct", `mcBonus=${magicConductBonus}`],
     });
   }
-  const success = baseSuccess;
-  const rawOvercast = Math.max(0, effectiveDoS - cnBase);
-  const overcast = castOptions?.noOvercast ? 0 : Math.ceil(rawOvercast / 2);
+  const effectiveMcSpent = fromScroll ? 0 : mcSpent + magicConductBonus;
+  const overcast =
+    fromScroll || castOptions?.noOvercast ? 0 : getOvercastLevel(effectiveMcSpent, cnBase);
 
-  // Calculate PM
-  const pm = getMagicPower(saveAfterPenaltyRemoval, turnActorId, catalogs);
+  if (!fromScroll) {
+    const mcFromManaUsed = Math.min(effectiveMcSpent, mcFromMana);
+    const mcFromOd = effectiveMcSpent - mcFromManaUsed;
+    const casterForMc = saveAfterPenaltyRemoval.actorsById[turnActorId];
+    const mcAfterCheck = casterForMc ? getMcCurrent(casterForMc, mcMax) : currentMc;
+    saveAfterPenaltyRemoval = setMcCurrent(saveAfterPenaltyRemoval, turnActorId, mcAfterCheck - mcFromOd, mcMax);
+  }
 
-  // Check for phenomena trigger (doubles only)
-  const phenomenaTriggered = shouldTriggerPhenomena(result);
-  const phenomenaSeverity = phenomenaTriggered ? getPhenomenaSeverity(cnBase, pm, effectiveDoS) : null;
+  const phenomenaTriggered = getPhenomenaTrigger(mode, result);
+  const phenomenaSeverityTier =
+    phenomenaTriggered && result.dof >= 2
+      ? getPhenomenaSeverityFromDof(result.dof, mode)
+      : phenomenaTriggered
+        ? ("mild" as const)
+        : null;
+  const phenomenaSeverity = phenomenaTriggered ? (phenomenaSeverityTier === "major" || phenomenaSeverityTier === "moderate" ? "severe" : "mild") : null;
   let rfToApply = 0;
 
   // Apply RF based on success/failure
@@ -374,7 +431,9 @@ export function combatCastSpell(
   // Resolve phenomena if triggered (applies to both success and failure)
   let phenomenaResult: { save: GameSave; kind: string; description: string } | null = null;
   if (phenomenaTriggered) {
-    phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs);
+    const severityForRoll =
+      phenomenaSeverityTier && phenomenaSeverityTier !== "mild" ? phenomenaSeverityTier : undefined;
+    phenomenaResult = rollPhenomena(updatedSave, turnActorId, rng, catalogs, severityForRoll);
     updatedSave = phenomenaResult.save;
     const phenomenaDesc = phenomenaResult.description;
     const severity = phenomenaSeverity || "mild";
@@ -452,6 +511,8 @@ export function combatCastSpell(
             `magic:cn=${cnBase}`,
             `magic:dosTotal=${effectiveDoS}`,
             `magic:overcast=${overcast}`,
+            `magic:mcSpent=${effectiveMcSpent}`,
+            `magic:castMode=${mode}`,
             `magic:kind=${effectDef.kind}`,
             ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
           ],
@@ -478,6 +539,7 @@ export function combatCastSpell(
 
   // Apply spell effects if successful
   if (success) {
+    const emittedMC = fromScroll ? cnBase : effectiveMcSpent;
     updatedSave = applySpellEffectsForCast({
       save: updatedSave,
       storyPack,
@@ -488,6 +550,7 @@ export function combatCastSpell(
       spell,
       effectDef,
       cnBase,
+      emittedMC,
       effectiveDoS,
       overcast,
       resolutionId,
@@ -516,6 +579,8 @@ export function combatCastSpell(
           `magic:cn=${cnBase}`,
           `magic:dosTotal=${effectiveDoS}`,
           `magic:overcast=${overcast}`,
+          `magic:mcSpent=${effectiveMcSpent}`,
+          `magic:castMode=${mode}`,
           `magic:kind=${effectDef.kind}`,
           ...(channelDoS > 0 ? [`magic:channelDoS=${channelDoS}`] : []),
         ],

@@ -18,6 +18,8 @@ export type TargetResolutionParams = {
   spell: SpellDef;
   effectDef: EffectDef;
   cnBase: number;
+  /** Emitted MC (magic charges spent on this cast, from Mana and/or Od). Used for magic resistance. */
+  emittedMC: number;
   effectiveDoS: number;
   overcast: number;
   resolutionId: string;

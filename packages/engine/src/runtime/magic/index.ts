@@ -30,8 +30,25 @@ export { canLearnSpell, learnSpell, getLearnedSpells, hasLearnedSpell } from "./
 // Power Magic
 export { getMagicPower } from "./pm";
 
+// Od reserve (MC)
+export { getMcMax, getMcCurrent, setMcCurrent, ensureMcReserve, migrateSaveMcReserve } from "./od";
+
+// Cast modes
+export { getMcSpentForMode, getCastModifierForMode, getOvercastLevel } from "./castModes";
+
+// Magic density
+export { getMagicDensity, channelDoSToMc } from "./density";
+
 // Phenomena
-export { shouldTriggerPhenomena, getPhenomenaSeverity, rollPhenomena } from "./phenomena";
+export {
+  shouldTriggerPhenomena,
+  getPhenomenaTrigger,
+  getPhenomenaSeverityFromDof,
+  getPhenomenaSeverity,
+  rollPhenomena,
+  normalizeD100,
+  isDoublesRoll,
+} from "./phenomena";
 
 // Scaling
 export { scaleDamage, scaleCondition, scaleHeal } from "./scaling";

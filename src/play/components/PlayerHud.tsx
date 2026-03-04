@@ -7,6 +7,8 @@ import {
   getCurrentHp,
   calculateMaxRf,
   getMagicPower,
+  getMcMax,
+  getMcCurrent,
   getModifierTotal,
 } from "@eg/engine";
 import type { ConditionId } from "@eg/engine";
@@ -69,6 +71,9 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
   const rfMax = calculateMaxRf(save, activeActor, catalogs);
   const rf = activeActor.resources.rf ?? 0;
   const pm = getMagicPower(save, activeActor.id, catalogs);
+  const isWeaver = Boolean(activeActor.traits?.["trait:weaver"]);
+  const mcMax = isWeaver ? getMcMax(save, activeActor.id, catalogs) : 0;
+  const mcCurrent = isWeaver ? getMcCurrent(activeActor, mcMax) : 0;
 
   // Get equipment
   const weapon = getActorWeapon(save, activeActor);
@@ -119,6 +124,16 @@ export function PlayerHud({ save, onOpenSheet, onOpenTalentShop, onOpenEquipment
           {rf}/{rfMax}
         </Text>
       </View>
+
+      {/* MC (weavers only) */}
+      {isWeaver && (
+        <View style={styles.hpContainer}>
+          <Text style={styles.hpLabel}>MC</Text>
+          <Text style={styles.hpValue}>
+            {mcCurrent}/{mcMax}
+          </Text>
+        </View>
+      )}
 
       {/* PM */}
       <View style={styles.xpContainer}>

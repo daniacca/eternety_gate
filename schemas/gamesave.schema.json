@@ -290,6 +290,12 @@
           "additionalProperties": { "type": "integer" }
         },
 
+        "magicDensity": {
+          "type": "string",
+          "enum": ["normal", "concentrated", "veryDense", "rarefied", "almostNull"],
+          "description": "Ambient magic density for channel DoS to MC conversion"
+        },
+
         "channeling": {
           "type": "object",
           "additionalProperties": false,

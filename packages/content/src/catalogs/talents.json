@@ -215,6 +215,17 @@
     "maxRank": 5
   },
   {
+    "id": "talent:arcane_pool",
+    "name": "Pool Arcano",
+    "description": "Increases maximum Od Reserve (MC) by 2 per rank.",
+    "tier": 1,
+    "xpCost": 250,
+    "tags": ["magic"],
+    "prerequisites": [{ "type": "hasTrait", "traitId": "trait:weaver" }],
+    "grants": [{ "type": "modifier", "key": "magic.mcMax", "op": "add", "value": 2 }],
+    "maxRank": 5
+  },
+  {
     "id": "talent:mighty_shot_1",
     "name": "Colpo Potente I",
     "description": "Adds BS Bonus to ranged damage.",
@@ -289,7 +300,6 @@
     },
     "uniquenessKey": "resistance:<chosenType>"
   },
-
   {
     "id": "talent:deathdealer",
     "name": "Mietitore",
@@ -352,7 +362,7 @@
   {
     "id": "talent:sprint",
     "name": "Sprint",
-    "description": "Move AGI Bonus × 1.5 squares instead of AGI Bonus.",
+    "description": "Move AGI Bonus x 1.5 squares instead of AGI Bonus.",
     "tier": 3,
     "xpCost": 1000,
     "tags": ["combat", "mobility"],
@@ -371,7 +381,6 @@
     "grants": [{ "type": "modifier", "key": "combat.crushingBlowDamageBonus", "op": "add", "value": 1 }],
     "maxRank": 1
   },
-
   {
     "id": "talent:marksman",
     "name": "Tiratore Scelto",
@@ -478,7 +487,7 @@
   {
     "id": "talent:magic_conduct",
     "name": "Magic Conduct",
-    "description": "Spend a Fate Point to empower a successful cast, adding 1d5 DoS to power and overcast.",
+    "description": "Spend a Fate Point to empower a successful cast, adding +1d5 MC to the cast (increases overcast and amount deducted).",
     "tier": 3,
     "xpCost": 1000,
     "tags": ["magic"],
