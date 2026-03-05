@@ -307,7 +307,7 @@ export function runNarrativeSpell(
 
   if (phenomenaTriggered) {
     const severityForRoll =
-      phenomenaSeverityTier && phenomenaSeverityTier !== "mild" ? phenomenaSeverityTier : undefined;
+      phenomenaSeverityTier && phenomenaSeverityTier !== "minor" ? phenomenaSeverityTier : undefined;
     const phenomenaRollResult = rollPhenomena(updatedSave, casterId, rng, catalogs, severityForRoll);
     updatedSave = phenomenaRollResult.save;
     phenomenaResult.effectDescription = phenomenaRollResult.description;
