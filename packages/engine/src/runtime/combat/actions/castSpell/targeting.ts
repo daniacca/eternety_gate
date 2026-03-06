@@ -6,6 +6,7 @@ import { getActorsInRange } from "../../../targeting/getActorsInRange";
 import { appendCombatLog, appendRuntimeLog } from "../../narration";
 import { getMagicResistanceAgainstSpell } from "../../../magic/resistance";
 import { getBestResistStat, hasDenyTheWitch, performDenyTheWitchCheck } from "../../../magic/denyTheWitch";
+import { getResistBasePenalty, getResistCheckModifier } from "../../../magic/resist";
 import { performCheckWithSave } from "../../../checks";
 import { getResistanceBonus } from "../../../characters/talentModifiers";
 import { getUntouchableDenyBonus } from "../../../characters/untouchable";
@@ -261,6 +262,7 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
   ) {
     const baseOpposedStat = effectDef.opposedStat || effectDef.castingStat;
     const opposedDifficulty = effectDef.opposedDifficulty || "Challenging";
+    const baseResistPenalty = getResistBasePenalty(effectDef, spell.baseCN ?? cnBase);
 
     const resistedTargetIds = new Set<ActorId>();
 
@@ -271,14 +273,21 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
 
       const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
       const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+      const targetOvercast = getOvercastForTarget(target.actorId);
+      const resistModifier = getResistCheckModifier(
+        baseResistPenalty,
+        targetOvercast,
+        magicResistanceBonus,
+        untouchableDenyBonus
+      );
 
       const defenderCheck = {
-        id: `combat:cast:opposed:${spell.id}:${target.actorId}`,
+        id: `combat:cast:resist:${spell.id}:${target.actorId}`,
         kind: "single" as const,
         actorRef: { mode: "byId" as const, actorId: target.actorId },
         key: opposedStat,
         difficulty: opposedDifficulty,
-        modifier: magicResistanceBonus + untouchableDenyBonus,
+        modifier: resistModifier,
       };
 
       const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
@@ -286,7 +295,7 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
         storyPack,
         updatedSave,
         rng,
-        `res:opposed:${spell.id}:${target.actorId}`
+        `res:resist:${spell.id}:${target.actorId}`
       );
 
       updatedSave = saveAfterDefenderCheck;
@@ -296,22 +305,18 @@ export function resolveSpellTargets(params: TargetResolutionParams): TargetResol
         continue;
       }
 
-      const attackerDoS = params.effectiveDoS;
-      const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
+      const targetName = target.actor.name || target.actorId;
       const usedDenyTheWitch =
         catalogs && opposedStat === "WIL" && baseOpposedStat !== "WIL" && hasDenyTheWitch(target.actor, catalogs, updatedSave);
+      const statLabel = usedDenyTheWitch ? `${opposedStat} (Rifiuto della Strega)` : opposedStat;
 
-      if (attackerDoS > defenderDoS) {
-        const targetName = target.actor.name || target.actorId;
-        const statLabel = usedDenyTheWitch ? `${opposedStat} (Rifiuto della Strega)` : opposedStat;
-        const opposedLog = `${targetName} resiste con ${statLabel} ma fallisce (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
-        updatedSave = appendCombatLog(updatedSave, opposedLog);
-      } else {
-        const targetName = target.actor.name || target.actorId;
-        const statLabel = usedDenyTheWitch ? `${opposedStat} (Rifiuto della Strega)` : opposedStat;
-        const resistedLog = `${targetName} resiste con successo usando ${statLabel} (DoS attaccante: ${attackerDoS}, DoS difensore: ${defenderDoS})`;
+      if (defenderResult.success) {
+        const resistedLog = `${targetName} resiste con successo usando ${statLabel}`;
         updatedSave = appendCombatLog(updatedSave, resistedLog);
         resistedTargetIds.add(target.actorId);
+      } else {
+        const failedLog = `${targetName} non resiste (test ${statLabel} fallito)`;
+        updatedSave = appendCombatLog(updatedSave, failedLog);
       }
     }
 

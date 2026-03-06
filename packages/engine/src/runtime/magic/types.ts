@@ -82,9 +82,11 @@ export type EffectDefinition = {
     radiusSquares?: number;
     includeCaster?: boolean;
   };
-  opposed?: boolean; // If true, requires opposed check
-  opposedStat?: StatKey; // Stat for defender's opposed check (defaults to same as castingStat)
-  opposedDifficulty?: string; // Difficulty for defender's opposed check (defaults to "Challenging")
+  opposed?: boolean; // If true, requires resist check (target rolls to resist; effect applies on fail)
+  opposedStat?: StatKey; // Stat for defender's resist check (defaults to same as castingStat)
+  opposedDifficulty?: string; // Difficulty for defender's resist check (defaults to "Challenging")
+  /** Base penalty to resist (negative = harder). If omitted, derived from spell baseCN bands (0-1→0, 2-4→-10, 5-7→-20, 8-10→-30, 10+→-40). */
+  resistBasePenalty?: number;
   applyFatigueDice?: {
     dice: number;
     sides: number;

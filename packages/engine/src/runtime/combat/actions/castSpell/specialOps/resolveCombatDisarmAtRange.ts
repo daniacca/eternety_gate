@@ -2,6 +2,9 @@ import type { ActorId, ItemRef, SingleCheck } from "../../../../types";
 import { appendCombatLog } from "../../../narration";
 import { performCheckWithSave } from "../../../../checks";
 import { posKey } from "../../../../items";
+import { getResistBasePenalty, getResistCheckModifier } from "../../../../magic/resist";
+import { getResistanceBonus } from "../../../../characters/talentModifiers";
+import { getUntouchableDenyBonus } from "../../../../characters/untouchable";
 
 import type { SpecialOpParams, SpecialOpResult } from "../types";
 
@@ -10,13 +13,16 @@ export function resolveCombatDisarmAtRange(params: SpecialOpParams): SpecialOpRe
     save,
     storyPack,
     rng,
+    catalogs,
     combat,
     turnActorId,
     spell,
     effectDef,
-    effectiveDoS,
+    cnBase,
     validTargetActors,
+    getOvercastForTarget,
   } = params;
+  const baseResistPenalty = getResistBasePenalty(effectDef, spell.baseCN ?? cnBase);
   if (effectDef.specialOp !== "combatDisarmAtRange" || validTargetActors.length === 0) {
     return null;
   }
@@ -27,13 +33,23 @@ export function resolveCombatDisarmAtRange(params: SpecialOpParams): SpecialOpRe
   for (const target of validTargetActors) {
     const opposedStat = effectDef.opposedStat || "STR";
     const opposedDifficulty = effectDef.opposedDifficulty || "-20";
+    const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+    const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+    const targetOvercast = getOvercastForTarget(target.actorId);
+    const resistModifier = getResistCheckModifier(
+      baseResistPenalty,
+      targetOvercast,
+      magicResistanceBonus,
+      untouchableDenyBonus
+    );
 
     const defenderCheck: SingleCheck = {
-      id: `combat:cast:disarm:opposed:${spell.id}:${target.actorId}`,
+      id: `combat:cast:disarm:resist:${spell.id}:${target.actorId}`,
       kind: "single",
       actorRef: { mode: "byId", actorId: target.actorId },
       key: opposedStat,
       difficulty: opposedDifficulty,
+      modifier: resistModifier,
     };
 
     const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
@@ -52,10 +68,7 @@ export function resolveCombatDisarmAtRange(params: SpecialOpParams): SpecialOpRe
       continue;
     }
 
-    const attackerDoS = effectiveDoS;
-    const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
-
-    if (attackerDoS > defenderDoS) {
+    if (!defenderResult.success) {
       const defender = target.actor;
       const defenderMainHand = defender.equipment?.mainHand;
       const defenderWeaponId = defenderMainHand?.kind === "weapon" ? defenderMainHand.id : null;

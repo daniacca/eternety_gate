@@ -2,6 +2,7 @@ import type { ActorId, SingleCheck } from "../../../../types";
 import { performCheckWithSave } from "../../../../checks";
 import { applyDamageToActor } from "../../../criticalDamage";
 import { getBestResistStat } from "../../../../magic/denyTheWitch";
+import { getResistBasePenalty, getResistCheckModifier } from "../../../../magic/resist";
 import { getResistanceBonus } from "../../../../characters/talentModifiers";
 import { getUntouchableDenyBonus } from "../../../../characters/untouchable";
 
@@ -15,10 +16,11 @@ export function resolveCombatInfernalGaze(params: SpecialOpParams): SpecialOpRes
     catalogs,
     spell,
     effectDef,
-    effectiveDoS,
+    cnBase,
     validTargetActors,
     getOvercastForTarget,
   } = params;
+  const baseResistPenalty = getResistBasePenalty(effectDef, spell.baseCN ?? cnBase);
   if (effectDef.specialOp !== "combatInfernalGaze" || validTargetActors.length === 0) {
     return null;
   }
@@ -35,7 +37,12 @@ export function resolveCombatInfernalGaze(params: SpecialOpParams): SpecialOpRes
     const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
     const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
     const targetOvercast = getOvercastForTarget(target.actorId);
-    const resistPenalty = -5 * targetOvercast;
+    const resistModifier = getResistCheckModifier(
+      baseResistPenalty,
+      targetOvercast,
+      magicResistanceBonus,
+      untouchableDenyBonus
+    );
 
     const defenderCheck: SingleCheck = {
       id: `combat:cast:infernalGaze:${spell.id}:${target.actorId}`,
@@ -43,7 +50,7 @@ export function resolveCombatInfernalGaze(params: SpecialOpParams): SpecialOpRes
       actorRef: { mode: "byId", actorId: target.actorId },
       key: opposedStat,
       difficulty: opposedDifficulty,
-      modifier: magicResistanceBonus + untouchableDenyBonus + resistPenalty,
+      modifier: resistModifier,
     };
 
     const { result: defenderResult, save: saveAfterDefenderCheck } = performCheckWithSave(
@@ -61,10 +68,7 @@ export function resolveCombatInfernalGaze(params: SpecialOpParams): SpecialOpRes
       continue;
     }
 
-    const attackerDoS = effectiveDoS;
-    const defenderDoS = defenderResult.success ? defenderResult.dos : -1;
-
-    if (attackerDoS > defenderDoS) {
+    if (!defenderResult.success) {
       const damage = Math.max(0, defenderResult.dof);
       const damageResult = applyDamageToActor(target.actor, damage, updatedSave, rng, storyPack, catalogs);
       updatedSave = {

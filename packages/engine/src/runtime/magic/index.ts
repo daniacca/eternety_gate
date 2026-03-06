@@ -53,6 +53,13 @@ export {
 // Scaling
 export { scaleDamage, scaleCondition, scaleHeal } from "./scaling";
 
+// Resist (to-resist test: base penalty + overcast, single rule)
+export {
+  getResistBasePenalty,
+  getResistCheckModifier,
+  RESIST_PENALTY_PER_OVERCAST,
+} from "./resist";
+
 // Narrative casting
 export { runNarrativeSpell, applyNarrativeOps } from "./castSpellNarrative";
 export type { NarrativeOpsContext } from "./applyNarrativeOps";
