@@ -102,6 +102,8 @@ export type SpellConditionParams = {
   resolutionId: string;
   effectStatBonus: number;
   effectiveDoS: number;
+  /** Emitted MC for this cast; used for aura power (auraPower = emittedMC + floor(DoS/2)). */
+  emittedMC: number;
   validTargetActors: Array<{ actorId: ActorId; actor: GameSave["actorsById"][string] }>;
   getOvercastForTarget: (actorId: ActorId) => number;
   terrainContentPack?: ContentPack;

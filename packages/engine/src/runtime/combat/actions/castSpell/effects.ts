@@ -153,6 +153,7 @@ function applySpellEffectsForCastRefactored(params: SpellEffectApplyParams): Gam
     resolutionId,
     effectStatBonus,
     effectiveDoS,
+    emittedMC: params.emittedMC,
     validTargetActors,
     getOvercastForTarget,
     terrainContentPack,

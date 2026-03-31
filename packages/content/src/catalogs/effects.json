@@ -25,19 +25,6 @@
     "description": "Spinge il bersaglio a terra"
   },
   {
-    "id": "effect:disrupt",
-    "discipline": "MENTIS",
-    "castingStat": "INT",
-    "kind": "malediction",
-    "applyConditions": [
-      {
-        "conditionId": "fatigue",
-        "value": 1
-      }
-    ],
-    "description": "Indebolisce il bersaglio con affaticamento"
-  },
-  {
     "id": "effect:flame_cone",
     "discipline": "PYRA",
     "castingStat": "WIL",

@@ -16,7 +16,7 @@ import {
   getWarpSpeedCharacteristics,
   removeUnnaturalCharacteristicsBySource,
 } from "../../../characters/traitHelpers";
-import { scaleCondition } from "../../../magic/scaling";
+import { scaleBlessingCondition } from "../../../magic/scaling";
 
 import type { SpellConditionParams } from "./types";
 
@@ -37,7 +37,11 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
     terrainContentPack,
     getMagicRollMode,
     effectiveDoS,
+    emittedMC,
   } = params;
+
+  /** Aura power for overlap: emitted MC dominates; DoS adds a small tie-breaker (better control wins). */
+  const auraPower = emittedMC + Math.floor(effectiveDoS / 2);
 
   let updatedSave = save;
 
@@ -105,7 +109,9 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
               value:
                 spell.id === "spell:vates_premonition"
                   ? effectDef.tempModifier.value + targetOvercast * 5
-                  : effectDef.tempModifier.value,
+                  : spell.id === "spell:mentis_sensory_distortion"
+                    ? effectDef.tempModifier.value - 5 * targetOvercast
+                    : effectDef.tempModifier.value,
               expires: untilTurnCounter,
             },
           ],
@@ -121,11 +127,13 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
       };
 
       const targetName = target.actor.name || target.actorId;
-      // Premonition adds +5 per overcast, other temp modifiers don't scale
+      // Premonition +5 per overcast; sensory distortion -5 per overcast; others fixed
       const modifierValue =
         spell.id === "spell:vates_premonition"
           ? effectDef.tempModifier.value + targetOvercast * 5
-          : effectDef.tempModifier.value;
+          : spell.id === "spell:mentis_sensory_distortion"
+            ? effectDef.tempModifier.value - 5 * targetOvercast
+            : effectDef.tempModifier.value;
       const modifierLog = `${targetName} ottiene modificatore ${
         modifierValue >= 0 ? "+" : ""
       }${modifierValue} a tutti i test (durata: ${scaledDuration} turni)`;
@@ -278,13 +286,11 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
   }
 
   // Apply conditions if effect has conditions
+  // Standard blessing base from spell baseCN: higher CN → higher base duration/stacks (less room for overcast).
+  const cnBase = spell.baseCN ?? 0;
+
   if (effectDef.applyConditions && validTargetActors.length > 0) {
     for (const conditionSpec of effectDef.applyConditions) {
-      const baseStacksValue =
-        conditionSpec.value !== undefined ? conditionSpec.value + effectStatBonus : conditionSpec.value;
-      const baseDurationValue =
-        conditionSpec.durationRounds !== undefined ? conditionSpec.durationRounds + effectStatBonus : conditionSpec.durationRounds;
-
       for (const target of validTargetActors) {
         const targetOvercast = getOvercastForTarget(target.actorId);
         const prevMove =
@@ -298,53 +304,29 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
         if (effectDef.aura?.applyToAllies && target.actorId !== turnActorId) {
           continue;
         }
+
+        const standard = scaleBlessingCondition(cnBase, effectStatBonus, targetOvercast);
         let finalStacks: number;
         let finalDuration: number | undefined;
 
         if (conditionSpec.conditionId === "force_field") {
-          // Force Field: duration = base + overcast (base from durationRounds + effect stat)
-          const baseDuration = baseDurationValue ?? 1;
           finalStacks = 1;
-          finalDuration = baseDuration + targetOvercast;
+          finalDuration = standard.durationTurns;
         } else if (conditionSpec.conditionId === "force_shield") {
-          // Force Shield: stacks = base + overcast, duration = base + overcast (base from durationRounds + effect stat)
-          const baseDuration = baseDurationValue ?? 1;
-          finalStacks = baseDuration + targetOvercast;
-          finalDuration = baseDuration + targetOvercast;
+          finalStacks = standard.durationTurns;
+          finalDuration = standard.durationTurns;
         } else if (
           (conditionSpec.conditionId === "prone" || conditionSpec.conditionId === "fatigue") &&
           conditionSpec.durationRounds === undefined
         ) {
-          // Prone/Fatigue without duration do not expire automatically
-          const baseStacks = baseStacksValue ?? 1;
-          finalStacks = baseStacks + Math.floor(targetOvercast / 2);
+          finalStacks = standard.stacks;
           finalDuration = undefined;
         } else if (conditionSpec.conditionId === "steel_body" || conditionSpec.conditionId === "warp_speed") {
-          // Steel Body / Warp Speed: stacks = 1 + overcast (for scaling bonuses)
-          const scaled = scaleCondition(baseStacksValue, baseDurationValue, targetOvercast);
           finalStacks = 1 + targetOvercast;
-          finalDuration = scaled.durationTurns;
-        } else if (conditionSpec.conditionId === "beast_form") {
-          const baseDuration = baseDurationValue ?? 1;
-          finalStacks = 1;
-          finalDuration = baseDuration + targetOvercast;
-        } else if (conditionSpec.conditionId === "giant_form") {
-          const baseDuration = baseDurationValue ?? 1;
-          finalStacks = 1;
-          finalDuration = baseDuration + targetOvercast;
-        } else if (
-          conditionSpec.conditionId === "fiery_form" ||
-          conditionSpec.conditionId === "flight" ||
-          conditionSpec.conditionId === "weave_of_fate"
-        ) {
-          const baseDuration = baseDurationValue ?? 1;
-          finalStacks = 1;
-          finalDuration = baseDuration + targetOvercast;
+          finalDuration = standard.durationTurns;
         } else {
-          // Other conditions: use normal scaling
-          const scaled = scaleCondition(baseStacksValue, baseDurationValue, targetOvercast);
-          finalStacks = scaled.stacks;
-          finalDuration = scaled.durationTurns;
+          finalStacks = standard.stacks;
+          finalDuration = standard.durationTurns;
         }
 
         const untilTurnCounter =
@@ -385,7 +367,7 @@ export function applySpellConditionsAndMovement(params: SpellConditionParams): G
           conditionParams = {
             ...(conditionParams ?? {}),
             auraKind: conditionSpec.conditionId,
-            auraPower: effectiveDoS,
+            auraPower,
             wilBonus: effectStatBonus,
             overcast: targetOvercast,
           };

@@ -2,15 +2,33 @@ import type { SingleCheck } from "../../../../types";
 import { addConditionToActor } from "../../../../conditions";
 import { appendCombatLog } from "../../../narration";
 import { performCheckWithSave } from "../../../../checks";
+import { getResistBasePenalty, getResistCheckModifier } from "../../../../magic/resist";
+import { getResistanceBonus } from "../../../../characters/talentModifiers";
+import { getUntouchableDenyBonus } from "../../../../characters/untouchable";
 
 import type { SpecialOpParams, SpecialOpResult } from "../types";
 
 export function resolveCombatSunburst(params: SpecialOpParams): SpecialOpResult | null {
-  const { save, storyPack, rng, combat, turnActorId, spell, effectDef, overcast, effectStatBonus, validTargetActors } =
-    params;
+  const {
+    save,
+    storyPack,
+    rng,
+    catalogs,
+    combat,
+    turnActorId,
+    spell,
+    effectDef,
+    cnBase,
+    overcast,
+    effectStatBonus,
+    validTargetActors,
+    getOvercastForTarget,
+  } = params;
   if (effectDef.specialOp !== "combatSunburst") {
     return null;
   }
+
+  const baseResistPenalty = getResistBasePenalty(effectDef, spell.baseCN ?? cnBase);
 
   let updatedSave = save;
   const caster = updatedSave.actorsById[turnActorId];
@@ -31,14 +49,22 @@ export function resolveCombatSunburst(params: SpecialOpParams): SpecialOpResult 
 
   for (const target of validTargetActors) {
     if (target.actorId === turnActorId) continue;
-    const touPenalty = -(5 * effectStatBonus);
+    const targetOvercast = getOvercastForTarget(target.actorId);
+    const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+    const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+    const resistModifier = getResistCheckModifier(
+      baseResistPenalty,
+      targetOvercast,
+      magicResistanceBonus,
+      untouchableDenyBonus
+    );
     const touCheck: SingleCheck = {
       id: `combat:sunburst:${spell.id}:${target.actorId}`,
       kind: "single",
       actorRef: { mode: "byId", actorId: target.actorId },
       key: "TOU",
       difficulty: "Challenging",
-      modifier: touPenalty,
+      modifier: resistModifier,
     };
     const { result: touResult, save: saveAfterTou } = performCheckWithSave(
       touCheck,

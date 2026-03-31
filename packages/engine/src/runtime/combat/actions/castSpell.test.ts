@@ -511,7 +511,8 @@ describe("combatCastSpell - effect stat scaling", () => {
     const rng = new FixedRng([45], [1]);
     const result = combatCastSpell(effect as Extract<Effect, { op: "combatCastSpell" }>, storyPack, saveWithPositions, rng);
     const boundCondition = result.save.actorsById[target.id].conditions?.bound;
-    expect(boundCondition?.untilTurnCounter).toBe(8);
+    // Standardized blessing duration: baseDuration(baseCN 2)=2 + effectStatBonus(WIL 55→5) + overcast(0) = 7
+    expect(boundCondition?.untilTurnCounter).toBe(7);
   });
 });
 

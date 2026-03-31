@@ -2,16 +2,20 @@ import type { SingleCheck } from "../../../../types";
 import { addConditionToActor } from "../../../../conditions";
 import { appendCombatLog } from "../../../narration";
 import { performCheckWithSave } from "../../../../checks";
-import { hasTalentHook } from "../../../../characters/talentModifiers";
+import { hasTalentHook, getResistanceBonus } from "../../../../characters/talentModifiers";
+import { getResistBasePenalty, getResistCheckModifier } from "../../../../magic/resist";
+import { getUntouchableDenyBonus } from "../../../../characters/untouchable";
 
 import type { SpecialOpParams, SpecialOpResult } from "../types";
 
 export function resolveCombatVisionOfTerror(params: SpecialOpParams): SpecialOpResult | null {
-  const { save, storyPack, rng, catalogs, spell, effectDef, effectStatBonus, validTargetActors, getOvercastForTarget } =
+  const { save, storyPack, rng, catalogs, spell, effectDef, cnBase, validTargetActors, getOvercastForTarget } =
     params;
   if (effectDef.specialOp !== "combatVisionOfTerror" || validTargetActors.length === 0) {
     return null;
   }
+
+  const baseResistPenalty = getResistBasePenalty(effectDef, spell.baseCN ?? cnBase);
 
   let updatedSave = save;
   for (const target of validTargetActors) {
@@ -25,14 +29,21 @@ export function resolveCombatVisionOfTerror(params: SpecialOpParams): SpecialOpR
       continue;
     }
     const targetOvercast = getOvercastForTarget(target.actorId);
-    const fearPenalty = -(5 * effectStatBonus + 5 * targetOvercast);
+    const magicResistanceBonus = catalogs ? getResistanceBonus(updatedSave, catalogs, target.actorId, "magic") : 0;
+    const untouchableDenyBonus = catalogs ? getUntouchableDenyBonus(updatedSave, catalogs, target.actorId) : 0;
+    const resistModifier = getResistCheckModifier(
+      baseResistPenalty,
+      targetOvercast,
+      magicResistanceBonus,
+      untouchableDenyBonus
+    );
     const fearCheck: SingleCheck = {
       id: `combat:visionTerror:${spell.id}:${target.actorId}`,
       kind: "single",
       actorRef: { mode: "byId", actorId: target.actorId },
       key: "WIL",
       difficulty: "Challenging",
-      modifier: fearPenalty,
+      modifier: resistModifier,
     };
     const { result: fearResult, save: saveAfterFearCheck } = performCheckWithSave(
       fearCheck,

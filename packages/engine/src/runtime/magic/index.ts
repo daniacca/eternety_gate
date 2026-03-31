@@ -51,7 +51,14 @@ export {
 } from "./phenomena";
 
 // Scaling
-export { scaleDamage, scaleCondition, scaleHeal } from "./scaling";
+export {
+  scaleDamage,
+  scaleCondition,
+  scaleHeal,
+  getBlessingBaseDuration,
+  getBlessingBaseStacks,
+  scaleBlessingCondition,
+} from "./scaling";
 
 // Resist (to-resist test: base penalty + overcast, single rule)
 export {
